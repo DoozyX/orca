@@ -120,6 +120,7 @@ export const NATIVE_VERB_REASONS = [
   'native_media_too_large',
   'native_media_permission_denied',
   'native_verb_not_a_stream',
+  'native_audio_not_capturing',
   'native_verb_not_a_verb',
   'bridge_cap_exceeded',
   'bridge_host_disposed',

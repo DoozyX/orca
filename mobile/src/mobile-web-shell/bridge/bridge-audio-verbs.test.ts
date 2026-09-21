@@ -1,0 +1,404 @@
+/**
+ * The four audio verbs: what their schemas refuse, and what the shell's capture answers.
+ *
+ * The handler is driven through its engine seam rather than through `@orca/expo-two-way-audio`,
+ * for the reason the media verbs' device half is driven through one: the arms worth pinning — a
+ * denied microphone, a ring that filled, a read after the capture ended — are exactly the ones a
+ * simulator makes expensive, and none of them is a fact about Swift.
+ */
+import { describe, expect, it } from 'vitest'
+import { MobileWebBundleRouteSchema } from '../../../../src/shared/mobile-web-bundle/manifest-contract'
+import { MOBILE_DICTATION_MAX_PENDING_AUDIO_BYTES } from '../../hooks/mobile-dictation-pending-audio-budget'
+import { BridgeNativeVerbRefusedError } from '../bridge-host-errors'
+import { createNativeAudioCapture, type NativeAudioEngine } from '../../platform/native-audio'
+import { createNativeWakelockServer } from '../../platform/native-wakelock'
+import {
+  BRIDGE_AUDIO_READ_MAX_BASE64_CHARS,
+  BRIDGE_AUDIO_RING_MAX_BYTES,
+  audioReadParamsSchema,
+  audioReadResultSchema,
+  audioStartParamsSchema,
+  audioStopParamsSchema,
+  wakelockSetParamsSchema
+} from './bridge-audio-verbs'
+import { BRIDGE_NATIVE_VERB_NAMES, BRIDGE_NATIVE_VERBS } from './bridge-native-verbs'
+
+const AUDIO_VERBS = [
+  'native.audio.start',
+  'native.audio.read',
+  'native.audio.stop',
+  'native.wakelock.set'
+] as const
+
+/** An engine whose every call is a value a case can set, and whose events a case can fire. */
+function createTestEngine(
+  overrides: Partial<{
+    permission: NativeAudioEngine['requestPermission']
+    open: NativeAudioEngine['open']
+    begin: NativeAudioEngine['begin']
+  }> = {}
+) {
+  const microphone: ((bytes: Uint8Array) => void)[] = []
+  const interruptions: ((kind: 'began' | 'ended' | 'blocked') => void)[] = []
+  const log: string[] = []
+  const engine: NativeAudioEngine = {
+    requestPermission: overrides.permission ?? (async () => 'granted'),
+    open: overrides.open ?? (async (sampleRate) => ({ opened: true, sampleRate })),
+    begin: overrides.begin ?? (() => true),
+    end: () => {
+      log.push('end')
+    },
+    onMicrophoneData: (handler) => {
+      microphone.push(handler)
+      return {
+        remove: () => {
+          microphone.splice(microphone.indexOf(handler), 1)
+          log.push('microphone-off')
+        }
+      }
+    },
+    onInterruption: (handler) => {
+      interruptions.push(handler)
+      return {
+        remove: () => {
+          interruptions.splice(interruptions.indexOf(handler), 1)
+        }
+      }
+    }
+  }
+  return {
+    engine,
+    log,
+    emit: (bytes: Uint8Array) => {
+      for (const handler of microphone) {
+        handler(bytes)
+      }
+    },
+    interrupt: (kind: 'began' | 'ended' | 'blocked') => {
+      for (const handler of interruptions) {
+        handler(kind)
+      }
+    }
+  }
+}
+
+function pcm(byteLength: number, seed = 0): Uint8Array {
+  const bytes = new Uint8Array(byteLength)
+  for (let index = 0; index < byteLength; index += 1) {
+    bytes[index] = (index * 31 + seed) % 251
+  }
+  return bytes
+}
+
+function decode(base64: string): Uint8Array {
+  const binary = atob(base64)
+  const bytes = new Uint8Array(binary.length)
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index)
+  }
+  return bytes
+}
+
+describe('the audio verbs in the table', () => {
+  it('lists all four, each under a name a manifest grant may carry', () => {
+    for (const verb of AUDIO_VERBS) {
+      expect(BRIDGE_NATIVE_VERB_NAMES, verb).toContain(verb)
+      expect(BRIDGE_NATIVE_VERBS[verb], verb).toBeDefined()
+      // The ruling-6a trap, pinned against the schema itself rather than against a copy of its
+      // regex: `native.audio.readChunk` is not a route that falls back to native, it is a bundle
+      // the phone refuses entire.
+      expect(
+        MobileWebBundleRouteSchema.safeParse({ pathname: '/h', grants: [verb] }).success,
+        verb
+      ).toBe(true)
+    }
+  })
+
+  it('refuses the camel-cased spelling of the read, which is what makes the name load-bearing', () => {
+    expect(
+      MobileWebBundleRouteSchema.safeParse({ pathname: '/h', grants: ['native.audio.readChunk'] })
+        .success
+    ).toBe(false)
+  })
+})
+
+describe('what the audio schemas refuse', () => {
+  it('refuses a start with no rate, a rate off the grid, and an unknown param', () => {
+    expect(audioStartParamsSchema.safeParse({}).success).toBe(false)
+    expect(audioStartParamsSchema.safeParse({ sampleRate: 16_000.5 }).success).toBe(false)
+    expect(audioStartParamsSchema.safeParse({ sampleRate: 96_000 }).success).toBe(false)
+    expect(audioStartParamsSchema.safeParse({ sampleRate: 0 }).success).toBe(false)
+    expect(audioStartParamsSchema.safeParse({ sampleRate: 16_000, channels: 1 }).success).toBe(
+      false
+    )
+    expect(audioStartParamsSchema.safeParse({ sampleRate: 16_000 }).success).toBe(true)
+  })
+
+  it("holds a read to the ring, which is the page's own pending-audio budget", () => {
+    expect(BRIDGE_AUDIO_RING_MAX_BYTES).toBe(MOBILE_DICTATION_MAX_PENDING_AUDIO_BYTES)
+    expect(audioReadParamsSchema.safeParse({ maxBytes: 0 }).success).toBe(false)
+    expect(
+      audioReadParamsSchema.safeParse({ maxBytes: BRIDGE_AUDIO_RING_MAX_BYTES + 1 }).success
+    ).toBe(false)
+    expect(audioReadParamsSchema.safeParse({ maxBytes: BRIDGE_AUDIO_RING_MAX_BYTES }).success).toBe(
+      true
+    )
+  })
+
+  it('refuses a stop carrying anything and a wakelock with no tag', () => {
+    expect(audioStopParamsSchema.safeParse({ why: 'done' }).success).toBe(false)
+    expect(audioStopParamsSchema.safeParse({}).success).toBe(true)
+    expect(wakelockSetParamsSchema.safeParse({ active: true }).success).toBe(false)
+    expect(wakelockSetParamsSchema.safeParse({ active: true, tag: '' }).success).toBe(false)
+    expect(wakelockSetParamsSchema.safeParse({ active: true, tag: 'x'.repeat(161) }).success).toBe(
+      false
+    )
+    expect(wakelockSetParamsSchema.safeParse({ active: true, tag: 'orca' }).success).toBe(true)
+  })
+
+  it('declares a base64 field a full drain still fits in', () => {
+    expect(BRIDGE_AUDIO_READ_MAX_BASE64_CHARS).toBe(Math.ceil(BRIDGE_AUDIO_RING_MAX_BYTES / 3) * 4)
+    expect(
+      audioReadResultSchema.safeParse({
+        base64: 'A'.repeat(BRIDGE_AUDIO_READ_MAX_BASE64_CHARS + 1),
+        droppedBytes: 0,
+        recording: true,
+        interruption: null
+      }).success
+    ).toBe(false)
+  })
+})
+
+describe('the shell capture', () => {
+  it('surfaces a denied microphone as data rather than as a throw', async () => {
+    const { engine, log } = createTestEngine({ permission: async () => 'denied' })
+    const capture = createNativeAudioCapture(engine)
+    await expect(capture.serve('native.audio.start', { sampleRate: 16_000 })).resolves.toEqual({
+      started: false,
+      sampleRate: 16_000,
+      permission: 'denied'
+    })
+    // Nothing was opened, so nothing has to be torn down.
+    expect(log).toEqual([])
+  })
+
+  it('surfaces an engine that would not open on a granted microphone', async () => {
+    const { engine } = createTestEngine({
+      open: async () => ({ opened: false, sampleRate: 16_000 })
+    })
+    const capture = createNativeAudioCapture(engine)
+    await expect(capture.serve('native.audio.start', { sampleRate: 16_000 })).resolves.toEqual({
+      started: false,
+      sampleRate: 16_000,
+      permission: 'granted'
+    })
+  })
+
+  it('answers the rate the device opened at, not the one that was asked for', async () => {
+    const { engine } = createTestEngine({
+      open: async () => ({ opened: true, sampleRate: 48_000 })
+    })
+    const capture = createNativeAudioCapture(engine)
+    await expect(capture.serve('native.audio.start', { sampleRate: 16_000 })).resolves.toEqual({
+      started: true,
+      sampleRate: 48_000,
+      permission: 'granted'
+    })
+  })
+
+  it('drains what the microphone produced, in order, and reports no drop', async () => {
+    const { engine, emit } = createTestEngine()
+    const capture = createNativeAudioCapture(engine)
+    await capture.serve('native.audio.start', { sampleRate: 16_000 })
+    emit(pcm(1_024, 1))
+    emit(pcm(1_024, 2))
+    const read = audioReadResultSchema.parse(
+      await capture.serve('native.audio.read', { maxBytes: BRIDGE_AUDIO_RING_MAX_BYTES })
+    )
+    expect(read.droppedBytes).toBe(0)
+    expect(read.recording).toBe(true)
+    expect(read.interruption).toBeNull()
+    expect(Array.from(decode(read.base64))).toEqual([
+      ...Array.from(pcm(1_024, 1)),
+      ...Array.from(pcm(1_024, 2))
+    ])
+  })
+
+  it('serves a partial drain from the front and keeps the rest for the next read', async () => {
+    const { engine, emit } = createTestEngine()
+    const capture = createNativeAudioCapture(engine)
+    await capture.serve('native.audio.start', { sampleRate: 16_000 })
+    emit(pcm(3_000, 5))
+    const first = audioReadResultSchema.parse(
+      await capture.serve('native.audio.read', { maxBytes: 1_200 })
+    )
+    const second = audioReadResultSchema.parse(
+      await capture.serve('native.audio.read', { maxBytes: BRIDGE_AUDIO_RING_MAX_BYTES })
+    )
+    expect(decode(first.base64).byteLength).toBe(1_200)
+    expect(decode(second.base64).byteLength).toBe(1_800)
+    expect(Array.from(decode(second.base64))).toEqual(Array.from(pcm(3_000, 5).subarray(1_200)))
+  })
+
+  it('rings at the budget and answers what it could not hold', async () => {
+    const { engine, emit } = createTestEngine()
+    const capture = createNativeAudioCapture(engine)
+    await capture.serve('native.audio.start', { sampleRate: 16_000 })
+    // One byte short of the ring, then a chunk that cannot fit: the newcomer is dropped, so what
+    // the page drains is still contiguous audio and never a splice of two moments.
+    emit(pcm(BRIDGE_AUDIO_RING_MAX_BYTES - 1, 3))
+    emit(pcm(64, 4))
+    const read = audioReadResultSchema.parse(
+      await capture.serve('native.audio.read', { maxBytes: BRIDGE_AUDIO_RING_MAX_BYTES })
+    )
+    expect(decode(read.base64).byteLength).toBe(BRIDGE_AUDIO_RING_MAX_BYTES - 1)
+    expect(read.droppedBytes).toBe(64)
+    // Cleared by the read that reported it: two reads must never count the same dropped byte.
+    const next = audioReadResultSchema.parse(
+      await capture.serve('native.audio.read', { maxBytes: BRIDGE_AUDIO_RING_MAX_BYTES })
+    )
+    expect(next.droppedBytes).toBe(0)
+  })
+
+  it('never holds more than the ring however many chunks arrive', async () => {
+    const { engine, emit } = createTestEngine()
+    const capture = createNativeAudioCapture(engine)
+    await capture.serve('native.audio.start', { sampleRate: 16_000 })
+    for (let index = 0; index < 400; index += 1) {
+      emit(pcm(1_024, index))
+    }
+    const read = audioReadResultSchema.parse(
+      await capture.serve('native.audio.read', { maxBytes: BRIDGE_AUDIO_RING_MAX_BYTES })
+    )
+    expect(decode(read.base64).byteLength).toBeLessThanOrEqual(BRIDGE_AUDIO_RING_MAX_BYTES)
+    expect(decode(read.base64).byteLength + read.droppedBytes).toBe(400 * 1_024)
+  })
+
+  it('carries an interruption on the next read and stops reporting it after', async () => {
+    const { engine, emit, interrupt } = createTestEngine()
+    const capture = createNativeAudioCapture(engine)
+    await capture.serve('native.audio.start', { sampleRate: 16_000 })
+    emit(pcm(256, 9))
+    interrupt('began')
+    const read = audioReadResultSchema.parse(
+      await capture.serve('native.audio.read', { maxBytes: BRIDGE_AUDIO_RING_MAX_BYTES })
+    )
+    expect(read.interruption).toBe('began')
+    // The capture is gone, but the bytes it produced are still the page's to drain.
+    expect(read.recording).toBe(false)
+    expect(decode(read.base64).byteLength).toBe(256)
+    const next = audioReadResultSchema.parse(
+      await capture.serve('native.audio.read', { maxBytes: BRIDGE_AUDIO_RING_MAX_BYTES })
+    )
+    expect(next.interruption).toBeNull()
+  })
+
+  it('refuses a read once the page has stopped', async () => {
+    const { engine } = createTestEngine()
+    const capture = createNativeAudioCapture(engine)
+    await capture.serve('native.audio.start', { sampleRate: 16_000 })
+    await expect(capture.serve('native.audio.stop', {})).resolves.toEqual({ stopped: true })
+    await expect(capture.serve('native.audio.read', { maxBytes: 1_024 })).rejects.toSatisfy(
+      (error: unknown) =>
+        error instanceof BridgeNativeVerbRefusedError && error.code === 'native_audio_not_capturing'
+    )
+    // A second stop is the state the page already has, not a fault.
+    await expect(capture.serve('native.audio.stop', {})).resolves.toEqual({ stopped: false })
+  })
+
+  it('refuses a read before any start', async () => {
+    const { engine } = createTestEngine()
+    const capture = createNativeAudioCapture(engine)
+    await expect(capture.serve('native.audio.read', { maxBytes: 1_024 })).rejects.toSatisfy(
+      (error: unknown) =>
+        error instanceof BridgeNativeVerbRefusedError && error.code === 'native_audio_not_capturing'
+    )
+  })
+
+  it('takes the microphone off the moment a capture ends', async () => {
+    const { engine, emit, log } = createTestEngine()
+    const capture = createNativeAudioCapture(engine)
+    await capture.serve('native.audio.start', { sampleRate: 16_000 })
+    await capture.serve('native.audio.stop', {})
+    expect(log).toContain('end')
+    expect(log).toContain('microphone-off')
+    // A late event from an engine that has not finished shutting down reaches nothing.
+    emit(pcm(1_024, 1))
+    await capture.serve('native.audio.start', { sampleRate: 16_000 })
+    const read = audioReadResultSchema.parse(
+      await capture.serve('native.audio.read', { maxBytes: BRIDGE_AUDIO_RING_MAX_BYTES })
+    )
+    expect(read.base64).toBe('')
+  })
+
+  it('replaces a capture a page left behind rather than refusing the new one', async () => {
+    // The page is a document that can navigate, fault or be swiped away mid-capture, and the shell
+    // is the only side that can notice. A second start therefore ends the first.
+    const { engine, emit, log } = createTestEngine()
+    const capture = createNativeAudioCapture(engine)
+    await capture.serve('native.audio.start', { sampleRate: 16_000 })
+    emit(pcm(2_048, 6))
+    await expect(capture.serve('native.audio.start', { sampleRate: 16_000 })).resolves.toEqual({
+      started: true,
+      sampleRate: 16_000,
+      permission: 'granted'
+    })
+    expect(log.filter((entry) => entry === 'end')).toHaveLength(1)
+    const read = audioReadResultSchema.parse(
+      await capture.serve('native.audio.read', { maxBytes: BRIDGE_AUDIO_RING_MAX_BYTES })
+    )
+    expect(read.base64).toBe('')
+  })
+
+  it('ends the capture when the page session does', async () => {
+    const { engine, log } = createTestEngine()
+    const capture = createNativeAudioCapture(engine)
+    await capture.serve('native.audio.start', { sampleRate: 16_000 })
+    capture.dispose()
+    expect(log).toContain('end')
+    await expect(capture.serve('native.audio.read', { maxBytes: 16 })).rejects.toBeInstanceOf(
+      BridgeNativeVerbRefusedError
+    )
+  })
+})
+
+describe('the wake lock', () => {
+  it('holds a tag, answers what the device did, and gives it back', async () => {
+    const held: string[] = []
+    const serve = createNativeWakelockServer({
+      activate: async (tag) => {
+        held.push(`+${tag}`)
+      },
+      deactivate: async (tag) => {
+        held.push(`-${tag}`)
+      }
+    })
+    await expect(serve({ active: true, tag: 'orca-a' })).resolves.toEqual({ active: true })
+    await expect(serve({ active: false, tag: 'orca-a' })).resolves.toEqual({ active: false })
+    expect(held).toEqual(['+orca-a', '-orca-a'])
+  })
+
+  it('does not ask the device to drop a tag it never took', async () => {
+    const held: string[] = []
+    const serve = createNativeWakelockServer({
+      activate: async (tag) => {
+        held.push(`+${tag}`)
+      },
+      deactivate: async (tag) => {
+        held.push(`-${tag}`)
+      }
+    })
+    await expect(serve({ active: false, tag: 'orca-b' })).resolves.toEqual({ active: false })
+    expect(held).toEqual([])
+  })
+
+  it('reports a tag the device refused as not held', async () => {
+    const serve = createNativeWakelockServer({
+      activate: async () => {
+        throw new Error('no keep-awake on this device')
+      },
+      deactivate: async () => undefined
+    })
+    await expect(serve({ active: true, tag: 'orca-c' })).rejects.toBeInstanceOf(Error)
+  })
+})

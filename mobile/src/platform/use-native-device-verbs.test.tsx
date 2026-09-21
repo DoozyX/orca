@@ -17,6 +17,18 @@ vi.mock('expo-clipboard', () => ({
 vi.mock('expo-document-picker', () => ({
   getDocumentAsync: () => Promise.resolve({ canceled: true })
 }))
+vi.mock('@orca/expo-two-way-audio', () => ({
+  addExpoTwoWayAudioEventListener: () => ({ remove: () => {} }),
+  initialize: () => Promise.resolve(true),
+  requestMicrophonePermissionsAsync: () =>
+    Promise.resolve({ granted: true, canAskAgain: true, status: 'granted', expires: 'never' }),
+  tearDown: () => {},
+  toggleRecording: () => true
+}))
+vi.mock('expo-keep-awake', () => ({
+  activateKeepAwakeAsync: () => Promise.resolve(),
+  deactivateKeepAwake: () => Promise.resolve()
+}))
 vi.mock('expo-image-picker', () => ({
   launchImageLibraryAsync: device.picker.launchImageLibraryAsync
 }))

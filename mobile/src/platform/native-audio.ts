@@ -1,0 +1,210 @@
+import {
+  BRIDGE_AUDIO_RING_MAX_BYTES,
+  audioReadParamsSchema,
+  audioStartParamsSchema,
+  audioStopParamsSchema,
+  type BridgeAudioInterruption,
+  type BridgeAudioPermission
+} from '../mobile-web-shell/bridge/bridge-audio-verbs'
+import type { BridgeNativeVerb } from '../mobile-web-shell/bridge/bridge-native-verbs'
+import { BridgeNativeVerbRefusedError } from '../mobile-web-shell/bridge-host-errors'
+import { bytesToBase64 } from '../hooks/mobile-dictation-session-state'
+
+/**
+ * The device side of `native.audio.start`, `read` and `stop`.
+ *
+ * The microphone opens here, inside the shell, which is the whole reason these are verbs: a page
+ * served from a custom scheme has no `getUserMedia` worth having, and the OS permission prompt is
+ * the shell's to run. What crosses back is PCM, because the page is what speaks
+ * `speech.dictation.*` to the desktop — transcription runs there, and putting that protocol in the
+ * binary would freeze it until a store release.
+ *
+ * Every engine call is injectable for the reason the media verbs' are: the arms worth pinning — a
+ * denied microphone, an engine that will not open, a ring that filled, an interruption — are the
+ * ones a simulator makes expensive, and none of them is a fact about Swift.
+ */
+
+/** The audio engine as this handler needs it: a permission, an open, a run, and two event lanes. */
+export type NativeAudioEngine = {
+  /** Runs the OS prompt if the OS runs one, and answers what it decided. */
+  readonly requestPermission: () => Promise<BridgeAudioPermission>
+  /** Brings the engine up and answers the rate it actually opened at. */
+  readonly open: (sampleRate: number) => Promise<{ opened: boolean; sampleRate: number }>
+  /** Starts producing microphone events. False is a device that would not. */
+  readonly begin: () => boolean
+  /** Stops producing them and releases the session. Called on every exit, including a throw. */
+  readonly end: () => void
+  readonly onMicrophoneData: (handler: (bytes: Uint8Array) => void) => { remove: () => void }
+  readonly onInterruption: (handler: (kind: BridgeAudioInterruption) => void) => {
+    remove: () => void
+  }
+}
+
+/**
+ * What the microphone produced and the page has not taken yet, bounded by the page's own budget.
+ *
+ * The newcomer is dropped rather than the oldest, which is the same decision
+ * `MobileDictationPendingAudioBudget.tryReserve` makes on the page: what a page does about a drop
+ * is fail the dictation, so recency buys nothing, and dropping from the front would hand the page
+ * a splice of two moments that reads as speech nobody said.
+ */
+class NativeAudioRing {
+  private readonly chunks: Uint8Array[] = []
+  private pendingBytes = 0
+  private droppedBytes = 0
+
+  append(bytes: Uint8Array): void {
+    if (bytes.byteLength === 0) {
+      return
+    }
+    if (this.pendingBytes + bytes.byteLength > BRIDGE_AUDIO_RING_MAX_BYTES) {
+      this.droppedBytes += bytes.byteLength
+      return
+    }
+    this.chunks.push(bytes)
+    this.pendingBytes += bytes.byteLength
+  }
+
+  /** Up to `maxBytes` from the front, splitting the chunk the bound falls inside, plus everything
+   *  the ring refused since the previous drain. Cleared by the drain that reports it. */
+  drain(maxBytes: number): { bytes: Uint8Array; droppedBytes: number } {
+    const taking = Math.min(maxBytes, this.pendingBytes)
+    const out = new Uint8Array(taking)
+    let written = 0
+    while (written < taking) {
+      const head = this.chunks[0]
+      if (head === undefined) {
+        break
+      }
+      const room = taking - written
+      if (head.byteLength <= room) {
+        out.set(head, written)
+        written += head.byteLength
+        this.chunks.shift()
+        continue
+      }
+      out.set(head.subarray(0, room), written)
+      written += room
+      this.chunks[0] = head.subarray(room)
+    }
+    this.pendingBytes -= written
+    const droppedBytes = this.droppedBytes
+    this.droppedBytes = 0
+    return { bytes: out, droppedBytes }
+  }
+}
+
+type Capture = {
+  readonly ring: NativeAudioRing
+  readonly stopListening: () => void
+  recording: boolean
+  /** The interruption not yet carried to the page. One slot, because what a page does about any of
+   *  them is the same and a queue would report a stale one after the live one. */
+  interruption: BridgeAudioInterruption | null
+}
+
+export type NativeAudioCapture = {
+  readonly serve: (verb: BridgeNativeVerb, params: unknown) => Promise<unknown>
+  /** Ends whatever is running. The page session's end and the screen's unmount both call it. */
+  readonly dispose: () => void
+}
+
+export function createNativeAudioCapture(engine: NativeAudioEngine): NativeAudioCapture {
+  let capture: Capture | null = null
+
+  function end(): boolean {
+    if (capture === null) {
+      return false
+    }
+    capture.stopListening()
+    capture = null
+    engine.end()
+    return true
+  }
+
+  function listen(): Capture {
+    const ring = new NativeAudioRing()
+    const microphone = engine.onMicrophoneData((bytes) => {
+      ring.append(bytes)
+    })
+    const interruptions = engine.onInterruption((kind) => {
+      if (capture === null) {
+        return
+      }
+      capture.interruption = kind
+      // `ended` is the OS handing the session back, which this build does not resume: the page's
+      // own flow cancels on `began` and `blocked`, and a capture it has given up on must not start
+      // filling the ring again behind it.
+      if (kind !== 'ended') {
+        capture.recording = false
+      }
+    })
+    return {
+      ring,
+      stopListening: () => {
+        microphone.remove()
+        interruptions.remove()
+      },
+      recording: true,
+      interruption: null
+    }
+  }
+
+  async function start(params: unknown): Promise<unknown> {
+    const { sampleRate } = audioStartParamsSchema.parse(params)
+    // A page is a document that can navigate, fault or be swiped away mid-capture, and the shell is
+    // the only side that notices. So a second start replaces the first rather than refusing it,
+    // which would leave the microphone held by a document that is gone.
+    end()
+    const permission = await engine.requestPermission()
+    if (permission !== 'granted') {
+      return { started: false, sampleRate, permission }
+    }
+    const opened = await engine.open(sampleRate)
+    if (!opened.opened) {
+      return { started: false, sampleRate: opened.sampleRate, permission }
+    }
+    capture = listen()
+    if (!engine.begin()) {
+      end()
+      return { started: false, sampleRate: opened.sampleRate, permission }
+    }
+    return { started: true, sampleRate: opened.sampleRate, permission }
+  }
+
+  function read(params: unknown): unknown {
+    const { maxBytes } = audioReadParamsSchema.parse(params)
+    const live = capture
+    if (live === null) {
+      throw new BridgeNativeVerbRefusedError(
+        'native_audio_not_capturing',
+        'this session has no capture to read from'
+      )
+    }
+    const drained = live.ring.drain(maxBytes)
+    const interruption = live.interruption
+    live.interruption = null
+    return {
+      base64: bytesToBase64(drained.bytes),
+      droppedBytes: drained.droppedBytes,
+      recording: live.recording,
+      interruption
+    }
+  }
+
+  return {
+    serve: async (verb, params) => {
+      if (verb === 'native.audio.start') {
+        return start(params)
+      }
+      if (verb === 'native.audio.read') {
+        return read(params)
+      }
+      audioStopParamsSchema.parse(params)
+      return { stopped: end() }
+    },
+    dispose: () => {
+      end()
+    }
+  }
+}
