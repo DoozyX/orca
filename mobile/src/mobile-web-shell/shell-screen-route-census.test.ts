@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import ts from 'typescript-api'
 import { describe, expect, it } from 'vitest'
 
@@ -38,7 +38,40 @@ function hostRouteFiles(directory: string = HOST_ROUTES, prefix = ''): string[] 
   })
 }
 
-const read = (name: string): string => readFileSync(join(HOST_ROUTES, name), 'utf8')
+/**
+ * A route file's body, following a route that only re-exports one.
+ *
+ * `[...page].tsx` is such a route: expo-router 55 reads a file's platform from the first dot of
+ * its stripped name, so a catch-all cannot carry a `.web.tsx` sibling under `app/` without
+ * registering a second route, and its body lives under `src/` where the stem is plain. Following
+ * the re-export keeps the walk derived from the tree rather than from a list beside it — a switch
+ * that hides behind one is still a switch.
+ */
+function read(name: string): string {
+  const routeFile = join(HOST_ROUTES, name)
+  const source = readFileSync(routeFile, 'utf8')
+  const target = defaultReexportTarget(parse(source))
+  return target === null
+    ? source
+    : readFileSync(resolve(dirname(routeFile), `${target}.tsx`), 'utf8')
+}
+
+/** The specifier of `export { default } from '<specifier>'`, or null for a file with a body. */
+function defaultReexportTarget(parsed: ts.SourceFile): string | null {
+  for (const statement of parsed.statements) {
+    if (
+      ts.isExportDeclaration(statement) &&
+      statement.moduleSpecifier !== undefined &&
+      ts.isStringLiteral(statement.moduleSpecifier) &&
+      statement.exportClause !== undefined &&
+      ts.isNamedExports(statement.exportClause) &&
+      statement.exportClause.elements.some((element) => element.name.text === 'default')
+    ) {
+      return statement.moduleSpecifier.text
+    }
+  }
+  return null
+}
 
 /**
  * The one switch that hands over a route the rule refuses, on purpose.
@@ -121,6 +154,7 @@ describe('the switches that hand a route to the shell', () => {
 
   it('walks the route tree and finds them, so the rules below cannot pass vacuously', () => {
     expect(switches.sort()).toEqual([
+      '[...page].tsx',
       'agent-history/[worktreeId].tsx',
       'files/[worktreeId].tsx',
       'files/preview/[worktreeId].tsx',
