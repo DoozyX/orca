@@ -5,6 +5,7 @@ import {
 import type { ProjectGroup } from '../../../../../../shared/project-group-types'
 import type { ProjectOrderBy } from '../../../../../../shared/ui-chrome-types'
 import { getEffectiveProjectGroupManualRank } from '../../../../../../shared/project-groups'
+import { getProjectGroupHostId } from '../../../../store/slices/project-group-owner-routing'
 import { PROJECT_GROUP_META, getProjectGroupHeaderKey } from './group-keys'
 import { appendOrderedGroups } from './group-sections'
 import type { SectionAppendContext } from './group-sections'
@@ -16,10 +17,18 @@ import {
 } from './section-order'
 import { buildFolderWorkspaceRow } from './row-builders'
 import {
-  buildMergedProjectGroupLookup,
-  mergeProjectGroupsAcrossHosts,
+  buildMergedProjectGroupIndex,
+  findMergedProjectGroup,
   type MergedProjectGroup
 } from './cross-host-project-group-merge'
+import {
+  getRepoExecutionHostId,
+  normalizeExecutionHostId,
+  toSshExecutionHostId,
+  type ExecutionHostId
+} from '../../../../../../shared/execution-host'
+import type { Repo } from '../../../../../../shared/repo-types'
+import type { FolderWorkspace } from '../../../../../../shared/folder-workspace-types'
 
 export function appendProjectGroupSections(
   ctx: SectionAppendContext,
@@ -36,17 +45,29 @@ export function appendProjectGroupSections(
 
   // Why: a project row can carry checkouts from several hosts, so its group must be
   // the merged row rather than whichever host copy the repo id happens to name.
-  const mergedGroups = mergeProjectGroupsAcrossHosts(projectGroups)
-  const mergedByMemberId = buildMergedProjectGroupLookup(mergedGroups)
-  const resolveMergedGroupId = (projectGroupId: string | null): string | null =>
+  const mergedIndex = buildMergedProjectGroupIndex(projectGroups)
+  const mergedGroups = mergedIndex.merged
+  // Why the host argument: group ids are unique per host, not globally, so two
+  // hosts can reuse one id for unrelated groups.
+  const resolveMergedGroupId = (
+    projectGroupId: string | null,
+    hostId?: ExecutionHostId
+  ): string | null =>
     projectGroupId === null
       ? null
-      : (mergedByMemberId.get(projectGroupId)?.primary.id ?? projectGroupId)
+      : (findMergedProjectGroup(mergedIndex, projectGroupId, hostId)?.primary.id ?? projectGroupId)
+  const getRepoHostId = (repo: Repo | undefined): ExecutionHostId =>
+    repo?.connectionId || repo?.executionHostId ? getRepoExecutionHostId(repo) : ctx.defaultHostId
+  const getFolderWorkspaceGroupHostId = (
+    folderWorkspace: FolderWorkspace
+  ): ExecutionHostId | undefined =>
+    normalizeExecutionHostId(folderWorkspace.executionHostId) ??
+    (folderWorkspace.connectionId ? toSshExecutionHostId(folderWorkspace.connectionId) : undefined)
 
   const groupByProjectGroupId = new Map<string | null, OrderedGroupEntry[]>()
   for (const entry of orderedGroups) {
     const repo = entry[1].repo
-    const projectGroupId = resolveMergedGroupId(repo?.projectGroupId ?? null)
+    const projectGroupId = resolveMergedGroupId(repo?.projectGroupId ?? null, getRepoHostId(repo))
     const list = groupByProjectGroupId.get(projectGroupId) ?? []
     list.push(entry)
     groupByProjectGroupId.set(projectGroupId, list)
@@ -72,7 +93,10 @@ export function appendProjectGroupSections(
   // repo grouping no longer owns the filter — it only groups and orders (#15362).
   const folderWorkspacesByProjectGroupId = new Map<string, RenderableFolderWorkspace[]>()
   for (const pair of folderWorkspaces) {
-    const groupId = resolveMergedGroupId(pair.folderWorkspace.projectGroupId)
+    const groupId = resolveMergedGroupId(
+      pair.folderWorkspace.projectGroupId,
+      getFolderWorkspaceGroupHostId(pair.folderWorkspace)
+    )
     if (groupId === null) {
       continue
     }
@@ -88,7 +112,11 @@ export function appendProjectGroupSections(
   const childGroupsByParentId = new Map<string | null, MergedProjectGroup[]>()
   for (const merged of mergedGroups) {
     const parentId = merged.primary.parentGroupId
-      ? (mergedByMemberId.get(merged.primary.parentGroupId)?.primary.id ?? null)
+      ? (findMergedProjectGroup(
+          mergedIndex,
+          merged.primary.parentGroupId,
+          getProjectGroupHostId(merged.primary)
+        )?.primary.id ?? null)
       : null
     const children = childGroupsByParentId.get(parentId) ?? []
     children.push(merged)
@@ -143,9 +171,10 @@ export function appendProjectGroupSections(
     appendProjectGroup(merged, 0)
   }
 
+  const mergedByPrimaryId = new Set(mergedGroups.map((merged) => merged.primary.id))
   const remainingRepoEntries = [...(groupByProjectGroupId.get(null) ?? [])]
   for (const [projectGroupId, entries] of groupByProjectGroupId) {
-    if (projectGroupId === null || mergedByMemberId.has(projectGroupId)) {
+    if (projectGroupId === null || mergedByPrimaryId.has(projectGroupId)) {
       continue
     }
     // Why: startup can have repos from hosts whose project-group metadata was

@@ -386,6 +386,48 @@ describe('project groups', () => {
     ).toEqual(['project-group:group-1', 'repo:repo-1'])
   })
 
+  it('reveals a paired host row through the merged group key', () => {
+    // Why: #22022 — the sidebar renders one header per merged group, so a reveal
+    // key built from the remote copy's id would never match the rendered row.
+    const localGroup: ProjectGroup = {
+      id: 'local-group',
+      name: 'adaptam',
+      parentPath: '/Users/local/Adaptam',
+      parentGroupId: null,
+      createdFrom: 'folder-scan',
+      tabOrder: 0,
+      isCollapsed: false,
+      color: null,
+      createdAt: 1,
+      updatedAt: 1
+    }
+    const remoteGroup: ProjectGroup = {
+      ...localGroup,
+      id: 'remote-group',
+      parentPath: '/Users/remote/Adaptam',
+      executionHostId: 'runtime:m1'
+    }
+    const remoteRepo: Repo = {
+      ...repo,
+      id: 'repo-remote',
+      executionHostId: 'runtime:m1',
+      projectGroupId: remoteGroup.id
+    }
+    const remoteWorktree: Worktree = { ...worktree, id: 'wt-remote', repoId: remoteRepo.id }
+
+    expect(
+      getGroupKeysForWorktree(
+        'repo',
+        remoteWorktree,
+        new Map([[remoteRepo.id, remoteRepo]]),
+        null,
+        undefined,
+        undefined,
+        [localGroup, remoteGroup]
+      )
+    ).toEqual(['project-group:local-group', 'repo:repo-remote'])
+  })
+
   it('returns only the repo key for missing Project Group metadata reveals', () => {
     const groupedRepo: Repo = { ...repo, projectGroupId: 'missing-group' }
     const loadedGroup: ProjectGroup = {

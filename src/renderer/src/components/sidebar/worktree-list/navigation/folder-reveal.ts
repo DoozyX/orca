@@ -4,6 +4,11 @@ import type { WorkspaceStatusDefinition, Worktree } from '../../../../../../shar
 import { folderWorkspaceToWorktree } from '../../../../../../shared/folder-workspace-worktree'
 import { parseWorkspaceKey } from '../../../../../../shared/workspace-scope'
 import { getProjectGroupHeaderKey } from '../grouping/group-keys'
+import {
+  buildMergedProjectGroupIndex,
+  resolveMergedProjectGroupId
+} from '../grouping/cross-host-project-group-merge'
+import { getProjectGroupHostId } from '../../../../store/slices/project-group-owner-routing'
 import type { ExecutionHostId } from '../../../../../../shared/execution-host'
 import { getFolderWorkspaceLaneKey } from '../grouping/folder-workspace-lanes'
 import type { WorktreeGroupBy } from '../grouping/row-types'
@@ -73,6 +78,7 @@ export function getFolderWorkspaceRevealGroupKeys(
   }
 
   const groupsById = new Map(projectGroups.map((group) => [group.id, group]))
+  const mergedIndex = buildMergedProjectGroupIndex(projectGroups)
   const keys: string[] = []
   const seen = new Set<string>()
   let groupId: string | null = folderWorkspace.projectGroupId
@@ -82,7 +88,11 @@ export function getFolderWorkspaceRevealGroupKeys(
     if (!group) {
       break
     }
-    keys.unshift(getProjectGroupHeaderKey(group.id))
+    keys.unshift(
+      getProjectGroupHeaderKey(
+        resolveMergedProjectGroupId(mergedIndex, group.id, getProjectGroupHostId(group))
+      )
+    )
     groupId = group.parentGroupId
   }
 

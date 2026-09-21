@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
-  buildMergedProjectGroupLookup,
-  mergeProjectGroupsAcrossHosts
+  buildMergedProjectGroupIndex,
+  findMergedProjectGroup,
+  mergeProjectGroupsAcrossHosts,
+  resolveMergedProjectGroupId
 } from './cross-host-project-group-merge'
 import type { ProjectGroup } from '../../../../../../shared/project-group-types'
 
@@ -115,6 +117,38 @@ describe('mergeProjectGroupsAcrossHosts', () => {
     expect(mergeProjectGroupsAcrossHosts([older, newer])[0].primary).toBe(older)
   })
 
+  it('keeps two same-named groups on one host apart', () => {
+    // Why: same-host siblings are two real groups the user can move projects
+    // between; folding them would make one of them unreachable.
+    const merged = mergeProjectGroupsAcrossHosts([
+      group({ id: 'local-a', name: 'adaptam', createdAt: 1 }),
+      group({ id: 'local-b', name: 'adaptam', createdAt: 2 }),
+      group({ id: 'remote-a', name: 'adaptam', executionHostId: 'runtime:m1' })
+    ])
+
+    expect(merged.map((entry) => entry.primary.id)).toEqual(['local-a', 'local-b', 'remote-a'])
+    expect(merged.every((entry) => entry.members.length === 1)).toBe(true)
+  })
+
+  it('does not merge name chains that only collide once flattened', () => {
+    // Why: a folder-scan group name is a relative path and can contain a slash.
+    const parent = group({ id: 'local-parent', name: 'packages' })
+    const nested = group({ id: 'local-nested', name: 'shared', parentGroupId: 'local-parent' })
+    const flat = group({
+      id: 'remote-flat',
+      name: 'packages/shared',
+      executionHostId: 'runtime:m1'
+    })
+
+    const merged = mergeProjectGroupsAcrossHosts([parent, nested, flat])
+
+    expect(merged.map((entry) => entry.primary.id)).toEqual([
+      'local-parent',
+      'local-nested',
+      'remote-flat'
+    ])
+  })
+
   it('terminates on a cyclic parent chain', () => {
     const merged = mergeProjectGroupsAcrossHosts([
       group({ id: 'a', name: 'loop-a', parentGroupId: 'b' }),
@@ -125,15 +159,37 @@ describe('mergeProjectGroupsAcrossHosts', () => {
   })
 })
 
-describe('buildMergedProjectGroupLookup', () => {
+describe('buildMergedProjectGroupIndex', () => {
   it('resolves every host copy id to the merged row', () => {
-    const merged = mergeProjectGroupsAcrossHosts([
+    const index = buildMergedProjectGroupIndex([
       group({ id: 'local-adaptam', name: 'adaptam' }),
       group({ id: 'remote-adaptam', name: 'adaptam', executionHostId: 'runtime:m1' })
     ])
-    const lookup = buildMergedProjectGroupLookup(merged)
 
-    expect(lookup.get('remote-adaptam')?.primary.id).toBe('local-adaptam')
-    expect(lookup.get('local-adaptam')?.primary.id).toBe('local-adaptam')
+    expect(resolveMergedProjectGroupId(index, 'remote-adaptam')).toBe('local-adaptam')
+    expect(resolveMergedProjectGroupId(index, 'local-adaptam')).toBe('local-adaptam')
+  })
+
+  it('separates two hosts that reuse one group id for different groups', () => {
+    const local = group({ id: 'shared-id', name: 'adaptam' })
+    const remote = group({ id: 'shared-id', name: 'fjordbyte', executionHostId: 'runtime:m1' })
+    const index = buildMergedProjectGroupIndex([local, remote])
+
+    expect(findMergedProjectGroup(index, 'shared-id', 'local')?.primary.name).toBe('adaptam')
+    expect(findMergedProjectGroup(index, 'shared-id', 'runtime:m1')?.primary.name).toBe('fjordbyte')
+    // Why: with no host to disambiguate, no answer is right — better none than a wrong row.
+    expect(findMergedProjectGroup(index, 'shared-id')).toBeUndefined()
+  })
+
+  it('keeps an unknown group id addressable by falling back to itself', () => {
+    const index = buildMergedProjectGroupIndex([group({ id: 'known', name: 'adaptam' })])
+
+    expect(resolveMergedProjectGroupId(index, 'not-fetched-yet')).toBe('not-fetched-yet')
+  })
+
+  it('memoizes on the project-group array identity', () => {
+    const groups = [group({ id: 'a', name: 'adaptam' })]
+
+    expect(buildMergedProjectGroupIndex(groups)).toBe(buildMergedProjectGroupIndex(groups))
   })
 })

@@ -1,4 +1,5 @@
 import { isCmdJPaletteQueryTooLarge } from './palette-results'
+import { buildMergedProjectGroupIndex } from '../sidebar/worktree-list/grouping/cross-host-project-group-merge'
 import {
   cmdJPaletteTokenScore,
   isCmdJPaletteQueryOverTokenLimit,
@@ -81,7 +82,9 @@ function buildCmdJProjectSearchCandidates({
   const repoMap = new Map(repos.map((repo) => [repo.id, repo]))
   const candidates: CmdJProjectSearchResult[] = []
 
-  projectGroups.forEach((group, order) => {
+  // Why: the sidebar renders one header per merged group, so a per-copy entry
+  // would jump to a rowKey that never renders (#22022).
+  buildMergedProjectGroupIndex(projectGroups).merged.forEach(({ primary: group }, order) => {
     candidates.push({
       id: `project-group:${group.id}`,
       kind: 'project-group',

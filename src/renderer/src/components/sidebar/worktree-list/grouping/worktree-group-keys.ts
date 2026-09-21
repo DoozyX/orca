@@ -5,7 +5,12 @@ import { getWorkspaceStatus, getWorkspaceStatusGroupKey } from '../../workspace-
 import { cloneDefaultWorkspaceStatuses } from '../../../../../../shared/workspace-statuses'
 import type { AppState } from '../../../../store/types'
 import { ALL_GROUP_KEY, getPRGroupKey, getProjectGroupHeaderKey } from './group-keys'
+import { getRepoExecutionHostId } from '../../../../../../shared/execution-host'
 import { buildProjectGroupingIndex, getProjectGroupingForRepo } from './project-grouping'
+import {
+  buildMergedProjectGroupIndex,
+  resolveMergedProjectGroupId
+} from './cross-host-project-group-merge'
 import type { ProjectGroupingModel } from './project-grouping'
 import type { WorktreeGroupBy } from './row-types'
 
@@ -61,6 +66,11 @@ export function getGroupKeysForWorktree(
   }
   const repo = repoMap.get(worktree.repoId)
   const groupIds: string[] = []
+  // Why: the sidebar renders one header per merged group, so a key built from a
+  // non-primary host copy's id would never match the row it means to reveal.
+  const mergedIndex = buildMergedProjectGroupIndex(projectGroups)
+  const repoHostId =
+    repo?.connectionId || repo?.executionHostId ? getRepoExecutionHostId(repo) : undefined
   const groupsById = new Map(projectGroups.map((group) => [group.id, group]))
   const visited = new Set<string>()
   let currentGroupId = repo?.projectGroupId ?? null
@@ -76,5 +86,10 @@ export function getGroupKeysForWorktree(
     const parentId = group.parentGroupId ?? null
     currentGroupId = parentId && groupsById.has(parentId) ? parentId : null
   }
-  return [...groupIds.map((id) => getProjectGroupHeaderKey(id)), groupKey]
+  return [
+    ...groupIds.map((id) =>
+      getProjectGroupHeaderKey(resolveMergedProjectGroupId(mergedIndex, id, repoHostId))
+    ),
+    groupKey
+  ]
 }
