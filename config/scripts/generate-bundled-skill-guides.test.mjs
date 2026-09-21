@@ -35,6 +35,7 @@ const GUIDE_REFERENCES = {
     'verification-gap.md'
   ],
   orchestration: [
+    'context-lifecycle.md',
     'coordinator-loop.md',
     'legacy-contract-migration.md',
     'low-level-topology.md',

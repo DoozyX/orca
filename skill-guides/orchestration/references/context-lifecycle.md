@@ -60,17 +60,35 @@ rule belongs in that repository's own skill; this is the general form.
 
 ## Thresholds
 
-Orca does not yet publish a per-session context-token reading, and has no
-self-compaction command. You are flying blind on the number, so do not guess
-one: use a fixed schedule instead.
+Read your own context size; do not guess it, and do not treat the 1M window as a
+budget to spend. A Claude coordinator's live total is the last assistant `usage`
+record in its own session transcript, under
+`~/.claude/projects/<cwd-path-with-slashes-as-dashes>/<session-id>.jsonl`:
 
-- **Every task completion:** flush (rule 2).
-- **Every fourth completed task, or sooner if the run has been long:** rotate.
+```text
+tail -c 200000 "$(ls -t ~/.claude/projects/<slug>/*.jsonl | head -1)" \
+  | grep -o '"usage":{[^}]*}' | tail -1
+```
 
-Say plainly to the user that the token signal is unavailable, rather than
-implying a low reading. When Orca gains the reading, the schedule becomes a
-soft threshold near 200k (flush, then compact) and a hard one near 250k
-(rotate).
+Used context is `input_tokens` + `cache_read_input_tokens` +
+`cache_creation_input_tokens`; `output_tokens` is already inside the next turn's
+input. `ls -t` picks the newest transcript in that directory, which is yours only
+if no other session shares your cwd — confirm by grepping the file for a
+distinctive string from one of your own recent turns before trusting the number.
+
+- **Every task completion:** flush (rule 2), then read the number.
+- **At or above 200k:** flush everything still unwritten and treat the run
+  directory as authoritative from here.
+- **At or above 250k:** rotate, before starting another task.
+
+Rotating at 250k rather than at the window's edge is the whole point: a
+coordinator that fills 1M loses proportionally more when it is finally forced to
+compact, and its successor inherits a summary instead of files.
+
+When the reading is unavailable — a non-Claude coordinator, no readable
+transcript, an agent whose usage Orca does not publish — fall back to a fixed
+schedule: flush at every task completion, rotate every fourth. Say plainly to the
+user that the token signal is unavailable, rather than implying a low reading.
 
 ## Rotation is a full handoff
 
@@ -79,6 +97,21 @@ Rotation hands ownership to a successor coordinator and ends your run. Use the
 readiness, then send the prompt — and stop once the send reports
 `accepted: true`. Open no Run for it, create no Task, and do not supervise your
 own successor.
+
+**Reparent the live children before you send the prompt.** Worker worktrees you
+created are your children in Orca's lineage, and a successor that does not own
+them reads a tree whose live work hangs under a coordinator that has stopped.
+For each worktree still in flight, move it across:
+
+```text
+ORCA worktree set --worktree id:<repoId>::<childPath> \
+  --parent-worktree id:<repoId>::<successorPath> --json
+```
+
+Order matters: successor exists and is ready, then reparent, then send. A
+rotation interrupted midway leaves some children moved and some not, which the
+successor's reconciliation step below catches — a partial move is recoverable, a
+prompt sent to a coordinator that owns nothing is not.
 
 Refuse to rotate while `goal.md` or `handoff.md` is missing or empty. An
 automatic rotation into an empty handoff produces a successor that confidently
@@ -97,5 +130,7 @@ A successor starts from files, not from a summary it was told.
 2. Read `manifest.md` for what has landed, then `handoff.md` for what is live.
 3. Reconcile `handoff.md` against the runtime before acting on it: a
    predecessor's self-written handoff is a claim, not a record. `worker-list`
-   and the branch diff are the record.
+   and the branch diff are the record. Check lineage in the same pass — a live
+   worktree still parented to the predecessor means its rotation was
+   interrupted; reparent it to yourself with `worktree set` and carry on.
 4. Only then take a new decision.
