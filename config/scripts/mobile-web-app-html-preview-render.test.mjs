@@ -29,6 +29,7 @@ import { lucideBarrelPlugin } from './build-mobile-web-app-bundle.mjs'
 import { mobileWebAppDependenciesPresent } from './mobile-web-app-bundle-dependencies.mjs'
 import { createBundleServer, readShellCsp } from './mobile-web-app-render-harness.mjs'
 import { describePreviewFrame, untilAborted } from './mobile-web-app-preview-frame-diagnosis.mjs'
+import { pollFrameUntil, previewFrame } from './mobile-web-app-preview-frame-readiness.mjs'
 
 const mobileDir = fileURLToPath(new URL('../../mobile', import.meta.url))
 
@@ -329,7 +330,6 @@ async function open(
   // Named in every diagnostic, because the log shows the case and not which of its arms spoke.
   const arm = `arm csp=${csp} sandbox=${sandbox ?? 'product'} frameReady=${frameReady} nonce=${nonce}`
   const artifactFrame = await waitForLoadedFrame(page, frameReady, signal, browserVersion, arm)
-  const frames = () => page.frames().filter((frame) => frame !== page.mainFrame())
   // Sampled before the action as well as after: a case that taps a link is asking what the tap
   // produced, and by then the top frame is mid-navigation and the iframe has blanked to its own
   // background. So the precondition "there was a rendered artifact to tap" is this reading, and the
@@ -347,7 +347,7 @@ async function open(
   // Sampled before the action as well, because the toggle's whole claim is that it changes.
   const togglesBefore = await readToggles()
   if (act) {
-    await act({ page, frame: frames()[0] ?? null })
+    await act({ page, frame: previewFrame(page) })
   }
   // Every arm settles, acting or not: an artifact can start a navigation with no tap behind it --
   // `<meta http-equiv="refresh">` is one -- and the arms that pin zero were reading their counters
@@ -373,7 +373,7 @@ async function open(
     mountedSandbox: await page
       .evaluate(() => document.querySelector('iframe')?.getAttribute('sandbox') ?? null)
       .catch(() => null),
-    frameCount: frames().length,
+    frameCount: page.frames().length - 1,
     // Reported so a pixel that read the page instead of the frame names the layout rather than
     // looking like a frame that refused to load.
     frameBox: await page
@@ -388,7 +388,7 @@ async function open(
       .catch(() => null),
     // Reported, never asserted on: a `srcdoc` frame's URL reads `about:srcdoc` here and empty on
     // CI's browser, so nothing may be decided by it.
-    frameUrl: frames()[0]?.url() ?? null,
+    frameUrl: previewFrame(page)?.url() ?? null,
     // The element's own attributes, which is where "the artifact is parsed inside the frame rather
     // than fetched into it" actually lives.
     mountedSrcDoc: await page
@@ -397,7 +397,7 @@ async function open(
     mountedSrc: await page
       .evaluate(() => document.querySelector('iframe')?.getAttribute('src') ?? null)
       .catch(() => null),
-    inside: await (frames()[0]
+    inside: await (previewFrame(page)
       ?.evaluate(() => ({
         marker: document.getElementById('marker')?.textContent ?? null,
         title: document.title,
@@ -722,10 +722,13 @@ describe('the HTML preview needs no policy change', () => {
 /**
  * The mounted frame, once it holds the artifact.
  *
- * Found by its element, never by its URL. A `srcdoc` frame reports `about:srcdoc` on both engines
- * here and an empty URL on CI's browser, and a poll that waited for the string spent every case's
- * whole timeout there -- seven timeouts on one engine, after the same difference had already shown
- * up as `expected '' to be 'about:srcdoc'`.
+ * Found among the page's frames, never by its URL. A `srcdoc` frame reports `about:srcdoc` on both
+ * engines here and an empty URL on CI's browser, and a poll that waited for the string spent every
+ * case's whole timeout there -- seven timeouts on one engine, after the same difference had already
+ * shown up as `expected '' to be 'about:srcdoc'`.
+ *
+ * Every wait below asks in the frame's main world through `pollFrameUntil`, for the reason that
+ * module carries: a selector wait needs an isolated world the embedder cannot see fail.
  *
  * Three things still settle at their own moments: React commits the mount, the element's `srcdoc`
  * commits a document, and an override arm replaces that document with a second one. So readiness is
@@ -739,18 +742,23 @@ describe('the HTML preview needs no policy change', () => {
  * somewhere else, where no marker is ever coming.
  */
 async function waitForLoadedFrame(page, frameReady = 'artifact', signal, browserVersion, arm) {
-  const element = await page.waitForSelector('iframe', { timeout: 0 })
-  const frame = await element.contentFrame()
+  const reading = async (what) =>
+    `${what}: ${arm} | ${await describePreviewFrame(page, previewFrame(page), browserVersion)}`
+  await untilAborted(
+    pollFrameUntil(page, () => true, signal),
+    signal,
+    async () => await reading('no frame ever answered inside the page')
+  )
+  const frame = previewFrame(page)
   if (!frame) {
     return null
   }
   await frame.waitForLoadState('load').catch(() => {})
   if (frameReady === 'script') {
     await untilAborted(
-      frame.waitForFunction(() => window.__ran === 1, undefined, { timeout: 0 }),
+      pollFrameUntil(page, () => window.__ran === 1, signal),
       signal,
-      async () =>
-        `the artifact's script never ran inside the frame: ${arm} | ${await describePreviewFrame(page, frame, browserVersion)}`
+      async () => await reading("the artifact's script never ran inside the frame")
     )
   }
   if (frameReady === 'refusal') {
@@ -761,25 +769,23 @@ async function waitForLoadedFrame(page, frameReady = 'artifact', signal, browser
     // that was never widened never raises it at all, which is what makes this the arm's precondition
     // and not a convenience: the wait ends in the diagnosis below rather than in a passing read.
     await untilAborted(
-      frame.waitForFunction(
+      pollFrameUntil(
+        page,
         () => (window.__violations ?? []).some((one) => String(one).includes('script-src')),
-        undefined,
-        { timeout: 0 }
+        signal
       ),
       signal,
-      async () =>
-        `the frame never reported a script-src refusal: ${arm} | ${await describePreviewFrame(page, frame, browserVersion)}`
+      async () => await reading('the frame never reported a script-src refusal')
     )
   }
   if (frameReady !== 'load') {
     await untilAborted(
-      frame.waitForSelector('#marker', { state: 'attached', timeout: 0 }),
+      pollFrameUntil(page, () => document.getElementById('marker') !== null, signal),
       signal,
-      async () =>
-        `the artifact never parsed inside the frame: ${arm} | ${await describePreviewFrame(page, frame, browserVersion)}`
+      async () => await reading('the artifact never parsed inside the frame')
     )
   }
-  return frame
+  return previewFrame(page)
 }
 
 /**
