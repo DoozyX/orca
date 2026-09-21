@@ -5,8 +5,11 @@ Load this reference before writing the design.
 ## Location
 
 Designs live in the workspace-local, ignored directory
-`.orca/design/<date>-<slug>/design.md`, resolved from the root of the workspace
-you are in. It is scaffolding for the work, not a deliverable: it must never be
+`.orca/<date>-<slug>/design/design.md`, resolved from the root of the workspace
+you are in. One directory per initiative, phase-nested: `design/` holds the
+design and the goal, `plan/` the per-unit plans, `orchestrate/` the run's
+manifest, handoff, prompts, and worker state. Everything for one initiative
+stays together, and each phase keeps its own folder. It is scaffolding for the work, not a deliverable: it must never be
 committed, staged, or present in a branch, diff, or PR. Its absolute path is what
 makes it findable — a later session in another worktree reads that path directly,
 which works regardless of what any branch contains.
@@ -19,8 +22,8 @@ repository, so this costs the user no commit:
 ROOT=$(git rev-parse --show-toplevel)
 EXCLUDE=$(git rev-parse --path-format=absolute --git-path info/exclude)
 grep -qxF '/.orca/' "$EXCLUDE" || printf '/.orca/\n' >> "$EXCLUDE"
-mkdir -p "$ROOT/.orca/design/<date>-<slug>"
-git check-ignore -q "$ROOT/.orca/design/.probe"   # must exit 0 before you write
+mkdir -p "$ROOT/.orca/<date>-<slug>"/{design,plan,orchestrate}
+git check-ignore -q "$ROOT/.orca/.probe"   # must exit 0 before you write
 ```
 
 PowerShell equivalent, for a Windows session without a POSIX shell:
@@ -29,8 +32,10 @@ PowerShell equivalent, for a Windows session without a POSIX shell:
 $root = git rev-parse --show-toplevel
 $exclude = git rev-parse --path-format=absolute --git-path info/exclude
 if (-not (Select-String -Path $exclude -Pattern '^/\.orca/$' -Quiet)) { Add-Content $exclude '/.orca/' }
-New-Item -ItemType Directory -Force -Path "$root/.orca/design/<date>-<slug>" | Out-Null
-git check-ignore -q "$root/.orca/design/.probe"
+foreach ($p in 'design','plan','orchestrate') {
+  New-Item -ItemType Directory -Force -Path "$root/.orca/<date>-<slug>/$p" | Out-Null
+}
+git check-ignore -q "$root/.orca/.probe"
 ```
 
 Probe with a path *inside* the directory, not the directory itself: asked about a
@@ -40,8 +45,8 @@ the gate. The `.probe` file need not exist.
 
 **Folder workspaces are valid and this step must not require Git.** When
 `git rev-parse` fails, the workspace is a folder, not a worktree: use the
-workspace root as `ROOT`, create the same `.orca/design/<date>-<slug>/`
-directory, and skip the exclude and `check-ignore` steps entirely. Nothing tracks
+workspace root as `ROOT`, create the same `.orca/<date>-<slug>/` directory and
+its three phase folders, and skip the exclude and `check-ignore` steps entirely. Nothing tracks
 the file, so nothing needs to ignore it. Never abandon the design file, and never
 ask the user to initialize a repository, because Git is absent.
 

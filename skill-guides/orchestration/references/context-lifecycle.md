@@ -15,12 +15,20 @@ Everything durable lives beside the design, in the workspace-local ignored
 directory `brainstorming` already creates:
 
 ```text
-.orca/design/<date>-<slug>/
-  goal.md      the user's ask, verbatim; written once, appended to, never rewritten
-  design.md    the approved design, when one exists
-  manifest.md  what has been decided and landed, updated as work completes
-  handoff.md   live tasks and their stage, open questions, anything in flight
+.orca/<date>-<slug>/
+  design/
+    goal.md      the user's ask, verbatim; written once, appended to, never rewritten
+    design.md    the approved design, when one exists
+  plan/          per-unit plans, one folder per unit
+  orchestrate/
+    manifest.md  what has been decided and landed, updated as work completes
+    handoff.md   live tasks and their stage, open questions, anything in flight
+    …            prompts, worktree tables, poll state, logs
 ```
+
+One directory per initiative, phase-nested. Everything for one run stays
+together and each phase keeps its own folder, so a successor reads
+`orchestrate/handoff.md` without sifting through design material.
 
 Create it with the recipe in `brainstorming`'s `references/design-file.md`,
 including the `git check-ignore` probe, so it degrades to a plain folder
