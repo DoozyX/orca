@@ -10,14 +10,19 @@ current or an exact existing workspace by default. Create a worktree only when
 the user requested one or a concrete checkout or filesystem conflict makes
 sharing unsafe.
 
+When a local worker does need its own worktree, `new-child` is the form to use:
+it keeps the worker in the coordinator's project, nested under the coordinator's
+worktree, so one run stays one tree. `new-top-level` is for work that genuinely
+belongs to no run — and for remote placement, where `new-child` is invalid.
+
 ```text
 # Current workspace; setup is not rerun.
 ORCA orchestration worker-start --task <task_id> --worktree current --agent codex --json
 
-# Stacked child worktree.
+# New worktree for a local worker: nested under the coordinator.
 ORCA orchestration worker-start --task <task_id> --worktree new-child --name <name> --agent codex --setup run --json
 
-# Independent top-level worktree.
+# Independent top-level worktree; unrelated work, or remote placement.
 ORCA orchestration worker-start --task <task_id> --worktree new-top-level --name <name> --agent codex --setup run --json
 ```
 

@@ -17,15 +17,23 @@ jobs stopped.
 
 ## 1. Implement
 
-One worktree per task, cut explicitly from the base branch, never from whatever
-branch happens to be checked out. Record the worktree path, branch, HEAD, and the
-resolved base sha before the worker starts changing files; a mismatch is a launch
-failure, not a baseline to work around.
+One worktree per task, in the coordinator's own project and nested under the
+coordinator's worktree, so the whole delivery run reads as one tree instead of a
+row of unrelated top-level entries. Cut it explicitly from the base branch, never
+from whatever branch happens to be checked out. Record the worktree path, branch,
+HEAD, and the resolved base sha before the worker starts changing files; a
+mismatch is a launch failure, not a baseline to work around.
 
 ```text
-ORCA worktree create --name <task-slug> --no-parent --json
+ORCA worktree create --name <task-slug> --parent-worktree active --base-branch <base> --json
 ORCA orchestration worker-start --spec "<task spec>" --worktree id:<repoId>::<worktreePath> --agent claude --json
 ```
+
+Lineage and Git base are separate decisions: `--parent-worktree active` nests the
+task under the coordinator, and `--base-branch` is what keeps it off the
+coordinator's branch. Never use `--no-parent` here — it detaches the task from the
+run it belongs to. When a task needs its own lineage root, say so and pass an
+explicit `--parent-worktree <selector>` rather than dropping the parent.
 
 The spec tells the implementer to work strictly in that worktree and, in order:
 install from the frozen lockfile; run the shared verification contract and record
