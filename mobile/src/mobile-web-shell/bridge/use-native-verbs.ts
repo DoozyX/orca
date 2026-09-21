@@ -10,6 +10,13 @@ import {
   type BridgeMediaSource
 } from './bridge-media-verbs'
 import {
+  audioReadResultSchema,
+  audioStartResultSchema,
+  audioStopResultSchema,
+  wakelockSetResultSchema,
+  type BridgeAudioChunk
+} from './bridge-audio-verbs'
+import {
   clipboardReadResultSchema,
   clipboardWriteResultSchema,
   type BridgeClipboardMime,
@@ -66,6 +73,26 @@ export type NativeVerbs = {
   readMedia: (handle: string, offset: number, length: number) => Promise<BridgeMediaChunk>
   /** False for a handle this session no longer holds, which is not a fault. */
   releaseMedia: (handle: string) => Promise<boolean>
+  /**
+   * Whether the shell serves all four verbs dictation needs, which is the page's only microphone.
+   *
+   * All four, not the three the capture needs: a route granted the audio verbs and not the wake
+   * lock would record with the screen free to lock, and a lock mid-processing suspends the app and
+   * loses the transcript. A route missing one has no working dictation, so this says so up front
+   * rather than after the user has spoken into it.
+   */
+  canCaptureAudio: boolean
+  /** Opens the microphone, running the OS prompt if there is one. A denied microphone and an
+   *  engine that would not open are both answers here rather than rejections. */
+  startAudio: (sampleRate: number) => Promise<z.infer<typeof audioStartResultSchema>>
+  /** One drain of the shell's ring. `maxBytes` above the ring is refused by the shell's schema, so
+   *  a caller bounds its own ask rather than discovering the bound as a rejection. */
+  readAudio: (maxBytes: number) => Promise<BridgeAudioChunk>
+  /** False for a session that was not capturing, which is not a fault. */
+  stopAudio: () => Promise<boolean>
+  /** Whether the tag is held after the call. The shell asks the device nothing for a tag it never
+   *  took, so releasing one twice is not a fault either. */
+  setWakelock: (active: boolean, tag: string) => Promise<boolean>
 }
 
 /**
@@ -201,7 +228,18 @@ export function useNativeVerbs(): NativeVerbs {
       readMedia: (handle, offset, length) =>
         call('native.media.read', { handle, offset, length }, mediaReadResultSchema),
       releaseMedia: async (handle) =>
-        (await call('native.media.release', { handle }, mediaReleaseResultSchema)).released
+        (await call('native.media.release', { handle }, mediaReleaseResultSchema)).released,
+      canCaptureAudio:
+        has('native.audio.start') &&
+        has('native.audio.read') &&
+        has('native.audio.stop') &&
+        has('native.wakelock.set'),
+      startAudio: (sampleRate) =>
+        call('native.audio.start', { sampleRate }, audioStartResultSchema),
+      readAudio: (maxBytes) => call('native.audio.read', { maxBytes }, audioReadResultSchema),
+      stopAudio: async () => (await call('native.audio.stop', {}, audioStopResultSchema)).stopped,
+      setWakelock: async (active, tag) =>
+        (await call('native.wakelock.set', { active, tag }, wakelockSetResultSchema)).active
     }
   }, [client])
 }
