@@ -6,10 +6,10 @@ description: >-
   independent review rounds with a durable attempt budget, a PR or the
   repository's own endgame, and green CI. Also runs deployed-system verification
   through independent evidence arms to exactly one of pass, defect, or
-  inconclusive. Use the `orchestration` skill instead when the request is only
-  to coordinate, supervise, or fan out agents; `delivery` is the recipe,
-  `orchestration` is the runtime it runs on. Use `brainstorming` first when no
-  approved design exists yet.
+  inconclusive. This is not a coordination runtime and not a design skill: use
+  the `orchestration` skill when the request is only to coordinate, supervise, or
+  fan out agents, because `delivery` is the recipe, `orchestration` is the runtime
+  it runs on, and use `brainstorming` first when no approved design exists yet.
 ---
 
 # Delivery
@@ -108,12 +108,12 @@ surface it; dispatch nothing downstream on that body.
 ## Per-task pipeline
 
 1. **Implement.** One dedicated worktree cut from the current base branch, one
-   implementer. The Task spec carries the binding rules distilled, with paths only
-   as backup — it is a contract, not a reading list. An implementer told to read a
-   design, a task file, and two constraint blocks before writing code produces
-   nothing on turn one.
-2. **Review.** A fresh reviewer on the same worktree, read-only, dispatched only
-   after the implementer settles. Every round reviews the **whole branch** with
+   implementer, working under `tdd` and reporting under `verify`. The Task spec
+   carries the binding rules distilled, with paths only as backup — it is a
+   contract, not a reading list. An implementer told to read a design, a task file,
+   and two constraint blocks before writing code produces nothing on turn one.
+2. **Review.** A fresh reviewer on the same worktree, read-only, running the
+   `review` skill's layers, dispatched only after the implementer settles. Every round reviews the **whole branch** with
    the full suite verified for the current revision. The verdict is `clean` or
    `fix-needed`; a clean verdict must cover the current full branch and fresh
    verification. Never grant write authority without sole occupancy of that
@@ -185,3 +185,4 @@ that command's `--help`; never guess newer flags.
 | Verifying a deployed system, or adjudicating contradictory evidence arms              | `references/deployed-verification.md`    |
 | Parking a task, cleaning up after a done task, or writing the closing report          | `references/parking-and-reporting.md`    |
 | Creating Runs, Tasks, Dispatches, waits, gates, or releases                            | the `orchestration` skill, not this one  |
+| Writing the implementation, the review layers, a diagnosis, or a completion claim      | the `tdd`, `review`, `debug`, and `verify` skills |

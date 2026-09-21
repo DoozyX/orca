@@ -7,9 +7,10 @@ description: >-
   complete design file the user reads and explicitly approves. Use when the user
   says "let's build", "I want to add", "how should we do X", or asks for a
   design or a spec, and before any feature, behavior change, or refactor of
-  consequence. Hard-gates implementation until that file is approved. Use the
-  `delivery` skill to execute an approved design, and `orchestration` when the
-  request is only to coordinate or supervise agents.
+  consequence. Hard-gates implementation until that file is approved. This is not
+  an implementation skill and not a coordination skill: use `delivery` to execute
+  an approved design and `orchestration` when the request is only to coordinate or
+  supervise agents.
 ---
 
 # Orca Brainstorming
