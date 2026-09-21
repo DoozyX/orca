@@ -27,6 +27,13 @@ const execFileAsync = promisify(execFile)
 const GUIDE_REFERENCES = {
   brainstorming: ['design-file.md', 'exit-to-delivery.md', 'question-rounds.md'],
   delivery: ['deployed-verification.md', 'parking-and-reporting.md', 'task-pipeline.md'],
+  review: [
+    'adversarial.md',
+    'deletion-check.md',
+    'edge-cases.md',
+    'principles.md',
+    'verification-gap.md'
+  ],
   orchestration: [
     'coordinator-loop.md',
     'legacy-contract-migration.md',
