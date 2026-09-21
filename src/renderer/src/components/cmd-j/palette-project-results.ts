@@ -84,7 +84,7 @@ function buildCmdJProjectSearchCandidates({
 
   // Why: the sidebar renders one header per merged group, so a per-copy entry
   // would jump to a rowKey that never renders (#22022).
-  buildMergedProjectGroupIndex(projectGroups).merged.forEach(({ primary: group }, order) => {
+  buildMergedProjectGroupIndex(projectGroups).merged.forEach(({ primary: group, rowId }, order) => {
     candidates.push({
       id: `project-group:${group.id}`,
       kind: 'project-group',
@@ -93,7 +93,7 @@ function buildCmdJProjectSearchCandidates({
         'auto.components.cmd.j.palette.project.results.repoGroup',
         'Repo group'
       ),
-      rowKey: getProjectGroupHeaderKey(group.id),
+      rowKey: getProjectGroupHeaderKey(rowId),
       order,
       keywords: uniqueNormalizedCmdJPaletteKeywords([group.name, ...PROJECT_GROUP_ALIASES])
     })
@@ -225,5 +225,8 @@ export function searchCmdJProjectResults({
     .map((candidate) => projectRankingForCandidate(normalizedQuery, queryTokens, candidate))
     .filter((entry): entry is RankedProjectResult => entry !== null)
     .sort(compareProjectRanked)
-    .map((entry) => ({ ...entry.result, qualityClass: projectRuleQualityClass(entry.rule) }))
+    .map((entry) => ({
+      ...entry.result,
+      qualityClass: projectRuleQualityClass(entry.rule)
+    }))
 }

@@ -4,9 +4,16 @@ import type { Worktree } from '../../../../../../shared/worktree/types'
 import { PINNED_GROUP_KEY, getProjectGroupHeaderKey } from '../grouping/group-keys'
 import {
   buildMergedProjectGroupIndex,
+  buildProjectGroupHostIndex,
+  findMergedProjectGroupByRowId,
+  findProjectGroupByHost,
   resolveMergedProjectGroupId
 } from '../grouping/cross-host-project-group-merge'
 import { getProjectGroupHostId } from '../../../../store/slices/project-group-owner-routing'
+import {
+  getRepoExecutionHostId,
+  type ExecutionHostId
+} from '../../../../../../shared/execution-host'
 import type { ProjectGroupingModel } from '../grouping/project-grouping'
 
 function getProjectIdFromHeaderRowKey(rowKey: string): string | null {
@@ -50,17 +57,20 @@ function getRepoIdsFromHeaderRowKey(
   return [...repoIds]
 }
 
+/** `hostId` scopes the whole walk: parentGroupId names a group on the owning host,
+ *  and group ids are only unique per host. */
 function getProjectGroupAncestorKeys(
   projectGroupId: string | null | undefined,
-  projectGroups: readonly ProjectGroup[]
+  projectGroups: readonly ProjectGroup[],
+  hostId?: ExecutionHostId
 ): string[] {
-  const groupsById = new Map(projectGroups.map((group) => [group.id, group]))
+  const groupHostIndex = buildProjectGroupHostIndex(projectGroups)
   const mergedIndex = buildMergedProjectGroupIndex(projectGroups)
   const keys: string[] = []
   const seen = new Set<string>()
   let currentGroupId = projectGroupId ?? null
   while (currentGroupId && !seen.has(currentGroupId)) {
-    const group = groupsById.get(currentGroupId)
+    const group = findProjectGroupByHost(groupHostIndex, currentGroupId, hostId)
     if (!group) {
       break
     }
@@ -83,9 +93,18 @@ export function getSidebarRowRevealAncestorKeys(args: {
   projectGrouping?: ProjectGroupingModel
 }): string[] {
   if (args.rowKey.startsWith('project-group:')) {
-    const groupId = args.rowKey.slice('project-group:'.length)
-    const group = args.projectGroups.find((candidate) => candidate.id === groupId)
-    return getProjectGroupAncestorKeys(group?.parentGroupId, args.projectGroups)
+    // Why the merged row: a rendered row key carries no host, so only the row it
+    // was built from can say which host's parent chain to walk.
+    const rowId = args.rowKey.slice('project-group:'.length)
+    const primary = findMergedProjectGroupByRowId(
+      buildMergedProjectGroupIndex(args.projectGroups),
+      rowId
+    )?.primary
+    return getProjectGroupAncestorKeys(
+      primary?.parentGroupId,
+      args.projectGroups,
+      primary ? getProjectGroupHostId(primary) : undefined
+    )
   }
   const keys = new Set<string>()
   for (const repoId of getRepoIdsFromHeaderRowKey(
@@ -94,7 +113,13 @@ export function getSidebarRowRevealAncestorKeys(args: {
     args.projectGrouping
   )) {
     const repo = args.repoMap.get(repoId)
-    for (const key of getProjectGroupAncestorKeys(repo?.projectGroupId, args.projectGroups)) {
+    const repoHostId =
+      repo?.connectionId || repo?.executionHostId ? getRepoExecutionHostId(repo) : undefined
+    for (const key of getProjectGroupAncestorKeys(
+      repo?.projectGroupId,
+      args.projectGroups,
+      repoHostId
+    )) {
       keys.add(key)
     }
   }

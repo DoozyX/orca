@@ -9,6 +9,8 @@ import { getRepoExecutionHostId } from '../../../../../../shared/execution-host'
 import { buildProjectGroupingIndex, getProjectGroupingForRepo } from './project-grouping'
 import {
   buildMergedProjectGroupIndex,
+  buildProjectGroupHostIndex,
+  findProjectGroupByHost,
   resolveMergedProjectGroupId
 } from './cross-host-project-group-merge'
 import type { ProjectGroupingModel } from './project-grouping'
@@ -71,11 +73,13 @@ export function getGroupKeysForWorktree(
   const mergedIndex = buildMergedProjectGroupIndex(projectGroups)
   const repoHostId =
     repo?.connectionId || repo?.executionHostId ? getRepoExecutionHostId(repo) : undefined
-  const groupsById = new Map(projectGroups.map((group) => [group.id, group]))
+  // Why host-scoped: parentGroupId names a group on the repo's own host, and a bare
+  // id can land on another host's unrelated group before merged-id resolution runs.
+  const groupHostIndex = buildProjectGroupHostIndex(projectGroups)
   const visited = new Set<string>()
   let currentGroupId = repo?.projectGroupId ?? null
   while (currentGroupId && !visited.has(currentGroupId)) {
-    const group = groupsById.get(currentGroupId)
+    const group = findProjectGroupByHost(groupHostIndex, currentGroupId, repoHostId)
     if (!group) {
       // Why: repos can arrive before their remote Project Group metadata; reveal
       // keys must match the top-level fallback rows buildRows actually renders.
@@ -84,7 +88,8 @@ export function getGroupKeysForWorktree(
     visited.add(currentGroupId)
     groupIds.unshift(currentGroupId)
     const parentId = group.parentGroupId ?? null
-    currentGroupId = parentId && groupsById.has(parentId) ? parentId : null
+    currentGroupId =
+      parentId && findProjectGroupByHost(groupHostIndex, parentId, repoHostId) ? parentId : null
   }
   return [
     ...groupIds.map((id) =>

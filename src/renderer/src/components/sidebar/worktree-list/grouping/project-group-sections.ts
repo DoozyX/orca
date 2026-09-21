@@ -23,12 +23,10 @@ import {
 } from './cross-host-project-group-merge'
 import {
   getRepoExecutionHostId,
-  normalizeExecutionHostId,
-  toSshExecutionHostId,
   type ExecutionHostId
 } from '../../../../../../shared/execution-host'
 import type { Repo } from '../../../../../../shared/repo-types'
-import type { FolderWorkspace } from '../../../../../../shared/folder-workspace-types'
+import { getFolderWorkspaceProjectGroupHostId } from '../../folder-workspace-host-id'
 
 export function appendProjectGroupSections(
   ctx: SectionAppendContext,
@@ -49,25 +47,21 @@ export function appendProjectGroupSections(
   const mergedGroups = mergedIndex.merged
   // Why the host argument: group ids are unique per host, not globally, so two
   // hosts can reuse one id for unrelated groups.
-  const resolveMergedGroupId = (
+  // Why rowId and not primary.id: two hosts reusing one group id yield two merged
+  // rows with the same primary id, which would share a bucket and a header key.
+  const resolveMergedRowId = (
     projectGroupId: string | null,
     hostId?: ExecutionHostId
   ): string | null =>
     projectGroupId === null
       ? null
-      : (findMergedProjectGroup(mergedIndex, projectGroupId, hostId)?.primary.id ?? projectGroupId)
+      : (findMergedProjectGroup(mergedIndex, projectGroupId, hostId)?.rowId ?? projectGroupId)
   const getRepoHostId = (repo: Repo | undefined): ExecutionHostId =>
     repo?.connectionId || repo?.executionHostId ? getRepoExecutionHostId(repo) : ctx.defaultHostId
-  const getFolderWorkspaceGroupHostId = (
-    folderWorkspace: FolderWorkspace
-  ): ExecutionHostId | undefined =>
-    normalizeExecutionHostId(folderWorkspace.executionHostId) ??
-    (folderWorkspace.connectionId ? toSshExecutionHostId(folderWorkspace.connectionId) : undefined)
-
   const groupByProjectGroupId = new Map<string | null, OrderedGroupEntry[]>()
   for (const entry of orderedGroups) {
     const repo = entry[1].repo
-    const projectGroupId = resolveMergedGroupId(repo?.projectGroupId ?? null, getRepoHostId(repo))
+    const projectGroupId = resolveMergedRowId(repo?.projectGroupId ?? null, getRepoHostId(repo))
     const list = groupByProjectGroupId.get(projectGroupId) ?? []
     list.push(entry)
     groupByProjectGroupId.set(projectGroupId, list)
@@ -93,9 +87,9 @@ export function appendProjectGroupSections(
   // repo grouping no longer owns the filter — it only groups and orders (#15362).
   const folderWorkspacesByProjectGroupId = new Map<string, RenderableFolderWorkspace[]>()
   for (const pair of folderWorkspaces) {
-    const groupId = resolveMergedGroupId(
+    const groupId = resolveMergedRowId(
       pair.folderWorkspace.projectGroupId,
-      getFolderWorkspaceGroupHostId(pair.folderWorkspace)
+      getFolderWorkspaceProjectGroupHostId(pair.folderWorkspace)
     )
     if (groupId === null) {
       continue
@@ -116,7 +110,7 @@ export function appendProjectGroupSections(
           mergedIndex,
           merged.primary.parentGroupId,
           getProjectGroupHostId(merged.primary)
-        )?.primary.id ?? null)
+        )?.rowId ?? null)
       : null
     const children = childGroupsByParentId.get(parentId) ?? []
     children.push(merged)
@@ -135,28 +129,28 @@ export function appendProjectGroupSections(
     const folderWorkspaceCount = folderWorkspacesByProjectGroupId.get(groupId)?.length ?? 0
     const children = childGroupsByParentId.get(groupId) ?? []
     return children.reduce(
-      (count, child) => count + getProjectGroupSubtreeCount(child.primary.id),
+      (count, child) => count + getProjectGroupSubtreeCount(child.rowId),
       directCount + folderWorkspaceCount
     )
   }
 
   const appendProjectGroup = (merged: MergedProjectGroup, depth: number): void => {
     const projectGroup = merged.primary
-    const repoEntries = sortRepoEntriesWithinGroup(groupByProjectGroupId.get(projectGroup.id) ?? [])
-    const childGroups = childGroupsByParentId.get(projectGroup.id) ?? []
-    const key = getProjectGroupHeaderKey(projectGroup.id)
+    const repoEntries = sortRepoEntriesWithinGroup(groupByProjectGroupId.get(merged.rowId) ?? [])
+    const childGroups = childGroupsByParentId.get(merged.rowId) ?? []
+    const key = getProjectGroupHeaderKey(merged.rowId)
     result.push({
       type: 'header',
       key,
       label: projectGroup.name,
-      count: getProjectGroupSubtreeCount(projectGroup.id),
+      count: getProjectGroupSubtreeCount(merged.rowId),
       tone: PROJECT_GROUP_META.tone,
       icon: PROJECT_GROUP_META.icon,
       projectGroup,
       projectGroupDepth: depth
     })
     if (!collapsedGroups.has(key)) {
-      for (const pair of folderWorkspacesByProjectGroupId.get(projectGroup.id) ?? []) {
+      for (const pair of folderWorkspacesByProjectGroupId.get(merged.rowId) ?? []) {
         result.push(buildFolderWorkspaceRow(pair, depth + 1))
       }
       appendOrderedGroups(ctx, withRepoSectionDisplayLabels(repoEntries), depth + 1)
@@ -164,17 +158,17 @@ export function appendProjectGroupSections(
         appendProjectGroup(childGroup, depth + 1)
       }
     }
-    groupByProjectGroupId.delete(projectGroup.id)
+    groupByProjectGroupId.delete(merged.rowId)
   }
 
   for (const merged of childGroupsByParentId.get(null) ?? []) {
     appendProjectGroup(merged, 0)
   }
 
-  const mergedByPrimaryId = new Set(mergedGroups.map((merged) => merged.primary.id))
+  const mergedRowIds = new Set(mergedGroups.map((merged) => merged.rowId))
   const remainingRepoEntries = [...(groupByProjectGroupId.get(null) ?? [])]
   for (const [projectGroupId, entries] of groupByProjectGroupId) {
-    if (projectGroupId === null || mergedByPrimaryId.has(projectGroupId)) {
+    if (projectGroupId === null || mergedRowIds.has(projectGroupId)) {
       continue
     }
     // Why: startup can have repos from hosts whose project-group metadata was
