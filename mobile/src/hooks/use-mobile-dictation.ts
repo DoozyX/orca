@@ -135,7 +135,16 @@ export function useMobileDictation(options: UseMobileDictationOptions): UseMobil
     generationRef.current = generation
     setError(null)
     setStatus('starting')
-    const opened = await capture.open()
+    let opened
+    try {
+      opened = await capture.open()
+    } catch (err) {
+      // A capture the host refused outright, which on the page is a route that was never granted
+      // the audio verbs. Back to idle before it is rethrown: the caller toasts the shell's own
+      // message, and a control left on 'starting' has no way back short of a remount.
+      setStatus('idle')
+      throw err instanceof Error ? err : new Error(String(err))
+    }
     if (generationRef.current !== generation || !enabledRef.current) {
       capture.release()
       if (generationRef.current === generation) {
