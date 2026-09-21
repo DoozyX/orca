@@ -15,6 +15,7 @@ const REPO_ROOT = path.resolve(SCRIPT_DIR, '..', '..')
 const CANONICAL_GUIDE_NAMES = [
   'brainstorming',
   'computer-use',
+  'debug',
   'delivery',
   'linear-tickets',
   'orca-cli',
@@ -22,7 +23,10 @@ const CANONICAL_GUIDE_NAMES = [
   'orca-emulator-android',
   'orca-linear',
   'orca-per-workspace-env',
-  'orchestration'
+  'orchestration',
+  'review',
+  'tdd',
+  'verify'
 ]
 
 // Why: old discovery stubs can outlive a rename indefinitely, so aliases are
@@ -30,6 +34,7 @@ const CANONICAL_GUIDE_NAMES = [
 const GUIDE_ALIASES = {
   brainstorming: [],
   'computer-use': [],
+  debug: [],
   delivery: [],
   'linear-tickets': [],
   'orca-cli': [],
@@ -37,7 +42,10 @@ const GUIDE_ALIASES = {
   'orca-emulator-android': [],
   'orca-linear': [],
   'orca-per-workspace-env': [],
-  orchestration: []
+  orchestration: [],
+  review: [],
+  tdd: [],
+  verify: []
 }
 
 // Why: a stubbed topic ships a hybrid discovery stub as its installable projection while
@@ -48,6 +56,7 @@ const GUIDE_ALIASES = {
 const STUB_TOPICS = [
   'brainstorming',
   'computer-use',
+  'debug',
   'delivery',
   'linear-tickets',
   'orca-cli',
@@ -55,7 +64,10 @@ const STUB_TOPICS = [
   'orca-emulator-android',
   'orca-linear',
   'orca-per-workspace-env',
-  'orchestration'
+  'orchestration',
+  'review',
+  'tdd',
+  'verify'
 ]
 
 function normalizeMarkdown(markdown) {

@@ -46,7 +46,8 @@ that session can give.
 
 ## What does not need this
 
-A focused change goes straight to implementation in this session under the
-repository's own test discipline, with command evidence before any completion
-claim. Any ADR the design produced lands in that same commit under `docs/adr/`.
+A focused change goes straight to implementation in this session under the `tdd`
+skill, with `verify` gathering the command evidence before any completion claim;
+reach for `debug` if something breaks on the way and `review` for a second pass on
+the diff. Any ADR the design produced lands in that same commit under `docs/adr/`.
 Multi-file alone does not require coordination.

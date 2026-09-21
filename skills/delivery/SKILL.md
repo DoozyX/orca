@@ -6,10 +6,10 @@ description: >-
   independent review rounds with a durable attempt budget, a PR or the
   repository's own endgame, and green CI. Also runs deployed-system verification
   through independent evidence arms to exactly one of pass, defect, or
-  inconclusive. Use the `orchestration` skill instead when the request is only
-  to coordinate, supervise, or fan out agents; `delivery` is the recipe,
-  `orchestration` is the runtime it runs on. Use `brainstorming` first when no
-  approved design exists yet.
+  inconclusive. This is not a coordination runtime and not a design skill: use
+  the `orchestration` skill when the request is only to coordinate, supervise, or
+  fan out agents, because `delivery` is the recipe, `orchestration` is the runtime
+  it runs on, and use `brainstorming` first when no approved design exists yet.
 ---
 
 # Orca Delivery

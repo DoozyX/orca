@@ -7,9 +7,10 @@ description: >-
   complete design file the user reads and explicitly approves. Use when the user
   says "let's build", "I want to add", "how should we do X", or asks for a
   design or a spec, and before any feature, behavior change, or refactor of
-  consequence. Hard-gates implementation until that file is approved. Use the
-  `delivery` skill to execute an approved design, and `orchestration` when the
-  request is only to coordinate or supervise agents.
+  consequence. Hard-gates implementation until that file is approved. This is not
+  an implementation skill and not a coordination skill: use `delivery` to execute
+  an approved design and `orchestration` when the request is only to coordinate or
+  supervise agents.
 ---
 
 # Brainstorming
@@ -87,8 +88,10 @@ Load `references/question-rounds.md` for the delivery mechanics of a round.
 Offer two or three. Each gets what it does, what it costs, and what it
 forecloses, then one named recommendation with a one-line reason. **Apply YAGNI
 ruthlessly:** cut anything serving a requirement the user did not state, and say
-what you cut. Then name the seam the tests drive the feature through, preferring
-an existing seam and the highest one that still localizes a failure.
+what you cut. Check the chosen shape against the principle lenses shared with
+`review` (`ORCA skills get review --reference references/principles.md`), then
+name the seam the tests drive the feature through, preferring an existing seam
+and the highest one that still localizes a failure.
 
 ## 4. Write the design file, then self-review it
 
@@ -121,8 +124,8 @@ public interfaces, data handling, or an explicitly excluded item.
 ## 6. Take exactly one exit
 
 - **Focused** — an obvious, low-risk change, even across a few related files.
-  Implement it here, test-first, and show command evidence before claiming done.
-  Multi-file alone does not require coordination.
+  Implement it here under `tdd`, and gather evidence under `verify` before
+  claiming done. Multi-file alone does not require coordination.
 - **Delivered** — several independent units, a non-obvious decomposition, or a
   dedicated implement/review/PR pipeline. Freeze the goal, then hand the design
   path to the `delivery` skill. Load `references/exit-to-delivery.md`.
