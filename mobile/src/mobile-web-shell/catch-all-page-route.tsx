@@ -48,6 +48,13 @@ export default function MobileWebPageCatchAllScreen() {
   // Keyed on the route, as the other switches are: a host captures the grants its session opened
   // with, so a screen reused across a route change would authorise frames under grants the page has
   // left behind.
+  //
+  // `fallback` is the refusal and only the refusal. `native-route` is the shell saying this build
+  // cannot serve this pathname, which is the one question the refusal answers; the states it does
+  // not reach answer different ones, and each is true for a screen only the page has. Offline means
+  // the bundle that would serve it cannot be fetched, `checking` means the answer is not in yet,
+  // and the wall means no page can be served at all. Absorbing those would tell someone with no
+  // connection that the screen does not exist. `catch-all-page-route-states.test.tsx` drives them.
   return (
     <MobileWebShellScreen
       key={shellScreenRouteKey(route)}

@@ -216,6 +216,22 @@ describe('the screen the catch-all paints for each shell state', () => {
   })
 
   /**
+   * Offline is the shell's message and not the refusal, on purpose.
+   *
+   * The refusal answers one question — this build cannot serve this route — and the other states
+   * answer different ones that are all true for a screen only the page has: offline means the
+   * bundle that would serve it cannot be fetched, `checking` means the answer is not in yet, and
+   * the wall means no page can be served at all. Folding them into the refusal would tell someone
+   * with no connection that the screen does not exist.
+   */
+  it('says the host is unreachable rather than that the screen is unavailable', async () => {
+    const tree = await renderRoute({ kind: 'offline' })
+    const text = textOf(tree)
+    expect(text).toContain('Connect to this host to download the workspace')
+    expect(text).not.toContain('This workspace screen is not available on this host.')
+  })
+
+  /**
    * The presence precondition for every case above: the shell is what rendered them.
    *
    * Before the flag read settles the switch returns the refusal on its own, with the same text and
