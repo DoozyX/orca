@@ -5,8 +5,12 @@ description: >-
   skill sharing, worktree comments, and Orca's embedded browser through the `orca` CLI. Use
   when the user says "$orca-cli", "Orca worktree", "child worktree", "spawn codex/claude in a
   worktree", "read/wait/send Orca terminal", "handoff" / "handover" / "give this to another
-  agent", "Orca browser", "orca artifacts", or "share skills". Prefer it over raw git
-  worktree, ad hoc PTYs, or Computer Use when Orca state is involved. Use Computer Use only
+  agent", "Orca browser", "orca artifacts", or "share skills". It also owns single-session
+  terminal work: "session", "sub-agent", "create a session", "stop a session", "fork a
+  session", "attach to a session", "worktree session", and troubleshooting a stuck or
+  misconfigured agent terminal. Prefer it over raw git worktree, ad hoc PTYs, or Computer
+  Use when Orca state is involved. Use `orchestration` instead to fan out several agents
+  at once or to supervise them. Use Computer Use only
   when a visible window needs GUI control that a CLI, filesystem, or API cannot do.
 ---
 
@@ -21,6 +25,19 @@ Use `orca` when Orca's running editor/runtime is the source of truth. Use plain 
 **Dev builds (`pnpm dev`):** after `pnpm build:cli` the dev CLI is `orca-dev`, and `./config/scripts/orca-dev.mjs` invokes it worktree-locally without depending on the /usr/local/bin symlink. Plain `orca` targets any installed production Orca.
 
 Prefer `--json` for agent-driven calls. If the CLI is missing, say so explicitly instead of inspecting source files first.
+
+## Sessions and Terminals
+
+An Orca terminal is what other tools call a session. Requests phrased as "create a session",
+"start a sub-agent", "stop that session", "fork this session", "attach to the session",
+"worktree session", or "this session is stuck" are terminal work and belong here, not in
+`orchestration`: create with `terminal create` or `worktree create --agent`, inspect with
+`terminal list` / `terminal show`, drive with `terminal send` and `terminal wait`, and close
+with `terminal close`. Forking a session means creating a new worktree and launching the
+same agent in it with the context in the prompt; Orca does not copy a running agent's state.
+
+Escalate to the `orchestration` skill only when the user wants several agents launched at
+once, wants their progress tracked, or wants completion waited on.
 
 ## Full Handoffs
 

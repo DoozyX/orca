@@ -74,8 +74,8 @@ describe('orchestration kernel', () => {
       '## Conditional references'
     ]
 
-    // Why: 202 is the budget after the anti-loop nextAction rule; the kernel is always in context.
-    expect(kernel.split('\n').length).toBeLessThanOrEqual(202)
+    // Why: 204 is the budget after the fan-out routing row; the kernel is always in context.
+    expect(kernel.split('\n').length).toBeLessThanOrEqual(204)
     for (let index = 1; index < headings.length; index += 1) {
       expect(kernel.indexOf(headings[index])).toBeGreaterThan(kernel.indexOf(headings[index - 1]))
     }
