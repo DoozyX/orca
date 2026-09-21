@@ -10,7 +10,7 @@
  * substitution the web build makes: the bundler resolves `.web.ts` first and vitest resolves the
  * native file. Everything else is real — the port pair, the verb table, the shell's ring.
  */
-import { createElement, type ReactElement } from 'react'
+import { createElement, type ReactElement, type ReactNode } from 'react'
 import { act, create, type ReactTestInstance } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -21,7 +21,8 @@ vi.mock('react-native', () => ({
     createElement('rn-activity-indicator', props),
   AppState: { currentState: 'active', addEventListener: () => ({ remove: () => {} }) },
   Platform: { OS: 'ios' },
-  Pressable: (props: { children?: unknown }) => createElement('rn-pressable', props, props.children)
+  Pressable: (props: { children?: ReactNode }) =>
+    createElement('rn-pressable', props, props.children)
 }))
 vi.mock('lucide-react-native', () => ({
   ImagePlus: (props: Record<string, unknown>) => createElement('lucide-image-plus', props),
@@ -134,15 +135,15 @@ function micOf(root: ReactTestInstance): ReactTestInstance {
 
 async function mount(pair: BridgePortPair): Promise<MicControl> {
   await pair.flush()
-  let tree: ReturnType<typeof create> | null = null
+  const held: { tree: ReturnType<typeof create> | null } = { tree: null }
   await act(async () => {
-    tree = create(
+    held.tree = create(
       <RpcClientProvider client={pair.client}>
         <Composer pair={pair} />
       </RpcClientProvider>
     )
   })
-  const rendered = tree
+  const rendered = held.tree
   if (rendered === null) {
     throw new Error('nothing mounted')
   }
