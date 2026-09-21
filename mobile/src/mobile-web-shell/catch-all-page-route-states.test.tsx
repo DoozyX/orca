@@ -147,17 +147,21 @@ async function renderRoute(state: MobileWebShellSessionState): Promise<ReactTest
   return rendered.tree
 }
 
+/** `react-native` is mocked to host strings, which `findAllByType` does not take as an ElementType. */
+function hostNodes(tree: ReactTestRenderer, host: string): ReactTestInstance[] {
+  return tree.root.findAll((node) => node.type === host)
+}
+
 function backControl(tree: ReactTestRenderer): ReactTestInstance {
-  const found = tree.root
-    .findAllByType('Pressable')
-    .filter((node) => node.props.accessibilityLabel === BACK_LABEL)
+  const found = hostNodes(tree, 'Pressable').filter(
+    (node) => node.props.accessibilityLabel === BACK_LABEL
+  )
   expect(found.length, `one control labelled "${BACK_LABEL}"`).toBe(1)
   return found[0]!
 }
 
 function textOf(tree: ReactTestRenderer): string {
-  return tree.root
-    .findAllByType('Text')
+  return hostNodes(tree, 'Text')
     .flatMap((node) => (Array.isArray(node.children) ? node.children : []))
     .filter((child): child is string => typeof child === 'string')
     .join(' ')
