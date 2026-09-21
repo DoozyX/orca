@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useRouter } from 'expo-router'
+import { hostStackHostRoute } from '../navigation/host-stack-navigation'
 import { colors, radii, spacing, typography } from '../theme/mobile-theme'
 
 /**
@@ -12,8 +13,11 @@ import { colors, radii, spacing, typography } from '../theme/mobile-theme'
  *
  * `replace` and not `push`: this screen is a dead end, so leaving it must not leave it behind to
  * come back to.
+ *
+ * Through `hostStackHostRoute` rather than a template: an id carrying `/` builds a two-segment
+ * pathname, and `/h/a/b` is caught by the very route that rendered this, with `hostId` now `a`.
  */
-export function PageRouteUnavailableScreen({ hostId }: { hostId: string | undefined }) {
+export function PageRouteUnavailableScreen({ hostId }: { hostId: string }) {
   const router = useRouter()
   return (
     <View style={styles.root} testID="mobile-web-page-route-unavailable">
@@ -22,7 +26,7 @@ export function PageRouteUnavailableScreen({ hostId }: { hostId: string | undefi
         style={({ pressed }) => [styles.button, pressed && styles.pressed]}
         accessibilityRole="button"
         accessibilityLabel="Back to workspaces"
-        onPress={() => router.replace(`/h/${hostId ?? ''}`)}
+        onPress={() => router.replace(hostStackHostRoute(hostId))}
       >
         <Text style={styles.buttonLabel}>Back to workspaces</Text>
       </Pressable>
