@@ -4075,6 +4075,13 @@
             "contact_note": "The host may still be running; only the Orca connection is unavailable.",
             "last_connected": "Last connected {{value0}}",
             "reconnect_attempt": "Attempt {{value0}}"
+          },
+          "BoundClaudeHomesSection": {
+            "36b1b954e0": "Bound groups",
+            "cd0caf7de4": "Signed out",
+            "38a934f31f": "Session expired",
+            "cfcef0699a": "Directory unreadable",
+            "7b3c1d94ae": "Usage unavailable"
           }
         }
       },
@@ -5729,7 +5736,12 @@
           "groupRenameFailedDesc": "Orca could not confirm the new name with the group's host. Recheck the group after reconnecting.",
           "failedNestWorkspace": "Failed to nest workspace",
           "sidebarRowMissing": "Target no longer exists",
-          "failedUnnestWorkspace": "Failed to unnest workspace"
+          "failedUnnestWorkspace": "Failed to unnest workspace",
+          "projectGroupSettings": "Group settings…",
+          "groupSettingsSaveFailed": "Failed to save group settings",
+          "groupSettingsSaveFailedDesc": "Orca could not confirm the Claude config directory with the group's host. Check that the path is absolute and recheck the group after reconnecting.",
+          "groupSettingsUnresolvedHost": "Cannot open group settings",
+          "groupSettingsUnresolvedHostDesc": "Orca could not tell which host owns this group, and a Claude config directory means something different on each one. Reconnect the group's host and try again."
         },
         "WorktreeMetaDialog": {
           "3db0a2a593": "Cancel",
@@ -6369,6 +6381,24 @@
           "architectureMismatch": "A Git-related executable could not run because its CPU architecture is incompatible with this execution host. Install Git and related tools for the host architecture.",
           "copyCommand": "Copy command",
           "copyDiagnostics": "Copy diagnostics"
+        },
+        "ProjectGroupSettingsDialog": {
+          "title": "Group Settings",
+          "description": "Settings for {{value0}} and the groups nested inside it.",
+          "fieldLabel": "Claude config directory",
+          "fieldPlaceholder": "Claude’s default home",
+          "browse": "Browse",
+          "remoteHostPath": "This path is read on {{value0}}, so type it as that host spells it.",
+          "inherited": "Inherited from {{value0}}:",
+          "adviceNotAbsolute": "This is not an absolute path. Claude sessions in this group would resolve it differently each run.",
+          "adviceMissingDirectory": "That directory does not exist yet on this group’s host.",
+          "adviceSignedOut": "That directory has no Claude credentials yet, so sessions will start signed out.",
+          "externalChange": "Changed elsewhere to {{value0}}. Your edit is kept — saving replaces it.",
+          "externalCleared": "Cleared elsewhere. Your edit is kept — saving replaces it.",
+          "clear": "Clear",
+          "cancel": "Cancel",
+          "save": "Save",
+          "saving": "Saving..."
         }
       },
       "shared": {
@@ -11747,6 +11777,7 @@
           "loadingBuilds": "Loading builds…",
           "noBuilds": "No builds found",
           "refresh": "Refresh build list",
+          "cacheHint": "Build lists are cached for 5 minutes. Refresh to check for new builds.",
           "switchTo": "Switch to build",
           "alreadyRunning": "This is the build you are running.",
           "willSwitch": "{{value0}} → {{value1}}",
@@ -13207,8 +13238,6 @@
             "agentSessionQueued": "{{value0}} session queued",
             "sessionHistory": "Agent Session History",
             "agents": "Agents",
-            "shownRecent": "{{value0}} shown · {{value1}} recent",
-            "sessionsShownCompact": "{{value0}} shown",
             "resumePastSessions": "Resume past sessions",
             "refreshSessionHistory": "Refresh Session History",
             "searchSessions": "Search sessions",
@@ -13248,7 +13277,6 @@
             "agents": "Agents",
             "selectAllAgents": "Select all",
             "clearAgents": "Clear",
-            "sort": "Sort",
             "lastUpdated": "Last updated",
             "created": "Created",
             "group": "Group",
@@ -17334,7 +17362,29 @@
         "renamedFile": "Renamed file",
         "copyDiff": "Copy diff",
         "diffGap": "Lines not shown",
-        "diffTruncated": "Diff truncated"
+        "diffTruncated": "Diff truncated",
+        "runReadOne": "Read 1 file",
+        "runReadMany": "Read {{value0}} files",
+        "runSearchOne": "Searched 1 time",
+        "runSearchMany": "Searched {{value0}} times",
+        "runListFilesOne": "Listed 1 directory",
+        "runListFilesMany": "Listed {{value0}} directories",
+        "runCommandOne": "Ran 1 command",
+        "runCommandMany": "Ran {{value0}} commands",
+        "runFileChangeOne": "Edited 1 file",
+        "runFileChangeMany": "Edited {{value0}} files",
+        "runWebSearchOne": "Searched the web 1 time",
+        "runWebSearchMany": "Searched the web {{value0}} times",
+        "runIntegrationOne": "Used 1 integration",
+        "runIntegrationMany": "Used {{value0}} integrations",
+        "runAgentOne": "Ran 1 agent",
+        "runAgentMany": "Ran {{value0}} agents",
+        "runPlanOne": "Updated the plan",
+        "runPlanMany": "Updated the plan {{value0}} times",
+        "runToolOne": "Used 1 tool",
+        "runToolMany": "Used {{value0}} tools",
+        "runPair": "{{value0}} and {{value1}}",
+        "runList": "{{value0}}, and {{value1}}"
       },
       "providerFrame": {
         "byteLength": "{{value0}} bytes"
@@ -18008,11 +18058,15 @@
   },
   "sessionSearch": {
     "panel": {
-      "rankedResults": "Best matches",
+      "resultsOne": "{{count}} result",
+      "resultsOther": "{{count}} results",
       "noMatches": "No matching sessions in the indexed history. Try another query or scope.",
       "loadMore": "Load more matches",
-      "indexedHistory": "Indexed history · best matches",
+      "indexedHistory": "Indexed history",
       "hostsSkipped": "Not searched: {{value0}}",
+      "sortRelevance": "Most relevant",
+      "sortNewest": "Newest",
+      "sortResultsAriaLabel": "Sort results: {{value0}}",
       "consent": "Enable full-text search? Orca builds an index on this computer from local agent transcripts, including full conversations and up to 3,072 characters per tool output. Content is not redacted. Authenticated paired clients can search it.",
       "remoteDisabled": "Search is disabled on this computer. Enable transcript indexing on that computer to search its sessions.",
       "notReady": "The search index is not ready yet. Try again shortly.",
@@ -18023,7 +18077,13 @@
       "enableFailed": "Could not enable search. Try again.",
       "enable": "Enable",
       "retry": "Try again",
-      "scopeUnknown": "This computer does not have this workspace or project. Switch the scope to All to search everything on it."
+      "scopeUnknown": "This computer does not have this workspace or project. Switch the scope to All to search everything on it.",
+      "sortSessionsAriaLabel": "Sort sessions: {{value0}}",
+      "sessionsOne": "{{count}} session",
+      "sessionsOther": "{{count}} sessions",
+      "sessionsOfLoaded": "{{value0}} of {{value1}} sessions",
+      "showMoreSessions": "Show more sessions",
+      "loadingMoreSessions": "Loading more sessions…"
     }
   },
   "sessionHistory": {
