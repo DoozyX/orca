@@ -9,6 +9,20 @@ vi.mock('react-native', () => ({
   Platform: { OS: 'ios', select: (options: Record<string, unknown>) => options.ios },
   StyleSheet: { create: (value: unknown) => value, hairlineWidth: 1 }
 }))
+// The seam's native file is the router and nothing else, so mocking expo-router under it is how
+// this gets a `RouteHandoff` without asserting one into existence. No target is pressed here.
+vi.mock('expo-router', () => ({
+  useRouter: () => ({
+    back: () => undefined,
+    push: () => undefined,
+    replace: () => undefined,
+    navigate: () => undefined,
+    dismissTo: () => undefined,
+    prefetch: () => undefined,
+    canGoBack: () => false,
+    setParams: () => undefined
+  })
+}))
 vi.mock('../platform/haptics', () => ({
   triggerSuccess: () => undefined,
   triggerError: () => undefined,
@@ -18,7 +32,7 @@ vi.mock('../platform/haptics', () => ({
 }))
 
 import { BRIDGE_MAX_MESSAGE_BYTES } from '../mobile-web-shell/bridge/bridge-caps'
-import type { RouteHandoff } from '../navigation/route-handoff'
+import { useRouteHandoff } from '../navigation/route-handoff'
 import { useMobileGitRequests } from './use-mobile-git-requests'
 import { useMobileSourceControlRunners } from './use-mobile-source-control-runners'
 
@@ -60,7 +74,6 @@ function idleRunnerParams() {
     stagedEntries: [],
     generatingMessage: false,
     unstageablePaths: [],
-    router: { back: vi.fn(), push: vi.fn(), replace: vi.fn() } as unknown as RouteHandoff,
     sendCommitRequest: vi.fn(),
     runGitSyncSteps: vi.fn(),
     loadStatus: vi.fn().mockResolvedValue(true),
@@ -92,14 +105,14 @@ describe('stage-all over the outbound frame cap', () => {
 
     expect(rejection).toBeInstanceOf(Error)
     // Named rather than matched on the text, so the message stays free to be reworded.
-    expect((rejection as Error).name).toBe('BridgeRequestOversizedError')
+    expect(rejection instanceof Error ? rejection.name : String(rejection)).toBe(
+      'BridgeRequestOversizedError'
+    )
     // The frame never left, which is what makes this a definite failure: nothing ran on the
     // desktop, so the caller may say so and may offer the smaller retry.
     expect(pair.toShell.length).toBe(postedBefore)
     expect(pair.hostDiagnostics).toEqual([])
-    expect(pair.diagnostics).toEqual([
-      { kind: 'send-oversized', bytes: expect.any(Number) as unknown as number }
-    ])
+    expect(pair.diagnostics.map((entry) => entry.kind)).toEqual(['send-oversized'])
     const [diagnostic] = pair.diagnostics
     expect(diagnostic.kind === 'send-oversized' ? diagnostic.bytes : 0).toBeGreaterThan(
       BRIDGE_MAX_MESSAGE_BYTES
@@ -116,6 +129,7 @@ describe('stage-all over the outbound frame cap', () => {
     // cannot prove ran, so a plain binding stays narrowed to `null` past the guard below.
     const captured: { stageAll: (() => Promise<void>) | null } = { stageAll: null }
     function Probe(): null {
+      const router = useRouteHandoff()
       const mountedRef = useRef(true)
       const busyActionRef = useRef<string | null>(null)
       const { sendGitRequest } = useMobileGitRequests({
@@ -126,6 +140,7 @@ describe('stage-all over the outbound frame cap', () => {
       captured.stageAll = useMobileSourceControlRunners({
         ...idleRunnerParams(),
         client: pair.client,
+        router,
         stageablePaths: STAGEABLE_PATHS,
         sendGitRequest,
         mountedRef,

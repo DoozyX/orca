@@ -1,6 +1,7 @@
 import { createElement } from 'react'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { describe, expect, it, vi } from 'vitest'
+import type { PRComment } from '../../../../src/shared/github/comment-types'
 
 /**
  * The comment avatar inside the shell's page, which is the one thing C4 renders differently there.
@@ -42,22 +43,20 @@ vi.mock('./PRCommentComposer', () => ({ PRCommentComposer: () => null }))
 const { PRCommentCard } = await import('./PRCommentCard')
 
 const AVATAR_URL = 'https://avatars.githubusercontent.com/u/1?v=4'
-const COMMENT = {
-  id: 'c1',
+const COMMENT: PRComment = {
+  id: 1,
   author: 'octocat',
   authorAvatarUrl: AVATAR_URL,
   body: 'looks good',
   createdAt: new Date('2026-01-01T00:00:00Z').toISOString(),
+  url: '',
   isResolved: false
 }
 
 function renderCard(): ReactTestRenderer {
   let rendered: ReactTestRenderer | null = null
   act(() => {
-    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the card reads the
-    // five fields above and this file mocks every child that reads more; the full PRComment carries
-    // provider metadata no branch here touches.
-    rendered = create(createElement(PRCommentCard, { comment: COMMENT as never, now: Date.now() }))
+    rendered = create(createElement(PRCommentCard, { comment: COMMENT, now: Date.now() }))
   })
   if (!rendered) {
     throw new Error('the card never rendered')
@@ -65,7 +64,14 @@ function renderCard(): ReactTestRenderer {
   return rendered
 }
 
-const imagesIn = (tree: ReactTestRenderer): unknown[] => tree.root.findAllByType('Image' as never)
+/**
+ * By host tag rather than `findAllByType`, which takes a component and not a mocked string.
+ *
+ * Through `String`, because `node.type` is typed as `ElementType` and React Native declares no
+ * intrinsic elements, so the compiler reads a comparison against a tag name as unreachable.
+ */
+const imagesIn = (tree: ReactTestRenderer): unknown[] =>
+  tree.root.findAll((node) => String(node.type) === 'Image')
 
 describe('the PR comment avatar', () => {
   it('renders the provider image on a phone', () => {
