@@ -13,6 +13,7 @@ import { platform, tmpdir } from 'node:os'
 import { delimiter, join } from 'node:path'
 import { EmulatorError } from './emulator-errors'
 import { materializeServeSimRuntime } from './serve-sim-runtime-materializer'
+import { linkSimulatorKitFramework } from './serve-sim-simulatorkit-link'
 
 const EXEC_TIMEOUT_MS = 90_000
 const MAC_OPEN_SHIM_DIR = join(tmpdir(), 'orca-serve-sim-open-shim')
@@ -112,6 +113,7 @@ export function resolveServeSimExecutable(): ServeSimExecutable {
       // can trip syspolicyd; run serve-sim from an unquarantined copy instead.
       const materializedDir = resolveMaterializedServeSimPackageDir(bundledPackageDir)
       if (materializedDir) {
+        linkSimulatorKitFramework(materializedDir)
         return {
           command: process.execPath,
           baseArgs: [join(materializedDir, 'dist', 'serve-sim.js')],
@@ -133,6 +135,7 @@ export function resolveServeSimExecutable(): ServeSimExecutable {
         chmodSync(helperBin, 0o755)
       }
     }
+    linkSimulatorKitFramework(nodeModulesPackageDir)
     return { command: process.execPath, baseArgs: [nodeModulesEntry], usesElectronAsNode: true }
   }
 
