@@ -33,7 +33,7 @@ import { MOBILE_DICTATION_PCM_SAMPLE_RATE } from '../hooks/mobile-dictation-pend
 import { createNativeAudioCapture, type NativeAudioEngine } from './native-audio'
 import { createNativeWakelockServer } from './native-wakelock'
 import { useDictationCapture } from './dictation-capture.web'
-import { DICTATION_NATIVE_EVENT_INTERVAL_MS } from './dictation-capture-contract'
+import { DICTATION_CAPTURE_DRAIN_INTERVAL_MS } from './dictation-capture-contract'
 import type { BridgeNativeVerb } from '../mobile-web-shell/bridge/bridge-native-verbs'
 import type { DictationCapture, DictationCaptureChunk } from './dictation-capture-contract'
 
@@ -129,7 +129,7 @@ async function mount(pair: BridgePortPair): Promise<DictationCapture> {
 async function tick(pair: BridgePortPair, intervals = 1): Promise<void> {
   for (let index = 0; index < intervals; index += 1) {
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(DICTATION_NATIVE_EVENT_INTERVAL_MS)
+      await vi.advanceTimersByTimeAsync(DICTATION_CAPTURE_DRAIN_INTERVAL_MS)
       await pair.flush()
     })
   }

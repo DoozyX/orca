@@ -6,7 +6,7 @@ import {
 import { useNativeVerbs, type NativeVerbs } from '../mobile-web-shell/bridge/use-native-verbs'
 import { MOBILE_DICTATION_PCM_SAMPLE_RATE } from '../hooks/mobile-dictation-pending-audio-budget'
 import {
-  DICTATION_NATIVE_EVENT_INTERVAL_MS,
+  DICTATION_CAPTURE_DRAIN_INTERVAL_MS,
   type DictationCapture,
   type DictationCaptureChunk,
   type DictationCaptureOpen,
@@ -67,7 +67,7 @@ function subscribe<Handler>(
 /** Split from the hook so a caller can drive it with a client of its own; the hook is the wiring. */
 export function createPageDictationCapture(
   verbs: NativeVerbs,
-  drainIntervalMs: number = DICTATION_NATIVE_EVENT_INTERVAL_MS
+  drainIntervalMs: number = DICTATION_CAPTURE_DRAIN_INTERVAL_MS
 ): DictationCapture {
   const chunkHandlers: Handlers<(chunk: DictationCaptureChunk) => void> = new Set()
   const interruptionHandlers: Handlers<() => void> = new Set()

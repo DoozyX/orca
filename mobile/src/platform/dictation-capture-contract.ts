@@ -82,3 +82,18 @@ export type DictationCapture = {
  * 63 of the bridge's 64 in-flight slots into dictation on a two-second link.
  */
 export const DICTATION_NATIVE_EVENT_INTERVAL_MS = 32
+
+/**
+ * How often the page drains the shell's ring, and therefore how often it forwards a chunk.
+ *
+ * Priced against `BRIDGE_MAX_PENDING_REQUESTS`, which is what bounds dictation rather than the
+ * frame cap. Every `speech.dictation.chunk` is a forwarded request holding one of 64 slots for a
+ * whole desktop round trip, so at the native event rate a two-second link leaves 62 of them in
+ * flight and nothing for the screen around it. At this interval it is four, on the same 42 KiB/s:
+ * the batch costs nothing but latency, and half a second of it is below what a transcript that
+ * arrives after `finish` can show.
+ *
+ * The frame is never the bound. Half a second of 16 kHz 16-bit PCM is 16,000 bytes, which is
+ * 21,336 characters of base64 against a 655,360-byte frame cap — 3.3% of one.
+ */
+export const DICTATION_CAPTURE_DRAIN_INTERVAL_MS = 500
