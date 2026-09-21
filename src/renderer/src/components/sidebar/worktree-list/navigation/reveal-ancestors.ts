@@ -2,6 +2,11 @@ import type { ProjectGroup } from '../../../../../../shared/project-group-types'
 import type { Repo } from '../../../../../../shared/repo-types'
 import type { Worktree } from '../../../../../../shared/worktree/types'
 import { PINNED_GROUP_KEY, getProjectGroupHeaderKey } from '../grouping/group-keys'
+import {
+  buildMergedProjectGroupIndex,
+  resolveMergedProjectGroupId
+} from '../grouping/cross-host-project-group-merge'
+import { getProjectGroupHostId } from '../../../../store/slices/project-group-owner-routing'
 import type { ProjectGroupingModel } from '../grouping/project-grouping'
 
 function getProjectIdFromHeaderRowKey(rowKey: string): string | null {
@@ -50,6 +55,7 @@ function getProjectGroupAncestorKeys(
   projectGroups: readonly ProjectGroup[]
 ): string[] {
   const groupsById = new Map(projectGroups.map((group) => [group.id, group]))
+  const mergedIndex = buildMergedProjectGroupIndex(projectGroups)
   const keys: string[] = []
   const seen = new Set<string>()
   let currentGroupId = projectGroupId ?? null
@@ -59,7 +65,12 @@ function getProjectGroupAncestorKeys(
       break
     }
     seen.add(currentGroupId)
-    keys.unshift(getProjectGroupHeaderKey(group.id))
+    // Why: reveal must expand the merged header the row renders under (#22022).
+    keys.unshift(
+      getProjectGroupHeaderKey(
+        resolveMergedProjectGroupId(mergedIndex, group.id, getProjectGroupHostId(group))
+      )
+    )
     currentGroupId = group.parentGroupId
   }
   return keys

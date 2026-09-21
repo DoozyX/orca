@@ -1,5 +1,8 @@
 import type { ProjectGroup } from '../../../../../../shared/project-group-types'
-import { LOCAL_EXECUTION_HOST_ID } from '../../../../../../shared/execution-host'
+import {
+  LOCAL_EXECUTION_HOST_ID,
+  type ExecutionHostId
+} from '../../../../../../shared/execution-host'
 import { getProjectGroupHostId } from '../../../../store/slices/project-group-owner-routing'
 
 /** One sidebar row's worth of project group: the copy that owns the row plus
@@ -9,12 +12,31 @@ export type MergedProjectGroup = {
   members: readonly ProjectGroup[]
 }
 
-function getHostScopedKey(group: ProjectGroup): string {
-  return `${getProjectGroupHostId(group)}\u0000${group.id}`
+/** Merged rows plus the lookups that map a raw (host, id) pair back onto one. */
+export type MergedProjectGroupIndex = {
+  merged: readonly MergedProjectGroup[]
+  byHostScopedKey: ReadonlyMap<string, MergedProjectGroup>
+  /** Id-only fallback for callers with no host in hand. A null value marks an id
+   *  that two hosts reuse for different merged rows, where guessing would be wrong. */
+  byAmbiguousId: ReadonlyMap<string, MergedProjectGroup | null>
 }
 
-/** Identity shared by the copies of one logical group across hosts: the chain of
- *  normalized names up to the root. Ids and parentPath are per-host, names are not. */
+function getHostScopedKey(group: ProjectGroup): string {
+  return toHostScopedKey(getProjectGroupHostId(group), group.id)
+}
+
+function toHostScopedKey(hostId: string, groupId: string): string {
+  return `${hostId}\u0000${groupId}`
+}
+
+/**
+ * Identity shared by the copies of one logical group across hosts: the chain of
+ * normalized names up to the root. Ids and parentPath are per-host, names are not.
+ *
+ * Segments are length-prefixed rather than delimiter-joined because a folder-scan
+ * group's name is a relative path and may itself contain the delimiter, which would
+ * make `packages/shared` and `shared` under `packages` collide.
+ */
 function getCrossHostIdentity(
   group: ProjectGroup,
   byHostScopedKey: ReadonlyMap<string, ProjectGroup>,
@@ -29,17 +51,17 @@ function getCrossHostIdentity(
   const name = group.name.trim().toLowerCase()
   // Why: a cyclic parent chain would recurse forever; fall back to the row's own id.
   if (resolving.has(key)) {
-    return `\u0001cycle:${key}/${name}`
+    return `\u0001cycle\u0001${key.length}:${key}`
   }
   resolving.add(key)
   const parent = group.parentGroupId
-    ? byHostScopedKey.get(`${getProjectGroupHostId(group)}\u0000${group.parentGroupId}`)
+    ? byHostScopedKey.get(toHostScopedKey(getProjectGroupHostId(group), group.parentGroupId))
     : undefined
   const parentIdentity = parent
     ? getCrossHostIdentity(parent, byHostScopedKey, cache, resolving)
     : ''
   resolving.delete(key)
-  const identity = `${parentIdentity}/${name}`
+  const identity = `${parentIdentity}${name.length}:${name}`
   cache.set(key, identity)
   return identity
 }
@@ -64,37 +86,111 @@ function isPreferredPrimary(candidate: ProjectGroup, current: ProjectGroup): boo
  * Projects already merge across hosts (one row carrying a local and a paired-host
  * checkout), but their groups did not: the copy that lost the project rows stayed
  * behind as an identical, unfoldable header (#22022).
+ *
+ * Only copies on *different* hosts fold together. Two same-named siblings on one
+ * host are two real groups the user can tell apart and move projects between, so
+ * an identity any single host claims twice is left entirely unmerged.
  */
 export function mergeProjectGroupsAcrossHosts(
   projectGroups: readonly ProjectGroup[]
 ): MergedProjectGroup[] {
   const byHostScopedKey = new Map(projectGroups.map((group) => [getHostScopedKey(group), group]))
   const identityCache = new Map<string, string>()
-  const mergedByIdentity = new Map<string, { primary: ProjectGroup; members: ProjectGroup[] }>()
+  const membersByIdentity = new Map<string, ProjectGroup[]>()
+  const identityOrder: string[] = []
   for (const group of projectGroups) {
     const identity = getCrossHostIdentity(group, byHostScopedKey, identityCache, new Set())
-    const existing = mergedByIdentity.get(identity)
-    if (!existing) {
-      mergedByIdentity.set(identity, { primary: group, members: [group] })
+    const members = membersByIdentity.get(identity)
+    if (members) {
+      members.push(group)
       continue
     }
-    existing.members.push(group)
-    if (isPreferredPrimary(group, existing.primary)) {
-      existing.primary = group
-    }
+    membersByIdentity.set(identity, [group])
+    identityOrder.push(identity)
   }
-  return [...mergedByIdentity.values()]
+
+  const merged: MergedProjectGroup[] = []
+  for (const identity of identityOrder) {
+    const members = membersByIdentity.get(identity) ?? []
+    const hostIds = new Set<ExecutionHostId>()
+    const claimedTwiceByOneHost = members.some((member) => {
+      const hostId = getProjectGroupHostId(member)
+      if (hostIds.has(hostId)) {
+        return true
+      }
+      hostIds.add(hostId)
+      return false
+    })
+    if (claimedTwiceByOneHost) {
+      for (const member of members) {
+        merged.push({ primary: member, members: [member] })
+      }
+      continue
+    }
+    let primary = members[0]
+    for (const member of members) {
+      if (isPreferredPrimary(member, primary)) {
+        primary = member
+      }
+    }
+    merged.push({ primary, members })
+  }
+  return merged
 }
 
-/** Group id (from any host) -> the merged row it renders in. */
-export function buildMergedProjectGroupLookup(
-  merged: readonly MergedProjectGroup[]
-): ReadonlyMap<string, MergedProjectGroup> {
-  const lookup = new Map<string, MergedProjectGroup>()
+const mergedIndexCache = new WeakMap<object, MergedProjectGroupIndex>()
+
+/** Memoized on the project-group array identity, the way the sidebar already
+ *  memoizes its project grouping index. */
+export function buildMergedProjectGroupIndex(
+  projectGroups: readonly ProjectGroup[]
+): MergedProjectGroupIndex {
+  const cached = mergedIndexCache.get(projectGroups)
+  if (cached) {
+    return cached
+  }
+  const merged = mergeProjectGroupsAcrossHosts(projectGroups)
+  const byHostScopedKey = new Map<string, MergedProjectGroup>()
+  const byAmbiguousId = new Map<string, MergedProjectGroup | null>()
   for (const entry of merged) {
     for (const member of entry.members) {
-      lookup.set(member.id, entry)
+      byHostScopedKey.set(getHostScopedKey(member), entry)
+      const seen = byAmbiguousId.get(member.id)
+      if (seen === undefined) {
+        byAmbiguousId.set(member.id, entry)
+      } else if (seen !== entry) {
+        // Why: two hosts reusing one group id for different rows — no id-only answer is right.
+        byAmbiguousId.set(member.id, null)
+      }
     }
   }
-  return lookup
+  const index = { merged, byHostScopedKey, byAmbiguousId }
+  mergedIndexCache.set(projectGroups, index)
+  return index
+}
+
+/** The merged row a raw group id belongs to. Pass the owning host whenever it is
+ *  known: ids are only unique per host. */
+export function findMergedProjectGroup(
+  index: MergedProjectGroupIndex,
+  groupId: string,
+  hostId?: ExecutionHostId
+): MergedProjectGroup | undefined {
+  if (hostId) {
+    const hostScoped = index.byHostScopedKey.get(toHostScopedKey(hostId, groupId))
+    if (hostScoped) {
+      return hostScoped
+    }
+  }
+  return index.byAmbiguousId.get(groupId) ?? undefined
+}
+
+/** Raw group id -> the id the sidebar keys its header and collapse state on.
+ *  Falls back to the raw id so callers stay correct for ids the index never saw. */
+export function resolveMergedProjectGroupId(
+  index: MergedProjectGroupIndex,
+  groupId: string,
+  hostId?: ExecutionHostId
+): string {
+  return findMergedProjectGroup(index, groupId, hostId)?.primary.id ?? groupId
 }
