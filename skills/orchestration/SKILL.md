@@ -9,7 +9,10 @@ description: >-
   a DAG, and for terminal control, lightweight terminal prompts, shell commands,
   Orca worktree management, and reading or waiting on terminals. This skill is
   the coordination runtime; use the `delivery` skill for the implement, test,
-  review, PR, green-CI recipe that runs on top of it.
+  review, PR, green-CI recipe that runs on top of it. It also owns fan-out:
+  "launch several sessions", "launch N sessions", "fan out", "run agents in
+  parallel", "spin up a fleet", "kick off background agents", and "check
+  progress without blocking".
 ---
 
 # Orca Orchestration
