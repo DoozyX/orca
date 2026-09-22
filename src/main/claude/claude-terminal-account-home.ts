@@ -11,6 +11,7 @@
 // was, and the wrong answer here is another organisation's account.
 
 import type { Repo } from '../../shared/repo-types'
+import type { Store } from '../persistence'
 import { LOCAL_EXECUTION_HOST_ID, type ExecutionHostId } from '../../shared/execution-host'
 import type { TuiAgent } from '../../shared/tui-agent'
 import { parseWslUncPath } from '../../shared/wsl-paths'
@@ -51,8 +52,8 @@ export type ClaudeTerminalHomeLocation = {
  * which has no repo Git options — a UNC path, the only durable signal left.
  */
 export function resolveClaudeTerminalWslDistro(input: {
-  store: { getRepo?: (repoId: string) => Repo | undefined } | null | undefined
-  repo: Pick<Repo, 'id'> | null | undefined
+  store: Store | null | undefined
+  repo: Repo | null | undefined
   workspacePath: string
   isLocalHost: boolean
 }): string | null {
@@ -60,11 +61,7 @@ export function resolveClaudeTerminalWslDistro(input: {
     return null
   }
   if (input.repo && input.store) {
-    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the options reader takes the same store shape the runtime passes its structured counterpart.
-    const configured = getLocalProjectWorktreeGitOptions(
-      input.store as Parameters<typeof getLocalProjectWorktreeGitOptions>[0],
-      input.repo as Repo
-    ).wslDistro
+    const configured = getLocalProjectWorktreeGitOptions(input.store, input.repo).wslDistro
     if (configured) {
       return configured
     }
