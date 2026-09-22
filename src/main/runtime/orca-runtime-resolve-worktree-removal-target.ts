@@ -1,6 +1,10 @@
 // @ts-nocheck -- mechanically split from OrcaRuntimeService; behavior is covered by AST equivalence and characterization tests.
 import { OrcaRuntimeWithRemoveManagedWorktree } from './orca-runtime-remove-managed-worktree'
-import type { ExecutionHostId } from '../../shared/execution-host'
+import { LOCAL_EXECUTION_HOST_ID, type ExecutionHostId } from '../../shared/execution-host'
+import {
+  resolveClaudeTerminalConfigDirEnv,
+  resolveClaudeTerminalWslDistro
+} from '../claude/claude-terminal-account-home'
 import type { RuntimeWorktreeRemovalTarget } from './runtime-worktree-selection'
 import { resolveRuntimeWorktreeRemovalTarget } from './runtime-worktree-removal-target'
 import type { RuntimeStore } from './runtime-store-contract'
@@ -14,17 +18,13 @@ import type { ForceDeleteWorktreeBranchResult } from '../../shared/worktree/crea
 import type { RuntimeTerminalRename } from '../../shared/runtime-types'
 import type { TerminalWorkspaceLaunchScope } from './runtime-legacy-worker-terminal-recovery-types'
 import type { TerminalCreateOptions } from './runtime-terminal-contracts'
-import { resolveLocalWindowsAgentStartupShell } from '../../shared/windows-terminal-shell'
 import { isTuiAgentEnabled } from '../../shared/tui-agent-selection'
 import { terminalShellOverrideRefusal } from './terminal-shell-override-host-support'
 import { resolveTerminalStartupCwd } from '../../shared/terminal-startup-cwd'
 import { resolveLocalProjectRuntimeForWorktreeId } from '../local-project-runtime-resolution'
 import { resolveBareAgentLaunchCommand } from './runtime-agent-launch-resolution'
 import { buildAgentStartupPlan } from '../../shared/tui-agent-startup'
-import {
-  resolveTuiAgentLaunchArgs,
-  resolveTuiAgentLaunchEnv
-} from '../../shared/tui-agent-launch-defaults'
+import { resolveAgentStartupPlanInputs } from '../../shared/agent-startup-plan-inputs'
 
 export class OrcaRuntimeWithResolveWorktreeRemovalTarget extends OrcaRuntimeWithRemoveManagedWorktree {
   protected async resolveWorktreeRemovalTarget(
@@ -203,12 +203,6 @@ export class OrcaRuntimeWithResolveWorktreeRemovalTarget extends OrcaRuntimeWith
     // Why: `workspace.repo` is display metadata and may be a row from another host; the launch
     // shape must match the PTY route this scope already resolved.
     const isRemote = Boolean(workspace.connectionId)
-    const queuedShell = resolveLocalWindowsAgentStartupShell({
-      platform,
-      isRemote,
-      // A requested shell is the one this PTY will actually be, so it owns the quoting family.
-      terminalWindowsShell: opts.shellOverride ?? settings.terminalWindowsShell
-    })
     if (opts.startupAgent && !isTuiAgentEnabled(opts.startupAgent, settings.disabledTuiAgents)) {
       throw new Error(`Agent ${opts.startupAgent} is disabled. Choose an enabled agent.`)
     }
@@ -224,18 +218,18 @@ export class OrcaRuntimeWithResolveWorktreeRemovalTarget extends OrcaRuntimeWith
       return opts
     }
 
-    const sessionOptions = this.toAgentSessionOptions(opts.launchPreferences)
     const startupPlan = buildAgentStartupPlan({
-      agent,
+      ...resolveAgentStartupPlanInputs({
+        agent,
+        settings,
+        platform,
+        isRemote,
+        ...(opts.agentArgs !== undefined ? { agentArgs: opts.agentArgs } : {}),
+        // A requested shell is the one this PTY will actually be, so it owns the quoting family.
+        windowsShellOverride: opts.shellOverride,
+        sessionOptions: this.toAgentSessionOptions(opts.launchPreferences)
+      }),
       prompt: opts.startupPrompt ?? '',
-      cmdOverrides: settings.agentCmdOverrides ?? {},
-      agentArgs: resolveTuiAgentLaunchArgs(agent, settings.agentDefaultArgs),
-      agentEnv: resolveTuiAgentLaunchEnv(agent, settings.agentDefaultEnv),
-      sessionOptions,
-      sessionOptionsOverrideAgentArgs: Boolean(sessionOptions),
-      platform,
-      shell: queuedShell,
-      isRemote,
       allowEmptyPromptLaunch: true
     })
     if (!startupPlan) {
@@ -254,10 +248,35 @@ export class OrcaRuntimeWithResolveWorktreeRemovalTarget extends OrcaRuntimeWith
 
     await this.markWorkspaceTrustedForAgent(agent, workspace.connectionId, workspace.path)
 
+    // A project group may bind this workspace's Claude to its own config dir. Resolved here
+    // because this is the one funnel every terminal create passes through, and resolved by the
+    // same function a structured session uses so the two routes cannot answer differently. An
+    // unusable binding throws, which refuses the create — never a silent fall back to the shared
+    // home, per `claude-bound-home-refusal.ts`.
+    const claudeHomeEnv = await resolveClaudeTerminalConfigDirEnv({
+      agent,
+      store,
+      location: {
+        executionHostId: isRemote ? null : LOCAL_EXECUTION_HOST_ID,
+        wslDistro: resolveClaudeTerminalWslDistro({
+          store,
+          repo: workspace.repo,
+          workspacePath: workspace.path,
+          isLocalHost: !isRemote
+        }),
+        workspaceId: workspace.id
+      },
+      launchEnv: { ...process.env, ...startupPlan.env },
+      readSelectedConfigDir: () =>
+        this.accounts?.getClaudeConfigDirectory({ runtime: 'host' }) ?? undefined,
+      assertBoundHomeUsable: this.assertClaudeBoundHomeUsableFn
+    })
+    const launchEnv = { ...startupPlan.env, ...claudeHomeEnv }
+
     return {
       ...opts,
       command: startupPlan.launchCommand,
-      ...(startupPlan.env ? { env: startupPlan.env } : {}),
+      ...(Object.keys(launchEnv).length > 0 ? { env: launchEnv } : {}),
       launchConfig: startupPlan.launchConfig,
       launchAgent: agent,
       startupCommandDelivery: startupPlan.startupCommandDelivery

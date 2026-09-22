@@ -10,9 +10,9 @@ import {
   PAGE_READY_DEADLINE_MS,
   type MobileWebShellRuntime
 } from './mobile-web-shell-runtime'
+import { readMobileWebShellReachability } from './mobile-web-shell-reachability'
 import {
   createMobileWebShellSession,
-  readMobileWebShellReachability,
   reduceMobileWebShellSession
 } from './mobile-web-shell-session'
 import type {
@@ -34,6 +34,13 @@ export type MobileWebShellSessionView = {
   readonly reportDocumentLoaded: () => void
   /** The page spoke over the bridge; ends that wait, whichever of the two arrived first. */
   readonly reportPageReady: () => void
+  /**
+   * Whether the page has handshaken on this session, which the bridge host is rebuilt against.
+   *
+   * Projected into state beside `state` rather than read off the ref while rendering: a
+   * `page-ready` changes nothing else, so no other value would re-render to carry it out.
+   */
+  readonly pageReady: boolean
 }
 
 /**
@@ -61,6 +68,7 @@ export function useMobileWebShellSession(args: {
 
   const sessionRef = useRef(createMobileWebShellSession(routePathname))
   const [state, setState] = useState(sessionRef.current.state)
+  const [pageReady, setPageReady] = useState(sessionRef.current.pageReady)
   const hostKey = useMemo(() => deriveHostCacheKey(hostId), [hostId])
   const startedAtRef = useRef(runtime.now())
   // Bumped by anything that invalidates work in flight; every dispatch out of an effect checks it.
@@ -81,6 +89,7 @@ export function useMobileWebShellSession(args: {
     const stepped = reduceMobileWebShellSession(sessionRef.current, event)
     sessionRef.current = stepped.session
     setState(stepped.session.state)
+    setPageReady(stepped.session.pageReady)
     for (const effect of stepped.effects) {
       // Every effect of a step belongs to the flow that step produced, and its result carries that
       // number back, so a flow the session has since restarted reports into nothing.
@@ -112,6 +121,12 @@ export function useMobileWebShellSession(args: {
           // Reports nothing: the store serialises its own queue, so the sweep and read the reducer
           // queued behind this one already run after it.
           await store.deleteHostCache(hostKey).catch(() => undefined)
+          return
+        case 'persist-manifest':
+          // Nothing is reported back and a failure is swallowed: the routes the page is mounted
+          // under are already on the session, so all a refused or failed write costs is the
+          // freshness of the next offline verdict, never the generation being opened here.
+          await store.persistActiveManifest(hostKey, effect.manifest).catch(() => undefined)
           return
         case 'open-cache':
           send({ type: 'cache-read', flow, generation: await openCache(store, hostKey) })
@@ -172,6 +187,7 @@ export function useMobileWebShellSession(args: {
     sessionRef.current = createMobileWebShellSession(routePathname)
     startedAtRef.current = runtime.now()
     setState(sessionRef.current.state)
+    setPageReady(sessionRef.current.pageReady)
     return invalidate
   }, [hostId, invalidate, routePathname, runtime])
 
@@ -226,6 +242,7 @@ export function useMobileWebShellSession(args: {
 
   return {
     state,
+    pageReady,
     pageRoutes: sessionRef.current.pageRoutes,
     pageRouteGrants: sessionRef.current.pageRouteGrants,
     routeGrants: sessionRef.current.routeGrants,

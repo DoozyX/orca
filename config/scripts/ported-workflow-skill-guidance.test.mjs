@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 const projectDir = resolve(import.meta.dirname, '../..')
 
-// The six workflow skills ported from agent-deck: a design gate, the delivery recipe that
+// The six workflow skills: a design gate, the delivery recipe that
 // runs on the orchestration runtime, and the four quality layers delivery hands work to.
 const PORTED_SKILLS = {
   brainstorming: {
