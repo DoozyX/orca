@@ -10,12 +10,13 @@ import { getVisibleUsageProvider, isUsageEmptyState } from './status-bar-provide
 import { getUsageProviderAccountsSectionId } from './usage-provider-settings-target'
 import { CLOSE_ALL_CONTEXT_MENUS_EVENT, useStatusBarMenuFocusHandoff } from './ProviderDetailsMenu'
 import { observeStatusBarContainer } from './status-bar-container-observer'
+import { useAccountUsageRoster } from './use-account-usage-roster'
+import { buildAccountUsageRoster } from './account-usage-roster'
 
 export function useStatusBarController(floatingTerminalOpen: boolean) {
   const floatingTerminalShortcut = useShortcutLabel('floatingTerminal.toggle')
-  const rateLimits = useAppStore((s) => s.rateLimits)
+  const { rateLimits, accounts, ownerKey, refreshUsage, refreshPreviews } = useAccountUsageRoster()
   const settings = useAppStore((s) => s.settings)
-  const refreshRateLimits = useAppStore((s) => s.refreshRateLimits)
   const openSettingsTarget = useAppStore((s) => s.openSettingsTarget)
   const openSettingsPage = useAppStore((s) => s.openSettingsPage)
   const usagePercentageDisplay = normalizeUsagePercentageDisplay(
@@ -87,13 +88,13 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
     setIsRefreshing(true)
     try {
       // Why: re-run PATH detection so a freshly-installed/removed CLI's bar appears/hides without restarting Orca.
-      await Promise.all([refreshRateLimits(), refreshDetectedAgents()])
+      await Promise.all([refreshUsage(), refreshDetectedAgents()])
     } finally {
       if (mountedRef.current) {
         setIsRefreshing(false)
       }
     }
-  }, [isRefreshing, refreshRateLimits, refreshDetectedAgents])
+  }, [isRefreshing, refreshUsage, refreshDetectedAgents])
 
   if (!statusBarVisible) {
     return null
@@ -110,6 +111,8 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
   // Why: thread non-GlobalSettings durability flags so bars stay visible across reloads and snapshot refreshes.
   const usageSettings = {
     ...settings,
+    claudeManagedAccounts: accounts.claude.accounts,
+    codexManagedAccounts: accounts.codex.accounts,
     antigravityUsageConfigured,
     minimaxCookieConfigured: rateLimits.minimaxCookieConfigured,
     minimaxApiKeyConfigured: rateLimits.minimaxApiKeyConfigured,
@@ -204,6 +207,13 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
     showGrok ? visibleGrok : null
   ].filter((p): p is ProviderRateLimits => p !== null)
 
+  const usageEntries = buildAccountUsageRoster({
+    providers: rosterProviders,
+    accounts,
+    rateLimits,
+    ownerKey
+  })
+
   const handleManageAccounts = (): void => {
     setUsageMenuOpen(false)
     openSettingsTarget({ pane: 'accounts', repoId: null })
@@ -227,12 +237,13 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
     if (nextOpen) {
       usageMenuFocusHandoff.reset()
       recordFeatureInteraction('usage-tracking')
+      void refreshPreviews()
     }
     setUsageMenuOpen(nextOpen)
   }
 
   return {
-    anyFetching,
+    anyFetching: anyFetching || usageEntries.some((entry) => entry.isFetching),
     anyVisible,
     compact,
     containerRefCallback,
@@ -253,6 +264,7 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
     petEnabled,
     recordFeatureInteraction,
     rosterProviders,
+    usageEntries,
     setMenuOpen,
     setMenuPoint,
     setStatusBarUsageMode,
