@@ -157,8 +157,8 @@ test('keeps a collapsed group visible when an idle card below it grows', async (
   expect(before.groupUnobscured).toBe(true)
   expect(before.scrollTop).toBe(0)
   expect(before.scrollHeight).toBeLessThanOrEqual(before.clientHeight)
-  expect(before.collapsedGap).toBeGreaterThan(0)
-  expect(before.expandedGap).toBeGreaterThan(0)
+  expect(before.collapsedGap).toBe(0)
+  expect(before.expandedGap).toBe(0)
 
   const beforePath = testInfo.outputPath('before-card-growth.png')
   await sidebar.screenshot({ path: beforePath })

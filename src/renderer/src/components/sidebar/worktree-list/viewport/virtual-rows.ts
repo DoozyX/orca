@@ -4,9 +4,9 @@ import { PINNED_GROUP_KEY, getWorktreeLineageGroupKey } from '../grouping/group-
 import { getRenderRowKey } from '../listing/render-row'
 import type { RenderRow } from '../listing/render-row'
 
-export const GROUP_HEADER_ROW_HEIGHT = 28
+export const GROUP_HEADER_ROW_HEIGHT = 20
 export const HOST_HEADER_ROW_HEIGHT = 32
-export const WORKTREE_SIDEBAR_VIRTUAL_ROW_GAP = 6
+export const WORKTREE_SIDEBAR_VIRTUAL_ROW_GAP = 0
 const SECONDARY_GROUP_HEADER_TOP_MARGIN = 4
 const IMPORTED_WORKTREES_LINE_ROW_HEIGHT = 36
 const PENDING_CREATION_ROW_HEIGHT = 56
@@ -52,7 +52,13 @@ export function shouldUseHeaderTopSpacing(args: {
   const previousRenderRow = args.rows[args.index - 1]
   const followsCollapsedPinnedHeader =
     previousRenderRow?.type === 'header' && previousRenderRow.key === PINNED_GROUP_KEY
-  return args.index !== args.firstHeaderIndex && !followsCollapsedPinnedHeader
+  const consecutiveGroupHeaders =
+    args.rows[args.index]?.type === 'header' && previousRenderRow?.type === 'header'
+  return (
+    args.index !== args.firstHeaderIndex &&
+    !followsCollapsedPinnedHeader &&
+    !consecutiveGroupHeaders
+  )
 }
 
 export function estimateRenderRowSize(

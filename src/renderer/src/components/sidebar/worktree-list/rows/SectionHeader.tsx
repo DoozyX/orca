@@ -233,7 +233,7 @@ export function renderWorktreeSectionHeaderRow(args: {
         className={cn(
           // Why: no row-level grab — only the title surface below shows the hand;
           // actions use cursor-pointer so … / + never look reorderable.
-          'group relative flex h-7 w-full items-center gap-1.5 pr-2 text-left transition-all',
+          'group relative flex h-5 w-full items-center gap-1.5 pr-2 text-left transition-all',
           !(isDraggableRepoHeader || isDraggableProjectGroupHeader) && 'cursor-pointer',
           ctx.highlightedRevealRowKey === row.key &&
             'rounded-md bg-worktree-sidebar-accent ring-1 ring-worktree-sidebar-ring/50',
@@ -299,7 +299,7 @@ export function renderWorktreeSectionHeaderRow(args: {
       >
         {/* Why: grab cursor on icon+title only. Row still has handle attrs so
             indent/padding can arm drag; actions are excluded via data-repo-header-actions.
-            self-stretch fills h-7 so grab matches the full title column height. */}
+            self-stretch fills the row so grab matches the full title column height. */}
         <div
           data-repo-header-drag-handle={isDraggableRepoHeader ? '' : undefined}
           data-project-group-header-drag-handle={isDraggableProjectGroupHeader ? '' : undefined}
