@@ -31,8 +31,10 @@ function buildNativeRebuildArgs(
 ) {
   const platform = readPlatformName(context?.platform)
   const arch = readArchName(context?.arch)
+  const isLocalBuild =
+    Boolean(environment.ORCA_LOCAL_BUILD_VERSION) && environment.ORCA_MAC_RELEASE !== '1'
   const canReusePreparedRuntime =
-    environment.ORCA_REUSE_PREPARED_NATIVE_RUNTIME === '1' &&
+    (environment.ORCA_REUSE_PREPARED_NATIVE_RUNTIME === '1' || isLocalBuild) &&
     platform === hostPlatform &&
     arch === hostArch
 

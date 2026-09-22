@@ -69,6 +69,39 @@ describe('electron-builder native rebuild hook', () => {
     ).toContain('--force')
   })
 
+  it.each(['arm64', 'x64'])('probes the prepared runtime for a local %s Mac build', (arch) => {
+    expect(
+      buildNativeRebuildArgs(
+        { platform: { nodeName: 'darwin' }, arch },
+        {
+          environment: { ORCA_LOCAL_BUILD_VERSION: '1.4.207-local.123.abc' },
+          hostPlatform: 'darwin',
+          hostArch: arch
+        }
+      )
+    ).toEqual(['config/scripts/rebuild-native-deps.mjs', '--platform=darwin', `--arch=${arch}`])
+  })
+
+  it.each([
+    { platform: 'darwin', arch: 'x64', environment: {} },
+    { platform: 'linux', arch: 'arm64', environment: {} },
+    { platform: 'darwin', arch: 'arm64', environment: { ORCA_MAC_RELEASE: '1' } }
+  ])('still forces a rebuild for cross-target or release packaging: %j', (target) => {
+    expect(
+      buildNativeRebuildArgs(
+        { platform: { nodeName: target.platform }, arch: target.arch },
+        {
+          environment: {
+            ORCA_LOCAL_BUILD_VERSION: '1.4.207-local.123.abc',
+            ...target.environment
+          },
+          hostPlatform: 'darwin',
+          hostArch: 'arm64'
+        }
+      )
+    ).toContain('--force')
+  })
+
   it('builds the native CLI launcher before packaging Windows resources', () => {
     const calls = []
     const result = runElectronBuilderNativeRebuild(
