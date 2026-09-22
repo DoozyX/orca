@@ -97,7 +97,6 @@ export function buildWorktreeCardPresentation(card: WorktreeCardController) {
   // Why: grouped views can hide the repo badge; don't reserve a blank metadata lane unless there's real content.
   const hasDetailedMetaRowContent = Boolean(
     (showRepoBadgeInMetaRow && repo) ||
-    showHostContextBadge ||
     folderMetaRowContent ||
     showBranch ||
     showIdentityInNewCard ||

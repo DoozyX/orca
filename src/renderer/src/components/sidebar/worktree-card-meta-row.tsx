@@ -5,7 +5,6 @@ import { DetachedHeadBadge } from '@/components/DetachedHeadBadge'
 import { RepoBadgeMark } from '@/components/repo/RepoBadgeLabel'
 import { Badge } from '@/components/ui/badge'
 import CacheTimer from './CacheTimer'
-import { WorktreeHostContextBadge } from './WorktreeHostContextBadge'
 import { CONFLICT_OPERATION_LABELS } from './WorktreeCardHelpers'
 import { TruncatedSidebarLabel } from './truncated-sidebar-label'
 import { getDirectoryName } from './worktree-card-model'
@@ -22,7 +21,6 @@ export function WorktreeCardMetaRow({
   const {
     worktree,
     repo,
-    hostContextLabel,
     identityDisplay,
     isFolder,
     newCardStyle,
@@ -34,7 +32,6 @@ export function WorktreeCardMetaRow({
   } = card
   const {
     showRepoBadgeInMetaRow,
-    showHostContextBadge,
     showIdentityInNewCard,
     hasHoverDetails,
     showBranch,
@@ -55,8 +52,6 @@ export function WorktreeCardMetaRow({
             </span>
           </div>
         )}
-
-        {showHostContextBadge && <WorktreeHostContextBadge label={hostContextLabel!} />}
 
         {showIdentityInNewCard ? (
           <TruncatedSidebarLabel

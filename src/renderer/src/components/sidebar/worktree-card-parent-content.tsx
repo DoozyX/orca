@@ -2,12 +2,14 @@ import React from 'react'
 
 import { cn } from '@/lib/utils'
 import { WorktreeCardHeader } from './worktree-card-header'
+import { WorktreeCardHeaderControls } from './worktree-card-header-controls'
 import { WorktreeCardMetaRow } from './worktree-card-meta-row'
 import { WorktreeCardDetailsHover } from './WorktreeCardMeta'
 import { WorktreeCardPortsDetails } from './WorktreeCardPorts'
 import type { WorktreeCardPresentation } from './worktree-card-presentation'
 import { WorktreeCardSecondaryRows } from './worktree-card-secondary-rows'
 import { WorktreeCardStatusSlot } from './WorktreeCardStatusSlot'
+import { useWorktreeAgentExpansionState } from './worktree-card-agents-expansion-state'
 import type { WorktreeCardController } from './use-worktree-card-controller'
 
 export function WorktreeCardParentContent({
@@ -63,10 +65,11 @@ export function WorktreeCardParentContent({
     hoverBranchName,
     hoverWorkspaceTitle
   } = presentation
+  const agentExpansion = useWorktreeAgentExpansionState(worktree.id)
 
   const identityContent = (
     <div
-      className="group/worktree-card flex w-full min-w-0 flex-col gap-1.5"
+      className="group/worktree-card flex w-full min-w-0 flex-col gap-0.5"
       data-worktree-card-hover-trigger=""
     >
       <WorktreeCardHeader card={card} presentation={presentation} />
@@ -163,8 +166,15 @@ export function WorktreeCardParentContent({
             : 'overflow-hidden'
         )}
       >
-        {identityContentWithHover}
-        <WorktreeCardSecondaryRows card={card} presentation={presentation} />
+        <div className={cn('flex min-w-0 gap-1', titleOnlyCard ? 'items-center' : 'items-start')}>
+          <div className="min-w-0 flex-1">{identityContentWithHover}</div>
+          <WorktreeCardHeaderControls card={card} agentExpansion={agentExpansion} />
+        </div>
+        <WorktreeCardSecondaryRows
+          card={card}
+          presentation={presentation}
+          agentExpansion={agentExpansion}
+        />
       </div>
     </div>
   )

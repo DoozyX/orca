@@ -12,6 +12,7 @@ import { resolveRepoHeaderColor } from './project-header-color'
 import { formatSparseDirectoryPreview, shouldBeginWorktreeRename } from './worktree-card-model'
 import type { WorktreeCardPresentation } from './worktree-card-presentation'
 import { WorktreeCardSshHostControl } from './WorktreeCardSshHostControl'
+import { WorktreeHostContextBadge } from './WorktreeHostContextBadge'
 import { WorktreeTitleInlineRename } from './WorktreeTitleInlineRename'
 import type { WorktreeCardController } from './use-worktree-card-controller'
 
@@ -54,6 +55,7 @@ export function WorktreeCardHeader({
   const {
     worktree,
     repo,
+    hostContextLabel,
     affiliateListMode,
     renameRowKey,
     compactCards,
@@ -81,6 +83,7 @@ export function WorktreeCardHeader({
   const {
     showPinnedRepoIcon,
     showInlineRepoBadge,
+    showHostContextBadge,
     showHeaderActions,
     showTitleRowPrimary,
     showDeleteQuickAction,
@@ -232,6 +235,8 @@ export function WorktreeCardHeader({
             </TooltipContent>
           </Tooltip>
         )}
+
+        {showHostContextBadge && <WorktreeHostContextBadge label={hostContextLabel!} />}
 
         {worktree.isSparse && (
           <Tooltip>

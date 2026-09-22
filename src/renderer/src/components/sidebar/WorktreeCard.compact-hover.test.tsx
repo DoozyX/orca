@@ -29,12 +29,14 @@ let projectGroups: unknown[] = []
 let workspacePortScan: { key: string; result: WorkspacePortScanResult } | null = null
 let settings: Partial<GlobalSettings> | null = { compactWorktreeCards: true }
 let agentActivityDisplayMode: 'compact' | 'full' | undefined
-let mockInlineAgentRows: DashboardAgentRowData[] = []
+let mockInlineAgentRows: unknown[] = []
 
 vi.mock('@/store', () => ({
   useAppStore: (selector: (state: unknown) => unknown) =>
     selector({
       browserTabsByWorktree: {},
+      agentSendPopoverTargetMode: null,
+      agentStatusEpoch: 0,
       agentActivityDisplayMode,
       createBrowserTab: vi.fn(),
       deleteStateByWorktreeId: {},
@@ -649,6 +651,50 @@ describe('WorktreeCard compact hover details', () => {
     expect(statusIndex).toBeLessThan(triggerIndex)
     expect(hoverContentIndex).toBeGreaterThan(triggerIndex)
     expect(agentsIndex).toBeGreaterThan(hoverContentIndex)
+  })
+
+  it('keeps compact agent and child disclosures in the top row', async () => {
+    settings = { compactWorktreeCards: false, experimentalNewWorktreeCardStyle: true }
+    worktreeCardProperties = ['status', 'inline-agents']
+    agentActivityDisplayMode = 'compact'
+    mockInlineAgentRows = [
+      {
+        paneKey: 'tab-1:1',
+        tab: { id: 'tab-1' },
+        agentType: 'codex',
+        state: 'working',
+        startedAt: 1,
+        entry: { state: 'working', stateStartedAt: 1 }
+      },
+      {
+        paneKey: 'tab-2:1',
+        tab: { id: 'tab-2' },
+        agentType: 'claude',
+        state: 'done',
+        startedAt: 2,
+        entry: { state: 'done', stateStartedAt: 2 }
+      }
+    ]
+    const { default: WorktreeCard } = await import('./WorktreeCard')
+
+    const markup = renderToStaticMarkup(
+      <WorktreeCard
+        worktree={makeWorktree()}
+        repo={makeRepo()}
+        isActive={false}
+        lineageChildCount={1}
+        lineageCollapsed
+        onLineageToggle={vi.fn()}
+      />
+    )
+    const hoverContentIndex = markup.indexOf('data-hover-card-content=""')
+    const controlsIndex = markup.indexOf('data-worktree-card-header-controls=""')
+    const agentBodyIndex = markup.indexOf('data-worktree-agents=""')
+
+    expect(controlsIndex).toBeGreaterThan(hoverContentIndex)
+    expect(controlsIndex).toBeLessThan(agentBodyIndex)
+    expect(markup).toContain('>2 agents<')
+    expect(markup).toContain('>1 child<')
   })
 
   it('preserves the aggregate cache timer when compact inline agents are enabled but absent', async () => {

@@ -23,40 +23,34 @@ import {
 } from './worktree-card-compact-agents'
 import { buildAgentRowLineageTree } from '@/components/dashboard/agent-row-lineage-model'
 import { DEFAULT_AGENT_ACTIVITY_DISPLAY_MODE } from '../../../../shared/constants'
-import { revealElementInScrollContainer } from './worktree-sidebar-reveal'
-import { useWorktreeAgentExpansionState } from './worktree-card-agents-expansion-state'
+import {
+  useWorktreeAgentExpansionState,
+  type WorktreeAgentExpansionControls
+} from './worktree-card-agents-expansion-state'
 import { translate } from '@/i18n/i18n'
 import { activateStructuredAgentSessionTab } from '@/lib/structured-agent-session-tab-activation'
 import { selectAcknowledgedAgentTimes } from './worktree-card-agent-ack-inputs'
+import { dispatchSuppressScrollAdjustment } from './worktree-card-agent-scroll-suppression'
+import { revealCompactAgentCard } from './worktree-card-agent-reveal'
 
-export const SUPPRESS_WORKTREE_LIST_SCROLL_ADJUSTMENT_EVENT =
-  'orca-suppress-worktree-list-scroll-adjustment'
-
-const dispatchSuppressScrollAdjustment = () => {
-  window.dispatchEvent(new CustomEvent(SUPPRESS_WORKTREE_LIST_SCROLL_ADJUSTMENT_EVENT))
-}
-
-function revealCompactAgentCard(agentListRoot: HTMLElement | null): void {
-  const sidebarElement = agentListRoot?.closest('[data-worktree-sidebar]')
-  const worktreeOptionElement = agentListRoot?.closest('[role="option"]')
-  if (!(sidebarElement instanceof HTMLElement) || !worktreeOptionElement) {
-    return
-  }
-  revealElementInScrollContainer(sidebarElement, worktreeOptionElement, 'auto')
-}
+export { SUPPRESS_WORKTREE_LIST_SCROLL_ADJUSTMENT_EVENT } from './worktree-card-agent-scroll-suppression'
 
 type Props = {
   worktreeId: string
   agents?: DashboardAgentRowData[]
   /** Spacing from the card body above; parent decides whether a divider is appropriate. */
   className?: string
+  expansionControls?: WorktreeAgentExpansionControls
+  compactSummaryInHeader?: boolean
 }
 
 /** Inline agent list rendered inside WorktreeCard when 'inline-agents' is enabled. */
 const WorktreeCardAgents = React.memo(function WorktreeCardAgents({
   worktreeId,
   agents: precomputedAgents,
-  className
+  className,
+  expansionControls,
+  compactSummaryInHeader = false
 }: Props) {
   const selectedAgents = useWorktreeAgentRows(worktreeId, precomputedAgents === undefined)
   const agents = precomputedAgents ?? selectedAgents
@@ -64,19 +58,35 @@ const WorktreeCardAgents = React.memo(function WorktreeCardAgents({
     return null
   }
   // Why: mount the inner body (owns the 30s useNow tick) only for non-empty rows, so idle worktrees pay no timer cost.
-  return <WorktreeCardAgentsBody worktreeId={worktreeId} agents={agents} className={className} />
+  const bodyProps = { worktreeId, agents, className, compactSummaryInHeader }
+  return expansionControls ? (
+    <WorktreeCardAgentsBody {...bodyProps} expansionControls={expansionControls} />
+  ) : (
+    <WorktreeCardAgentsWithOwnedExpansion {...bodyProps} />
+  )
 })
 
 type BodyProps = {
   worktreeId: string
   agents: DashboardAgentRowData[]
   className?: string
+  compactSummaryInHeader: boolean
+  expansionControls: WorktreeAgentExpansionControls
 }
+
+const WorktreeCardAgentsWithOwnedExpansion = React.memo(
+  function WorktreeCardAgentsWithOwnedExpansion(props: Omit<BodyProps, 'expansionControls'>) {
+    const expansionControls = useWorktreeAgentExpansionState(props.worktreeId)
+    return <WorktreeCardAgentsBody {...props} expansionControls={expansionControls} />
+  }
+)
 
 const WorktreeCardAgentsBody = React.memo(function WorktreeCardAgentsBody({
   worktreeId,
   agents,
-  className
+  className,
+  compactSummaryInHeader,
+  expansionControls
 }: BodyProps) {
   const agentActivityDisplayMode =
     useAppStore((s) => s.agentActivityDisplayMode) ?? DEFAULT_AGENT_ACTIVITY_DISPLAY_MODE
@@ -206,7 +216,7 @@ const WorktreeCardAgentsBody = React.memo(function WorktreeCardAgentsBody({
     compactRootListExpanded,
     toggleLineageParent: toggleLineageParentState,
     toggleCompactRootList
-  } = useWorktreeAgentExpansionState(worktreeId)
+  } = expansionControls
 
   // Why: reveal only on a genuine user collapse→expand; seeding an already-expanded panel from cache on remount must not re-trigger the reveal scroll.
   const previousCompactExpandedRef = useRef(compactRootListExpanded)
@@ -368,7 +378,11 @@ const WorktreeCardAgentsBody = React.memo(function WorktreeCardAgentsBody({
     return (
       <div
         ref={compactAgentListRootRef}
-        className={cn('flex flex-col mt-1 gap-0.5', className)}
+        className={cn(
+          'flex flex-col gap-0.5',
+          shouldUseSummaryRow && compactSummaryInHeader ? 'mt-0' : 'mt-1',
+          !(shouldUseSummaryRow && compactSummaryInHeader) && className
+        )}
         onClick={stopBubble}
         onDoubleClick={stopBubble}
         onMouseDown={stopBubble}
@@ -377,7 +391,13 @@ const WorktreeCardAgentsBody = React.memo(function WorktreeCardAgentsBody({
         aria-label={translate('auto.components.sidebar.WorktreeCardAgents.1b0a156717', 'Agents')}
         data-compact-agent-list="true"
       >
-        {agents.length === 0 ? null : shouldUseSummaryRow ? (
+        {agents.length === 0 ? null : shouldUseSummaryRow && compactSummaryInHeader ? (
+          <CompactAgentExpansion expanded={compactRootListExpanded}>
+            {rootAgents.map((rootAgent) =>
+              renderCompactAgentBranch(rootAgent, new Set(), compactRootListExpanded)
+            )}
+          </CompactAgentExpansion>
+        ) : shouldUseSummaryRow ? (
           // Why: expanded compact agents stay a quiet tree; only the collapsed summary reads as a pill.
           <div
             className={cn(
