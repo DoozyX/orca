@@ -1,6 +1,7 @@
 import { spawnSync } from 'node:child_process'
 import { chmodSync, copyFileSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
+import { getMacHelperBuildTriples } from './mac-helper-build-targets.mjs'
 
 const repoRoot = path.resolve(import.meta.dirname, '../..')
 const packagePath = path.join(repoRoot, 'native', 'computer-use-macos')
@@ -17,23 +18,45 @@ const entitlementsPath = path.join(
 const bundleId = process.env.ORCA_COMPUTER_MACOS_BUNDLE_ID ?? 'com.stablyai.orca.computer-use'
 const displayName = 'Orca Computer Use'
 const signingIdentity = resolveSigningIdentity()
-const universalTriples = ['arm64-apple-macosx', 'x86_64-apple-macosx']
 
 if (process.platform !== 'darwin') {
   process.exit(0)
 }
 
-buildUniversalBinary()
+buildBinary()
 chmodSync(binaryPath, 0o755)
 createHelperApp()
 
-function buildUniversalBinary() {
-  const builtBinaries = universalTriples.map((triple) => {
-    run('swift', ['build', '-c', 'release', '--package-path', packagePath, '--triple', triple])
-    return path.join(packagePath, '.build', triple, 'release', 'orca-computer-use-macos')
+function buildBinary() {
+  const builtBinaries = getMacHelperBuildTriples().map((triple) => {
+    // Swift's build engines use different output layouts; isolate each target's cache.
+    const args = [
+      'build',
+      '-c',
+      'release',
+      '--package-path',
+      packagePath,
+      '--scratch-path',
+      path.join(packagePath, '.build', 'targets', triple),
+      '--triple',
+      triple
+    ]
+    run('swift', args)
+    const binDirectory = run('swift', [...args, '--show-bin-path'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'inherit']
+    }).trim()
+    if (!binDirectory) {
+      throw new Error('Swift did not report its binary output directory.')
+    }
+    return path.join(binDirectory, 'orca-computer-use-macos')
   })
   mkdirSync(path.dirname(binaryPath), { recursive: true })
-  run('lipo', ['-create', ...builtBinaries, '-output', binaryPath])
+  if (builtBinaries.length === 1) {
+    copyFileSync(builtBinaries[0], binaryPath)
+  } else {
+    run('lipo', ['-create', ...builtBinaries, '-output', binaryPath])
+  }
 }
 
 function createHelperApp() {
@@ -83,14 +106,15 @@ function resolveSigningIdentity() {
   return releaseMatch?.[1] ?? developmentMatch?.[1] ?? '-'
 }
 
-function run(command, args) {
-  const result = spawnSync(command, args, { stdio: 'inherit' })
+function run(command, args, options = {}) {
+  const result = spawnSync(command, args, { stdio: 'inherit', ...options })
   if (result.signal) {
     process.kill(process.pid, result.signal)
   }
   if (result.status !== 0) {
     process.exit(result.status ?? 1)
   }
+  return result.stdout
 }
 
 function infoPlist() {

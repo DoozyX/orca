@@ -26,6 +26,11 @@ Before a cross-architecture build (including `pnpm build:mac`, which produces bo
 arm64 artifacts by default), run `pnpm install:release` to add the other CPU's variants.
 See [the install policy](../docs/reference/pnpm-install-policy.md).
 
+To build and install this checkout on your Mac, run `pnpm build:mac:install`.
+It uses the newest available version plus a local suffix and replaces
+`/Applications/Orca.app` without retaining a backup. Restart Orca when ready.
+See [local macOS installation](../docs/readme/local-macos-install.md) for details.
+
 ## Branch Naming
 
 Use a clear, descriptive branch name that reflects the change.

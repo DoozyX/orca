@@ -1,3 +1,4 @@
+const { findInstalledMacSigningIdentity } = require('./scripts/mac-signing-identity.cjs')
 const { chmodSync, existsSync, readdirSync, readFileSync, writeFileSync } = require('node:fs')
 const { execFileSync } = require('node:child_process')
 const { join, resolve } = require('node:path')
@@ -508,6 +509,8 @@ module.exports = {
     // explicit release path so production artifacts remain strict while dev
     // artifacts do not fail with broken ad-hoc launch behavior.
     hardenedRuntime: isMacRelease,
+    // Local rebuilds keep their signature without a timestamp-server request per file.
+    timestamp: isMacRelease ? undefined : 'none',
     // Why dev builds notarize too, despite the ~10min notary round trip: TCC
     // anchors a notarized Developer ID app's permission grants on identifier +
     // team, which is cdhash-independent and so survives an update. Without a
@@ -726,7 +729,7 @@ async function signMacComputerUseHelper(helperAppPath, packager) {
   const identity =
     process.env.ORCA_COMPUTER_MACOS_SIGN_IDENTITY ??
     process.env.CSC_NAME ??
-    findInstalledMacSigningIdentity(codeSigningInfo?.keychainFile) ??
+    findInstalledMacSigningIdentity(codeSigningInfo?.keychainFile, isMacRelease) ??
     (isMacRelease ? null : '-')
   if (!identity) {
     throw new Error('Missing signing identity for Orca Computer Use helper app')
@@ -752,7 +755,7 @@ async function signMacStandaloneHelper(helperPath, helperName, packager) {
       : null
   const identity =
     process.env.CSC_NAME ??
-    findInstalledMacSigningIdentity(codeSigningInfo?.keychainFile) ??
+    findInstalledMacSigningIdentity(codeSigningInfo?.keychainFile, isMacRelease) ??
     (isMacRelease ? null : '-')
   if (!identity) {
     throw new Error(`Missing signing identity for ${helperName} helper`)
@@ -780,26 +783,4 @@ function codesignArgs(identity, targetPath) {
   }
   args.push(targetPath)
   return args
-}
-
-function findInstalledMacSigningIdentity(keychainFile) {
-  try {
-    const output = execFileSync(
-      'security',
-      ['find-identity', '-v', '-p', 'codesigning', ...(keychainFile ? [keychainFile] : [])],
-      {
-        encoding: 'utf8'
-      }
-    )
-    const releaseMatch =
-      output.match(/"([^"]*Developer ID Application:[^"]+)"/) ??
-      output.match(/"([^"]*Apple Distribution:[^"]+)"/)
-    if (releaseMatch?.[1]) {
-      return releaseMatch[1]
-    }
-    if (!isMacRelease) {
-      return output.match(/"([^"]*Apple Development:[^"]+)"/)?.[1] ?? null
-    }
-  } catch {}
-  return null
 }

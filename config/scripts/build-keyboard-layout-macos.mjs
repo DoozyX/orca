@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process'
 import { chmodSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { getMacHelperBuildTriples } from './mac-helper-build-targets.mjs'
 
 const repoRoot = path.resolve(import.meta.dirname, '../..')
 const sourcePath = path.join(repoRoot, 'native', 'keyboard-layout-macos', 'main.swift')
@@ -21,13 +22,10 @@ if (process.platform !== 'darwin') {
 
 const args = process.argv.slice(2)
 const outputPath = readArg('--output') ?? defaultOutputPath
-const singleArch = args.includes('--single-arch')
 const workDir = mkdtempSync(path.join(tmpdir(), 'orca-keyboard-layout-'))
 
 try {
-  const triples = singleArch
-    ? [process.arch === 'arm64' ? 'arm64-apple-macosx' : 'x86_64-apple-macosx']
-    : ['arm64-apple-macosx', 'x86_64-apple-macosx']
+  const triples = getMacHelperBuildTriples()
   const builtBinaries = triples.map((triple) => {
     const output = path.join(workDir, `orca-keyboard-layout-${triple}`)
     execFileSync(

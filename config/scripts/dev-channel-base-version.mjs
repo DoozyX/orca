@@ -31,7 +31,11 @@ function compareTriples(a, b) {
  * are a second floor so that unpublish cannot drag the series backwards.
  * package.json is a floor, not a source of truth.
  */
-export function resolveDevChannelBaseVersion(packageVersion, publishedVersions = []) {
+export function resolveDevChannelBaseVersion(
+  packageVersion,
+  publishedVersions = [],
+  { bumpStable = true } = {}
+) {
   const fromPackage = parseVersionTriple(packageVersion)
   if (!fromPackage) {
     throw new Error(`Package version is not valid semver: ${packageVersion}`)
@@ -52,7 +56,8 @@ export function resolveDevChannelBaseVersion(packageVersion, publishedVersions =
     const shipped = published.some(
       (entry) => !entry.prerelease && compareTriples(entry, highest) === 0
     )
-    const next = shipped ? { ...highest, patch: highest.patch + 1 } : highest
+    // Local builds retain the newest base and distinguish themselves with their suffix.
+    const next = shipped && bumpStable ? { ...highest, patch: highest.patch + 1 } : highest
     if (compareTriples(next, base) > 0) {
       base = next
     }

@@ -71,6 +71,22 @@ describe('electron-builder mac channel config', () => {
     expect(electronBuilderConfig.mac.notarize).toBe(false)
   })
 
+  it('avoids timestamp-server requests only for local signing', () => {
+    withEnv({}, (config) => {
+      expect(config.mac.timestamp).toBe('none')
+    })
+    for (const channel of [
+      'ORCA_MAC_RELEASE',
+      'ORCA_MAC_HOURLY',
+      'ORCA_MAC_DAILY',
+      'ORCA_MAC_ADHOC'
+    ]) {
+      withEnv({ [channel]: '1' }, (config) => {
+        expect(config.mac.timestamp).toBeUndefined()
+      })
+    }
+  })
+
   // Why: the main repo's releases atom feed exposes only its 10 newest entries.
   // Publishing 24 hourly tags a day there would evict every stable/RC entry and
   // break update checks for every real user.
