@@ -22,6 +22,9 @@ export type UsageProviderSettings = Pick<
   // Why: MiniMax/Grok sign-in live on disk, not in settings; main sets these each poll.
   minimaxCookieConfigured: boolean
   minimaxApiKeyConfigured: boolean
+  // Why: the OpenCode Go key can live in OPENCODE_API_KEY or in OpenCode's own
+  // store, neither of which the renderer can see; main reports presence.
+  opencodeGoApiKeyConfigured: boolean
   grokAuthConfigured: boolean
 }
 
@@ -80,6 +83,7 @@ export function hasUsageProviderSettings(
     (settings?.claudeManagedAccounts?.length ?? 0) > 0 ||
     settings?.geminiCliOAuthEnabled === true ||
     Boolean(settings?.opencodeSessionCookie?.trim()) ||
+    settings?.opencodeGoApiKeyConfigured === true ||
     // Antigravity's durable signal requires geminiCliOAuthEnabled, so it is
     // already covered by the gemini term above.
     settings?.minimaxCookieConfigured === true ||
@@ -105,7 +109,10 @@ export function hasUsageProviderSettingsForProvider(
     return settings.geminiCliOAuthEnabled === true
   }
   if (providerId === 'opencode-go') {
-    return Boolean(settings.opencodeSessionCookie?.trim())
+    return (
+      Boolean(settings.opencodeSessionCookie?.trim()) ||
+      settings.opencodeGoApiKeyConfigured === true
+    )
   }
   if (providerId === 'antigravity') {
     // Why: the Antigravity snapshot mirrors the Gemini fetch, which stays

@@ -44,9 +44,14 @@ import {
   assertClaudeBoundHomeUsable,
   type AssertClaudeBoundHomeUsable
 } from '../claude/claude-bound-home-refusal'
+import { RuntimeMachineName } from './runtime-machine-name'
 
 export class OrcaRuntimeWithStateFields extends OrcaRuntimeWithLinearCommands {
   protected readonly prepareClaudeAuth?: PrepareClaudeAuth
+
+  protected readonly machineName = new RuntimeMachineName(
+    () => this.store?.getSettings?.().machineName
+  )
 
   constructor(
     store: RuntimeStore | null = null,
@@ -113,6 +118,7 @@ export class OrcaRuntimeWithStateFields extends OrcaRuntimeWithLinearCommands {
   ) {
     super()
     this.store = store
+    this.machineName.start()
     this.prepareClaudeAuth = deps?.prepareClaudeAuth
     store?.onSettingsChanged?.((updates) => {
       if ('experimentalStructuredNativeChat' in updates) {
