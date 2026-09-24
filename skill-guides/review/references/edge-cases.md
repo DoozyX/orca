@@ -58,20 +58,31 @@ change does not name. Each unnamed member is a candidate finding.
 
 ## Output
 
-One record per unhandled case, each carrying exactly four fields:
+A JSON array and nothing else: no prose before or after, no markdown fence around
+it, no commentary. One object per unhandled case, with exactly these four keys:
 
-- **location** — file and line in the **post-change** file.
-- **trigger condition** — the input or state that reaches this case, at most
-  fifteen words.
-- **guard snippet** — copied verbatim from the post-change file, or the literal
-  text `(no guard)` when nothing guards the case.
-- **consequence** — what happens if this case is hit, at most fifteen words.
+```json
+[
+  {
+    "location": "path/to/file.ts:123",
+    "trigger_condition": "at most fifteen words",
+    "guard_snippet": "the line(s) that do or do not guard this case",
+    "potential_consequence": "at most fifteen words"
+  }
+]
+```
 
-Emit the records as structured data with no prose before or after. When the Task
-spec names a machine-readable shape, use that shape exactly; otherwise emit JSON
-objects with those four fields.
+- `location` — file and line in the **post-change** file.
+- `trigger_condition` — the input or state that reaches this case.
+- `guard_snippet` — copied verbatim from the post-change file, or the literal
+  string `(no guard)` when nothing guards the case.
+- `potential_consequence` — what happens if this case is hit.
+
+Only a Task spec that names its own machine-readable shape overrides this one.
 
 ## An empty result is valid
+
+With nothing to report, emit exactly `[]`.
 
 A change to a total function over a two-value domain genuinely has no unhandled
 paths. An invented record costs more than a missed one here: do not pad the result

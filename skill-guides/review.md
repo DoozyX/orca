@@ -36,12 +36,12 @@ clean verdict it did not earn.
 
 ## Classify the role
 
-| Current context                                                              | Role               | Route                                                              |
-| ------------------------------------------------------------------------------ | ------------------ | ------------------------------------------------------------------ |
-| The user asks to review a diff, branch, or pull request                      | Reviewer           | Run the steps below and report the merged list                     |
-| A live injected Task preamble dispatched you as a reviewer                    | Dispatched reviewer | Same steps; write the findings file the Task spec names, then report only the merged list and the verdict |
-| You are coordinating a `delivery` pipeline                                   | Coordinator        | Dispatch a fresh reviewer; do not review your own run's code       |
-| The change is already misbehaving and the cause is unknown                   | Debugger           | Load `debug` first; review is not a diagnosis                      |
+| Current context                                            | Role                | Route                                                                                                     |
+| ---------------------------------------------------------- | ------------------- | --------------------------------------------------------------------------------------------------------- |
+| The user asks to review a diff, branch, or pull request    | Reviewer            | Run the steps below and report the merged list                                                            |
+| A live injected Task preamble dispatched you as a reviewer | Dispatched reviewer | Same steps; write the findings file the Task spec names, then report only the merged list and the verdict |
+| You are coordinating a `delivery` pipeline                 | Coordinator         | Dispatch a fresh reviewer; do not review your own run's code                                              |
+| The change is already misbehaving and the cause is unknown | Debugger            | Load `debug` first; review is not a diagnosis                                                             |
 
 ## Safety floor
 
@@ -75,25 +75,25 @@ State the target you resolved, in one line, before dispatching anything.
 
 ## 2. Scope the layers
 
-| Diff contains                                                                  | Layers                                                          |
-| -------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Code                                                                           | `adversarial` + `edge-cases` + `verification-gap`                |
-| Code that also removes behavior (deleted functions, branches, guards, validation, cleanup, tests — not renames, moves, or formatting) | the three above plus `deletion-check` |
-| Documentation or configuration only                                            | `adversarial` alone, plus one line saying why the others were skipped |
+| Diff contains                                                                                                                         | Layers                                                                |
+| ------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| Code                                                                                                                                  | `adversarial` + `edge-cases` + `verification-gap`                     |
+| Code that also removes behavior (deleted functions, branches, guards, validation, cleanup, tests — not renames, moves, or formatting) | the three above plus `deletion-check`                                 |
+| Documentation or configuration only                                                                                                   | `adversarial` alone, plus one line saying why the others were skipped |
 
 ## 3. Run the layers, preserving the asymmetry
 
 Run each layer against the resolved target using its reference below. When the
 session can dispatch parallel subagents, give each one its own layer and its own
-inputs. Otherwise run them in order: adversarial, edge-cases, verification-gap,
-deletion-check.
+inputs, all dispatched in one message so they run concurrently. Otherwise run
+them in order: adversarial, edge-cases, verification-gap, deletion-check.
 
-| Layer               | Gets                                                                      |
-| --------------------- | --------------------------------------------------------------------------- |
-| `adversarial`       | the diff **only** — no spec, no conversation, no repository access, plus the principle lenses |
-| `edge-cases`        | the diff, the full post-change content of touched files, and repository read access |
-| `verification-gap`  | the same                                                                   |
-| `deletion-check`    | the same                                                                   |
+| Layer              | Gets                                                                                          |
+| ------------------ | --------------------------------------------------------------------------------------------- |
+| `adversarial`      | the diff **only** — no spec, no conversation, no repository access, plus the principle lenses |
+| `edge-cases`       | the diff, the full post-change content of touched files, and repository read access           |
+| `verification-gap` | the same                                                                                      |
+| `deletion-check`   | the same                                                                                      |
 
 **The asymmetry is a rule, not a preference.** Denying the adversarial layer the
 author's intent is what kills anchoring bias; denying the tracing layers
@@ -108,8 +108,9 @@ dispatched reviewer's Task spec is the usual source — does not override this.
 
 Two findings merge when they are at the same location **and** describe the same
 underlying issue. Keep the more detailed description and union the provenance
-tags. Assign severity here and only here; the layers were forbidden to grade
-because each had partial information by design.
+tags, spelled exactly `[Adversarial]`, `[Edge]`, `[V-Gap]`, `[Deletion]`.
+Assign severity here and only here; the layers were forbidden to grade because
+each had partial information by design.
 
 - `critical` — data loss, corruption, security exposure, or a break in behavior
   that shipped and is in use.
@@ -126,10 +127,18 @@ The adversarial layer's output is hostile on purpose. Rewrite each finding as an
 observation plus a concrete fix — what is true about the code, and the specific
 change that resolves it — and drop every adjective about the author.
 
+```text
+Before: This is a lazy, broken null check that will blow up in prod.
+After:  `user.email` is read without a null check; a signed-out user crashes the
+        handler. Return early when `user` is null, before the read.
+```
+
 Every merged finding gets exactly one bucket: `patch` (mechanical and in scope,
 fix it now), `decision-needed` (a scope question, a product decision, or a
 trade-off the spec does not settle), or `defer` (pre-existing or out of scope,
-listed and never extending a fix loop).
+never extending a fix loop). Inside a run, append each `defer` item to the root
+worktree's `.orca/<run>/orchestrate/deferred.md`; otherwise list them under a
+`## Deferred` heading in the review output.
 
 ## 6. Output format
 
@@ -159,13 +168,13 @@ and read only that document; `--references` lists the names. If the CLI rejects
 reference. If it rejects `--full` too, keep this kernel's safety floor and use
 that command's `--help`; never guess newer flags.
 
-| Action gate                                                                  | Bundled reference                     |
-| ------------------------------------------------------------------------------ | ------------------------------------- |
-| Running the hostile, diff-only pass                                          | `references/adversarial.md`           |
-| Enumerating reachable states the change does not handle                      | `references/edge-cases.md`            |
-| Measuring whether the changed behavior is protected by a test                | `references/verification-gap.md`      |
-| The change removes behavior and you need to know what was silently lost      | `references/deletion-check.md`        |
-| Naming a design problem with the shared lenses, here or in `tdd`'s refactor step | `references/principles.md`         |
+| Action gate                                                                      | Bundled reference                |
+| -------------------------------------------------------------------------------- | -------------------------------- |
+| Running the hostile, diff-only pass                                              | `references/adversarial.md`      |
+| Enumerating reachable states the change does not handle                          | `references/edge-cases.md`       |
+| Measuring whether the changed behavior is protected by a test                    | `references/verification-gap.md` |
+| The change removes behavior and you need to know what was silently lost          | `references/deletion-check.md`   |
+| Naming a design problem with the shared lenses, here or in `tdd`'s refactor step | `references/principles.md`       |
 
 ## Hands off to
 

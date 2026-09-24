@@ -31,14 +31,17 @@ Load the `delivery` skill and give it the design's absolute path. Do not write
 the implementation plan yourself; `delivery` decides whether the work needs a
 planner at all, and its focused-first gate defaults to a single implementer.
 
-Two ways to run it, and the user's own words decide which:
+Two ways to run it. Recommend the separate session by default; the user's own
+words decide:
 
-- **In this session** — the user is willing to wait and wants to watch the run.
-  You become the coordinator for the whole pipeline, which can be long.
-- **In a separate worktree** — the user wants this session back. Hand the design
-  path and the goal path to a new agent with the `orca-cli` full-handoff flow,
-  report the new worktree id and agent handle, and stop. This is a handoff, not
-  supervision: open no Run, create no Task, and do not wait for results.
+- **In a separate worktree** (default) — hand the design path and the goal path
+  to a new agent with the `orca-cli` full-handoff flow, print one line naming
+  the new worktree id and agent handle, and end the turn. This is a handoff, not
+  supervision: open no Run, create no Task, and do not poll it or wait for
+  results. The user can start the next design here immediately.
+- **In this session** — only when the user explicitly wants to wait and watch.
+  A coordinator lives for hours and holds this session for the whole run, so
+  the user's next feature waits on this one's review rounds.
 
 Either way the design is approved input. A session running `delivery` never
 re-opens it, never brainstorms, and never waits for an approval that no one in

@@ -198,7 +198,7 @@ older CLI rejects `--full`, keep this kernel's safety floor, use that command's
 | Failed/stopped/unknown attempts, retry, stop, abandon, retain, or uncertain release                           | `references/recovery-and-cleanup.md`      |
 | Custom argv or terminal topology that `worker-start` cannot express                                           | `references/low-level-topology.md`        |
 | Any legacy label, adopted Run, compatibility receipt, or takeover                                             | `references/legacy-contract-migration.md` |
-| Your own context is growing large, a run outlasts one window, or you must hand the run to a successor         | `references/context-lifecycle.md`         |
+| A run outlasts one window, your context was just compacted, or you hand the run to a successor                | `references/context-lifecycle.md`         |
 
 Retired scheduler commands are not aliases for Run creation. Recovery commands
 must provide their exact next action; follow it with the same selected executable.

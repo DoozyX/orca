@@ -15,14 +15,42 @@ evidence. Do not certify a dirty or changing tree by HEAD alone. Reassign
 ownership explicitly when an owner settles — an idle terminal does not prove its
 jobs stopped.
 
+## Model tiers
+
+A tier is a role, not a model name. Record the tier of every dispatch in the
+manifest; pass `--model` to `worker-start` only when the manifest's
+`## Model tiers` maps that tier to a concrete model the user configured or named.
+Otherwise omit it, as `orchestration` requires, so the worker inherits the user's
+default, and record `model=default`.
+
+| Tier     | Dispatches                                                                                                                                                                                                |
+| -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Cheap    | Inspection only: a red CI log, an issue-body classification, check status after a push, the landing-policy summary, extracting a verdict line                                                             |
+| Standard | Implementer or fixer with a clear spec or a plan task tagged `standard`; default reviewer                                                                                                                 |
+| Strong   | Planner, plan reviewer, merge-conflict and integration check, freeform implementer, reviewer of freeform or design-heavy work, the review that spends the last counted round or is the integration review |
+
+Cheap never implements or reviews. It is for bounded extraction whose result you
+can check at a glance — work you would otherwise read yourself at a higher rate.
+
+Escalations are one-way for the rest of the unit:
+
+| Trigger                                                            | Escalation                                                                                                                            |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Reviewer oscillation: new findings in code an earlier round passed | Every later review of the unit runs strong                                                                                            |
+| An implementer below strong still draws `fix-needed` at review #2  | Fix #2 goes to a fresh strong worker in the same worktree, told to read `git log` and the branch diff first, not to the same terminal |
+
+With no concrete strong model mapped, the fresh session is the escalation;
+record `tier=strong model=default`.
+
 ## 1. Implement
 
 One worktree per task, in the coordinator's own project and nested under the
 coordinator's worktree, so the whole delivery run reads as one tree instead of a
 row of unrelated top-level entries. Cut it explicitly from the base branch, never
 from whatever branch happens to be checked out. Record the worktree path, branch,
-HEAD, and the resolved base sha before the worker starts changing files; a
-mismatch is a launch failure, not a baseline to work around.
+HEAD, and the resolved base sha in `worktrees.md` and the manifest before the
+worker starts changing files; a mismatch is a launch failure, not a baseline to
+work around.
 
 ```text
 ORCA worktree create --name <task-slug> --parent-worktree active --base-branch <base> --json
@@ -37,7 +65,7 @@ explicit `--parent-worktree <selector>` rather than dropping the parent.
 
 The spec tells the implementer to work strictly in that worktree and, in order:
 install from the frozen lockfile; run the shared verification contract and record
-only task-specific baseline deltas *before* touching anything; implement
+only task-specific baseline deltas _before_ touching anything; implement
 test-first; rerun the full suite plus the repository's lint, format, and build
 checks; verify end to end by driving the real surface where one exists; and
 commit without pushing.
@@ -69,14 +97,44 @@ must say both things together. Prefer a static proof and grant nothing.
 
 The reviewer writes its findings to a file in the run's ignored directory and
 reports only the merged findings and a machine-readable verdict line. Check the
-file before building a fix round from it: if it is absent or missing its merged
-findings anchor, the round failed — dispatch the reviewer again rather than
-mailing an implementer a fix round with no findings in it.
+file before building a fix round from it: if it is absent or missing its
+`## Merged findings` anchor, the round is `invalid` — dispatch the reviewer again
+rather than mailing an implementer a fix round with no findings in it. The fix
+spec carries only the section from that anchor down: the raw layer output above
+it is ungraded and undeduplicated, and shipping it undoes the merge.
 
 Rounds after the first are full-branch rounds with the prior findings attached.
 They take the diff since the reviewed sha as their focus and the diff since the
 base as their scope, every unfixed prior finding is a new finding, and an item
 already dispositioned is not re-raised.
+
+### UI evidence
+
+For a change a user can see, the implementer captures each pair at the same
+route, viewport, and state into `orchestrate/<unit>/before-<what>.png` and
+`after-<what>.png` — the before from the base revision — and describes each in
+one line. Capture pages in Orca's embedded browser with
+`ORCA screenshot --worktree <selector> --json`; for any other surface use the
+repository's own capture path, such as a CDP capture of a hidden window, never a
+window that steals focus. Captures never enter the branch or the PR body.
+
+The reviewer of a UI unit keeps its browser tools and reproduces each
+user-visible criterion itself, saving `<findings-file>.seen-<what>.png` and
+printing `Seen: <criterion> - <what the screen showed>`. The implementer's
+descriptions are claims, never evidence. A criterion it could not exercise is a
+`decision-needed` finding that says why, never a `Seen:` line.
+
+**Blind A/B judge (optional, visual changes).** A cheap worker copies each pair
+to `orchestrate/<unit>/ab/<what>/A.png` and `B.png` in random order and keeps the
+key beside them; a judge placed in the pairs directory, with no repository, no
+task, and no key, emits one `AB_VERDICT:` line per pair; the same cheap worker
+decodes and reports `AB_SUMMARY: pairs=<n> regressions=<n> unchanged=<n>`. You
+read only that line and record it. `regressions>0` — the judge preferred the
+before at `med` or `high` confidence — is a `major` finding appended to that
+round's merged findings, and a `clean` verdict becomes `fix-needed` in
+`budget.md` with `reason` `ab-regression`. `unchanged>0` on a unit whose point was
+a visible change is the same finding. After a fix that touched the screen, the
+pair is recaptured and judged again.
 
 ## 3. Fix
 
@@ -93,8 +151,8 @@ Branch on the verdict directly.
   radius is existing data, introduced by this branch, is never minor — regrade it
   upward and send it back. Regrading downward needs a one-line written reason that
   goes into the closing report.
-- Reuse the settled implementer's terminal for the fix round rather than
-  dispatching a new one: it holds why the code took its shape, and a fresh session
+- Reuse the settled implementer's terminal for the fix round, except under a
+  tier escalation below, rather than dispatching a new one: it holds why the code took its shape, and a fresh session
   re-reads the branch before it can start. If that terminal is gone, record the
   deviation and dispatch a replacement into the same worktree with an instruction
   to read the log and branch diff first.
@@ -129,6 +187,24 @@ The PR body covers what changed, why, and how it was verified, plus the issue
 reference for an issue-sourced task. It carries no run-directory paths, no
 terminal handles, and no orchestration detail.
 
+**Guard the primary checkout around every merge or deploy worker.** Those
+workers run where they are pointed, and the primary checkout is where a person's
+uncommitted work lives. Give each its own worktree; a direct merge pushes
+`HEAD:refs/heads/<target>` from there and never needs the primary checked out.
+Immediately before dispatch and again when it settles — before releasing it —
+record into `orchestrate/primary-<label>.before` and `.after`:
+
+```text
+git -C <primary> rev-parse HEAD
+git -C <primary> symbolic-ref -q --short HEAD
+git -C <primary> status --porcelain
+```
+
+Any difference is a stop: record what moved in the manifest, retain the worker's
+terminal, report to the user, and dispatch nothing further until they decide.
+Never repair it yourself. A folder workspace has no primary checkout to guard;
+record that instead.
+
 ## 5. Green CI
 
 Dispatch a cheap inspection worker for the open PRs rather than polling from the
@@ -137,8 +213,10 @@ and on failure pulls the failing log into the task's directory. You read the
 deciding green or red summary and route the result to the still-live implementer.
 
 A mechanical fix — lint, format, a flaky rerun — pushes directly. A fix that
-touches logic takes one `review-round` on the new commits, scoped from the sha the
-last clean review saw, before the task can count as done. When a sibling PR from
+touches logic is a `budget.md` `fix` row with `reason` `ci:<failing check>`, then
+takes one `review-round` on the new commits, scoped from the sha the last clean
+review saw — or the integration review when the base moved — before the task can
+count as done. When a sibling PR from
 this run merges, rerun stage 4's sync for every still-open PR: the base just moved
 under them.
 

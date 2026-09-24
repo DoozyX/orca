@@ -37,18 +37,19 @@ Run the command now, show the output, then make the claim.
 
 ## Claim to evidence
 
-| Claim                                     | Evidence required                                                                                                    |
-| ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| "tests pass"                              | The suite run **now**, showing zero failures. A subset run proves the subset only; say which you ran.                |
-| "build works"                             | The build command exiting zero. A passing linter is not a build, and a type check is not a build.                    |
-| "the bug is fixed"                        | The **original symptom** re-tested by the original reproduction, now absent.                                         |
-| "I added a regression test"               | A verified red-green cycle: revert the fix, the test fails, restore the fix, the test passes. Show both runs.        |
-| "the worker finished the work"            | The diff itself, never the worker's own success report. An agent reporting success is a claim, not evidence.         |
-| "nothing else broke"                      | The full suite compared against a baseline recorded before the change.                                               |
-| "it's deployed and running"               | A request against the running thing, with its response.                                                              |
-| "the type checker is happy"               | The type-check command run now, exit zero — distinct from the tests and from the build.                              |
-| "the migration is safe"                   | A run against a copy of real or representative data, not the migration applying cleanly to an empty schema.          |
-| "the feature is done" / "matches the design" | The acceptance criteria and testing decisions **re-read now**, each one quoted and mapped to a command or named as a gap. |
+| Claim                                        | Evidence required                                                                                                                                                                                                                                         |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| "tests pass"                                 | The suite run **now**, showing zero failures. A subset run proves the subset only; say which you ran.                                                                                                                                                     |
+| "build works"                                | The build command exiting zero. A passing linter is not a build, and a type check is not a build.                                                                                                                                                         |
+| "the bug is fixed"                           | The **original symptom** re-tested by the original reproduction, now absent.                                                                                                                                                                              |
+| "I added a regression test"                  | A verified red-green cycle: revert the fix, the test fails, restore the fix, the test passes. Show both runs.                                                                                                                                             |
+| "the worker finished the work"               | The diff itself, never the worker's own success report. An agent reporting success is a claim, not evidence.                                                                                                                                              |
+| "nothing else broke"                         | The full suite compared against a baseline recorded before the change.                                                                                                                                                                                    |
+| "it's deployed and running"                  | A request against the running thing, with its response.                                                                                                                                                                                                   |
+| "the type checker is happy"                  | The type-check command run now, exit zero — distinct from the tests and from the build.                                                                                                                                                                   |
+| "the migration is safe"                      | A run against a copy of real or representative data, not the migration applying cleanly to an empty schema.                                                                                                                                               |
+| "the feature is done" / "matches the design" | The design's acceptance criteria and `## Testing Decisions`, and the request verbatim, **re-read now**, each one quoted and mapped to a command or named as a gap. Passing tests prove only that the code matches the tests.                              |
+| "the task/run is complete"                   | Every goal criterion accounted for, including ones no test covers, against `goal.md` read verbatim — the root worktree's `.orca/<run>/design/goal.md` when one exists, else the user's message. "All units landed" is about your task list, not the goal. |
 
 ## How to show evidence
 
@@ -99,14 +100,17 @@ no command covers is a gap to name, not a box to tick. If the goal or design
 
 ## Red flags
 
-| Red flag                                                                | Why it is a tell                                                                          |
-| ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| "should work" / "probably passes" / "seems fine"                        | Hedging means no command was run. A command either passed or it did not.                  |
-| "Done!" before any output appears in the message                        | The claim was written before the evidence existed.                                        |
-| Citing a run from earlier in the conversation as current                | The tree has changed since; stale evidence is not evidence.                               |
-| Reporting a worker's summary as the result                              | Its success report is a claim, not a diff you checked.                                    |
-| "The test file exists, so it's covered"                                 | A file existing proves nothing about whether it runs or passes.                           |
-| Silence about a failed step, followed by a claim about the step after it | A skipped failure does not disappear; it invalidates everything downstream.                |
+| Red flag                                                                                   | Why it is a tell                                                                           |
+| ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
+| "should work" / "probably passes" / "seems fine"                                           | Hedging means no command was run. A command either passed or it did not.                   |
+| "Done!" before any output appears in the message                                           | The claim was written before the evidence existed.                                         |
+| Citing a run from earlier in the conversation as current                                   | The tree has changed since; stale evidence is not evidence.                                |
+| Reporting a worker's summary as the result                                                 | Its success report is a claim, not a diff you checked.                                     |
+| "The test file exists, so it's covered"                                                    | A file existing proves nothing about whether it runs or passes.                            |
+| "All the tests pass, so it's done"                                                         | A suite cannot notice a requirement nobody implemented; check the criteria, not the suite. |
+| Restating the goal or acceptance criteria from memory after a long session or a compaction | That copy is the one most likely to have drifted, invisibly. Re-read the file.             |
+| "It worked when I ran it manually earlier"                                                 | "Earlier" precedes the latest edit; re-run against the current tree.                       |
+| Silence about a failed step, followed by a claim about the step after it                   | A skipped failure does not disappear; it invalidates everything downstream.                |
 
 ## When evidence cannot be gathered
 

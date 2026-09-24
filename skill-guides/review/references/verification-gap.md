@@ -70,7 +70,7 @@ Never assert that a test exists, covers something, or passes unless you have fou
 the file and read the assertion. "There is probably a test for this" is not a
 finding, and "this is covered" without a file and line is a fabrication. A green
 suite is not a substitute for reading the assertion: it says nothing about whether
-*this specific* behavior is asserted.
+_this specific_ behavior is asserted.
 
 ## Output
 
@@ -81,8 +81,8 @@ N. <file>:<line> - the behavior that changed, where it is consumed (file and lin
    or "untraced: <stop condition>"), and the demonstration mutation nothing would catch.
 ```
 
-An empty result is valid and expected for a whitelisted change; say so in one
-line.
+An empty result is valid and expected for a whitelisted change. Emit exactly
+`No verification gaps found.`
 
 ## Severity ban
 

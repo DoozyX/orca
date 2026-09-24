@@ -36,12 +36,12 @@ permission to start writing code.
 
 ## Classify the role
 
-| Current context                                                                             | Role            | Route                                                              |
-| ------------------------------------------------------------------------------------------- | --------------- | ------------------------------------------------------------------ |
-| The current prompt contains a live injected Task/Dispatch preamble                          | Executor        | Do not brainstorm; the Task spec is the contract. Follow it        |
-| The user asks to build, add, change behavior, or wants a design or spec                     | Designer        | Run the numbered steps below                                       |
-| An approved design file already exists and the user wants it built                          | Delivery caller | Load the `delivery` skill; never re-open an approved design        |
-| The user asks only to coordinate, supervise, or fan out agents                              | Coordinator     | Load the `orchestration` skill                                     |
+| Current context                                                         | Role            | Route                                                       |
+| ----------------------------------------------------------------------- | --------------- | ----------------------------------------------------------- |
+| The current prompt contains a live injected Task/Dispatch preamble      | Executor        | Do not brainstorm; the Task spec is the contract. Follow it |
+| The user asks to build, add, change behavior, or wants a design or spec | Designer        | Run the numbered steps below                                |
+| An approved design file already exists and the user wants it built      | Delivery caller | Load the `delivery` skill; never re-open an approved design |
+| The user asks only to coordinate, supervise, or fan out agents          | Coordinator     | Load the `orchestration` skill                              |
 
 A dispatched worker detects its role from the live preamble, not from an
 environment variable, a terminal title, or a pane. An executor that believes its
@@ -59,8 +59,11 @@ one-liner built on the wrong requirement is still wrong.
 
 Read `README`, `CLAUDE.md`/`AGENTS.md`, `CONTRIBUTING.md`, and the nearest
 analogous feature. Skim `docs/adr/` and any `docs/reference/` document the area
-names, so a trade-off already settled is not re-litigated. State what you found
-in a few lines. Questions asked without that context spend the user's turns on
+names, so a trade-off already settled is not re-litigated. Before proposing
+approaches, read earlier runs' records in the root worktree —
+`.orca/*/orchestrate/manifest.md` and any `retrospective.md` beside it — for
+decisions taken and approaches rejected in this area. State what you found in a
+few lines. Questions asked without that context spend the user's turns on
 what the repository already answers.
 
 ## 2. Clarifying questions, one frontier round at a time
@@ -72,13 +75,16 @@ the next.
 
 **Facts are yours; decisions are the user's.** A question the environment
 answers — does this endpoint paginate, which table holds the flag, does CI run
-the e2e suite — is never asked. Look it up. Every question you do ask carries a
+the e2e suite — is never asked. Look it up: read a single file yourself, and
+delegate a multi-file lookup to a read-only agent that returns only the
+conclusion. Every question you do ask carries a
 recommended answer, so the user spends one word confirming or overriding it.
 
 Stop when the frontier is empty. There is no cap on rounds and no credit for
 finishing early with an assumption the user never saw. Usually on the frontier:
 who uses this and how; what breaks today; what must not change; how it will be
-verified and through which seam; and, for feature work, the data model and every
+verified and through which seam; what a good test for this must assert; and, for
+feature work, the data model and every
 contract that crosses a component boundary.
 
 Load `references/question-rounds.md` for the delivery mechanics of a round.
@@ -89,14 +95,20 @@ Offer two or three. Each gets what it does, what it costs, and what it
 forecloses, then one named recommendation with a one-line reason. **Apply YAGNI
 ruthlessly:** cut anything serving a requirement the user did not state, and say
 what you cut. Check the chosen shape against the principle lenses shared with
-`review` (`ORCA skills get review --reference references/principles.md`), then
-name the seam the tests drive the feature through, preferring an existing seam
-and the highest one that still localizes a failure.
+`review` (`ORCA skills get review --reference references/principles.md`) and
+answer out loud: _does any component here exist for a requirement nobody
+stated?_ Cut or justify each one.
+
+Then name the seam the tests drive the feature through, preferring an existing
+seam, the highest one that still localizes a failure, and exactly one per unit.
+A seam that exists only so a test can reach it is hypothetical: one adapter
+behind an interface means the interface was invented for the test; two real
+adapters mean the seam is real.
 
 ## 4. Write the design file, then self-review it
 
-The design is scaffolding for the work, not a deliverable: it is written to a
-workspace-local ignored directory and never committed, never staged, and never
+The design is scaffolding for the work, not a deliverable: it is written to an
+ignored run directory in the root worktree and never committed, never staged, and never
 present in a branch, diff, or PR. Load `references/design-file.md` before
 writing — it owns the path, the ignore step, the folder-workspace path that
 requires no Git, the required sections, and the self-review checklist.
@@ -113,13 +125,20 @@ short summary; do not paste the document unless asked. Then ask once:
 Read the complete design file, then approve it or request edits.
 ```
 
+For feature work, name the decomposition sketch's three checks in the same
+request: is the granularity right; does each unit depend only on units that
+truly gate it; should any unit be merged or split. Approval without notes on
+these checks approves the sketch as drawn.
+
 Wait for the user's explicit approval of that file. A summary, an earlier
 agreement on an approach, or your own self-review does not authorize
 implementation. On requested edits, update and self-review the file, link it
 again with a short change summary, and wait for approval of the revised design.
 Do not ask for per-section approvals or re-approval of an unchanged file. After
 approval, ask again only for a material change to scope, user-visible behavior,
-public interfaces, data handling, or an explicitly excluded item.
+public interfaces, data handling, or an explicitly excluded item, and explain
+that change in the file and in the review request. Editorial fixes and
+clarifications need no re-approval.
 
 ## 6. Take exactly one exit
 
@@ -151,19 +170,22 @@ rejects `--reference`, run `ORCA skills get brainstorming --full` once and read
 only the named reference. If it rejects `--full` too, keep this kernel's safety
 floor and use that command's `--help`; never guess newer flags.
 
-| Action gate                                                                     | Bundled reference                   |
-| --------------------------------------------------------------------------------- | ----------------------------------- |
-| Delivering a question round, or no native question tool is available            | `references/question-rounds.md`     |
-| Writing the design file, its required sections, ADRs, or the self-review pass   | `references/design-file.md`         |
-| Handing an approved design to `delivery`, or freezing the run goal              | `references/exit-to-delivery.md`    |
+| Action gate                                                                   | Bundled reference                |
+| ----------------------------------------------------------------------------- | -------------------------------- |
+| Delivering a question round, or no native question tool is available          | `references/question-rounds.md`  |
+| Writing the design file, its required sections, ADRs, or the self-review pass | `references/design-file.md`      |
+| Handing an approved design to `delivery`, or freezing the run goal            | `references/exit-to-delivery.md` |
 
 ## Red flags
 
-| Rationalization                              | Reality                                                                          |
-| ---------------------------------------------- | -------------------------------------------------------------------------------- |
-| "This is obviously what they want"           | Confirm it. The gate exists for the cases where it is not.                       |
-| "I'll design as I code"                      | That is implementation wearing a design costume. Present first.                  |
-| "I'll ask everything at once to save time"   | Ask the frontier, not the tree. A prose batch returns one answer covering two.   |
-| "I'll just ask whether the API paginates"    | That is a fact, not a decision. Look it up.                                      |
-| "They said build it, so approval is implied" | "Build it" approved the idea, not the design. Link the file and wait.            |
-| "They approved my summary"                   | The file is what gets approved, and it must exist and be self-reviewed first.    |
+| Rationalization                                    | Reality                                                                                                             |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| "This is obviously what they want"                 | Confirm it. The gate exists for the cases where it is not.                                                          |
+| "I'll design as I code"                            | That is implementation wearing a design costume. Present first.                                                     |
+| "I'll ask everything at once to save time"         | Ask the frontier, not the tree. A prose batch returns one answer covering two.                                      |
+| "I'll just ask whether the API paginates"          | That is a fact, not a decision. Look it up.                                                                         |
+| "They said build it, so approval is implied"       | "Build it" approved the idea, not the design. Link the file and wait.                                               |
+| "They approved my summary"                         | The file is what gets approved, and it must exist and be self-reviewed first.                                       |
+| "The spec dir is gitignored, I'll keep it in chat" | Chat is invisible to the next session. Ignored is the point: write the file, hand on its absolute path.             |
+| "Downstream sessions need it committed to see it"  | They read the absolute root-worktree path. Committing only puts scaffolding in a PR.                                |
+| "This trade-off is obvious, no ADR needed"         | Obvious fails the "surprising" test and needs none. If a fresh reader would ask "why not the other way?", write it. |
