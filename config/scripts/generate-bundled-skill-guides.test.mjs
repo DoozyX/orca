@@ -26,7 +26,13 @@ const temporaryDirectories = []
 const execFileAsync = promisify(execFile)
 const GUIDE_REFERENCES = {
   brainstorming: ['design-file.md', 'exit-to-delivery.md', 'question-rounds.md'],
-  delivery: ['deployed-verification.md', 'parking-and-reporting.md', 'task-pipeline.md'],
+  delivery: [
+    'deployed-verification.md',
+    'parking-and-reporting.md',
+    'planning-and-splitting.md',
+    'stage-prompts.md',
+    'task-pipeline.md'
+  ],
   review: [
     'adversarial.md',
     'deletion-check.md',

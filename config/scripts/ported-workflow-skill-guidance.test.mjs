@@ -26,7 +26,13 @@ const PORTED_SKILLS = {
       '## Authority and safety floor',
       '## Conditional references'
     ],
-    references: ['deployed-verification.md', 'parking-and-reporting.md', 'task-pipeline.md'],
+    references: [
+      'deployed-verification.md',
+      'parking-and-reporting.md',
+      'planning-and-splitting.md',
+      'stage-prompts.md',
+      'task-pipeline.md'
+    ],
     safetyFloor: ['`live` / `unverifiable` / `exited`', 'Folder workspaces are valid'],
     notThis: ['orchestration', 'brainstorming']
   },
@@ -174,9 +180,7 @@ describe('delivery layers on orchestration rather than reimplementing it', () =>
   it('states the durable review-attempt budget as policy', () => {
     const guide = squash(readGuide('delivery'))
 
-    expect(guide).toContain(
-      'at most three completed reviews and two completed automatic fixes per task'
-    )
+    expect(guide).toContain('at most three counted reviews and two counted fixes')
     expect(guide).toContain('gate-create')
     expect(guide).toContain('gate-resolve')
   })
