@@ -25,8 +25,9 @@ Each task file stands alone beside the approved design:
 | `tier:`                   | `standard` or `strong`, per `task-pipeline.md`; never below standard for an implementer                       |
 | `## Record (append-only)` | Left empty; the implementer appends commits, touched files, and concerns in place                             |
 
-A design's decomposition sketch is the task list, in its order, with its
-interfaces: the planner elaborates units and never re-decomposes them. No
+A design's build steps (`## How it will be built`) are the task list, in their
+order, with their interfaces and `Done when` criteria: the planner elaborates
+steps and never re-decomposes them. No
 production code, no predicted command output, no placeholders.
 
 ## Plan review: one review, at most one amendment

@@ -2,6 +2,167 @@
 
 Load this reference before writing the design.
 
+The design is read first by the user, who has to approve it, and then by
+whoever implements it. Write for the user: someone who should be able to see,
+from the file alone, what they will get, how it will be built, and in which
+steps. The implementer needs the same things, so the two readers never pull
+against each other.
+
+## Template
+
+Every design uses these sections in this order. Scale each section to the
+work: a sentence or two when it is straightforward, and up to 200–300 words
+when it is nuanced. A section that does not apply says so in one line and is
+not dropped silently.
+
+```markdown
+# <Title>
+
+> **TL;DR:** <2–3 sentences: what changes, for whom, and the chosen approach.>
+
+## Before / After
+
+**Before:** <what the user experiences today, in their terms>
+**After:** <what they experience once this lands>
+
+<Feature work: a numbered list of user stories, as many as the behaviour
+needs, edge cases included.>
+
+1. As a <actor>, I want <capability>, so that <benefit>.
+
+## Approach
+
+<The chosen approach in 2–5 sentences.>
+
+| Alternative considered | Why not                       |
+| ---------------------- | ----------------------------- |
+| <option>               | <cost, or what it forecloses> |
+
+**Cut under YAGNI:** <what was left out because nobody asked for it, or "nothing">
+
+## Design
+
+### Architecture
+
+<Components, what each is responsible for, the data flow, and the existing
+code each one touches. Add a Mermaid diagram when three or more components
+talk to each other or any flow is asynchronous.>
+
+### Interfaces
+
+<The shared contracts, written out.>
+
+## How it will be built
+
+<A Mermaid flowchart of step order, with one edge per `Depends on`. Skip it
+when there is only one step.>
+
+### Step 1 — <title>
+
+**You'll see:** <the observable result once this step lands: UI, CLI output,
+or behaviour a test pins>
+**How:** <the concrete changes: components, symbols, data shapes, migrations,
+enough that a reader can picture the diff>
+**Implements:** <interfaces, or —> · **Depends on:** <steps, or —> · **Parallel-safe:** yes|no
+**Done when:**
+
+- [ ] <an observable criterion, and the test or check that proves it>
+
+## Testing Decisions
+
+## Out of scope
+
+## Assumptions & risks
+```
+
+### What each section must carry
+
+- **TL;DR**: enough that a user who reads only this block knows what they are
+  approving. Write it last, and make sure it agrees with the body.
+- **Before / After**: user-visible behaviour, not implementation. For a bug
+  fix it is two lines: the wrong behaviour and the right one.
+- **Approach**: the 2–3 approaches from step 3 of the guide, preserved. The
+  rejected ones stay in the file so a later reader never asks "why not the
+  other way?"
+- **Design**: feature work only. A bug fix or a one-file change says
+  `Not needed: <reason>` in one line.
+  - `### Architecture` covers components, responsibilities, data flow, and the
+    existing code each one touches.
+  - `### Interfaces` writes the contracts out: short signatures, schemas,
+    message and event shapes, CLI and API surfaces, and the settled data
+    model. "Similar to X" is not an interface. Write names, signatures, and
+    schemas here, never file paths. The one snippet that belongs here is one
+    that states a decision more precisely than prose can.
+- **How it will be built**: the build steps, in order. These are what the user
+  reads to see what will be done. `delivery` also treats them as its task
+  list.
+  - **Each step is a vertical slice.** It lands a thin end-to-end path that is
+    green on its own, not a horizontal layer that works only once every other
+    layer exists.
+  - **Wide mechanical changes** are sequenced expand, migrate, contract.
+  - **`How`** names the modules and symbols it changes. A path to an existing
+    file is fine for orientation; line numbers are not.
+  - **`Done when`** lists acceptance criteria that `verify` maps to commands.
+    Every user story is covered by at least one step's `Done when`.
+  - **A bug fix is one step,** and its `How` states the root cause.
+  - **Step count sets the delivery shape.** One step means `delivery` launches
+    one implementer and no planner. Two or more steps, with every interface
+    they name defined under `### Interfaces`, mean a planner only elaborates
+    them into task files and never re-decomposes.
+- **Testing Decisions**: reviewers are held to this section; without it, each
+  one invents a different bar. It names:
+  - the seam the tests drive the feature through;
+  - the prior-art tests the new ones are modelled on, by test name and
+    package, not by path;
+  - what a good test asserts;
+  - what is verified manually instead, and why.
+
+  For a bug fix it is the regression test's seam, in two lines.
+
+- **Out of scope**: what this design explicitly does not do.
+- **Assumptions & risks**: anything the design relies on that no one
+  confirmed, and what would break it. Write `none` rather than inventing
+  entries.
+
+## Durable decisions (ADR)
+
+A decision outlives the run as an ADR only when all three hold: hard to reverse
+once code is built on it; surprising to a reader without this brainstorm's
+context; and the result of a real trade-off rather than the only sensible option.
+An ADR is one paragraph — context, decision, the alternative rejected and why —
+destined for `docs/adr/NNNN-<slug>.md` in the repository and committed with the
+code. Write it beside the design as `adr/NNNN-<slug>.md` and name it in the
+design, on the first build step or in one line under `## Approach`; the
+implementer copies and commits it in its branch. Most designs produce zero ADRs.
+Write none rather than one that fails a condition.
+
+## Self-review checklist
+
+Read the finished document for:
+
+- placeholders (`TBD`, "etc.", "handle errors");
+- scope creep past what the user asked for;
+- ambiguity that a fresh reader would resolve differently than you meant;
+- internal contradictions: two sections disagreeing on the same value, such as
+  a prose timeout of 30 s and a table row of 60 s;
+- a TL;DR that no longer matches the body;
+- a step whose `You'll see` is not observable, or whose `How` is too vague to
+  picture the diff ("update the store", "wire it up");
+- a user story that no step's `Done when` covers;
+- an interface a step names that `### Interfaces` does not define;
+- a step that depends on a step sequenced after it, or a flowchart edge that
+  disagrees with a `Depends on` line;
+- a `## Testing Decisions` section that says "add tests" instead of naming a
+  seam and a prior-art test.
+
+For contradictions, do a mechanical pass rather than a read-through:
+
+1. List every named region, state, mode, step, or component the design defines.
+2. Search the document for each name.
+3. Confirm that every mention agrees on its behaviour.
+
+Fix the document in place before linking it. Self-review is not user approval.
+
 ## Location
 
 Designs live in the ignored directory `.orca/<date>-<slug>/design/design.md` in
@@ -73,67 +234,3 @@ test -f "<design-path>" && git -C "$ROOT" status --porcelain "<design-path>"
 
 The file must exist and `status` must print nothing, because ignored means
 invisible. In a folder workspace, the `test -f` alone is the check.
-
-## Required sections
-
-Every design, bug fix included, carries:
-
-- `## Motivation` — what breaks today, in the user's terms.
-- `## Decisions` — what was settled and what was cut under YAGNI.
-- `## Testing Decisions` — the seam the tests drive the feature through, the
-  prior-art tests the new ones are modelled on (by test name and package, not by
-  path), what a good test asserts, and what is verified manually instead and why.
-  Reviewers are held to this section; without it each one invents a different bar.
-  For a bug fix it is the regression test's seam, in two lines.
-- `## Out of scope` — what this design explicitly does not do.
-
-Feature work — not a bug fix, not a one-file change — adds three more after
-`## Decisions`, and says in one line when it is skipping them:
-
-- `## Architecture` — components, responsibilities, data flow, and which existing
-  code each one touches.
-- `## Interfaces` — the concrete shared contracts written out: short signatures,
-  schemas, message and event shapes, CLI and API surfaces, and the settled data
-  model. "Similar to X" is not an interface. Write decisions, not locations:
-  names, signatures, and schemas, never file paths, which go stale before the
-  implementer reads them. The one snippet that belongs here is one that states a
-  decision more precisely than prose can.
-- `## Decomposition sketch` — ordered work units, one line each:
-  `- U<n> <title> - implements: <iface,...> depends: <U..> parallel-safe: yes|no`.
-  Units are vertical slices: each lands a thin end-to-end path that is green on
-  its own, not a horizontal layer that only works once every other layer exists.
-  A wide mechanical change is sequenced expand, migrate, contract. One unit means
-  `delivery` launches one implementer and no planner; two or more units with every
-  named interface defined above mean a planner only elaborates them and never
-  re-decomposes.
-
-## Durable decisions (ADR)
-
-A decision outlives the run as an ADR only when all three hold: hard to reverse
-once code is built on it; surprising to a reader without this brainstorm's
-context; and the result of a real trade-off rather than the only sensible option.
-An ADR is one paragraph — context, decision, the alternative rejected and why —
-destined for `docs/adr/NNNN-<slug>.md` in the repository and committed with the
-code. Write it beside the design as `adr/NNNN-<slug>.md` and name it in the
-design, on the first sketch unit or in one line under `## Decisions`; the
-implementer copies and commits it in its branch. Most designs produce zero ADRs.
-Write none rather than one that fails a condition.
-
-## Self-review checklist
-
-Read the finished document for:
-
-- placeholders (`TBD`, "etc.", "handle errors");
-- scope creep past what the user asked for;
-- ambiguity a fresh reader would resolve differently than you meant;
-- internal contradictions — two sections disagreeing on the same value, such as a
-  prose timeout of 30 s and a table row of 60 s;
-- `## Testing Decisions` naming a seam and a prior-art test rather than "add tests";
-- for feature work, that `## Architecture`, `## Interfaces`, and
-  `## Decomposition sketch` exist, that every interface a sketch unit names is
-  defined in `## Interfaces`, and that no unit depends on a unit sequenced after it.
-
-For contradictions, do a mechanical pass rather than a read-through: list every
-named region, state, mode, or component the design defines, search the document
-for each name, and confirm every mention agrees on its behavior. Fix the document
-in place before linking it. Self-review is not user approval.

@@ -195,7 +195,7 @@ describe('brainstorming design files stay out of version control', () => {
   it('writes to an ignored workspace-local directory without requiring Git', () => {
     const reference = squash(readReference('brainstorming', 'design-file.md'))
 
-    expect(reference).toContain('.orca/design/')
+    expect(reference).toContain('.orca/<date>-<slug>/design/design.md')
     expect(reference).toContain('info/exclude')
     expect(reference).toContain('Folder workspaces are valid and this step must not require Git')
   })

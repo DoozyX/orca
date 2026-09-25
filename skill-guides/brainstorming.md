@@ -92,7 +92,8 @@ Load `references/question-rounds.md` for the delivery mechanics of a round.
 ## 3. Approaches, trade-offs, recommendation
 
 Offer two or three. Each gets what it does, what it costs, and what it
-forecloses, then one named recommendation with a one-line reason. **Apply YAGNI
+forecloses, then one named recommendation with a one-line reason. The design
+file's `## Approach` keeps the rejected ones. **Apply YAGNI
 ruthlessly:** cut anything serving a requirement the user did not state, and say
 what you cut. Check the chosen shape against the principle lenses shared with
 `review` (`ORCA skills get review --reference references/principles.md`) and
@@ -118,17 +119,18 @@ and ambiguity in the file before linking it.
 
 ## 5. Link the file and get one explicit approval
 
-Give the user the absolute path to the design file. Keep the chat message to a
-short summary; do not paste the document unless asked. Then ask once:
+Give the user the absolute path to the design file. The chat message is the
+TL;DR plus one line per build step (its title and `You'll see`); do not paste
+the document unless asked. Then ask once:
 
 ```text
 Read the complete design file, then approve it or request edits.
 ```
 
-For feature work, name the decomposition sketch's three checks in the same
-request: is the granularity right; does each unit depend only on units that
-truly gate it; should any unit be merged or split. Approval without notes on
-these checks approves the sketch as drawn.
+For feature work, name the build steps' three checks in the same request: is
+the granularity right; does each step depend only on steps that truly gate it;
+should any step be merged or split. Approval without notes on these checks
+approves the steps as drawn.
 
 Wait for the user's explicit approval of that file. A summary, an earlier
 agreement on an approach, or your own self-review does not authorize

@@ -17,7 +17,7 @@ rewrites it; scope changes the user approves are appended, never substituted.
 
 entrance: design
 inputs: <absolute path to design.md>
-done means: every unit in the Decomposition sketch is landed under the landing
+done means: every step in How it will be built is landed under the landing
             policy the run records, and the Testing Decisions hold on the landed code
 report to: <the user, by the channel this brainstorm ran in>
 user constraints: <the design's Out of scope section, verbatim, or "none">

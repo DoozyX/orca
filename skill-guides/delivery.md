@@ -123,8 +123,8 @@ that must be fixed before implementations diverge, destructive or irreversible
 work needing an ordered rollback contract, non-obvious ordering between dependent
 changes, one session realistically exceeding its context budget, or several
 technically meaningful approaches still open after the design was approved. A
-design with one unit in its decomposition sketch means one implementer regardless
-of file count; two or more units with their interfaces already settled is the
+design with one build step in `## How it will be built` means one implementer
+regardless of file count; two or more steps with their interfaces already settled is the
 first trigger already recorded for you.
 
 **Shared-resource check before any parallel wave.** Units that share one dev
