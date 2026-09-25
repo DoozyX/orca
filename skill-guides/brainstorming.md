@@ -119,7 +119,8 @@ and ambiguity in the file before linking it.
 
 ## 5. Link the file and get one explicit approval
 
-Give the user the absolute path to the design file. The chat message is the
+Give the user the absolute path to the design file, and to its addendum when
+there is one. The chat message is the
 TL;DR plus one line per build step (its title and `You'll see`); do not paste
 the document unless asked. Then ask once:
 

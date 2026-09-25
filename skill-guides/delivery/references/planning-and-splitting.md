@@ -15,15 +15,15 @@ repaired.
 
 Each task file stands alone beside the approved design:
 
-| Section                   | Content                                                                                                       |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| Requirement               | Absolute design path and a concise summary of the requirement this task owns                                  |
-| Acceptance                | Observable criteria, plus a `## Quality bar` with anchored 0–10 scales only for criteria a test cannot assert |
-| Scope                     | Paths or subsystems and the responsibility each carries                                                       |
-| Verification              | Commands and the evidence they must produce                                                                   |
-| `## Interfaces`           | `consumes:` and `produces:` — exact names, signatures, and paths neighbours rely on                           |
-| `tier:`                   | `standard` or `strong`, per `task-pipeline.md`; never below standard for an implementer                       |
-| `## Record (append-only)` | Left empty; the implementer appends commits, touched files, and concerns in place                             |
+| Section                   | Content                                                                                                                       |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Requirement               | Absolute design path (and addendum, if any), the `US-` ids it covers, and a concise summary of the requirement this task owns |
+| Acceptance                | Observable criteria, plus a `## Quality bar` with anchored 0–10 scales only for criteria a test cannot assert                 |
+| Scope                     | Paths or subsystems and the responsibility each carries                                                                       |
+| Verification              | Commands and the evidence they must produce                                                                                   |
+| `## Interfaces`           | `consumes:` and `produces:` — exact names, signatures, and paths neighbours rely on                                           |
+| `tier:`                   | `standard` or `strong`, per `task-pipeline.md`; never below standard for an implementer                                       |
+| `## Record (append-only)` | Left empty; the implementer appends commits, touched files, and concerns in place                                             |
 
 A design's build steps (`## How it will be built`) are the task list, in their
 order, with their interfaces and `Done when` criteria: the planner elaborates

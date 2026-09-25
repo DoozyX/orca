@@ -8,27 +8,47 @@ from the file alone, what they will get, how it will be built, and in which
 steps. The implementer needs the same things, so the two readers never pull
 against each other.
 
+## Size and length
+
+Pick the size from the work, and state it in the TL;DR. Length follows the
+size, not how thorough the file looks.
+
+| Size    | Looks like                                      | Main file                     |
+| ------- | ----------------------------------------------- | ----------------------------- |
+| Bug fix | one wrong behaviour, one root cause             | about half a page             |
+| Feature | new or changed behaviour, one subsystem or two  | 1–3 pages                     |
+| Large   | several subsystems, or five or more build steps | 3–4 pages, addendum as needed |
+
+Within a size, scale each section to the work: a sentence or two when it is
+straightforward, and up to 200–300 words when it is nuanced.
+
+**Addendum.** Detail that supports a decision but would bury it goes in
+`addendum.md` beside `design.md`: long tables, migration mappings, edge-case
+catalogues, prototype snippets. Link it from the section or step that needs it.
+Every decision, story, and step card stays in the main file; the addendum only
+elaborates them, and the user approves both files together. Most designs have
+no addendum.
+
 ## Template
 
-Every design uses these sections in this order. Scale each section to the
-work: a sentence or two when it is straightforward, and up to 200–300 words
-when it is nuanced. A section that does not apply says so in one line and is
-not dropped silently.
+Every design uses these sections in this order. A section that does not apply
+says so in one line and is not dropped silently.
 
 ```markdown
 # <Title>
 
 > **TL;DR:** <2–3 sentences: what changes, for whom, and the chosen approach.>
+> **Size:** bug fix | feature | large
 
 ## Before / After
 
 **Before:** <what the user experiences today, in their terms>
 **After:** <what they experience once this lands>
 
-<Feature work: a numbered list of user stories, as many as the behaviour
-needs, edge cases included.>
+<Feature work: user stories with stable IDs, as many as the behaviour needs,
+edge cases included.>
 
-1. As a <actor>, I want <capability>, so that <benefit>.
+- **US-1** As a <actor>, I want <capability>, so that <benefit>.
 
 ## Approach
 
@@ -63,10 +83,10 @@ when there is only one step.>
 or behaviour a test pins>
 **How:** <the concrete changes: components, symbols, data shapes, migrations,
 enough that a reader can picture the diff>
-**Implements:** <interfaces, or —> · **Depends on:** <steps, or —> · **Parallel-safe:** yes|no
+**Covers:** <US-ids, or —> · **Implements:** <interfaces, or —> · **Depends on:** <steps, or —> · **Parallel-safe:** yes|no
 **Done when:**
 
-- [ ] <an observable criterion, and the test or check that proves it>
+- [ ] <US-id:> <an observable criterion, and the test or check that proves it>
 
 ## Testing Decisions
 
@@ -80,7 +100,9 @@ enough that a reader can picture the diff>
 - **TL;DR**: enough that a user who reads only this block knows what they are
   approving. Write it last, and make sure it agrees with the body.
 - **Before / After**: user-visible behaviour, not implementation. For a bug
-  fix it is two lines: the wrong behaviour and the right one.
+  fix it is two lines: the wrong behaviour and the right one, and no stories.
+  Story IDs (`US-1`, `US-2`, …) are stable: never renumber or reuse one after
+  the user has seen it; a dropped story is struck through, not deleted.
 - **Approach**: the 2–3 approaches from step 3 of the guide, preserved. The
   rejected ones stay in the file so a later reader never asks "why not the
   other way?"
@@ -102,8 +124,10 @@ enough that a reader can picture the diff>
   - **Wide mechanical changes** are sequenced expand, migrate, contract.
   - **`How`** names the modules and symbols it changes. A path to an existing
     file is fine for orientation; line numbers are not.
+  - **`Covers`** names the stories a step makes true, and each `Done when`
+    item that proves a story starts with its ID. Every story appears in at
+    least one step's `Covers`, so coverage is a lookup, not a judgement.
   - **`Done when`** lists acceptance criteria that `verify` maps to commands.
-    Every user story is covered by at least one step's `Done when`.
   - **A bug fix is one step,** and its `How` states the root cause.
   - **Step count sets the delivery shape.** One step means `delivery` launches
     one implementer and no planner. Two or more steps, with every interface
@@ -148,7 +172,10 @@ Read the finished document for:
 - a TL;DR that no longer matches the body;
 - a step whose `You'll see` is not observable, or whose `How` is too vague to
   picture the diff ("update the store", "wire it up");
-- a user story that no step's `Done when` covers;
+- a story ID that no step's `Covers` names, or a `Covers` ID with no
+  matching story;
+- a main file longer than its size allows, or a decision, story, or step that
+  exists only in the addendum;
 - an interface a step names that `### Interfaces` does not define;
 - a step that depends on a step sequenced after it, or a flowchart edge that
   disagrees with a `Depends on` line;

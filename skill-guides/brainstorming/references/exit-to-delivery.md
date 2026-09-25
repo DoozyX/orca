@@ -16,7 +16,7 @@ rewrites it; scope changes the user approves are appended, never substituted.
  design's one-paragraph motivation, verbatim>
 
 entrance: design
-inputs: <absolute path to design.md>
+inputs: <absolute path to design.md, and to addendum.md when one exists>
 done means: every step in How it will be built is landed under the landing
             policy the run records, and the Testing Decisions hold on the landed code
 report to: <the user, by the channel this brainstorm ran in>
