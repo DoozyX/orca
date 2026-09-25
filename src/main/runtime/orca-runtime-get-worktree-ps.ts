@@ -173,6 +173,7 @@ export class OrcaRuntimeWithGetWorktreePs extends OrcaRuntimeWithStructuredAgent
           workspaceId: location.workspaceId,
           executionHostId: location.executionHostId
         }),
+      resolveAgentAccountHome: (agent) => this.resolveStructuredAgentAccountHome(agent),
       // Structured chat has no agent CLI hooks, so this projection is what the first-work
       // workspace rename listens to instead of `agentStatus:set`.
       onSessionStatusChanged: (summary, options) => {

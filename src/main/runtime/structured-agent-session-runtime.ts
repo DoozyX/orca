@@ -53,6 +53,12 @@ import {
   createStructuredClaudeRuntimeAdapter,
   type StructuredClaudeRuntimeAdapterDeps
 } from './structured-claude-runtime-adapter'
+import { createStructuredAgentSessionLifecycleDelivery } from './structured-agent-session-lifecycle-delivery'
+import { agentModelCatalogStore } from '../native-chat/agent-model-catalog/agent-model-catalog-store'
+import {
+  modelCatalogHostDeps,
+  type RuntimeAgentAccountHomeResolver
+} from './structured-agent-model-catalog-wiring'
 
 /** Sibling of the journal tree rather than inside it: one file adjudicates every
  *  session's lease, while a journal is per session. */
@@ -108,6 +114,9 @@ export type StructuredAgentSessionRuntimeDeps = {
   statusSink?: StructuredAgentSessionHostDeps['statusSink']
   handoffTransport?: StructuredAgentSessionHandoffTransport
   reapOrphanChildren?: typeof stopOrphanAgentSessionChildren
+  /** The account home a structured launch would pin right now, for catalog
+   *  reads with no session record. Absent disables the catalog surface. */
+  resolveAgentAccountHome?: RuntimeAgentAccountHomeResolver
 }
 
 let installing: Promise<InstalledRuntime> | null = null
@@ -176,6 +185,7 @@ export async function stopStructuredAgentSessionRuntime(options?: {
       failures.push(error)
     }
   }
+  await agentModelCatalogStore.flushPersistence()
   if (failures.length === 1) {
     throw failures[0]
   }
@@ -191,8 +201,8 @@ async function install(deps: StructuredAgentSessionRuntimeDeps): Promise<Install
   if (typeof deps.resolveClaudeAuthPolicy !== 'function') {
     throw new Error(CLAUDE_STRUCTURED_AUTH_POLICY_REQUIRED)
   }
-  const { resolveCodexEnvironment, resolveClaudeInheritedEnv } =
-    createStructuredAgentEnvironmentResolvers(deps)
+  const envResolvers = createStructuredAgentEnvironmentResolvers(deps)
+  const { resolveCodexEnvironment, resolveClaudeInheritedEnv } = envResolvers
   const store = await AgentSessionRecordStore.open({
     directory: join(deps.stateDirectory, RECORD_STORE_DIR_NAME),
     hostId: deps.hostId
@@ -215,7 +225,13 @@ async function install(deps: StructuredAgentSessionRuntimeDeps): Promise<Install
   })
   try {
     let host: StructuredAgentSessionHost | null = null
-    let recoveryChain = Promise.resolve()
+    const lifecycle = createStructuredAgentSessionLifecycleDelivery({
+      handle: (event) => host?.handleAdapterEvent(event),
+      ...(deps.onError ? { onError: deps.onError } : {}),
+      // Claude publishes an observed exit only after its close ladder and transcript write; Codex
+      // publishes inside its own exit callback and needs nothing.
+      drainObservedExits: () => claude.drainObservedExits()
+    })
     const onDispatchSettledLate = (
       settlement: Parameters<StructuredAgentSessionHost['settleLateDispatch']>[0]
     ): void => {
@@ -238,6 +254,7 @@ async function install(deps: StructuredAgentSessionRuntimeDeps): Promise<Install
       }),
       ...(deps.openCodexConnection ? { openConnection: deps.openCodexConnection } : {}),
       ...(deps.readProcessStartTime ? { readProcessStartTime: deps.readProcessStartTime } : {}),
+      modelCatalog: agentModelCatalogStore,
       onBackgroundTasksChanged: (sessionId, state) =>
         host?.publishBackgroundTaskState(sessionId, state),
       onDispatchSettledLate,
@@ -255,19 +272,9 @@ async function install(deps: StructuredAgentSessionRuntimeDeps): Promise<Install
           )
       },
       onEvent: (event) => {
-        if (event.type !== 'ended' || !('cause' in event) || event.cause !== 'unexpected-exit') {
-          return
+        if (event.type === 'ended' && 'cause' in event && event.cause === 'unexpected-exit') {
+          lifecycle.deliver(event)
         }
-        // Serialize recovery with teardown. Exit callbacks arrive from child
-        // process tasks, so a fire-and-forget callback can otherwise append
-        // after the host has flushed and its journal directory is removed.
-        recoveryChain = recoveryChain.then(async () => {
-          try {
-            await host?.handleAdapterEvent(event)
-          } catch (error) {
-            deps.onError?.({ scope: `structured-agent-session-exit:${event.sessionId}`, error })
-          }
-        })
       }
     })
     const claude = createStructuredClaudeRuntimeAdapter({
@@ -289,20 +296,13 @@ async function install(deps: StructuredAgentSessionRuntimeDeps): Promise<Install
           }
         : {}),
       ...(deps.readClaudeHomeBinding ? { readClaudeHomeBinding: deps.readClaudeHomeBinding } : {}),
-      onUnexpectedExit: (event) => {
-        recoveryChain = recoveryChain.then(async () => {
-          try {
-            await host?.handleAdapterEvent(event)
-          } catch (error) {
-            deps.onError?.({ scope: `structured-agent-session-exit:${event.sessionId}`, error })
-          }
-        })
-      },
+      onLifecycleEvent: (event) => lifecycle.deliver(event),
       onBackgroundTasksChanged: (sessionId, state) =>
         host?.publishBackgroundTaskState(sessionId, state),
       onDispatchSettledLate,
       ...(deps.openClaudeConnection ? { openClaudeConnection: deps.openClaudeConnection } : {}),
-      ...(deps.readProcessStartTime ? { readProcessStartTime: deps.readProcessStartTime } : {})
+      ...(deps.readProcessStartTime ? { readProcessStartTime: deps.readProcessStartTime } : {}),
+      modelCatalog: agentModelCatalogStore
     })
     const adapter = new StructuredAgentSessionAdapterRouter({ codex, claude }, async () => {
       await Promise.all([codex.closeAll(), claude.closeAll()])
@@ -332,27 +332,14 @@ async function install(deps: StructuredAgentSessionRuntimeDeps): Promise<Install
           recordAgentSessionProviderHandle({ record, fence: record.lease.runtimeFence, link, now })
         )
       },
-      ...(deps.handoffTransport ? { handoffTransport: deps.handoffTransport } : {})
+      ...(deps.handoffTransport ? { handoffTransport: deps.handoffTransport } : {}),
+      ...(await modelCatalogHostDeps({ store, deps, envResolvers }))
     })
     setStructuredAgentSessionHost(host)
     return {
       host,
       adapter,
-      waitForRecovery: async () => {
-        // A recovery may synchronously trigger another exit while it is
-        // reacquiring. Observe until the chain stops growing.
-        for (;;) {
-          // Claude reaches the chain only once its close ladder and transcript
-          // write publish the exit, so an observed death is not yet a chained
-          // one. Codex publishes inside its own exit callback and needs nothing.
-          await claude.drainObservedExits()
-          const observed = recoveryChain
-          await observed
-          if (observed === recoveryChain) {
-            return
-          }
-        }
-      }
+      waitForRecovery: lifecycle.drain
     }
   } catch (error) {
     agentSessionPtyWriteGate.detachRecordLookup()

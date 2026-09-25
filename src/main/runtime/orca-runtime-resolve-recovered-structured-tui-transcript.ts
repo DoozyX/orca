@@ -15,8 +15,11 @@ import { LOCAL_EXECUTION_HOST_ID } from '../../shared/execution-host'
 import type { AgentStatusIpcPayload } from '../../shared/agent-status-types'
 import { getLocalProjectWorktreeGitOptions } from '../project-runtime-git-options'
 import type { AgentSessionAttachParams } from '../native-chat/agent-session-wire/structured-agent-session-attach'
-import { getSystemCodexHomePath } from '../codex/codex-home-paths'
 import { resolveTuiAgentLaunchEnv } from '../../shared/tui-agent-launch-defaults'
+import {
+  resolveRecordlessStructuredAgentAccountHome,
+  resolveStructuredCodexAccountHomePath
+} from './structured-agent-account-home'
 import { resolveStructuredLaunchSeedOptions } from '../../shared/native-chat-session-option-defaults'
 import { hasPersistedStructuredAgentSessionStore as hasPersistedStructuredAgentSessionStoreOnDisk } from './structured-agent-session-runtime'
 import { getProfileUserDataPath } from '../orca-profiles/profile-storage-paths'
@@ -141,6 +144,15 @@ export class OrcaRuntimeWithResolveRecoveredStructuredTuiTranscript extends Orca
     }
   }
 
+  /** Where a structured chat here would run, when that is a directory on this machine. */
+  async resolveStructuredAgentSessionLocalWorkspacePath(worktreeSelector: string) {
+    const location = await this.resolveStructuredAgentSessionLocation(worktreeSelector)
+    if (location.executionHostId !== LOCAL_EXECUTION_HOST_ID || location.wslDistro) {
+      return null
+    }
+    return (await this.resolveRuntimeFileTarget(worktreeSelector)).worktree.path
+  }
+
   async resolveStructuredAgentSessionCreateIntent(input: {
     envelope: { sessionId: string; clientOperationId: string }
     worktree: string
@@ -164,18 +176,29 @@ export class OrcaRuntimeWithResolveRecoveredStructuredTuiTranscript extends Orca
         })
       )
     }
-    return this.resolveStructuredAgentSessionIntent(input, async ({ workspacePath, launchEnv }) => {
-      // A create has no process yet, so the current selection is what it must follow.
-      const preparedHome = await this.prepareCodexStructuredLaunchFn?.({ workspacePath, launchEnv })
-      const configuredHome = launchEnv.CODEX_HOME
-      return {
-        path:
-          preparedHome?.trim() ||
-          (this.prepareCodexStructuredLaunchFn
-            ? getSystemCodexHomePath()
-            : configuredHome?.trim()) ||
-          getSystemCodexHomePath()
-      }
+    return this.resolveStructuredAgentSessionIntent(
+      input,
+      async ({ workspacePath, launchEnv }) => ({
+        path: await resolveStructuredCodexAccountHomePath({
+          launchEnv,
+          resolveLaunchHome: this.prepareCodexStructuredLaunchFn,
+          workspacePath
+        })
+      })
+    )
+  }
+
+  /**
+   * The account home a structured launch for this agent would pin right now,
+   * for reads that have no session record to answer from (the model catalog).
+   * Same resolver as the create intent above — never a second copy.
+   */
+  async resolveStructuredAgentAccountHome(agent: 'claude' | 'codex') {
+    return resolveRecordlessStructuredAgentAccountHome({
+      agent,
+      launchEnv: resolveTuiAgentLaunchEnv(agent, this.requireStore().getSettings().agentDefaultEnv),
+      getClaudeConfigDirectory: (target) => this.accounts.getClaudeConfigDirectory(target),
+      resolveCodexLaunchHome: this.resolveCodexStructuredLaunchHomeFn
     })
   }
 

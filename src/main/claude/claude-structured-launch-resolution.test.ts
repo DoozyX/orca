@@ -73,6 +73,7 @@ function resolverFor(
     resolvePermissionMode: () => claudeStructuredPermissionModeForSettings({ agentDefaultArgs }),
     // A no-op by default so a test that is not about the bound home does not need a real directory.
     assertBoundHomeUsable: async () => {},
+    hasTranscript: async () => true,
     ...(resolveEnv ? { resolveEnv } : {}),
     ...extraDeps
   })
@@ -138,7 +139,8 @@ describe('claude structured launch resolution', () => {
       cwd: '/repos/workspace-1',
       claudeConfigDir: '/home/work/.claude',
       resumeLeafUuid: null,
-      resumed: false
+      resumesTranscript: false,
+      continuesChain: false
     })
     expect(first.options).toEqual({
       includePartialMessages: true,
@@ -172,7 +174,8 @@ describe('claude structured launch resolution', () => {
     expect(launch).toMatchObject({
       providerSessionId: 'provider-current',
       resumeLeafUuid: 'leaf-current',
-      resumed: true
+      resumesTranscript: true,
+      continuesChain: true
     })
     expect(launch.options.resume).toBe('provider-current')
     // Claude owns where the conversation continues; a stored leaf would cut or branch it.
@@ -223,6 +226,37 @@ describe('claude structured launch resolution', () => {
 
     expect(launch.options.resume).toBe('provider-current')
     expect(launch.options).not.toHaveProperty('resumeSessionAt')
+  })
+
+  it('launches a leafless head fresh under its own id when Claude never wrote its transcript', async () => {
+    // A start that failed before its first turn: `--resume` would exit "No conversation found".
+    const hasTranscript = vi.fn(async () => false)
+    const launch = await resolverFor(
+      record({
+        // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the resolver reads only each link's handle.
+        providerHandleChain: [
+          { handle: { provider: 'claude', sessionId: 'provider-current', leafUuid: null } }
+        ] as AgentSessionRecord['providerHandleChain']
+      }),
+      undefined,
+      false,
+      { claude: '' },
+      { hasTranscript }
+    )({ identity: identityAt(null) })
+
+    expect(hasTranscript).toHaveBeenCalledWith({
+      providerSessionId: 'provider-current',
+      claudeConfigDir: expect.any(String)
+    })
+    expect(launch.options.resume).toBeUndefined()
+    expect(launch.options.sessionId).toBe('provider-current')
+    expect(launch).toMatchObject({
+      providerSessionId: 'provider-current',
+      resumeLeafUuid: null,
+      resumesTranscript: false,
+      // Launching the id fresh does not start a new conversation: the child continues the chain.
+      continuesChain: true
+    })
   })
 
   // Agent Permissions is stored as the bypass flag inside the launch arguments, so presence of

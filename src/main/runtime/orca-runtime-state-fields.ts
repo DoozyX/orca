@@ -105,6 +105,13 @@ export class OrcaRuntimeWithStateFields extends OrcaRuntimeWithLinearCommands {
       }) => string | null | Promise<string | null>
       /** Seam for the bound-Claude-home usability check; defaults to the real filesystem probe. */
       assertClaudeBoundHomeUsable?: AssertClaudeBoundHomeUsable
+      // Why a sibling of prepare: record-less catalog reads must resolve the
+      // same launch home with none of launch prep's side effects (no sync, no
+      // bridge, no cleared selection).
+      resolveCodexStructuredLaunchHome?: (input: {
+        workspacePath: string
+        launchEnv: NodeJS.ProcessEnv
+      }) => string | null | Promise<string | null>
       buildAgentHookPtyEnv?: () => Record<string, string>
       getDesktopWindowStatus?: () => RuntimeDesktopWindowStatus
       agentSessionClaimSigner?: AgentSessionClaimSigner
@@ -261,6 +268,7 @@ export class OrcaRuntimeWithStateFields extends OrcaRuntimeWithLinearCommands {
     this.prepareCodexStructuredLaunchFn = deps?.prepareCodexStructuredLaunch ?? null
     this.assertClaudeBoundHomeUsableFn =
       deps?.assertClaudeBoundHomeUsable ?? assertClaudeBoundHomeUsable
+    this.resolveCodexStructuredLaunchHomeFn = deps?.resolveCodexStructuredLaunchHome ?? null
     this.agentSessionClaimSigner =
       deps?.agentSessionClaimSigner ?? createEphemeralAgentSessionClaimSigner(this.runtimeId)
     this.onTerminalSideEffects = deps?.onTerminalSideEffects ?? null

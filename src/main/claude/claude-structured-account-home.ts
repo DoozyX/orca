@@ -4,8 +4,6 @@
 // `structured-agent-session-history-adoption.ts` already states: a call site written there would
 // compile however wrong it was, and the wrong answer here is another organisation's account.
 
-import { homedir } from 'node:os'
-import { join } from 'node:path'
 import type { ExecutionHostId } from '../../shared/execution-host'
 import type { FolderWorkspace } from '../../shared/folder-workspace-types'
 import type { ProjectGroup } from '../../shared/project-group-types'
@@ -19,6 +17,7 @@ import {
   type AssertClaudeBoundHomeUsable
 } from './claude-bound-home-refusal'
 import { isCustomClaudeConfigDir } from './claude-config-dir-pin'
+import { resolveStructuredClaudeAccountHomePath } from '../runtime/structured-agent-account-home'
 
 /** The store accessors the binding decision reads. Each is optional only so a missing one can be
  *  *detected*; see `readClaudeHomeBindingCatalog`. */
@@ -174,9 +173,10 @@ export async function resolveClaudeStructuredAccountHome(input: {
     }
   }
   return {
-    path:
-      input.launchEnv.CLAUDE_CONFIG_DIR?.trim() ||
-      input.readSelectedConfigDir()?.trim() ||
-      join(homedir(), '.claude')
+    path: resolveStructuredClaudeAccountHomePath({
+      launchEnv: input.launchEnv,
+      wslDistro: input.location.wslDistro,
+      getClaudeConfigDirectory: input.readSelectedConfigDir
+    })
   }
 }

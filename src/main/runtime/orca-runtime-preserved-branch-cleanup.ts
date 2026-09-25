@@ -115,6 +115,12 @@ export class OrcaRuntimeWithPreservedBranchCleanup extends OrcaRuntimeWithTermin
     | null
 
   protected readonly assertClaudeBoundHomeUsableFn: AssertClaudeBoundHomeUsable
+  protected readonly resolveCodexStructuredLaunchHomeFn:
+    | ((input: {
+        workspacePath: string
+        launchEnv: NodeJS.ProcessEnv
+      }) => string | null | Promise<string | null>)
+    | null
 
   protected readonly agentSessionClaimSigner: AgentSessionClaimSigner
 

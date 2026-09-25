@@ -1,4 +1,6 @@
 import { isAgentSessionRewindRecord, type AgentSessionRewindRecord } from './agent-session-rewind'
+import { isAgentSessionLaunchArgs } from './agent-session-launch-args'
+import { isAgentSessionSurfaceTabId } from './agent-session-surface-tab-id'
 import { isAgentSessionConversationName } from './agent-session-conversation-name'
 /**
  * Durable agent-session record and its single-writer lease.
@@ -15,8 +17,6 @@ import {
 } from './agent-session-account-home'
 import {
   MAX_ID_LENGTH,
-  MAX_LAUNCH_ARGS,
-  MAX_LAUNCH_ARGS_BYTES,
   MAX_LAUNCH_ENV_ENTRIES,
   MAX_LAUNCH_ENV_VALUE_LENGTH,
   isBoundedString
@@ -136,13 +136,16 @@ export type AgentSessionRecord = {
   provider: AgentSessionHandleProvider
   providerHandleChain: AgentSessionProviderHandleLink[]
   accountHome: AgentSessionAccountHome
-  /** Provider options acknowledged for the next turn, restored across owner replacement. */
+  /** Provider options the user chose, replayed whenever a new owner starts the session. */
   options?: Record<string, string>
   rewind?: AgentSessionRewindRecord
   conversationCommand?: AgentSessionConversationCommandRecord
   /** The name Orca gave this conversation, so a later acquisition need not name it again. */
   conversationName?: string
   launchArgs?: AgentSessionLaunchArgs
+  /** The id of the tab that shows this conversation on every client: host-owned and pinned once;
+   *  readers copy it, never derive it. Older records are backfilled at load with the derived id. */
+  surfaceTabId?: string
   lease: AgentSessionLease
   createdAt: number
   updatedAt: number
@@ -337,6 +340,7 @@ export function isAgentSessionRecord(value: unknown): value is AgentSessionRecor
     (record.conversationName === undefined ||
       isAgentSessionConversationName(record.conversationName)) &&
     (record.launchArgs === undefined || isAgentSessionLaunchArgs(record.launchArgs)) &&
+    (record.surfaceTabId === undefined || isAgentSessionSurfaceTabId(record.surfaceTabId)) &&
     !Object.hasOwn(record, 'launchEnv') &&
     isAgentSessionLease(record.lease) &&
     record.lease.sessionId === record.sessionId &&
@@ -353,14 +357,5 @@ export function isAgentSessionRecord(value: unknown): value is AgentSessionRecor
       (validated.lease.ownerProcess !== null &&
         head?.linkId === validated.lease.provenHandleLinkId &&
         head.mintedAtFence === validated.lease.runtimeFence))
-  )
-}
-
-export function isAgentSessionLaunchArgs(value: unknown): value is AgentSessionLaunchArgs {
-  return (
-    Array.isArray(value) &&
-    value.length <= MAX_LAUNCH_ARGS &&
-    value.every((arg) => typeof arg === 'string' && !arg.includes('\0')) &&
-    Buffer.byteLength(JSON.stringify(value), 'utf8') <= MAX_LAUNCH_ARGS_BYTES
   )
 }
