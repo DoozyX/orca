@@ -26,6 +26,7 @@ export type UsageProviderSettings = Pick<
   // store, neither of which the renderer can see; main reports presence.
   opencodeGoApiKeyConfigured: boolean
   grokAuthConfigured: boolean
+  cursorAuthConfigured: boolean
 }
 
 type UsageProviderSnapshots = {
@@ -37,6 +38,7 @@ type UsageProviderSnapshots = {
   antigravity: ProviderRateLimits | null | undefined
   minimax: ProviderRateLimits | null | undefined
   grok: ProviderRateLimits | null | undefined
+  cursor: ProviderRateLimits | null | undefined
 }
 
 type UsageProviderId = ProviderRateLimits['provider']
@@ -88,7 +90,8 @@ export function hasUsageProviderSettings(
     // already covered by the gemini term above.
     settings?.minimaxCookieConfigured === true ||
     settings?.minimaxApiKeyConfigured === true ||
-    settings?.grokAuthConfigured === true
+    settings?.grokAuthConfigured === true ||
+    settings?.cursorAuthConfigured === true
   )
 }
 
@@ -126,6 +129,9 @@ export function hasUsageProviderSettingsForProvider(
   if (providerId === 'grok') {
     return settings.grokAuthConfigured === true
   }
+  if (providerId === 'cursor') {
+    return settings.cursorAuthConfigured === true
+  }
   return false
 }
 
@@ -135,7 +141,7 @@ function createPendingProviderSnapshot(providerId: UsageProviderId): ProviderRat
     session: null,
     weekly: null,
     ...(providerId === 'opencode-go' ? { monthly: null } : {}),
-    ...(providerId === 'gemini' ? { buckets: [] } : {}),
+    ...(providerId === 'gemini' || providerId === 'cursor' ? { buckets: [] } : {}),
     updatedAt: 0,
     error: null,
     status: 'fetching'
@@ -179,7 +185,8 @@ export function isUsageEmptyState(
     isProviderSnapshotPending(providers.kimi) ||
     antigravitySnapshotPending ||
     isProviderSnapshotPending(providers.minimax) ||
-    isProviderSnapshotPending(providers.grok)
+    isProviderSnapshotPending(providers.grok) ||
+    isProviderSnapshotPending(providers.cursor)
   ) {
     return false
   }
@@ -192,6 +199,7 @@ export function isUsageEmptyState(
     !isProviderConfigured(providers.kimi) &&
     !isProviderConfigured(providers.antigravity) &&
     !isProviderConfigured(providers.minimax) &&
-    !isProviderConfigured(providers.grok)
+    !isProviderConfigured(providers.grok) &&
+    !isProviderConfigured(providers.cursor)
   )
 }
