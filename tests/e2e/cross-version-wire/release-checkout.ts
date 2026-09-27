@@ -63,6 +63,7 @@ export type CheckoutStagingContext = CheckoutLifecycleContext & {
 }
 
 export type MaterializeReleaseCheckoutTestHooks = {
+  archivePaths?: readonly string[]
   lockOptions?: CheckoutLockOptions
   acquireLock?: AcquireCheckoutLock
   onLockAttempt?: (context: CheckoutLifecycleContext) => void
@@ -271,7 +272,7 @@ export async function materializeReleaseCheckout(
     await hooks?.onStagingCreated?.(stagingContext)
     await (hooks?.populateStaging
       ? hooks.populateStaging(stagingContext)
-      : extractReleaseCheckoutTree(REPO_ROOT, staging, commit))
+      : extractReleaseCheckoutTree(REPO_ROOT, staging, commit, hooks?.archivePaths))
     await assertCheckoutWireSurface(staging, ref)
     await writeFile(
       join(staging, 'checkout-stamp.json'),

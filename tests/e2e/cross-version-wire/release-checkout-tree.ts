@@ -104,7 +104,8 @@ async function runCheckoutProcess(
 export async function extractReleaseCheckoutTree(
   repoRoot: string,
   staging: string,
-  commit: string
+  commit: string,
+  archivePaths: readonly string[] = ARCHIVE_PATHS
 ): Promise<void> {
   const archive = join(staging, '.release-checkout.tar')
   const deadline = Date.now() + CHECKOUT_PROCESS_TIMEOUT_MS
@@ -112,7 +113,7 @@ export async function extractReleaseCheckoutTree(
     await runCheckoutProcess(
       repoRoot,
       'git',
-      ['archive', '--format=tar', `--output=${archive}`, commit, '--', ...ARCHIVE_PATHS],
+      ['archive', '--format=tar', `--output=${archive}`, commit, '--', ...archivePaths],
       deadline
     )
     await runCheckoutProcess(
