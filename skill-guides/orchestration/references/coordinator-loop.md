@@ -91,8 +91,9 @@ lists, missing required keys, unsupported model overrides, and `effort` without
 `model`. Before the first dispatch, stop the run on any such error and report
 `engine-roles invalid: <file>: <problem>`. Never silently ignore a bad file.
 
-For each configured-role dispatch, run `orca account list --json` immediately
-before launching. A candidate has usable quota only if
+For each configured-role dispatch, run
+`orca account list --refresh-usage --json` immediately before launching. A
+candidate has usable quota only if
 `result.rateLimits.<agent>` exists, has `status: "ok"`, and has a counted
 window; a missing or non-`ok` entry is `no-quota-data` and never eligible.
 Count every non-null `session`, `daily`, `weekly`, and `monthly` window. Count

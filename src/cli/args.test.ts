@@ -12,6 +12,14 @@ import {
 } from './args'
 
 describe('parseArgs', () => {
+  it('parses a pre-command quota refresh as a boolean without consuming account list', () => {
+    const parsed = parseArgs(
+      ['--refresh-usage', 'account', 'list', '--json'],
+      [['account', 'list']]
+    )
+    expect(parsed.commandPath).toEqual(['account', 'list'])
+    expect(parsed.flags.get('refresh-usage')).toBe(true)
+  })
   it('keeps an empty string as a flag value', () => {
     const parsed = parseArgs(['computer', 'set-value', '--value', '', '--json'])
 

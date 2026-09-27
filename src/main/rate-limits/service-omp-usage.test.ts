@@ -38,7 +38,11 @@ const healthy = {
   buckets: [{ name: 'Usage (Google)', ...daily }],
   updatedAt: Date.now(),
   error: null,
-  status: 'ok' as const
+  status: 'ok' as const,
+  usageMetadata: {
+    source: 'cli' as const,
+    modelIdentity: 'google-antigravity/gemini-3.8-flash:high'
+  }
 }
 
 beforeEach(() => {
@@ -67,5 +71,39 @@ describe('RateLimitService omp usage', () => {
       error: 'omp usage timed out',
       daily: { usedPercent: 6 }
     })
+  })
+
+  it('clears stale quota when the default model changes before a failed refresh', async () => {
+    vi.mocked(fetchOmpRateLimits).mockResolvedValueOnce(healthy)
+    const service = new RateLimitService()
+    await service.refresh()
+
+    vi.mocked(fetchOmpRateLimits).mockResolvedValueOnce({
+      ...healthy,
+      daily: null,
+      buckets: [],
+      status: 'error',
+      error: 'omp usage timed out',
+      usageMetadata: { source: 'cli', modelIdentity: 'google-antigravity/claude-sonnet-4' }
+    })
+    await service.refresh()
+    expect(service.getState().omp).toMatchObject({ status: 'error', daily: null, buckets: [] })
+  })
+
+  it('clears stale quota when a failed refresh cannot identify the active model', async () => {
+    vi.mocked(fetchOmpRateLimits).mockResolvedValueOnce(healthy)
+    const service = new RateLimitService()
+    await service.refresh()
+
+    vi.mocked(fetchOmpRateLimits).mockResolvedValueOnce({
+      ...healthy,
+      daily: null,
+      buckets: [],
+      status: 'error',
+      error: 'omp config.yml could not be read',
+      usageMetadata: { source: 'cli' }
+    })
+    await service.refresh()
+    expect(service.getState().omp).toMatchObject({ status: 'error', daily: null, buckets: [] })
   })
 })

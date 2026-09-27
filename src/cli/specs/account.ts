@@ -22,10 +22,10 @@ export const ACCOUNT_COMMAND_SPECS: CommandSpec[] = [
   {
     path: ['account', 'list'],
     summary: 'List managed Claude and Codex accounts on this Orca host',
-    usage: 'orca account list [--json]',
-    allowedFlags: [...GLOBAL_FLAGS],
+    usage: 'orca account list [--refresh-usage] [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'refresh-usage'],
     notes: [
-      'Lists the accounts on this machine. `--environment` / `--pairing-code` are rejected rather than ignored; run it on the host whose accounts you want to see.'
+      'Lists the accounts on this machine. `--refresh-usage` fetches current provider usage before returning the snapshot. `--environment` / `--pairing-code` are rejected rather than ignored; run it on the host whose accounts you want to see.'
     ],
     examples: ['orca account list']
   }

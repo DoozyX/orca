@@ -6,12 +6,17 @@ import { z } from 'zod'
 import { runProcess } from '../../shared/child-process/run-process'
 import { resolveCliCommand, withCliRuntimeOnPath } from '../../shared/node-cli-command-resolution'
 import { resolveOmpConfigDirName, resolvePiSourceAgentDir } from '../../relay/plugin-overlay-env'
+import { resolveOmpAgentDir } from '../ai-vault/omp-session-root'
 import { mapOmpUsage, type OmpRateLimits } from './omp-usage-mapping'
 
 const configSchema = z.object({ modelRoles: z.object({ default: z.string().min(1) }) })
 const USAGE_TIMEOUT_MS = 12_000
 
-function failure(status: OmpRateLimits['status'], error: string): OmpRateLimits {
+function failure(
+  status: OmpRateLimits['status'],
+  error: string,
+  modelIdentity?: string
+): OmpRateLimits {
   return {
     provider: 'omp',
     session: null,
@@ -23,6 +28,7 @@ function failure(status: OmpRateLimits['status'], error: string): OmpRateLimits 
     updatedAt: Date.now(),
     usageMetadata: {
       source: 'cli',
+      ...(modelIdentity ? { modelIdentity } : {}),
       failureKind: status === 'unavailable' ? 'cli-unavailable' : 'unknown'
     }
   }
@@ -45,9 +51,17 @@ export async function fetchOmpRateLimits(
   const env = stringEnvironment({ ...process.env, ...options.env })
   const shell = env.SHELL
   const sourceDir = env.OMP_CODING_AGENT_DIR ?? resolvePiSourceAgentDir(env, shell, 'omp')
-  const configDir = sourceDir
-    ? resolve(sourceDir)
-    : resolve(homedir(), (await resolveOmpConfigDirName(env, shell)) ?? '.omp', 'agent')
+  const configDir = resolveOmpAgentDir({
+    env: {
+      ...env,
+      PI_CONFIG_DIR: (await resolveOmpConfigDirName(env, shell)) ?? '.omp',
+      ...(sourceDir ? { OMP_CODING_AGENT_DIR: sourceDir } : {})
+    },
+    homeDir: process.platform === 'win32' ? (env.USERPROFILE ?? homedir()) : (env.HOME ?? homedir())
+  })
+  if (!configDir) {
+    return failure('unavailable', 'omp active profile is invalid')
+  }
   let defaultModel: string
   try {
     const config = configSchema.safeParse(
@@ -72,19 +86,19 @@ export async function fetchOmpRateLimits(
       signal: options.signal
     })
     if (output.timedOut) {
-      return failure('error', 'omp usage timed out')
+      return failure('error', 'omp usage timed out', defaultModel)
     }
     if (output.outputTruncated) {
-      return failure('error', 'omp usage response was too large')
+      return failure('error', 'omp usage response was too large', defaultModel)
     }
     if (output.code !== 0) {
-      return failure('error', `omp usage failed (exit ${output.code ?? 'signal'})`)
+      return failure('error', `omp usage failed (exit ${output.code ?? 'signal'})`, defaultModel)
     }
     return mapOmpUsage(output.stdout, defaultModel)
   } catch (error) {
     if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
-      return failure('unavailable', 'omp is not installed')
+      return failure('unavailable', 'omp is not installed', defaultModel)
     }
-    return failure('error', 'omp usage could not be started')
+    return failure('error', 'omp usage could not be started', defaultModel)
   }
 }

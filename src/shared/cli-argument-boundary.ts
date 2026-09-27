@@ -36,6 +36,7 @@ export const CLI_BOOLEAN_FLAGS = new Set([
   'parent-current',
   'provision',
   'ready',
+  'refresh-usage',
   'recipe-json',
   'references',
   'relations',

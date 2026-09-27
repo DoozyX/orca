@@ -27,6 +27,32 @@ function safeRoot(value: string): string {
     : trimmed
 }
 
+/** Resolve the active omp profile's agent directory on the execution host. */
+export function resolveOmpAgentDir(
+  options: { env?: NodeJS.ProcessEnv; homeDir?: string } = {}
+): string {
+  const env = options.env ?? process.env
+  const home = options.homeDir ?? homedir()
+  if (env.OMP_CODING_AGENT_DIR?.trim()) {
+    return safeRoot(resolve(env.OMP_CODING_AGENT_DIR))
+  }
+  const profile = normalizedProfile(
+    env.OMP_PROFILE !== undefined ? env.OMP_PROFILE : env.PI_PROFILE
+  )
+  if (profile === null) {
+    return ''
+  }
+  const baseConfig = resolve(home, env.PI_CONFIG_DIR || '.omp')
+  const configRoot = profile ? join(baseConfig, 'profiles', profile) : baseConfig
+  const inheritedProfile = normalizedProfile(env.PI_PROFILE)
+  const inheritedAgent = inheritedProfile
+    ? join(baseConfig, 'profiles', inheritedProfile, 'agent')
+    : undefined
+  const override =
+    !profile && env.PI_CODING_AGENT_DIR !== inheritedAgent ? env.PI_CODING_AGENT_DIR : undefined
+  return safeRoot(override ? resolve(override) : join(configRoot, 'agent'))
+}
+
 /** Mirrors OMP dirs.ts on the execution host; an explicit root never falls back. */
 export function resolveOmpSessionsDir(
   options: {
@@ -52,16 +78,10 @@ export function resolveOmpSessionsDir(
   if (profile === null) {
     return ''
   }
-  const baseConfig = join(home, env.PI_CONFIG_DIR || '.omp')
+  const baseConfig = resolve(home, env.PI_CONFIG_DIR || '.omp')
   const configRoot = profile ? join(baseConfig, 'profiles', profile) : baseConfig
   const defaultAgent = join(configRoot, 'agent')
-  const inheritedProfile = normalizedProfile(env.PI_PROFILE)
-  const inheritedAgent = inheritedProfile
-    ? join(baseConfig, 'profiles', inheritedProfile, 'agent')
-    : undefined
-  const override =
-    !profile && env.PI_CODING_AGENT_DIR !== inheritedAgent ? env.PI_CODING_AGENT_DIR : undefined
-  const agentDir = override ? resolve(override) : defaultAgent
+  const agentDir = resolveOmpAgentDir({ env, homeDir: home })
   if (!safeRoot(agentDir)) {
     return ''
   }

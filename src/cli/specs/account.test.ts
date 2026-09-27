@@ -30,6 +30,12 @@ describe('account command specs', () => {
     }
   })
 
+  it('accepts an explicit quota refresh on account list', () => {
+    const list = spec('account list')
+    expect(effectiveAllowedFlags(list)).toContain('refresh-usage')
+    expect(formatCommandHelp(list)).toContain('--refresh-usage')
+  })
+
   it('describes --agent as the account provider, not a terminal agent', () => {
     const help = formatCommandHelp(spec('account add'))
 

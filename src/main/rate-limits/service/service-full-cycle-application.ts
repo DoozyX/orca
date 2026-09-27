@@ -216,6 +216,9 @@ export abstract class RateLimitServiceFullCycleApplication extends RateLimitServ
       previousCursorAccount !== undefined &&
       cursorAccount !== undefined &&
       previousCursorAccount !== cursorAccount
+    const ompModel = omp.usageMetadata?.modelIdentity
+    const previousOmpModel = previousState.omp?.usageMetadata?.modelIdentity
+    const ompModelMatches = ompModel !== undefined && ompModel === previousOmpModel
     this.trackActiveFailureStreak('grok', grok)
     this.trackActiveFailureStreak('cursor', cursor)
     this.trackActiveFailureStreak('omp', omp)
@@ -223,7 +226,10 @@ export abstract class RateLimitServiceFullCycleApplication extends RateLimitServ
       ...this.state,
       grok: this.applyStalePolicy(grok, previousState.grok),
       cursor: cursorAccountChanged ? cursor : this.applyStalePolicy(cursor, previousState.cursor),
-      omp: this.applyStalePolicy(omp, previousState.omp)
+      omp:
+        omp.status === 'error' && !ompModelMatches
+          ? omp
+          : this.applyStalePolicy(omp, previousState.omp)
     })
   }
 }

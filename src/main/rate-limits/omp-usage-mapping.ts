@@ -17,6 +17,7 @@ export type OmpRateLimits = ProviderRateLimits & { daily: RateLimitWindow | null
 function result(
   status: OmpRateLimits['status'],
   error: string | null,
+  modelIdentity: string,
   daily: RateLimitWindow | null = null,
   buckets: OmpRateLimits['buckets'] = []
 ): OmpRateLimits {
@@ -31,6 +32,7 @@ function result(
     status,
     usageMetadata: {
       source: 'cli',
+      modelIdentity,
       ...(status === 'error' ? { failureKind: 'parse' as const } : {}),
       ...(status === 'unavailable' ? { failureKind: 'usage-unavailable' as const } : {})
     }
@@ -66,18 +68,22 @@ export function mapOmpUsage(json: string, defaultModel: string): OmpRateLimits {
   try {
     raw = JSON.parse(json)
   } catch {
-    return result('error', 'omp usage response could not be parsed')
+    return result('error', 'omp usage response could not be parsed', defaultModel)
   }
   const parsed = usageSchema.safeParse(raw)
   if (!parsed.success) {
-    return result('error', 'omp usage response has an unrecognized shape')
+    return result('error', 'omp usage response has an unrecognized shape', defaultModel)
   }
   const slash = defaultModel.indexOf('/')
   const provider = slash === -1 ? '' : defaultModel.slice(0, slash)
   const model = slash === -1 ? defaultModel : defaultModel.slice(slash + 1).split(':')[0]
   const report = parsed.data.reports.find((entry) => entry.provider === provider)
   if (!report) {
-    return result('unavailable', `omp has no authenticated usage report for ${provider}`)
+    return result(
+      'unavailable',
+      `omp has no authenticated usage report for ${provider}`,
+      defaultModel
+    )
   }
   const limits = report.limits.filter((limit) => limit.status === 'ok')
   const buckets = limits.map((limit) => ({ name: limit.label, ...toWindow(limit) }))
@@ -89,7 +95,11 @@ export function mapOmpUsage(json: string, defaultModel: string): OmpRateLimits {
         ? limits.find((limit) => limit.id.startsWith(`${provider}:${family}:`))
         : undefined
   if (!headline) {
-    return result('unavailable', `omp default model ${defaultModel} has no matching usage pool`)
+    return result(
+      'unavailable',
+      `omp default model ${defaultModel} has no matching usage pool`,
+      defaultModel
+    )
   }
-  return result('ok', null, toWindow(headline), buckets)
+  return result('ok', null, defaultModel, toWindow(headline), buckets)
 }

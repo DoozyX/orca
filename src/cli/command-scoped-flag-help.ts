@@ -1,5 +1,8 @@
 /** Per-command flag help, kept out of the shared help chain it would crowd. */
 const COMMAND_SCOPED_FLAG_HELP: Record<string, Record<string, string>> = {
+  'account list': {
+    'refresh-usage': '--refresh-usage        Fetch current provider usage before listing accounts'
+  },
   'skills get': {
     full: '--full                 Print the full guide with bundled references',
     reference: '--reference <name>     Print one bundled reference by name',

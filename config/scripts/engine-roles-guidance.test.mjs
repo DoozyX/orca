@@ -26,7 +26,7 @@ describe('engine roles guidance', () => {
 
   it('excludes unavailable quota and retries a failed startup on another engine', () => {
     const text = guide('orchestration/references/coordinator-loop.md')
-    expect(text).toContain('orca account list --json')
+    expect(text).toContain('orca account list --refresh-usage --json')
     expect(text).toContain('>= skipAbovePercent')
     expect(text).toContain('no-quota-data')
     expect(text).toContain('never eligible')

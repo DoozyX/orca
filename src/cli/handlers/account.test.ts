@@ -756,4 +756,26 @@ describe('account CLI handlers', () => {
 
     expect(callMock).toHaveBeenCalledWith('accounts.list', { refreshUsage: false })
   })
+
+  it('refreshes quota explicitly for routing before returning JSON', async () => {
+    callMock.mockResolvedValue({
+      id: 'test',
+      ok: true,
+      result: {
+        claude: { accounts: [], activeAccountId: null },
+        codex: { accounts: [], activeAccountId: null },
+        rateLimits: { omp: { status: 'ok', daily: { usedPercent: 6 } } }
+      },
+      _meta: { runtimeId: 'test-runtime' }
+    })
+
+    await ACCOUNT_HANDLERS['account list']({
+      ...context('claude'),
+      json: true,
+      flags: new Map([['refresh-usage', true]])
+    })
+
+    expect(callMock).toHaveBeenCalledWith('accounts.list', { refreshUsage: true })
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('"rateLimits"'))
+  })
 })

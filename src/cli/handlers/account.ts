@@ -325,10 +325,10 @@ export const ACCOUNT_HANDLERS: Record<string, CommandHandler> = {
   'account list': async (ctx) => {
     rejectAccountRemoteSelectionFlags(ctx, 'orca account list')
     const { client, json } = ctx
-    // Why: this command renders no usage numbers, so skip the forced provider
-    // refresh — it is one serial network round-trip per managed account.
+    // Why: account list remains cheap by default; quota routing opts into a
+    // fresh host read through the existing accounts.list parameter.
     const result = await client.call<AccountsListSnapshot>('accounts.list', {
-      refreshUsage: false
+      refreshUsage: ctx.flags.has('refresh-usage')
     })
     printResult(
       result,
