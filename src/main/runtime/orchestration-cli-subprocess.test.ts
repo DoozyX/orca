@@ -71,6 +71,18 @@ describeIfBuilt('orca orchestration check --wait subprocess (§3.4)', () => {
     const runtime = new OrcaRuntimeService()
     const db = new OrchestrationDb(':memory:')
     runtime.setOrchestrationDb(db)
+    const coordinatorPaneKey = 'tab_nobody:11111111-1111-4111-8111-111111111111'
+    vi.spyOn(runtime, 'getTerminalPaneKey').mockImplementation((handle) =>
+      handle === 'term_nobody' ? coordinatorPaneKey : null
+    )
+    vi.spyOn(runtime, 'getLiveTerminalPaneKey').mockImplementation((handle) =>
+      runtime.getTerminalPaneKey(handle)
+    )
+    const run = db.createRun({
+      objective: 'CLI keepalive subprocess fixture',
+      coordinatorHandle: 'term_nobody',
+      coordinatorPaneKey
+    })
     const server = new OrcaRuntimeRpcServer({ runtime, userDataPath })
     await server.start()
 
@@ -89,6 +101,8 @@ describeIfBuilt('orca orchestration check --wait subprocess (§3.4)', () => {
           CLI_PATH,
           'orchestration',
           'check',
+          '--run',
+          run.id,
           '--wait',
           '--timeout-ms',
           String(waitTimeoutMs),

@@ -56,24 +56,24 @@ const ratchet = vi.hoisted(() => {
   const readOnlyCommands = new Map([['security', new Set(['find-generic-password'])]])
   const readPaths: string[] = []
 
-  const isPlainObject = (value: unknown): value is object =>
+  const isPlainObject = (value: unknown): value is Record<string, unknown> =>
     typeof value === 'object' && value !== null && !Array.isArray(value)
 
-  const guardModule = (
-    actual: object,
+  const guardModule = <T extends object>(
+    actual: T,
     label: string,
     allowed: ReadonlySet<string> = new Set<string>(),
     depth = 1
   ): Record<string, unknown> => {
     const guarded: Record<string, unknown> = {}
-    for (const name of Object.keys(actual)) {
-      const value: unknown = Reflect.get(actual, name)
+    for (const [name, entry] of Object.entries(actual)) {
+      const value: unknown = entry
       if (typeof value === 'function' && allowed.has(name)) {
         guarded[name] = (...args: unknown[]) => {
           if (typeof args[0] === 'string') {
             readPaths.push(args[0])
           }
-          return Reflect.apply(value, undefined, args)
+          return value(...args)
         }
         continue
       }
@@ -98,18 +98,21 @@ const ratchet = vi.hoisted(() => {
     // key would deny the allowed read too, which reads as "the ratchet forbids the supported
     // spawner" and pushes the next author toward `node:child_process` or toward loosening this.
     const spec = isPlainObject(args[0]) ? args[0] : { program: args[0], args: args[1] }
-    const argv: unknown = Reflect.get(spec, 'args')
+    const argv: unknown = spec.args
     return {
-      command: String(Reflect.get(spec, 'program') ?? Reflect.get(spec, 'command')),
+      command: String(spec.program ?? spec.command),
       verb: Array.isArray(argv) && argv.length > 0 ? String(argv[0]) : ''
     }
   }
 
   /** A spawn is the sink for a Keychain write and for a PTY, so guard the argv, not the import. */
-  const guardSpawnModule = (actual: object, label: string): Record<string, unknown> => {
+  const guardSpawnModule = <T extends object>(
+    actual: T,
+    label: string
+  ): Record<string, unknown> => {
     const guarded: Record<string, unknown> = {}
-    for (const name of Object.keys(actual)) {
-      const value: unknown = Reflect.get(actual, name)
+    for (const [name, entry] of Object.entries(actual)) {
+      const value: unknown = entry
       if (typeof value !== 'function') {
         guarded[name] = value
         continue
@@ -117,7 +120,7 @@ const ratchet = vi.hoisted(() => {
       guarded[name] = (...args: unknown[]) => {
         const { command, verb } = describeSpawn(args)
         if (readOnlyCommands.get(command)?.has(verb)) {
-          return Reflect.apply(value, undefined, args)
+          return value(...args)
         }
         throw new Error(`D9 violation: bound-home usage ran ${label}.${name} ${command} ${verb}`)
       }
@@ -524,8 +527,8 @@ describe('the D9 ratchet itself', () => {
     expect(() => keychain.writeActiveClaudeKeychainCredentials('{}')).toThrow('D9 violation')
     expect(() => keychain.deleteActiveClaudeKeychainCredentials()).toThrow('D9 violation')
     expect(Object.keys(refresh).length).toBeGreaterThan(0)
-    for (const name of Object.keys(refresh)) {
-      const exported: unknown = Reflect.get(refresh, name)
+    for (const entry of Object.values(refresh)) {
+      const exported: unknown = entry
       if (typeof exported === 'function') {
         expect(() => exported()).toThrow('D9 violation')
       }

@@ -115,7 +115,13 @@ function VerboseProviderUsage({
   display: UsagePercentageDisplay
 }): React.JSX.Element {
   if (p.provider === 'omp' && p.daily) {
-    return <WindowLabel w={p.daily} label="Daily" display={display} />
+    return (
+      <WindowLabel
+        w={p.daily}
+        label={translate('auto.components.status.bar.tooltip.omp.daily', 'Daily')}
+        display={display}
+      />
+    )
   }
   if (p.buckets && p.buckets.length > 0) {
     const visibleBuckets = p.buckets.filter((bucket) => isVisibleStatusBarBucket(bucket.name))

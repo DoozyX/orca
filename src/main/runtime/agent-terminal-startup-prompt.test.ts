@@ -24,11 +24,23 @@ function runtimeWithAgentLaunch(): {
   const runtime = new OrcaRuntimeService()
   // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the resolver under test is a protected member; the assertion names only the three internals this stub replaces, each of which is assigned before the create reaches it.
   const internal = runtime as unknown as {
-    store: { getSettings: () => Record<string, unknown> }
+    store: {
+      getSettings: () => Record<string, unknown>
+      hasHydratedProjectCatalog: () => boolean
+      getProjectGroups: () => unknown[]
+      getRepos: () => unknown[]
+      getFolderWorkspaces: () => unknown[]
+    }
     resolveTerminalWorkspaceLaunchScope: (selector: string) => Promise<unknown>
     markWorkspaceTrustedForAgent: () => Promise<void>
   }
-  internal.store = { getSettings: () => ({}) }
+  internal.store = {
+    getSettings: () => ({}),
+    hasHydratedProjectCatalog: () => true,
+    getProjectGroups: () => [],
+    getRepos: () => [],
+    getFolderWorkspaces: () => []
+  }
   vi.spyOn(internal, 'resolveTerminalWorkspaceLaunchScope').mockResolvedValue({
     id: 'wt-1',
     path: '/repo/app',

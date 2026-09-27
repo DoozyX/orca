@@ -376,7 +376,9 @@ describe('OrcaRuntimeService', () => {
     const spawnCall = spawn.mock.calls[0]?.[0] as
       | { command?: string; env?: Record<string, string> }
       | undefined
-    expect(spawnCall?.command).toBe("codex '--dangerously-bypass-approvals-and-sandbox'")
+    expect(spawnCall?.command).toBe(
+      "codex --no-daemon '--dangerously-bypass-approvals-and-sandbox'"
+    )
     expect(spawnCall?.env).toMatchObject({
       CODEX_PROFILE: 'captured',
       ORCA_WORKTREE_ID: TEST_WORKTREE_ID

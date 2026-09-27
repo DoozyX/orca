@@ -88,7 +88,7 @@ export function resolveClaudeHomeBindingForGroup(
   let currentId: string | null | undefined = groupId
   while (currentId && !visited.has(currentId)) {
     visited.add(currentId)
-    const current = currentId
+    const current: string = currentId
     const group: ProjectGroup | undefined = findRowForHost(
       groups,
       (candidate) => candidate.id === current,

@@ -1,6 +1,6 @@
-import { execFileSync } from 'node:child_process'
 import { existsSync, lstatSync, mkdirSync, readlinkSync, rmSync, symlinkSync } from 'node:fs'
 import { join, resolve } from 'node:path'
+import { runProcessSync } from '../../shared/child-process/run-process'
 
 const FRAMEWORK_NAME = 'SimulatorKit.framework'
 const FRAMEWORK_BINARY_RELATIVE_PATH = join('Versions', 'A', 'SimulatorKit')
@@ -11,12 +11,12 @@ function resolveDeveloperDir(): string | null {
     return configured
   }
   try {
-    const output = execFileSync('/usr/bin/xcode-select', ['-p'], {
-      encoding: 'utf8',
-      timeout: 10_000,
-      stdio: ['ignore', 'pipe', 'ignore']
-    }).trim()
-    return output || null
+    const result = runProcessSync({
+      program: '/usr/bin/xcode-select',
+      args: ['-p'],
+      timeoutMs: 10_000
+    })
+    return result.code === 0 && !result.timedOut ? result.stdout.trim() || null : null
   } catch {
     return null
   }

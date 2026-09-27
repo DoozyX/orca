@@ -5,6 +5,7 @@ import {
   getRepoHeaderSectionEndByRepoId
 } from './worktree-header-section-boundaries'
 import type { RenderRow } from './worktree-list/listing/render-row'
+import { estimateRenderRowSize } from './worktree-list/viewport/virtual-rows'
 
 const repoHeader = (id: string): RenderRow =>
   ({ type: 'header', key: `repo:${id}`, label: id, count: 1, tone: '', repo: { id } }) as RenderRow
@@ -20,10 +21,10 @@ const groupHeader = (id: string): RenderRow =>
   }) as RenderRow
 const item = { type: 'item' } as RenderRow
 
-// Estimated starts: first header 28, later headers 32, items 116.
 const rows = [repoHeader('a'), item, repoHeader('b'), item, repoHeader('c'), item]
-const startOfB = 28 + 116
-const startOfC = startOfB + 32 + 116
+const startOfB = estimateRenderRowSize(rows, 0, 0, null) + estimateRenderRowSize(rows, 1, 0, null)
+const startOfC =
+  startOfB + estimateRenderRowSize(rows, 2, 0, null) + estimateRenderRowSize(rows, 3, 0, null)
 
 describe('getRepoHeaderSectionEndByRepoId', () => {
   it('ends a section at the successor from the header’s own bucket', () => {

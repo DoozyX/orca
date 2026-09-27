@@ -27,7 +27,7 @@ import {
 } from '../native-chat/claude-structured-managed-account-support'
 import { resolveClaudeCommand } from '../codex-cli/command'
 import { resolveSessionFilePath } from '../native-chat/session-file-resolver'
-import { withoutInheritedClaudeConfigDir } from './claude-config-dir-pin'
+import { isCustomClaudeConfigDir, withoutInheritedClaudeConfigDir } from './claude-config-dir-pin'
 import type { AgentSessionRecordStore } from '../runtime/agent-session-record-store'
 import {
   ClaudeBoundHomeRefusalError,
@@ -35,7 +35,6 @@ import {
   type AssertClaudeBoundHomeUsable
 } from './claude-bound-home-refusal'
 import { sameClaudeConfigDir } from './claude-config-dir-identity'
-import { isCustomClaudeConfigDir } from './claude-config-dir-pin'
 import { claudeChildLaunchEnv, isEffectiveBoundClaudeHome } from './claude-structured-account-home'
 import type { ResolvedClaudeHomeBinding } from '../../shared/claude-home-binding'
 

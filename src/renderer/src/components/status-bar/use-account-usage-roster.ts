@@ -12,6 +12,7 @@ import { createEmptyRateLimitState } from '../../../../shared/rate-limit-state-f
 import { resolveClaudeStatusAccountState } from './status-bar-claude-accounts'
 import { resolveCodexStatusAccountState } from './status-bar-codex-accounts'
 import { getClaudeAccountSyncKey, getCodexAccountSyncKey } from './provider-account-sync-key'
+import { translate } from '@/i18n/i18n'
 
 const EMPTY_LIMITS = createEmptyRateLimitState()
 const EMPTY_ACCOUNTS: ProviderAccountsSnapshot = {
@@ -26,7 +27,10 @@ function disconnectedUsage(state: RateLimitState): RateLimitState {
       ? {
           ...limits,
           status: 'error',
-          error: 'Remote usage connection unavailable'
+          error: translate(
+            'auto.components.status.bar.UsageRosterPanel.remoteUsageConnectionUnavailable',
+            'Remote usage connection unavailable'
+          )
         }
       : null
   return {

@@ -1,6 +1,8 @@
-import { readFileSync, readdirSync, statSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join, relative, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { scanSourceTree } from '../../src/shared/source-scan/source-tree-scan'
 
 /**
  * One Playwright worker imports many spec files into one Node process, and the app fixtures
@@ -32,23 +34,8 @@ const MODULE_SCOPE_ENV_WRITE =
  */
 const MODULE_SCOPE_ENV_WRITER_PIN = 0
 
-const SCANNED_EXTENSIONS = ['.ts', '.tsx']
-const IGNORED_DIRECTORIES = new Set(['node_modules', 'dist', 'out', 'build', '__fixtures__'])
-
 function collectE2eFiles(root: string): string[] {
-  const found: string[] = []
-  for (const entry of readdirSync(root)) {
-    if (IGNORED_DIRECTORIES.has(entry)) {
-      continue
-    }
-    const path = join(root, entry)
-    if (statSync(path).isDirectory()) {
-      found.push(...collectE2eFiles(path))
-    } else if (SCANNED_EXTENSIONS.some((extension) => path.endsWith(extension))) {
-      found.push(path)
-    }
-  }
-  return found
+  return scanSourceTree(root, { includeTests: true }).map((file) => file.path)
 }
 
 function findModuleScopeEnvWrites(path: string): string[] {
@@ -62,15 +49,28 @@ function findModuleScopeEnvWrites(path: string): string[] {
 }
 
 describe('e2e worker env isolation', () => {
-  const offenders = collectE2eFiles(E2E_ROOT).flatMap(findModuleScopeEnvWrites)
-
   it('no e2e file writes process.env at module scope', () => {
+    const offenders = collectE2eFiles(E2E_ROOT).flatMap(findModuleScopeEnvWrites)
     expect(offenders).toEqual([])
   })
 
   it('holds the module-scope env writer count at its ratchet', () => {
+    const offenders = collectE2eFiles(E2E_ROOT).flatMap(findModuleScopeEnvWrites)
     const files = new Set(offenders.map((offender) => offender.split(':')[0]))
     expect(files.size).toBeLessThanOrEqual(MODULE_SCOPE_ENV_WRITER_PIN)
+  })
+
+  it('scans owned E2E source but not generated release checkouts', () => {
+    const root = mkdtempSync(join(tmpdir(), 'orca-e2e-env-scan-'))
+    try {
+      const generated = join(root, '.cross-version-checkouts', 'v1.4.190')
+      mkdirSync(generated, { recursive: true })
+      writeFileSync(join(root, 'owned.ts'), 'export const owned = true\n')
+      writeFileSync(join(generated, 'copied.ts'), "process.env.LEAK = '1'\n")
+      expect(collectE2eFiles(root)).toEqual([join(root, 'owned.ts')])
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
   })
 
   it('detects the shape it is meant to catch', () => {

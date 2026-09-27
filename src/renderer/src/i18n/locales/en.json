@@ -4043,6 +4043,7 @@
             "usageDetails": "Usage details & history",
             "loadingUsage": "Loading usage…",
             "usageUnavailable": "Usage unavailable",
+            "remoteUsageConnectionUnavailable": "Remote usage connection unavailable",
             "noUsageData": "No usage data",
             "detailed": "Detailed",
             "compact": "Compact",

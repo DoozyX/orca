@@ -540,11 +540,15 @@ describe('resumeSleepingAgentSessionsForWorktree', () => {
     const resumedTab = state.tabsByWorktree['wt-1']?.[0]
     const startup = state.pendingStartupByTabId[resumedTab!.id]
     expect(startup?.command).toBe(
-      "codex --profile captured '--model' 'gpt-5' '--reasoning-effort' 'high' 'resume' 'sess-1'"
+      "codex --no-daemon --profile captured '--model' 'gpt-5' '--reasoning-effort' 'high' 'resume' 'sess-1'"
     )
     expect(startup?.env).toEqual({ CODEX_PROFILE: 'captured' })
     expect(startup?.command).not.toContain('changed')
-    expect(startup?.launchConfig).toEqual(record.launchConfig)
+    expect(startup?.launchConfig).toEqual({
+      ...record.launchConfig,
+      agentCommand:
+        "codex --no-daemon --profile captured '--model' 'gpt-5' '--reasoning-effort' 'high'"
+    })
     expect(startup?.resumeProviderSession).toEqual(record.providerSession)
   })
 

@@ -579,7 +579,10 @@ describe('connectPanePty', () => {
       exitCode: 1,
       startup: expect.objectContaining({
         command: expect.stringContaining("'resume' 'codex-session-1'"),
-        launchConfig,
+        launchConfig: {
+          ...launchConfig,
+          agentCommand: "codex --no-daemon '--model' 'gpt-5'"
+        },
         resumeProviderSession: { key: 'session_id', id: 'codex-session-1' },
         launchAgent: 'codex',
         showSessionRestoredBanner: true

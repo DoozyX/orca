@@ -68,6 +68,11 @@ export const MOBILE_WEB_APP_SHIMS = [
     appliesTo: (options) => options.banner?.js?.includes('__zod_globalConfig') === true
   },
   {
+    // Shared modules otherwise resolve the root copy while the page uses mobile's React.
+    name: 'one-react',
+    appliesTo: (options) => options.alias?.react === MOBILE_REACT_PACKAGE
+  },
+  {
     // Four modules under src/shared resolve `zod` upward to the root's copy, so the page bundled
     // two Zods and built salvage combinators with one instance to nest inside schemas built by the
     // other. mobile/tsconfig.json already maps `zod` to mobile's for the whole mobile program,
@@ -166,6 +171,7 @@ const PAGE_ASYNC_STORAGE_MODULE = join(
  * The package directory rather than a file: nothing imports a `zod/...` subpath, and esbuild reads
  * the `module` field here, which is the same ESM entry the package's `import` condition names.
  */
+const MOBILE_REACT_PACKAGE = join(mobileDir, 'node_modules', 'react')
 const MOBILE_ZOD_PACKAGE = join(mobileDir, 'node_modules', 'zod')
 
 /**
@@ -288,13 +294,13 @@ export function mobileWebAppBuildOptions(routes) {
     metafile: true,
     logLevel: 'silent',
     jsx: 'automatic',
-    // One React: resolve everything from mobile/node_modules, which is where the entry lives.
-    // A fallback only, so it settles nothing for a module that resolves on its own — see
-    // MOBILE_ZOD_PACKAGE, which is a repo-root import this never reached.
+    // nodePaths is a fallback only. Shared root imports need explicit aliases to use the same
+    // React and Zod instances as the mobile entry.
     nodePaths: [join(mobileDir, 'node_modules')],
     alias: {
       'react-native': 'react-native-web',
       '@react-native-async-storage/async-storage': PAGE_ASYNC_STORAGE_MODULE,
+      react: MOBILE_REACT_PACKAGE,
       zod: MOBILE_ZOD_PACKAGE
     },
     plugins: [

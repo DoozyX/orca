@@ -220,7 +220,8 @@ describe('connectPanePty', () => {
     expect(transport.connect).toHaveBeenCalledWith(
       expect.objectContaining({
         sessionId: 'lost-pty',
-        command: "codex '--model' 'gpt-5' '--reasoning-effort' 'high' 'resume' 'codex-session-1'",
+        command:
+          "codex --no-daemon '--model' 'gpt-5' '--reasoning-effort' 'high' 'resume' 'codex-session-1'",
         env: expect.objectContaining({
           CODEX_PROFILE: 'captured',
           ORCA_PANE_KEY: paneKey,
@@ -231,12 +232,19 @@ describe('connectPanePty', () => {
         })
       })
     )
-    expect(mockStoreState.registerAgentLaunchConfig).toHaveBeenCalledWith(paneKey, launchConfig, {
-      agentType: 'codex',
-      launchToken,
-      tabId: 'tab-1',
-      leafId: LEAF_1
-    })
+    expect(mockStoreState.registerAgentLaunchConfig).toHaveBeenCalledWith(
+      paneKey,
+      {
+        ...launchConfig,
+        agentCommand: "codex --no-daemon '--model' 'gpt-5' '--reasoning-effort' 'high'"
+      },
+      {
+        agentType: 'codex',
+        launchToken,
+        tabId: 'tab-1',
+        leafId: LEAF_1
+      }
+    )
   })
 
   it('clears stale launch config when a pane consumes a non-agent startup command', async () => {
@@ -390,18 +398,25 @@ describe('connectPanePty', () => {
     expect(transport.connect).toHaveBeenCalledWith(
       expect.objectContaining({
         sessionId: 'lost-pty',
-        command: "codex '--model' 'gpt-5-mini' 'resume' 'codex-session-1'",
+        command: "codex --no-daemon '--model' 'gpt-5-mini' 'resume' 'codex-session-1'",
         env: expect.objectContaining({
           ORCA_AGENT_LAUNCH_TOKEN: expect.stringMatching(new RegExp(`^${UUID_RE}$`))
         })
       })
     )
-    expect(mockStoreState.registerAgentLaunchConfig).toHaveBeenCalledWith(paneKey, launchConfig, {
-      agentType: 'codex',
-      launchToken: expect.stringMatching(new RegExp(`^${UUID_RE}$`)),
-      tabId: 'tab-1',
-      leafId: LEAF_1
-    })
+    expect(mockStoreState.registerAgentLaunchConfig).toHaveBeenCalledWith(
+      paneKey,
+      {
+        ...launchConfig,
+        agentCommand: "codex --no-daemon '--model' 'gpt-5-mini'"
+      },
+      {
+        agentType: 'codex',
+        launchToken: expect.stringMatching(new RegExp(`^${UUID_RE}$`)),
+        tabId: 'tab-1',
+        leafId: LEAF_1
+      }
+    )
     expect(mockStoreState.clearSleepingAgentSession).not.toHaveBeenCalled()
   })
 
@@ -561,7 +576,7 @@ describe('connectPanePty', () => {
     expect(transport.connect).toHaveBeenCalledWith(
       expect.objectContaining({
         sessionId: 'lost-pty',
-        command: "codex '--model' 'current' 'resume' 'codex-session-1'"
+        command: "codex --no-daemon '--model' 'current' 'resume' 'codex-session-1'"
       })
     )
     expect(mockStoreState.registerAgentLaunchConfig).toHaveBeenCalledWith(

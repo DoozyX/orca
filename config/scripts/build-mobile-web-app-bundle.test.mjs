@@ -326,6 +326,7 @@ describeBundling('the app bundle', () => {
     expect(options.splitting).toBe(true)
     expect(options.chunkNames).toBe('[hash]')
     expect(options.metafile).toBe(true)
+    expect(options.alias.react).toBe(join(projectDir, 'mobile', 'node_modules', 'react'))
   })
 
   it('reads a route source the same way the export guard does', async () => {

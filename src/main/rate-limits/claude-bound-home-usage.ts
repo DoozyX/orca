@@ -34,7 +34,7 @@ async function classifyTokenlessBoundHome(
   try {
     JSON.parse(await readFile(path.join(configDir, '.credentials.json'), 'utf-8'))
   } catch (error) {
-    const code = error instanceof Error ? Reflect.get(error, 'code') : undefined
+    const code = error instanceof Error && 'code' in error ? error.code : undefined
     // A directory nobody has signed into reads as signed-out; a permissions error, a dead mount or
     // malformed JSON is a state Orca cannot judge.
     return code === 'ENOENT' ? 'signed-out' : 'unreadable'

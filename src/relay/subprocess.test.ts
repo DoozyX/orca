@@ -193,7 +193,12 @@ describe('Subprocess: Relay entry point', () => {
     const repairedRelayEntry = path.join(tmpDir, 'relay.js')
     copyFileSync(relayEntry, repairedRelayEntry)
 
-    relay = spawnRelayEntry(repairedRelayEntry)
+    // Keep the test bundle's lexical temp path: a symlinked TMPDIR inside this checkout
+    // must not let Node resolve the checkout's installed node-pty before the repair.
+    relay = spawnRelayEntry(repairedRelayEntry, [], {
+      ...process.env,
+      NODE_OPTIONS: [process.env.NODE_OPTIONS, '--preserve-symlinks-main'].filter(Boolean).join(' ')
+    })
     await relay.sentinelReceived
 
     const failedId = relay.send('pty.spawn', { cols: 80, rows: 24 })

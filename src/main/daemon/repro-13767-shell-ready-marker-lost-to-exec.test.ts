@@ -372,9 +372,18 @@ zle -N zle-line-init
   sqliteTest(
     'does not treat an exec-replaced readline program as the shell prompt',
     async () => {
-      const running = await startFixture(zshFixture, 'exec /usr/bin/sqlite3\n')
+      const running = await startFixture(
+        zshFixture,
+        'exec /usr/bin/sqlite3 -cmd ".prompt sqlite> "\n'
+      )
       try {
-        await waitForOutput(running.subscribe, () => running.output().includes('sqlite> '))
+        try {
+          await waitForOutput(running.subscribe, () => running.output().includes('sqlite>'))
+        } catch (error) {
+          throw new Error(`SQLite startup output: ${JSON.stringify(running.output())}`, {
+            cause: error
+          })
+        }
         await new Promise((resolve) => setTimeout(resolve, 300))
         expect(running.session.shellState).toBe('pending')
         expect(running.output()).not.toContain(COMMAND_OUTPUT)
@@ -390,10 +399,16 @@ zle -N zle-line-init
     async () => {
       const running = await startFixture(
         zshFixture,
-        'ln -s /usr/bin/sqlite3 "$HOME/zsh" && exec "$HOME/zsh"\n'
+        'ln -s /usr/bin/sqlite3 "$HOME/zsh" && exec "$HOME/zsh" -cmd ".prompt sqlite> "\n'
       )
       try {
-        await waitForOutput(running.subscribe, () => running.output().includes('sqlite> '))
+        try {
+          await waitForOutput(running.subscribe, () => running.output().includes('sqlite>'))
+        } catch (error) {
+          throw new Error(`Renamed SQLite startup output: ${JSON.stringify(running.output())}`, {
+            cause: error
+          })
+        }
         await new Promise((resolve) => setTimeout(resolve, 300))
         expect(running.session.shellState).toBe('pending')
         expect(running.output()).not.toContain(COMMAND_OUTPUT)

@@ -434,6 +434,9 @@ const store = {
     branchPrefix: 'none',
     branchPrefixCustom: ''
   }),
+  hasHydratedProjectCatalog: () => true,
+  getProjectGroups: () => [],
+  getFolderWorkspaces: () => [],
   getProjects: () => []
 }
 

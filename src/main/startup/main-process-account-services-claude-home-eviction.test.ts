@@ -128,6 +128,7 @@ function stubStore(): void {
   mutable.claudeUsage = {}
   mutable.codexUsage = {}
   mutable.openCodeUsage = {}
+  mutable.museUsage = {}
 }
 
 describe('main-process account services', () => {
