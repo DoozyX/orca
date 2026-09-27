@@ -139,6 +139,7 @@ afterEach(() => {
 describe('status bar account ownership', () => {
   it('renders the remote account stream and discards late snapshots from the previous owner', async () => {
     app.settings.activeRuntimeEnvironmentId = 'remote-a'
+    app.statusBarItems = ['claude', 'codex', 'cursor', 'omp']
     container = document.createElement('div')
     root = createRoot(container)
     await act(async () => {
@@ -155,7 +156,15 @@ describe('status bar account ownership', () => {
     })
     expect(container.textContent).not.toContain('remote-a@example.test')
     await act(async () => {
-      bridge.watchers.at(-1)?.onSnapshot(remoteSnapshot('remote-b@example.test'))
+      const snapshot = remoteSnapshot('remote-b@example.test')
+      const claude = snapshot.rateLimits?.claude
+      const extra = claude ? { ...claude, provider: 'cursor' as const } : null
+      snapshot.rateLimits = createEmptyRateLimitState({
+        claude,
+        cursor: extra,
+        omp: extra ? { ...extra, provider: 'omp', daily: extra.session } : null
+      })
+      bridge.watchers.at(-1)?.onSnapshot(snapshot)
       bridge.watchers[0]?.onSnapshot(remoteSnapshot('late-a@example.test'))
     })
     expect(container.textContent).toContain('remote-b@example.test')
@@ -165,7 +174,13 @@ describe('status bar account ownership', () => {
     })
     expect(container.textContent).toContain('remote-b@example.test')
     expect(container.textContent).toContain('"status":"error"')
+    expect(container.textContent).toContain('"provider":"cursor"')
+    expect(container.textContent).toContain('"provider":"omp"')
+    expect(
+      (container.textContent?.match(/Remote usage connection unavailable/g) ?? []).length
+    ).toBeGreaterThanOrEqual(3)
     expect(bridge.localReads).toBe(0)
+    app.statusBarItems = ['claude', 'codex']
   })
   it('keeps configured remote accounts visible before their usage arrives', async () => {
     app.settings.activeRuntimeEnvironmentId = 'remote-pending'

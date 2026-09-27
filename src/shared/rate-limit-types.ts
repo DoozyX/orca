@@ -58,10 +58,13 @@ export type ProviderRateLimits = {
     | 'grok'
     | 'antigravity'
     | 'cursor'
+    | 'omp'
   /** 5-hour session window, null if not available. */
   session: RateLimitWindow | null
   /** 7-day weekly window, null if not available. */
   weekly: RateLimitWindow | null
+  /** Daily quota window, currently reported by omp. */
+  daily?: RateLimitWindow | null
   /** Claude Fable 7-day weekly window, null if not available. */
   fableWeekly?: RateLimitWindow | null
   /** 30-day monthly window (OpenCode Go, Grok unified billing, Cursor plan pools), null if not available. */
@@ -155,6 +158,8 @@ export type RateLimitState = {
   minimax: ProviderRateLimits | null
   grok: ProviderRateLimits | null
   cursor: ProviderRateLimits | null
+  /** Optional while paired clients and hosts run mixed Orca versions. */
+  omp?: ProviderRateLimits | null
   /**
    * True when a MiniMax session cookie is persisted on disk. The cookie lives
    * outside GlobalSettings, so this flag is the durable signal that the

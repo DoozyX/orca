@@ -56,7 +56,9 @@ function WindowLabel({
 // the roster trigger and ProviderDetailsMenu so the dot's has-data condition
 // and markup can't drift between the two.
 export function ProviderLetterBadge({ p }: { p: ProviderRateLimits }): React.JSX.Element {
-  const hasData = Boolean(p.session || p.weekly || p.fableWeekly || p.monthly || p.buckets?.length)
+  const hasData = Boolean(
+    p.session || p.daily || p.weekly || p.fableWeekly || p.monthly || p.buckets?.length
+  )
   return (
     <span className="inline-flex items-center gap-1 text-muted-foreground">
       <span
@@ -85,6 +87,8 @@ function getProviderLetter(provider: ProviderRateLimits['provider']): string {
       return 'R'
     case 'cursor':
       return 'U'
+    case 'omp':
+      return 'O'
     case 'codex':
       return 'X'
   }
@@ -110,6 +114,9 @@ function VerboseProviderUsage({
   p: ProviderRateLimits
   display: UsagePercentageDisplay
 }): React.JSX.Element {
+  if (p.provider === 'omp' && p.daily) {
+    return <WindowLabel w={p.daily} label="Daily" display={display} />
+  }
   if (p.buckets && p.buckets.length > 0) {
     const visibleBuckets = p.buckets.filter((bucket) => isVisibleStatusBarBucket(bucket.name))
     // Why: a provider whose buckets are all filtered out still has a headline

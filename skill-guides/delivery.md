@@ -80,19 +80,28 @@ The run directory is the one `orchestration` defines in its context-lifecycle
 reference: `.orca/<date>-<slug>/` in the root worktree. Delivery keeps its state
 under `orchestrate/` there, never in a task worktree:
 
-| File                     | Holds                                                                                                                                                                       | Written                                     |
-| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
-| `manifest.md`            | `## Verification contract`, `## Landing policy`, `## Model tiers`, and one row per unit: worktree, branch, base sha, stage, dispatches with tier and model, escalations, PR | At setup, then every stage transition       |
-| `budget.md`              | The review and fix ledger (see Review budget)                                                                                                                               | Before every review or fix dispatch         |
-| `environment-hazards.md` | Production contexts never to target, services already running, secrets never to echo, remote hosts, tracked files the test suite rewrites                                   | Once at setup; passed by path to every spec |
-| `worktrees.md`           | Unit, worktree id, path, branch, state (`active`, `removed`, `retained`)                                                                                                    | At every worktree create or remove          |
-| `<unit>/`                | Saved specs, findings files, suite logs, captures                                                                                                                           | Per stage                                   |
+| File                     | Holds                                                                                                                                                                                          | Written                                     |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| `manifest.md`            | `## Verification contract`, `## Landing policy`, `## Model tiers`, `## Engine roles`, and one row per unit: worktree, branch, base sha, stage, dispatches with tier and model, escalations, PR | At setup, then every stage transition       |
+| `budget.md`              | The review and fix ledger (see Review budget)                                                                                                                                                  | Before every review or fix dispatch         |
+| `environment-hazards.md` | Production contexts never to target, services already running, secrets never to echo, remote hosts, tracked files the test suite rewrites                                                      | Once at setup; passed by path to every spec |
+| `worktrees.md`           | Unit, worktree id, path, branch, state (`active`, `removed`, `retained`)                                                                                                                       | At every worktree create or remove          |
+| `<unit>/`                | Saved specs, findings files, suite logs, captures                                                                                                                                              | Per stage                                   |
 
 The verification contract names the baseline, full-suite, focused-test, lint,
 format, build, and end-to-end commands, the one full-suite owner per worktree and
 revision, required services, and the files the suite rewrites. Reviewers never
 restore those files; the merge worker, as sole occupant, restores exactly the
 listed ones before it merges.
+
+`## Engine roles` records `engine-roles=none` when neither roles file exists.
+Otherwise it lists the global and repo source paths, merged role lists,
+`crossEngineReview`, `skipAbovePercent`, and every candidate that is
+`no-quota-data` at run start. Each dispatch row records
+`role=<r> agent=<a> model=<m|default> quota=<max used %>`, the counted quota
+windows and reset times, and any `same-engine-review` or
+`unavailable=<agent>` warning. For a missing role, record
+`role=<r> source=default` instead of inventing a quota choice.
 
 **Landing policy, once per repository, before the first branch is cut.** Have a
 cheap worker summarize the endgame the repository's own instructions prescribe,
@@ -186,16 +195,16 @@ defect: stop and record it.
 `quota@<reset>`. Only `clean` and `fix-needed` count. Before each dispatch, read
 `head-sha` from the worktree itself, then refuse unless the row passes:
 
-| Dispatching        | Refuse unless                                                                                                                                             | On refusal                              |
-| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
-| Review #1          | `kind` is `review-full` and the unit has no counted review                                                                                                | Fix the row                             |
-| Review #2 or #3    | `kind` is `review-round`; `base-sha` equals review #1's; `head-sha` equals the last counted fix's `result-sha`                                            | Stale HEAD: find the unrecorded commits |
-| Any review         | The last counted review is not `clean` at the same `base-sha` and `head-sha`                                                                              | Already clean: proceed to landing       |
-| Integration review | `kind` is `review-integration`; `base-sha` differs from the last clean review's; `reason` names the material integration change; none used yet            | `needs-attention`                       |
-| Fix #1 or #2       | The latest counted review is `fix-needed` and its `head-sha` equals this row's                                                                            | Re-review first                         |
-| CI logic fix       | The latest counted review is `clean`, `reason` is `ci:<failing check>`, and a fix remains; it counts as a fix and the next review checks its `result-sha` | `needs-attention`                       |
-| Startup retry      | The prior row is `startup-failed` (the `worker-start` receipt shows no agent started) and this attempt has used fewer than two retries                    | `needs-attention`                       |
-| After a quota stop | The recorded reset time has passed; an unknown reset is `needs-attention`                                                                                 | Park the unit until reset               |
+| Dispatching        | Refuse unless                                                                                                                                             | On refusal                                            |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| Review #1          | `kind` is `review-full` and the unit has no counted review                                                                                                | Fix the row                                           |
+| Review #2 or #3    | `kind` is `review-round`; `base-sha` equals review #1's; `head-sha` equals the last counted fix's `result-sha`                                            | Stale HEAD: find the unrecorded commits               |
+| Any review         | The last counted review is not `clean` at the same `base-sha` and `head-sha`                                                                              | Already clean: proceed to landing                     |
+| Integration review | `kind` is `review-integration`; `base-sha` differs from the last clean review's; `reason` names the material integration change; none used yet            | `needs-attention`                                     |
+| Fix #1 or #2       | The latest counted review is `fix-needed` and its `head-sha` equals this row's                                                                            | Re-review first                                       |
+| CI logic fix       | The latest counted review is `clean`, `reason` is `ci:<failing check>`, and a fix remains; it counts as a fix and the next review checks its `result-sha` | `needs-attention`                                     |
+| Startup retry      | The prior row is `startup-failed` (the `worker-start` receipt shows no agent started) and this attempt has used fewer than two retries                    | `needs-attention`                                     |
+| After a quota stop | The `quota@<earliest reset>` across over-quota candidates has passed; an unknown reset is `needs-attention`                                               | Park only that unit until reset; other units continue |
 
 **Validate the verdict before counting it.** Record `invalid` when the findings
 file is missing or has no `## Merged findings` anchor, a `clean` verdict lists

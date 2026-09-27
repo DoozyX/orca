@@ -2,7 +2,7 @@
 title: Usage & rate-limit tracking
 ---
 
-Orca reads local usage state for Claude Code, Codex, Gemini, OpenCode, Kimi Code, and MiniMax and surfaces it in the status bar, so you know how close you are to a rate limit before an agent stalls.
+Orca tracks usage for Claude Code, Codex, Cursor, omp, Gemini, OpenCode, Kimi Code, and MiniMax in the status bar, so you know how close you are to a rate limit before an agent stalls.
 
 ## What's shown
 
@@ -12,7 +12,7 @@ Orca reads local usage state for Claude Code, Codex, Gemini, OpenCode, Kimi Code
 
 ## How it works
 
-Orca reads the local usage state each agent maintains on disk (under `~/.claude`, `~/.codex`, and the Gemini/OpenCode equivalents). No API calls, no extra auth. This means the readout is only as fresh as the agent's own bookkeeping — numbers update when the agent writes, not in real time.
+Orca reads each provider's usage on the host running Orca. Cursor uses its signed-in dashboard session. omp runs `omp usage --json` and shows the daily pool for its configured default model; the tooltip lists every reported pool. omp's command can make a network request and uses omp's own sign-in. Usage refreshes on Orca's normal polling cycle and when you request a refresh.
 
 ## Multi-account accounting
 

@@ -45,6 +45,9 @@ function shortLabel(
 }
 
 export function getTightestUsageSection(p: ProviderRateLimits): UsageSection | null {
+  if (p.provider === 'omp' && p.daily) {
+    return { label: 'Daily', window: p.daily }
+  }
   const sections = usedSections(p)
   if (sections.length === 0) {
     return null

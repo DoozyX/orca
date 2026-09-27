@@ -17,11 +17,32 @@ jobs stopped.
 
 ## Model tiers
 
-A tier is a role, not a model name. Record the tier of every dispatch in the
-manifest; pass `--model` to `worker-start` only when the manifest's
-`## Model tiers` maps that tier to a concrete model the user configured or named.
-Otherwise omit it, as `orchestration` requires, so the worker inherits the user's
-default, and record `model=default`.
+A tier is a task strength, not a model name. Record it for every dispatch. When
+Engine roles are configured, follow `orchestration`'s role selection and pass
+the selected candidate's model and effort; a strong tier uses its `strong`
+override when present. With no roles file or a missing role, keep the existing
+`## Model tiers` rule: pass `--model` only for a concrete user-configured tier
+mapping, otherwise inherit the agent default and record `model=default`.
+
+### Dispatch → role
+
+| Dispatch                                            | Engine role   |
+| --------------------------------------------------- | ------------- |
+| Planner                                             | `planner`     |
+| Implementer or fixer without a user-visible surface | `implementer` |
+| Implementer or fixer requiring UI evidence          | `ui`          |
+| Task, plan, integration, or merge-conflict review   | `reviewer`    |
+| Cheap-tier inspection                               | `inspector`   |
+
+Read and validate Engine roles before the first dispatch. Immediately before
+each configured-role dispatch, select from fresh quota as specified in
+`orchestration/references/coordinator-loop.md`; an omitted role follows the
+default launch path and records `role=<r> source=default`. For review, prefer a
+different engine from the producer while preserving each group's candidate
+order. If only the producer's engine is eligible, record `same-engine-review`
+and mention it in the next status message. A `quota@<earliest reset>` parks only
+that unit while other units continue; all `no-quota-data` or `unavailable`
+candidates yield `needs-attention` with their reasons.
 
 | Tier     | Dispatches                                                                                                                                                                                                |
 | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -54,7 +75,7 @@ work around.
 
 ```text
 ORCA worktree create --name <task-slug> --parent-worktree active --base-branch <base> --json
-ORCA orchestration worker-start --spec "<task spec>" --worktree id:<repoId>::<worktreePath> --agent claude --json
+ORCA orchestration worker-start --spec "<task spec>" --worktree id:<repoId>::<worktreePath> --agent <selected> --json
 ```
 
 Lineage and Git base are separate decisions: `--parent-worktree active` nests the

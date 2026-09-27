@@ -36,6 +36,7 @@ vi.mock('./minimax/minimax-fetcher', () => ({
   fetchMiniMaxRateLimits: vi.fn()
 }))
 
+vi.mock('./omp-usage-fetcher', () => ({ fetchOmpRateLimits: vi.fn() }))
 vi.mock('./grok-fetcher', () => ({
   fetchGrokRateLimits: vi.fn()
 }))

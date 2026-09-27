@@ -100,6 +100,9 @@ export function ProviderIcon({ provider }: { provider: string }): React.JSX.Elem
   if (provider === 'cursor') {
     return <AgentIcon agent="cursor" size={13} />
   }
+  if (provider === 'omp') {
+    return <AgentIcon agent="omp" size={13} />
+  }
   return <ClaudeIcon size={13} />
 }
 
@@ -162,6 +165,14 @@ export function getWindowSections(
             }
           ]
         : []),
+      ...(p.daily
+        ? [
+            {
+              label: translate('auto.components.status.bar.tooltip.omp.daily', 'Daily'),
+              window: p.daily
+            }
+          ]
+        : []),
       {
         label: translate('auto.components.status.bar.tooltip.252c096536', 'Weekly'),
         window: p.weekly
@@ -188,6 +199,12 @@ export function getWindowSections(
     sections.push({
       label: translate('auto.components.status.bar.tooltip.7f7f208060', 'Monthly'),
       window: p.monthly
+    })
+  }
+  if (p.daily) {
+    sections.push({
+      label: translate('auto.components.status.bar.tooltip.omp.daily', 'Daily'),
+      window: p.daily
     })
   }
   return sections

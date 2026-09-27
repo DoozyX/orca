@@ -63,6 +63,14 @@ describe('isProviderConfigured', () => {
       )
     ).toBe(true)
     expect(isProviderConfigured(provider('idle'))).toBe(true)
+    expect(
+      isProviderConfigured(
+        provider('fetching', {
+          provider: 'omp',
+          daily: { usedPercent: 6, windowMinutes: 1440, resetsAt: null, resetDescription: null }
+        })
+      )
+    ).toBe(true)
   })
 })
 
@@ -395,6 +403,13 @@ describe('getVisibleUsageProvider', () => {
 })
 
 describe('isUsageEmptyState', () => {
+  it('keeps a successful omp provider visible without an Orca account setting', () => {
+    const omp = provider('ok', {
+      provider: 'omp',
+      daily: { usedPercent: 6, windowMinutes: 1440, resetsAt: null, resetDescription: null }
+    })
+    expect(getVisibleUsageProvider('omp', omp, usageSettings())).toBe(omp)
+  })
   it('keeps the Cursor bar visible on a local session before the first snapshot', () => {
     // Why: the credential lives on disk, not in settings, so main's flag is the
     // only durable signal that the bar has an account behind it.

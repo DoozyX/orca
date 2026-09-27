@@ -40,10 +40,12 @@ export const ProviderRateLimitsSchema = z
       'minimax',
       'grok',
       'antigravity',
-      'cursor'
+      'cursor',
+      'omp'
     ]),
     session: RateLimitWindowSchema.nullable(),
     weekly: RateLimitWindowSchema.nullable(),
+    daily: RateLimitWindowSchema.nullable().optional(),
     fableWeekly: RateLimitWindowSchema.nullable().optional(),
     monthly: RateLimitWindowSchema.nullable().optional(),
     buckets: z

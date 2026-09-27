@@ -39,6 +39,8 @@ function disconnectedUsage(state: RateLimitState): RateLimitState {
     minimax: stale(state.minimax),
     grok: stale(state.grok),
     antigravity: stale(state.antigravity),
+    cursor: stale(state.cursor),
+    omp: stale(state.omp ?? null),
     inactiveClaudeAccounts: state.inactiveClaudeAccounts.map((entry) => ({
       ...entry,
       isFetching: false,

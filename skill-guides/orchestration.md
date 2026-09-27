@@ -98,7 +98,7 @@ precedence over the idle rule. Do not reuse the settled lifecycle IDs.
 
 ## Canonical supervised loop
 
-Confirm the runtime, bind one Run, and start the full independent wave before
+Consult Engine roles in `references/coordinator-loop.md` before unpinned `worker-start` launches. Confirm the runtime, bind one Run, and start the full independent wave before
 waiting. `worker-start --spec` creates the Task and its attempt in one call:
 
 ```text

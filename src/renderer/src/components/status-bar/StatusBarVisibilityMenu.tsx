@@ -143,6 +143,18 @@ export function StatusBarVisibilityMenu({
           <AgentIcon agent="cursor" size={14} />
           {translate('auto.components.status.bar.StatusBar.cursorUsageMenu', 'Cursor Usage')}
         </DropdownMenuCheckboxItem>
+        {isStatusBarItemAvailable('omp', detectedAgentIds) && (
+          <DropdownMenuCheckboxItem
+            checked={statusBarItems.includes('omp')}
+            onCheckedChange={() => {
+              recordFeatureInteraction('usage-tracking')
+              toggleStatusBarItem('omp')
+            }}
+          >
+            <AgentIcon agent="omp" size={14} />
+            {translate('auto.components.status.bar.StatusBar.ompUsageMenu', 'omp Usage')}
+          </DropdownMenuCheckboxItem>
+        )}
         <DropdownMenuCheckboxItem
           checked={statusBarItems.includes('ssh')}
           onCheckedChange={() => {

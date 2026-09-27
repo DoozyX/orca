@@ -39,6 +39,7 @@ type UsageProviderSnapshots = {
   minimax: ProviderRateLimits | null | undefined
   grok: ProviderRateLimits | null | undefined
   cursor: ProviderRateLimits | null | undefined
+  omp?: ProviderRateLimits | null | undefined
 }
 
 type UsageProviderId = ProviderRateLimits['provider']
@@ -47,6 +48,7 @@ function hasUsageData(provider: ProviderRateLimits): boolean {
   return Boolean(
     provider.session ||
     provider.weekly ||
+    provider.daily ||
     provider.fableWeekly ||
     provider.monthly ||
     (provider.buckets && provider.buckets.length > 0)
@@ -186,7 +188,8 @@ export function isUsageEmptyState(
     antigravitySnapshotPending ||
     isProviderSnapshotPending(providers.minimax) ||
     isProviderSnapshotPending(providers.grok) ||
-    isProviderSnapshotPending(providers.cursor)
+    isProviderSnapshotPending(providers.cursor) ||
+    (providers.omp !== undefined && isProviderSnapshotPending(providers.omp))
   ) {
     return false
   }
@@ -200,6 +203,7 @@ export function isUsageEmptyState(
     !isProviderConfigured(providers.antigravity) &&
     !isProviderConfigured(providers.minimax) &&
     !isProviderConfigured(providers.grok) &&
-    !isProviderConfigured(providers.cursor)
+    !isProviderConfigured(providers.cursor) &&
+    !isProviderConfigured(providers.omp)
   )
 }

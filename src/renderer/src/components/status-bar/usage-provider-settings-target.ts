@@ -21,7 +21,8 @@ export function getUsageProviderAccountsSectionId(
     case 'cursor':
       return 'accounts-cursor'
     case 'kimi':
-      // Why: Orca must not mutate Kimi's CLI-owned credential lifecycle.
+    case 'omp':
+      // Why: these agents own their sign-in outside Orca.
       return null
   }
 }
