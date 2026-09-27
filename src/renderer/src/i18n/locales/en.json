@@ -11165,7 +11165,7 @@
           "e27c8d45bf": "Diagnostics are disabled by an environment variable."
         },
         "ShortcutCommandBlock": {
-          "eb72c52c28": "Press a shortcut, or double-tap a modifier (e.g. {{value0}}). Esc cancels.",
+          "eb72c52c28": "Press keys, a mouse Back/Forward button, or double-tap a modifier (e.g. {{value0}}). Esc cancels.",
           "70b5d25583": "{{value0}} shortcut",
           "287e07ddde": "Modified",
           "3c83cd7d1c": "Disabled",
@@ -15038,6 +15038,7 @@
           "f1aa04b5cf": "This file",
           "8b87612461": "All unsent notes"
         },
+        "diffCommentSaveFailed": "Failed to save comment",
         "DiffSectionBody": {
           "35d6afb5be": "Binary file changed",
           "cef4cf0ff5": "Retry",
@@ -15681,7 +15682,10 @@
             "2b3ce6d394": "Cancel",
             "e05063cfc1": "Line {{value0}}",
             "c845170b3b": "Lines {{value0}}-{{value1}}",
-            "commentTooLarge": "Comment is too large to submit safely."
+            "commentTooLarge": "Comment is too large to submit safely.",
+            "f6c449191e": "Add note for the AI",
+            "5fa4bfebaa": "Add note",
+            "5e9b3d0c2e": "Adding..."
           },
           "useDiffCommentDecorator": {
             "995fa28b50": "This note"
