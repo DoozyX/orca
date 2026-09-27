@@ -46,10 +46,10 @@ describe('tui agent startup session options', () => {
       agentArgs: '-m gpt-5.5 -c model_reasoning_effort=low'
     })
     expect(plan?.launchCommand).toBe(
-      "codex '-m' 'custom-codex-model' '-c' 'model_reasoning_effort=high'"
+      "codex --no-daemon '-m' 'custom-codex-model' '-c' 'model_reasoning_effort=high'"
     )
     expect(plan?.launchConfig.agentCommand).toBe(
-      "codex '-m' 'gpt-5.5' '-c' 'model_reasoning_effort=low'"
+      "codex --no-daemon '-m' 'gpt-5.5' '-c' 'model_reasoning_effort=low'"
     )
     expect(plan?.sessionOptions).toEqual({ model: 'custom-codex-model', effort: 'high' })
   })
@@ -101,7 +101,7 @@ describe('tui agent startup session options', () => {
       agentArgs: '--dangerously-bypass-approvals-and-sandbox -- literal'
     })
     expect(plan?.launchCommand).toBe(
-      "codex '--dangerously-bypass-approvals-and-sandbox' '-m' 'custom-codex-model' '-c' 'model_reasoning_effort=high' '--' 'literal'"
+      "codex --no-daemon '--dangerously-bypass-approvals-and-sandbox' '-m' 'custom-codex-model' '-c' 'model_reasoning_effort=high' '--' 'literal'"
     )
   })
 
@@ -146,7 +146,7 @@ describe('tui agent startup session options', () => {
       agentArgs: '--dangerously-bypass-approvals-and-sandbox'
     })
     expect(plan?.launchConfig.agentCommand).toBe(
-      "codex '--dangerously-bypass-approvals-and-sandbox'"
+      "codex --no-daemon '--dangerously-bypass-approvals-and-sandbox'"
     )
   })
 
@@ -204,10 +204,10 @@ describe('tui agent startup session options', () => {
       sessionOptionsOverrideAgentArgs: true
     })
     expect(plan?.launchCommand).toBe(
-      "codex '-m' 'gpt-5.5' '-c' 'model_reasoning_effort=high' 'resume' 'thread-1'"
+      "codex --no-daemon '-m' 'gpt-5.5' '-c' 'model_reasoning_effort=high' 'resume' 'thread-1'"
     )
     expect(plan?.launchConfig.agentCommand).toBe(
-      "codex '-m' 'gpt-5.6-sol' '-c' 'model_reasoning_effort=medium'"
+      "codex --no-daemon '-m' 'gpt-5.6-sol' '-c' 'model_reasoning_effort=medium'"
     )
     expect(plan?.sessionOptions).toEqual({ model: 'gpt-5.5', effort: 'high' })
   })

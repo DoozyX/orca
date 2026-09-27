@@ -1,3 +1,4 @@
+import { withIndependentCodexLaunch } from './codex-independent-launch'
 import {
   removeOverriddenAgentSessionArgs,
   resolveAgentSessionOptionLaunch
@@ -88,14 +89,18 @@ export function resolveAgentLaunchCommand(args: {
   const commandWithOverrides = overrideTokens.length
     ? `${command} ${overrideTokens.map((token) => quoteStartupArg(token, args.shell)).join(' ')}`
     : command
+  const protectPane = (value: string): string =>
+    args.agent === 'codex' ? withIndependentCodexLaunch(value, args.shell) : value
   return {
     ok: true,
-    command: args.sessionOptionsOverrideAgentArgs
-      ? commandWithOverrides
-      : suffix.suffix
-        ? `${commandWithOptions} ${suffix.suffix}`
-        : commandWithOptions,
-    commandWithoutSessionOptions,
+    command: protectPane(
+      args.sessionOptionsOverrideAgentArgs
+        ? commandWithOverrides
+        : suffix.suffix
+          ? `${commandWithOptions} ${suffix.suffix}`
+          : commandWithOptions
+    ),
+    commandWithoutSessionOptions: protectPane(commandWithoutSessionOptions),
     appliedSessionOptions: resolvedOptions.appliedValues
   }
 }
