@@ -157,7 +157,7 @@ describe('tui agent startup plans', () => {
       platform: 'linux'
     })
 
-    expect(plan?.launchCommand).toBe("codex '--version'")
+    expect(plan?.launchCommand).toBe("codex --no-daemon '--version'")
   })
 
   it.each([
@@ -224,7 +224,7 @@ describe('tui agent startup plans', () => {
       platform: 'linux'
     })
 
-    expect(plan?.launchCommand).toBe("codex 'fix it'")
+    expect(plan?.launchCommand).toBe("codex --no-daemon 'fix it'")
     expect(plan?.startupCommandDelivery).toBe('shell-ready')
   })
 
@@ -239,10 +239,10 @@ describe('tui agent startup plans', () => {
 
     expect(plan).toEqual({
       agent: 'codex',
-      launchCommand: 'codex',
+      launchCommand: 'codex --no-daemon',
       expectedProcess: 'codex',
       followupPrompt: null,
-      launchConfig: { agentCommand: 'codex', agentArgs: '', agentEnv: {} }
+      launchConfig: { agentCommand: 'codex --no-daemon', agentArgs: '', agentEnv: {} }
     })
   })
 
@@ -424,7 +424,7 @@ describe('tui agent startup plans', () => {
     expect(plan?.launchCommand).toBe("claude --dangerously-skip-permissions 'fix it'")
   })
 
-  it('leaves Codex command overrides untouched', () => {
+  it('preserves Codex profile overrides while isolating the pane', () => {
     const plan = buildAgentStartupPlan({
       agent: 'codex',
       prompt: 'fix it',
@@ -432,7 +432,7 @@ describe('tui agent startup plans', () => {
       platform: 'linux'
     })
 
-    expect(plan?.launchCommand).toBe("codex --profile work 'fix it'")
+    expect(plan?.launchCommand).toBe("codex --no-daemon --profile work 'fix it'")
   })
 
   it('builds Windows resume plans that PowerShell can invoke', () => {
@@ -443,7 +443,7 @@ describe('tui agent startup plans', () => {
       platform: 'win32'
     })
 
-    expect(plan?.launchCommand).toBe("codex 'resume' 's1'")
+    expect(plan?.launchCommand).toBe("codex --no-daemon 'resume' 's1'")
     expect(plan?.startupCommandDelivery).toBe('shell-ready')
   })
 
@@ -489,7 +489,7 @@ describe('tui agent startup plans', () => {
       platform: 'linux'
     })
 
-    expect(plan?.launchCommand).toBe("codex --profile work 'resume' 's1'")
+    expect(plan?.launchCommand).toBe("codex --no-daemon --profile work 'resume' 's1'")
   })
 
   it('uses a captured launch command when building resume plans after overrides change', () => {
@@ -501,9 +501,9 @@ describe('tui agent startup plans', () => {
       platform: 'linux'
     })
 
-    expect(plan?.launchCommand).toBe("codex --profile captured 'resume' 's1'")
+    expect(plan?.launchCommand).toBe("codex --no-daemon --profile captured 'resume' 's1'")
     expect(plan?.launchConfig).toEqual({
-      agentCommand: 'codex --profile captured',
+      agentCommand: 'codex --no-daemon --profile captured',
       agentArgs: '',
       agentEnv: {}
     })

@@ -1,3 +1,4 @@
+import { withIndependentCodexLaunch } from './codex-independent-launch'
 import {
   getAgentResumeArgv,
   type AgentProviderSessionMetadata,
@@ -31,7 +32,11 @@ export function buildAgentResumeStartupPlan(args: {
     return null
   }
   const shell = resolveStartupShell(args.platform, args.shell)
-  const resolvedAgentCommand = args.agentCommand?.trim()
+  const capturedCommand = args.agentCommand?.trim()
+  const resolvedAgentCommand =
+    capturedCommand && args.agent === 'codex'
+      ? withIndependentCodexLaunch(capturedCommand, shell)
+      : capturedCommand
   const baseCommand = resolvedAgentCommand
     ? ({
         ok: true,

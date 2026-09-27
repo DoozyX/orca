@@ -82,7 +82,7 @@ describe('agent launch caller arguments and permission bypass', () => {
     // Why: quick-command is the ONE call site that carries a prompt and names no delivery mode, so
     // it takes the default auto-submit path and folds the prompt into argv for an argv agent.
     const argvPrompt = profile.id === 'quick-command' ? ` '${profile.args.prompt}'` : ''
-    expect(command).toBe(`codex ${args}${argvPrompt}`)
+    expect(command).toBe(`codex --no-daemon ${args}${argvPrompt}`)
   })
 
   it.each(cases)('keeps %s on the bypass posture its arguments encode', async (_id, profile) => {
@@ -153,16 +153,16 @@ describe('agent launch caller arguments and permission bypass', () => {
     // Characterized, not endorsed: an explicit `undefined` is indistinguishable from an omitted
     // key here, so a caller that resolved "apply no saved arguments" to `undefined` gets the
     // shipped bypass default back instead of launching without it.
-    expect(queuedStartupCommand(store)).toBe(`codex '${CODEX_BYPASS}'`)
+    expect(queuedStartupCommand(store)).toBe(`codex --no-daemon '${CODEX_BYPASS}'`)
     expect(queuedStartupPayload(store)).not.toHaveProperty('agentArgsOverride')
   })
 
-  it('launches without any arguments when a caller passes agentArgs as null', async () => {
+  it('keeps only pane isolation when a caller passes agentArgs as null', async () => {
     const { launchAgentInNewTab } = await import('./launch-agent-in-new-tab')
 
     launchAgentInNewTab({ agent: 'codex', worktreeId: 'wt-1', agentArgs: null })
 
-    expect(queuedStartupCommand(store)).toBe('codex')
+    expect(queuedStartupCommand(store)).toBe('codex --no-daemon')
     expect(queuedStartupPayload(store)?.agentArgsOverride).toBeNull()
   })
 
@@ -172,7 +172,7 @@ describe('agent launch caller arguments and permission bypass', () => {
 
     launchAgentInNewTab({ agent: 'codex', worktreeId: 'wt-1', agentArgs: '--model per-launch' })
 
-    expect(queuedStartupCommand(store)).toBe("codex '--model' 'per-launch'")
+    expect(queuedStartupCommand(store)).toBe("codex --no-daemon '--model' 'per-launch'")
   })
 
   it('carries the stored launch environment onto the queued tab', async () => {
