@@ -184,6 +184,10 @@ function findCodexScreenReadyPromptIndex(screen: string): number | null {
   if (headerIndex === -1) {
     return null
   }
+  const composerIndex = screen.indexOf('ask codex to do anything', headerIndex)
+  if (composerIndex !== -1 && /·\s*ready\s*·\s*workspace/.test(screen.slice(composerIndex))) {
+    return composerIndex
+  }
   const boxEnd = screen.indexOf('╰', headerIndex)
   const header = screen.slice(headerIndex, boxEnd === -1 ? undefined : boxEnd)
   return header.includes('model:') &&

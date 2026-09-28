@@ -1,0 +1,19 @@
+{
+  "capturedAt": "2026-09-28T14:35:16.057Z",
+  "platform": "darwin",
+  "command": [
+    "codex",
+    "--model",
+    "gpt-6-sol",
+    "-c",
+    "model_reasoning_effort=medium",
+    "-c",
+    "features.chronicle=false",
+    "-c",
+    "default_mode_request_user_input=false"
+  ],
+  "cols": 120,
+  "rows": 40,
+  "note": "Codex CLI 0.158.0, GPT-6-Sol medium, startup readiness only",
+  "exitCode": 0
+}

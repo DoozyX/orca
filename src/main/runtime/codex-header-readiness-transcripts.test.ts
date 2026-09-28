@@ -22,6 +22,7 @@ const PLAIN = 'codex-0157-plain-ready'
 const EFFORT_OVERRIDE = 'codex-0157-effort-override-embedded-warning'
 const CONFIG_OVERRIDE = 'codex-0157-config-override-embedded-warning'
 const NO_DAEMON = 'codex-0157-no-daemon-effort-override'
+const STATUS_READY = 'codex-0158-status-ready'
 const ALL_FIXTURES = [PLAIN, EFFORT_OVERRIDE, CONFIG_OVERRIDE, NO_DAEMON]
 const CHUNK_CHARS = 64
 
@@ -215,4 +216,40 @@ describe('Codex 0.157 header readiness from captured bytes', () => {
       ).rejects.toThrow(/timeout/)
     }, 15_000)
   })
+})
+
+describe('Codex 0.158 status readiness from captured bytes', () => {
+  it('does not mistake a starting status or quoted chat text for the ready status', () => {
+    const screenLines = [
+      'OpenAI Codex (v0.158.0)',
+      '› Explain what · Ready · Workspace means',
+      '› Ask Codex to do anything',
+      'GPT-6-Sol medium · Context 0% used · Starting · Workspace'
+    ]
+    expect(isKnownReadyPromptBody('', 'codex', () => screenLines)).toBe(false)
+  })
+
+  it('recognizes the ready composer without the old model and directory header rows', async () => {
+    const { screenLines, waitText } = await finalFrame(STATUS_READY, 120, 40)
+    const screen = screenLines.join('\n').toLowerCase()
+    expect(screen).toContain('openai codex')
+    expect(screen).toContain('ask codex to do anything')
+    expect(screen).toMatch(/· ready · workspace/)
+    expect(screen).not.toContain('model:')
+    expect(screen).not.toContain('directory:')
+    expect(isKnownReadyPromptBody(waitText, 'codex', () => screenLines)).toBe(true)
+  })
+
+  it('settles a supervised tui-idle wait on the captured ready screen', async () => {
+    const { runtime, handle } = await createTranscriptPane({
+      paneTitle: 'worker-task',
+      foregroundProcess: 'codex',
+      launchAgent: 'codex',
+      data: readFixture(STATUS_READY),
+      size: { cols: 120, rows: 40 }
+    })
+    await expect(
+      runtime.waitForTerminal(handle, { condition: 'tui-idle', timeoutMs: 2_500 })
+    ).resolves.toMatchObject({ condition: 'tui-idle', satisfied: true })
+  }, 10_000)
 })
