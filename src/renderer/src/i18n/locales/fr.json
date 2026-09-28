@@ -3344,6 +3344,9 @@
           "TerminalQuickCommandsSubmenu": {
             "3ccc7981bb": "Hôte indisponible",
             "54f29b7c0d": "Chargement de l'hôte…"
+          },
+          "TerminalRestoringPlaceholder": {
+            "restoring": "Restauration du terminal…"
           }
         }
       },
@@ -11077,7 +11080,7 @@
           "e27c8d45bf": "Les diagnostics sont désactivés par une variable d'environnement."
         },
         "ShortcutCommandBlock": {
-          "eb72c52c28": "Appuyez sur des touches, un bouton Précédent/Suivant de la souris ou deux fois sur une touche modificatrice (ex. {{value0}}). Échap annule.",
+          "eb72c52c28": "Appuyez sur un raccourci, ou appuyez deux fois sur une touche modificatrice (ex. {{value0}}). Échap annule.",
           "70b5d25583": "Raccourci {{value0}}",
           "287e07ddde": "Modifié",
           "3c83cd7d1c": "Désactivé",
@@ -17405,6 +17408,24 @@
   },
   "components": {
     "native-chat": {
+      "writeNotice": {
+        "notDoneSend": "Votre message n'a pas été envoyé.",
+        "tryAgainComposerSend": "Renvoyez-le.",
+        "notDoneStop": "L'agent n'a pas été arrêté.",
+        "notDoneStopTask": "La tâche en arrière-plan n'a pas été arrêtée.",
+        "notDoneStopTasks": "Les tâches en arrière-plan n'ont pas été arrêtées.",
+        "notDoneAnswer": "Votre réponse n'a pas été envoyée.",
+        "notDoneOption": "Le paramètre n'a pas été modifié.",
+        "notDoneCommand": "La commande n'a pas été exécutée.",
+        "notDoneGoal": "L'objectif n'a pas été modifié.",
+        "restartFailed": "L'agent n'a pas pu redémarrer.",
+        "capacity": "Orca a reçu trop de requêtes au cours de la dernière journée.",
+        "outcomeUnknown": "Orca n'a pas pu confirmer ce qui s'est passé. Vérifiez le chat.",
+        "questionChanged": "Cette question a déjà reçu une réponse ou a changé.",
+        "historyUnreadable": "Orca n'a pas pu lire l'historique enregistré de ce chat.",
+        "unsupported": "L'instance d'Orca qui exécute ce chat ne le prend pas en charge. Mettez Orca à jour, puis réessayez.",
+        "unreachable": "Orca n'a pas pu joindre l'agent."
+      },
       "composer": {
         "imageUnsupported": "Le collage d'image n'est pas pris en charge pour cet agent.",
         "send": "Envoyer",

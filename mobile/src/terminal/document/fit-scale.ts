@@ -8,6 +8,7 @@ import {
 } from './viewport-transform'
 import type { TerminalDocumentScope } from './document-scope'
 import { scheduleDocumentFrame } from './document-frame-registry'
+import { emitKeyboardAvoidanceMetrics } from './keyboard-avoidance-metrics'
 
 export { getCellHeight } from './cell-metrics'
 
@@ -161,6 +162,8 @@ export function commitFitScale(
     })
   }
   repositionOverlay(scope)
+  // The host's lift reads the drawn row pitch, which a new scale changes with no new output.
+  emitKeyboardAvoidanceMetrics(scope)
 }
 
 /**
