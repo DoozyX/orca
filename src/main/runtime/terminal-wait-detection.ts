@@ -184,6 +184,15 @@ function findCodexScreenReadyPromptIndex(screen: string): number | null {
   if (headerIndex === -1) {
     return null
   }
+  // Codex 0.159 moved model/directory out of the header; require its live startup composer and footer.
+  if (
+    /^\s*>_ openai codex \(v[^\n]+\)$/m.test(screen) &&
+    /^\s*› ask codex to do anything\s*$/m.test(screen) &&
+    /^\s*[^\n]+· context \d+% used [^\n]*· ready ·/m.test(screen) &&
+    !/^\s*loading\s*$/m.test(screen)
+  ) {
+    return headerIndex
+  }
   const boxEnd = screen.indexOf('╰', headerIndex)
   const header = screen.slice(headerIndex, boxEnd === -1 ? undefined : boxEnd)
   return header.includes('model:') &&

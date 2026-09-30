@@ -216,3 +216,57 @@ describe('Codex 0.157 header readiness from captured bytes', () => {
     }, 15_000)
   })
 })
+
+describe('Codex 0.159 readiness from captured bytes', () => {
+  const fixture = 'codex-0159-ready'
+
+  it('waits for the ready footer and never settles during startup loading', async () => {
+    let sawReady = false
+    let sawLoading = false
+    for await (const frame of replay(readFixture(fixture), 120, 40)) {
+      const screen = frame.screenLines.join('\n')
+      if (screen.includes('loading')) {
+        sawLoading = true
+        expect(isKnownReadyPromptBody('', 'codex', () => frame.screenLines)).toBe(false)
+      }
+      if (screen.includes('· Ready ·')) {
+        sawReady = true
+        expect(
+          isKnownReadyPromptBody('', 'codex', () => frame.screenLines),
+          screen
+        ).toBe(true)
+      }
+    }
+    expect(sawLoading).toBe(true)
+    expect(sawReady).toBe(true)
+  })
+
+  it('settles tui-idle through the runtime without injecting a task', async () => {
+    const { runtime, handle } = await createTranscriptPane({
+      paneTitle: 'Terminal',
+      foregroundProcess: 'codex',
+      launchAgent: 'codex',
+      data: readFixture(fixture),
+      size: { cols: 120, rows: 40 }
+    })
+    await expect(
+      runtime.waitForTerminal(handle, { condition: 'tui-idle', timeoutMs: 5_000 })
+    ).resolves.toMatchObject({ condition: 'tui-idle', satisfied: true })
+  }, 15_000)
+
+  it('requires the startup banner, empty composer, ready footer and Codex identity', async () => {
+    const { screenLines } = await finalFrame(fixture, 120, 40)
+    for (const marker of ['OpenAI Codex', 'Ask Codex to do anything', '· Ready ·']) {
+      const incomplete = screenLines.map((line) => line.replace(marker, ''))
+      expect(isKnownReadyPromptBody('', 'codex', () => incomplete)).toBe(false)
+    }
+    expect(isKnownReadyPromptBody('', 'claude', () => screenLines)).toBe(false)
+    expect(
+      isKnownReadyPromptBody('', 'codex', () => [
+        ...screenLines,
+        'Do you trust the contents of this directory?',
+        'Press enter to continue'
+      ])
+    ).toBe(false)
+  })
+})

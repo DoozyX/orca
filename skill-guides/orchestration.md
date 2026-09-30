@@ -148,9 +148,9 @@ sent no `worker_done`. Then load `references/recovery-and-cleanup.md` and choose
 including when `worker-show` reports `agentWait` null. Absence never authorizes
 stop, abandon, retry, or release; keep waiting or inspect.
 
-`worker-start` is the normal path, composing placement, terminal readiness,
-prompt injection, and supervised resource ownership. `dispatch --inject` leaves
-an operator-created process unsupervised and is only for an expressiveness gap.
+`worker-start` is the normal path for placement, readiness and supervised ownership.
+`dispatch --inject` leaves an operator-created process unsupervised; it is only
+for an expressiveness gap. Readiness timeouts and quota limits are not such gaps.
 
 ## Task-spec contract
 
