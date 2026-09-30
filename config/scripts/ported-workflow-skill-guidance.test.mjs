@@ -195,13 +195,21 @@ describe('delivery layers on orchestration rather than reimplementing it', () =>
   })
 })
 
-describe('brainstorming design files stay out of version control', () => {
-  it('writes to an ignored workspace-local directory without requiring Git', () => {
+describe('brainstorming design file guidance', () => {
+  it('covers ignored storage and proportionate data-model presentation', () => {
     const reference = squash(readReference('brainstorming', 'design-file.md'))
 
     expect(reference).toContain('.orca/<date>-<slug>/design/design.md')
     expect(reference).toContain('info/exclude')
     expect(reference).toContain('Folder workspaces are valid and this step must not require Git')
+    expect(reference).toContain('Field | Type | Nullable | Keys | Constraints')
+    expect(reference).toContain('Mermaid `erDiagram`')
+    expect(reference).toContain('cardinality and optionality')
+    expect(reference).toContain('including composite membership')
+    expect(reference).toContain(
+      'Tables and graphs complement rather than replace concrete contracts'
+    )
+    expect(reference).toContain('Keep simple designs simple')
   })
 })
 

@@ -72,6 +72,11 @@ talk to each other or any flow is asynchronous.>
 
 <The shared contracts, written out.>
 
+<For a changed data model, use field tables: Field | Type | Nullable | Keys |
+Constraints. For relational models, add a Mermaid erDiagram showing entities,
+cardinality, and important identity relationships. Keep concrete contracts
+alongside these views; omit views that add no information to a simple design.>
+
 ## How it will be built
 
 <A Mermaid flowchart of step order, with one edge per `Depends on`. Skip it
@@ -148,6 +153,29 @@ enough that a reader can picture the diff>
   confirmed, and what would break it. Write `none` rather than inventing
   entries.
 
+### Presenting data models
+
+When the design introduces or changes a data model, put readable field tables
+under `### Interfaces`, one per entity or distinct record shape. State each
+field's name, type, nullability, keys (primary, foreign, unique, including
+composite membership), and constraints. Name foreign-key targets and spell out
+enum values, conditional requirements, defaults, and validation rules where
+they apply; use `none` when there is no key or constraint. Existing unchanged
+fields need only enough context to understand the change.
+
+For relational models, use a Mermaid `erDiagram` to show entities, relationship
+cardinality and optionality, and important identity relationships such as tenant
+ownership or composite foreign keys. Label relationships clearly; constraints
+the diagram cannot express stay in the tables and concrete schema contracts.
+Add a state diagram only when lifecycle transitions need explaining, or a flow
+diagram when order, branching, or asynchronous data movement needs explaining.
+
+Tables and graphs complement rather than replace concrete contracts: keep
+signatures, schemas, payload shapes, and behavior rules precise. Keep simple
+designs simple: a small record can use one compact table, and an isolated record
+or a change with no meaningful relationships needs no ER diagram. Do not add
+unchanged entities or extra diagrams just to fill the template.
+
 ## Durable decisions (ADR)
 
 A decision outlives the run as an ADR only when all three hold: hard to reverse
@@ -177,6 +205,11 @@ Read the finished document for:
 - a main file longer than its size allows, or a decision, story, or step that
   exists only in the addendum;
 - an interface a step names that `### Interfaces` does not define;
+- data-model tables missing field names, types, nullability, keys, or constraints;
+- an ER diagram whose cardinality, optionality, or identity relationships
+  disagree with the field tables or concrete contracts;
+- tables or graphs replacing concrete contracts, or diagrams that add no
+  information to a simple design;
 - a step that depends on a step sequenced after it, or a flowchart edge that
   disagrees with a `Depends on` line;
 - a `## Testing Decisions` section that says "add tests" instead of naming a

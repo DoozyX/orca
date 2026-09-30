@@ -113,6 +113,8 @@ ignored run directory in the root worktree and never committed, never staged, an
 present in a branch, diff, or PR. Load `references/design-file.md` before
 writing — it owns the path, the ignore step, the folder-workspace path that
 requires no Git, the required sections, and the self-review checklist.
+It also covers readable field tables and Mermaid ER diagrams for data models,
+with state or flow diagrams only where they clarify the design.
 
 Self-review is not user approval. Fix placeholders, contradictions, scope creep,
 and ambiguity in the file before linking it.
