@@ -30,8 +30,10 @@ verification entrance — exactly one of `pass`, `defect`, `inconclusive`. **Nex
 consumer:** the user who asked for the delivery. **Done:** each done task has a
 clean full-branch review verdict, a landed PR or the repository's prescribed
 endgame, and green checks; each parked task has its worker terminal, worktree,
-branch, and findings preserved; and the closing report names, per task, its
-outcome, the evidence behind it, and any unresolved blocker.
+branch, and findings preserved; the run's retrospective is written and every
+Orca issue in it is filed upstream; and the closing report names, per task, its
+outcome, the evidence behind it, and any unresolved blocker. A run is never
+closed without its retrospective, including a run where every task parked.
 
 **Safe failure:** park the task as `needs-attention` and preserve everything.
 Never force-push, reset, delete a branch, or continue silently. Only positive
@@ -253,12 +255,12 @@ and read only that document; `--references` lists the names. If the CLI rejects
 reference. If it rejects `--full` too, keep this kernel's safety floor and use
 that command's `--help`; never guess newer flags.
 
-| Action gate                                                                       | Bundled reference                                 |
-| --------------------------------------------------------------------------------- | ------------------------------------------------- |
-| Running implement, review, fix, PR, or CI for a task; model tiers; UI evidence    | `references/task-pipeline.md`                     |
-| Writing any stage's Task spec, or checking a report for its required evidence     | `references/stage-prompts.md`                     |
-| A recorded planning trigger, a plan review, or splitting one large task           | `references/planning-and-splitting.md`            |
-| Verifying a deployed system, or adjudicating contradictory evidence arms          | `references/deployed-verification.md`             |
-| Parking a task, cleanup, teardown, the retrospective, or the closing report       | `references/parking-and-reporting.md`             |
-| Creating Runs, Tasks, Dispatches, waits, gates, or releases                       | the `orchestration` skill, not this one           |
-| Writing the implementation, the review layers, a diagnosis, or a completion claim | the `tdd`, `review`, `debug`, and `verify` skills |
+| Action gate                                                                                     | Bundled reference                                 |
+| ----------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| Running implement, review, fix, PR, or CI for a task; model tiers; UI evidence                  | `references/task-pipeline.md`                     |
+| Writing any stage's Task spec, or checking a report for its required evidence                   | `references/stage-prompts.md`                     |
+| A recorded planning trigger, a plan review, or splitting one large task                         | `references/planning-and-splitting.md`            |
+| Verifying a deployed system, or adjudicating contradictory evidence arms                        | `references/deployed-verification.md`             |
+| Parking a task, cleanup, teardown, the retrospective, filing Orca issues, or the closing report | `references/parking-and-reporting.md`             |
+| Creating Runs, Tasks, Dispatches, waits, gates, or releases                                     | the `orchestration` skill, not this one           |
+| Writing the implementation, the review layers, a diagnosis, or a completion claim               | the `tdd`, `review`, `debug`, and `verify` skills |

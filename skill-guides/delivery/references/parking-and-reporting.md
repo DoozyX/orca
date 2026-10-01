@@ -65,7 +65,8 @@ cleanup worker acts on it.
 
 ## Retrospective
 
-Before the closing report, dispatch one worker to append this run's entry to
+Every run gets one, whatever its outcome. Before the closing report, dispatch one
+worker to append this run's entry to
 `orchestrate/retrospective.md`, which later `brainstorming` sessions read. It
 reads earlier runs' `.orca/*/orchestrate/retrospective.md` first; a repeated
 issue cites the earlier file and adds only the new evidence. Record only what
@@ -81,6 +82,34 @@ happened — `none` beats padding:
 | Suggested changes | One line each                                                                      |
 
 The worker edits nothing else, commits nothing, and pushes nothing.
+
+## Filing Orca issues
+
+Orca issues and guide friction are fixed in Orca's own repository,
+`DoozyX/orca`, where an automation picks up open issues labelled `retro` and
+delivers the fix. After the retrospective settles, the same worker files every
+`Orca issues` and `Guide friction` entry whose fix belongs in Orca: the CLI and
+runtime, orchestration, terminals and agent hooks, or a bundled skill guide. An
+entry about the target repository, its CI, or an agent CLI Orca cannot work
+around stays in the retrospective only.
+
+Per entry, search first, then file or comment, never both:
+
+```text
+gh issue list -R DoozyX/orca --label retro --state all --search "<key phrase> in:title" --json number,title,state,url
+gh issue create -R DoozyX/orca --label retro --title "<area>: <expected vs actual, one line>" --body-file <path>
+gh issue comment <number> -R DoozyX/orca --body-file <path>
+```
+
+An open match gets a comment with only the new evidence; a closed match is a
+regression and gets a new issue citing it. The body carries the exact command,
+expected versus actual, `ORCA --version`, the quoted rule for guide friction, and
+the retrospective path. Never include secrets, tokens, the target repository's
+source, or its private names and URLs beyond what the failure needs. The worker
+writes each body under the run's scratch directory, pastes back one
+`ISSUE: <url> filed|commented` line per entry, and records the URLs in the
+retrospective's `Orca issues` section. A `gh` failure is reported, not retried
+around: the entry stays in the retrospective marked `unfiled: <error>`.
 
 ## Closing report
 
@@ -100,7 +129,7 @@ Deliver it to the user, one block per task:
 ```
 
 Close by naming what was released, what was deliberately preserved, the
-teardown verdict, and the retrospective path. Screenshots are named only here,
+teardown verdict, the retrospective path, and each filed Orca issue's URL. Screenshots are named only here,
 never in a PR, MR, or commit. For a
 verification entrance, the report instead carries the deployed identity, the arm
 evidence, the adjudications, and exactly one of `pass`, `defect`, `inconclusive`.
