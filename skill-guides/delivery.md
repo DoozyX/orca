@@ -59,6 +59,9 @@ variable, a terminal title, or a visible pane.
   review, merging, and cleanup are dispatched. A coordinator that fixes one
   finding by hand has stopped supervising, and the branch now holds a change no
   reviewer saw.
+- Every stage runs as an Orca worker. A provider's own subagents or teammates
+  send no `worker_done` and have no liveness, so a coordinator using them ends
+  up polling for report files and hangs when one stops without writing it.
 - Authorization does not grow with the workflow. Stop and ask before destructive
   actions, scope changes, credentials, externally visible mutations, or product
   decisions the user has not already approved.

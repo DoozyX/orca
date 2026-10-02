@@ -134,6 +134,12 @@ Keep waiting until every expected Dispatch settles. A timeout or empty result is
 a checkpoint, not a failure. Do not stop, retry, release, or launch a duplicate
 editor without the positive proof `## Outcome` requires.
 
+Wait on Deliveries, never on a worker's artifact. Do not background a loop that
+sleeps until a report file appears: a worker that stops without writing it
+leaves the loop running forever, and the session reads as monitoring with
+nothing visible. Any poll you cannot avoid gets a deadline, and you stop the
+previous poll before starting another.
+
 After three consecutive empty waits, stop waiting blindly and enumerate with
 `ORCA orchestration worker-list --include-remote --json` (defaults to the bound
 Run; `--run <run_id>` overrides; the receipt's `scope` names which), acting on
