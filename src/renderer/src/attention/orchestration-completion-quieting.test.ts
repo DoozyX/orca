@@ -40,7 +40,7 @@ describe('isQuietOrchestrationCompletion', () => {
     ).toBe(false)
   })
 
-  it('notifies when a top-level worker succeeded', () => {
+  it('quiets a top-level worker that succeeded', () => {
     expect(
       isQuietOrchestrationCompletion({
         paneKey: WORKER,
@@ -51,7 +51,7 @@ describe('isQuietOrchestrationCompletion', () => {
           })
         }
       })
-    ).toBe(false)
+    ).toBe(true)
   })
 
   it('notifies when the worker attention projection has not arrived', () => {
