@@ -1,5 +1,6 @@
 import { agentEntryCompletionAt } from '../../../../shared/agent-completion-time'
 import type { DashboardAgentRow } from './useDashboardData'
+import { isDerivedChildRow } from './derived-child-row'
 
 /**
  * The moment an agent last entered `done`, or null if it never finished (still
@@ -10,8 +11,8 @@ import type { DashboardAgentRow } from './useDashboardData'
 export function lastEnteredDoneAt(
   agent: Pick<DashboardAgentRow, 'rowSource' | 'state' | 'entry'>
 ): number | null {
-  // Why: a subagent's synthetic entry may say done while its row is idle or unverifiable.
-  if (agent.rowSource === 'subagent' && agent.state !== 'done') {
+  // Why: a derived child's synthetic entry may say done while its row is idle or unverifiable.
+  if (isDerivedChildRow(agent) && agent.state !== 'done') {
     return null
   }
   const entry = agent.entry

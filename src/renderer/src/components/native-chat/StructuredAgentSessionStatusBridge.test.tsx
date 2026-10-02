@@ -361,7 +361,32 @@ describe('StructuredAgentSessionStatusBridge', () => {
     )
     // Monitoring is its own displayed state, so its clock starts when the label does.
     expect(statuses()).toEqual([
-      expect.objectContaining({ state: 'working', workingMode: 'monitoring', stateStartedAt: 2 })
+      expect.objectContaining({
+        state: 'working',
+        workingMode: 'monitoring',
+        stateStartedAt: 2,
+        monitoredWork: [{ id: 'shell-1', kind: 'command', firstObservedAt: 0 }]
+      })
+    ])
+
+    // A new watch with nothing else changed still reaches the row.
+    act(() =>
+      feed().emit({
+        type: 'status',
+        session: summary({
+          status: 'idle',
+          updatedAt: 2,
+          backgroundTasks: [
+            { id: 'child-1', kind: 'agent', state: 'done' },
+            { id: 'shell-1', kind: 'command', state: 'working' },
+            { id: 'watch-1', kind: 'monitor', description: 'tail log', startedAt: 2 }
+          ]
+        })
+      })
+    )
+    expect(statuses()[0]?.monitoredWork).toEqual([
+      { id: 'shell-1', kind: 'command', firstObservedAt: 0 },
+      { id: 'watch-1', kind: 'monitor', label: 'tail log', firstObservedAt: 2 }
     ])
 
     act(() =>
@@ -378,7 +403,12 @@ describe('StructuredAgentSessionStatusBridge', () => {
       })
     )
     expect(statuses()).toEqual([
-      expect.objectContaining({ state: 'done', workingMode: undefined, stateStartedAt: 3 })
+      expect.objectContaining({
+        state: 'done',
+        workingMode: undefined,
+        stateStartedAt: 3,
+        monitoredWork: undefined
+      })
     ])
   })
 

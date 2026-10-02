@@ -25,6 +25,7 @@
 import { createHash } from 'node:crypto'
 
 import type { AgentSubagentSnapshot, ParsedAgentStatusPayload } from './agent-status-types'
+import type { AgentMonitoredWorkSnapshot } from './agent-monitored-work'
 import type { AgentProviderSessionMetadata } from './agent-session-resume'
 import type { AgentHookTarget } from './agent-hook-types'
 
@@ -147,6 +148,21 @@ export function createShedSubagentsField(subagents: readonly AgentSubagentSnapsh
   return `${AGENT_HOOK_SHED_SUBAGENTS_DIGEST_PREFIX}${subagentRosterDigest(subagents)}`
 }
 
+const AGENT_HOOK_SHED_MONITORED_WORK_DIGEST_PREFIX = 'monitoredWork:sha256:'
+
+/** Carries the dropped monitored-work identity without carrying its rows. */
+export function createShedMonitoredWorkField(work: readonly AgentMonitoredWorkSnapshot[]): string {
+  const stable = work.map(({ id, kind, label, detail, firstObservedAt }) => [
+    id,
+    kind,
+    label ?? null,
+    detail ?? null,
+    firstObservedAt
+  ])
+  const digest = createHash('sha256').update(JSON.stringify(stable)).digest('base64url')
+  return `${AGENT_HOOK_SHED_MONITORED_WORK_DIGEST_PREFIX}${digest}`
+}
+
 function hasMatchingShedSubagentsField(
   shedFields: readonly unknown[],
   previous: ParsedAgentStatusPayload
@@ -175,7 +191,8 @@ function hasMatchingTurnIdentity(
  * unblocks hibernation for a pane whose teammates are still running.
  *
  * `interactivePrompt` and `lastAssistantMessage` are deliberately not restored: cached prose can
- * belong to an earlier turn. A roster returns only when its wire digest and turn identity match.
+ * belong to an earlier turn. A roster or monitored-work list returns only when its wire digest and
+ * turn identity match.
  */
 export function restoreShedStatusFields(
   payload: ParsedAgentStatusPayload,
@@ -185,18 +202,26 @@ export function restoreShedStatusFields(
   if (!previous || !Array.isArray(shedFields) || shedFields.length === 0) {
     return payload
   }
+  if (!hasMatchingTurnIdentity(payload, previous)) {
+    return payload
+  }
   const subagents =
-    payload.subagents === undefined &&
-    hasMatchingTurnIdentity(payload, previous) &&
-    hasMatchingShedSubagentsField(shedFields, previous)
+    payload.subagents === undefined && hasMatchingShedSubagentsField(shedFields, previous)
       ? previous.subagents
       : undefined
-  if (subagents === undefined) {
+  const monitoredWork =
+    payload.monitoredWork === undefined &&
+    previous.monitoredWork !== undefined &&
+    shedFields.includes(createShedMonitoredWorkField(previous.monitoredWork))
+      ? previous.monitoredWork
+      : undefined
+  if (subagents === undefined && monitoredWork === undefined) {
     return payload
   }
   return {
     ...payload,
-    subagents
+    ...(subagents !== undefined ? { subagents } : {}),
+    ...(monitoredWork !== undefined ? { monitoredWork } : {})
   }
 }
 

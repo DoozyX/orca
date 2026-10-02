@@ -3,12 +3,12 @@ import type { AgentStatusEntry } from '../../../../shared/agent-status-types'
 import { resolveAgentChildWorkFreshness } from '../../../../shared/agent-status-child-work-freshness'
 import type { TerminalTab } from '../../../../shared/terminal-tab-types'
 
-/** Row-identity key for an in-process subagent child row. The NUL separator
+/** Row-identity key for a derived child row (subagent or monitored work). The NUL separator
  *  cannot appear in real pane keys, so synthetic keys can never collide with
  *  one. Never parsed back — activation goes through `activationPaneKey` /
  *  `orchestration.parentPaneKey` instead. */
-function subagentRowKey(parentPaneKey: string, subagentId: string): string {
-  return `${parentPaneKey}\u0000subagent:${subagentId}`
+export function derivedChildRowKey(parentPaneKey: string, childKey: string): string {
+  return `${parentPaneKey}\u0000${childKey}`
 }
 
 /**
@@ -39,7 +39,7 @@ export function buildSubagentChildRows(args: {
     const state = freshness === 'done' ? 'idle' : freshness === 'monitoring' ? 'working' : freshness
     const activeState = state !== 'idle' && state !== 'unverifiable' ? state : undefined
     const startedAt = subagent.startedAt > 0 ? subagent.startedAt : args.parentEntry.stateStartedAt
-    const paneKey = subagentRowKey(args.parentEntry.paneKey, subagent.id)
+    const paneKey = derivedChildRowKey(args.parentEntry.paneKey, `subagent:${subagent.id}`)
     const entry: AgentStatusEntry = {
       state: activeState ?? 'done',
       prompt: subagent.description ?? subagent.agentType ?? '',

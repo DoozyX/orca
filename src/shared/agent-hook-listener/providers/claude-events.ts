@@ -1,7 +1,10 @@
 import type { ParsedAgentStatusPayload } from '../../agent-status-types'
 import { isAgentStatusHeldOpenByChildWork } from '../../agent-lead-status-fold'
 import { isAskUserQuestionTool } from '../../agent-question-answered-intent'
-import { readClaudeBackgroundAgentTasks } from '../../claude-background-task-inventory'
+import {
+  readClaudeBackgroundAgentTasks,
+  readClaudeSessionCrons
+} from '../../claude-background-task-inventory'
 import {
   claudeRosterHasRestoredSnapshotSubagent,
   claudeRosterHasRuntimeWorkingSubagent,
@@ -26,6 +29,7 @@ import {
   voidClaimsOfReplacedClaudeSession
 } from './claude-roster-state'
 import { buildClaudeStatusPayload } from './claude-status-build'
+import { replaceClaudeMonitoredCrons, replaceClaudeMonitoredTasks } from './claude-monitored-work'
 
 export function normalizeClaudeEvent(
   state: HookListenerState,
@@ -65,6 +69,7 @@ export function normalizeClaudeEvent(
     state.claudeSubagentRosterByPaneKey.delete(paneKey)
     state.claudeRunningNonAgentTaskPaneKeys.delete(paneKey)
     state.claudeActiveSessionCronPaneKeys.delete(paneKey)
+    state.claudeMonitoredWorkByPaneKey.delete(paneKey)
     // Why: a new session's main agent starts its own clock, not the old session's last Stop.
     setClaudeMainAgentTurnState(state, paneKey, { state: 'done', stateStartedAt: Date.now() })
     return buildClaudeStatusPayload(state, eventName, promptText, paneKey, hookPayload, {
@@ -130,6 +135,7 @@ export function normalizeClaudeEvent(
   }
   if (backgroundTasks.present && eventAgentId === undefined) {
     updateClaudeRunningNonAgentTask(state, paneKey, backgroundTasks.hasRunningNonAgentTask)
+    replaceClaudeMonitoredTasks(state, paneKey, backgroundTasks.monitoredWork)
   }
   if (sessionCronInventoryPresent && eventAgentId === undefined) {
     if (hasActiveSessionCron) {
@@ -137,9 +143,11 @@ export function normalizeClaudeEvent(
     } else {
       state.claudeActiveSessionCronPaneKeys.delete(paneKey)
     }
+    replaceClaudeMonitoredCrons(state, paneKey, readClaudeSessionCrons(hookPayload).crons)
   } else if (eventAgentId === undefined && isTurnBoundary && backgroundTasks.present) {
     // Why: current Claude may omit an empty cron inventory while still emitting background_tasks.
     state.claudeActiveSessionCronPaneKeys.delete(paneKey)
+    replaceClaudeMonitoredCrons(state, paneKey, [])
   }
 
   const eventToolUseId = readFirstString(hookPayload, ['tool_use_id', 'toolUseId'])

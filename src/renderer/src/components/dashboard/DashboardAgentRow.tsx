@@ -15,6 +15,7 @@ import type { DashboardAgentRow as DashboardAgentRowData } from './useDashboardD
 import { getAgentRowPrimaryText } from '@/lib/agent-row-primary-text'
 import { useAgentRowConversationName } from './use-agent-row-conversation-name'
 import { lastEnteredDoneAt } from './agent-finished-timestamp'
+import { isDerivedChildRow } from './derived-child-row'
 
 function formatTimeAgo(ts: number, now: number): string {
   const delta = now - ts
@@ -246,8 +247,8 @@ const DashboardAgentRow = React.memo(function DashboardAgentRow({
             {dotTooltipLabel}
           </TooltipContent>
         </Tooltip>
-        {/* Why: subagent rows skip the icon — agentType holds a child name, not an iconable agent, so it would render the unknown "?" glyph. */}
-        {!hideIdentityIcon && agent.rowSource !== 'subagent' && (
+        {/* Why: derived child rows skip the icon — agentType is a child name or unknown, so it would render the unknown "?" glyph. */}
+        {!hideIdentityIcon && !isDerivedChildRow(agent) && (
           <span className="inline-flex shrink-0" title={identityTitle}>
             <AgentIcon agent={agentTypeToIconAgent(agent.agentType)} size={14} />
           </span>
@@ -262,7 +263,7 @@ const DashboardAgentRow = React.memo(function DashboardAgentRow({
             // Why: the selected-row fill washes out muted text — keep it readable.
             isFocusedPane && !isUnvisited && 'text-foreground/90'
           )}
-          title={displayLabel}
+          title={agent.detail ?? displayLabel}
         >
           {displayLabel}
         </span>
@@ -288,7 +289,7 @@ const DashboardAgentRow = React.memo(function DashboardAgentRow({
           relativeTimestamp={relativeTimestamp}
           expanded={expanded}
           hideExpand={hideExpand}
-          hideDismiss={agent.rowSource === 'subagent'}
+          hideDismiss={isDerivedChildRow(agent)}
           sendTargetStatus={sendTargetStatus}
           onDismiss={onDismiss}
           onToggleExpanded={handleToggleExpanded}

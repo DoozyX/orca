@@ -612,6 +612,25 @@ describe('buildDashboardSnapshot', () => {
     })
   })
 
+  it('keeps monitored-work rows off the board, its counts and the subagent list', () => {
+    const snapshot = buildDashboardSnapshot(
+      baseState({
+        agentStatusByPaneKey: {
+          [PANE_KEY]: entry({
+            workingMode: 'monitoring',
+            monitoredWork: [
+              { id: 'shell-1', kind: 'command', label: 'Wait for report', firstObservedAt: NOW - 5 }
+            ]
+          })
+        }
+      }),
+      NOW
+    )
+
+    expect(snapshot.cards).toHaveLength(1)
+    expect(snapshot.cards[0].subagents).toBeUndefined()
+  })
+
   it('skips card-only context for count snapshots', () => {
     mapMetadataCalls.hostKind.mockClear()
     mapMetadataCalls.parentPaneKey.mockClear()

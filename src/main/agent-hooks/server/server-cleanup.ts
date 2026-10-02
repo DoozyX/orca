@@ -195,6 +195,7 @@ export abstract class AgentHookServerCleanup extends AgentHookServerAuthorityFen
           this.state.claudeLeadStateByPaneKey.delete(paneKey)
           this.state.claudeRunningNonAgentTaskPaneKeys.delete(paneKey)
           this.state.claudeActiveSessionCronPaneKeys.delete(paneKey)
+          this.state.claudeMonitoredWorkByPaneKey.delete(paneKey)
           this.state.claudeSessionOwnerByPaneKey.delete(paneKey)
         }
       }

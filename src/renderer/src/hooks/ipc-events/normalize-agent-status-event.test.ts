@@ -17,4 +17,23 @@ describe('normalizeAgentStatusEvent', () => {
 
     expect(normalized?.lastAssistantMessageIsToolOutput).toBe(true)
   })
+
+  it('carries monitored work into the store', () => {
+    const monitoredWork = [
+      { id: 'shell-1', kind: 'command' as const, label: 'Wait for report', firstObservedAt: 5 }
+    ]
+    const normalized = normalizeAgentStatusEvent({
+      paneKey: 'tab-1:1',
+      state: 'working',
+      workingMode: 'monitoring',
+      prompt: 'p',
+      agentType: 'claude',
+      monitoredWork,
+      connectionId: null,
+      receivedAt: 1,
+      stateStartedAt: 1
+    })
+
+    expect(normalized?.monitoredWork).toEqual(monitoredWork)
+  })
 })

@@ -29,6 +29,7 @@ import { registryEntryMatchesStatus } from './agent-status-launch-config'
 import { findAgentPaneWorktreeId, getTabIdFromPaneKey } from './agent-status-pane-key-tab-binding'
 import { mergeCurrentOrchestrationContext } from './agent-status-orchestration-context'
 import { deriveAgentStatusLiveFacts } from './agent-status-live-facts'
+import { agentMonitoredWorkEqual } from '../../../../shared/agent-monitored-work'
 
 export type AgentStatusLiveEntryBuild = {
   entry: AgentStatusEntry
@@ -237,6 +238,9 @@ export function buildAgentStatusLiveEntry(
     subagents: agentSubagentsEqual(existing?.subagents, payload.subagents)
       ? existing?.subagents
       : payload.subagents,
+    monitoredWork: agentMonitoredWorkEqual(existing?.monitoredWork, payload.monitoredWork)
+      ? existing?.monitoredWork
+      : payload.monitoredWork,
     ...(mainAgent ? { mainAgent } : {}),
     ...(providerSession ? { providerSession } : {}),
     ...(metadata?.terminalResumeEligible === false

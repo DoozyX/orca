@@ -11,6 +11,7 @@ import {
 } from '../agent-status-legacy-adapter'
 import type { AgentStatusLegacyIngressCaller } from '../agent-status-legacy-ingress-manifest'
 import type { ClaudeSubagentRoster } from '../claude-subagent-roster'
+import type { ClaudeMonitoredWork } from './providers/claude-monitored-work'
 import type { CodexSubagentRoster } from '../codex-subagent-roster'
 import type { CodexSubagentTranscriptState } from '../codex-subagent-transcript'
 import type { MuseSessionLogState } from '../muse-session-log'
@@ -41,6 +42,8 @@ export type HookListenerState = {
   claudeRunningNonAgentTaskPaneKeys: Set<string>
   /** Panes whose latest authoritative Claude cron inventory still has a scheduled job. */
   claudeActiveSessionCronPaneKeys: Set<string>
+  /** Display-only description of the two gates above; never consulted for state. */
+  claudeMonitoredWorkByPaneKey: Map<string, ClaudeMonitoredWork>
   /** Compact whose completion each pane already applied, so relay duplicates can't refresh the row. */
   claudeConsumedCompactPromptIdByPaneKey: Map<string, string>
   /** Claude `session_id` that last reported on the pane from a LEAD event. A different id means the
@@ -110,6 +113,7 @@ export function createHookListenerState(
     claudeUnconfirmedRestoredStatusPaneKeys: new Set(),
     claudeRunningNonAgentTaskPaneKeys: new Set(),
     claudeActiveSessionCronPaneKeys: new Set(),
+    claudeMonitoredWorkByPaneKey: new Map(),
     claudeConsumedCompactPromptIdByPaneKey: new Map(),
     claudeSessionOwnerByPaneKey: new Map(),
     codexSubagentRosterByPaneKey: new Map(),
@@ -201,6 +205,7 @@ export function clearPaneCacheState(state: HookListenerState, paneKey: string): 
   state.claudeUnconfirmedRestoredStatusPaneKeys.delete(paneKey)
   state.claudeRunningNonAgentTaskPaneKeys.delete(paneKey)
   state.claudeActiveSessionCronPaneKeys.delete(paneKey)
+  state.claudeMonitoredWorkByPaneKey.delete(paneKey)
   state.claudeSessionOwnerByPaneKey.delete(paneKey)
   state.codexSubagentRosterByPaneKey.delete(paneKey)
   state.codexSubagentTranscriptByPaneKey.delete(paneKey)
@@ -279,6 +284,7 @@ export function movePaneCacheState(
   movePaneScopedSetEntries(state.claudeUnconfirmedRestoredStatusPaneKeys, fromPaneKey, toPaneKey)
   movePaneScopedSetEntries(state.claudeRunningNonAgentTaskPaneKeys, fromPaneKey, toPaneKey)
   movePaneScopedSetEntries(state.claudeActiveSessionCronPaneKeys, fromPaneKey, toPaneKey)
+  movePaneScopedMapEntries(state.claudeMonitoredWorkByPaneKey, fromPaneKey, toPaneKey)
   movePaneScopedMapEntries(state.claudeSessionOwnerByPaneKey, fromPaneKey, toPaneKey)
   movePaneScopedMapEntries(state.codexSubagentRosterByPaneKey, fromPaneKey, toPaneKey)
   movePaneScopedMapEntries(state.codexSubagentTranscriptByPaneKey, fromPaneKey, toPaneKey)
@@ -333,6 +339,7 @@ export function clearAllListenerCaches(state: HookListenerState): void {
   state.claudeUnconfirmedRestoredStatusPaneKeys.clear()
   state.claudeRunningNonAgentTaskPaneKeys.clear()
   state.claudeActiveSessionCronPaneKeys.clear()
+  state.claudeMonitoredWorkByPaneKey.clear()
   state.claudeSessionOwnerByPaneKey.clear()
   state.codexSubagentRosterByPaneKey.clear()
   state.codexSubagentTranscriptByPaneKey.clear()

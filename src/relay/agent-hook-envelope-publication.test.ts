@@ -3,6 +3,7 @@ import { RelayDispatcher, type RelayClientSinkOptions } from './dispatcher'
 import { publishAgentHookEnvelope } from './agent-hook-envelope-publication'
 import {
   AGENT_HOOK_NOTIFICATION_METHOD,
+  createShedMonitoredWorkField,
   createShedSubagentsField
 } from '../shared/agent-hook-relay'
 import type { AgentHookRelayEnvelope } from '../shared/agent-hook-relay'
@@ -452,6 +453,33 @@ describe('publishAgentHookEnvelope', () => {
 })
 
 describe('publishAgentHookEnvelope shed marker', () => {
+  it('sheds monitored work before anything else and names it by digest', () => {
+    const primary = makeBoundedClient(16384)
+    const dispatcher = new RelayDispatcher(primary.write, primary.options)
+    const work = Array.from({ length: 32 }, (_, index) => ({
+      id: `shell-${index}`,
+      kind: 'command' as const,
+      label: 'l'.repeat(160),
+      detail: 'c'.repeat(160),
+      firstObservedAt: 1_700_000_000_000 + index
+    }))
+    try {
+      const envelope = makeEnvelope({ lastAssistantMessage: 6_000 })
+      publishAgentHookEnvelope(dispatcher, {
+        ...envelope,
+        payload: { ...envelope.payload, monitoredWork: work }
+      })
+
+      const published = decodeEnvelopes(primary)
+      expect(published).toHaveLength(1)
+      expect(published[0].shedFields).toEqual([createShedMonitoredWorkField(work)])
+      expect(published[0].payload.monitoredWork).toBeUndefined()
+      expect(published[0].payload.lastAssistantMessage).toBe('a'.repeat(6_000))
+    } finally {
+      dispatcher.dispose()
+    }
+  })
+
   it('names every shed field so a consumer can tell a shed roster from an absent one', () => {
     const primary = makeBoundedClient(16384)
     const dispatcher = new RelayDispatcher(primary.write, primary.options)

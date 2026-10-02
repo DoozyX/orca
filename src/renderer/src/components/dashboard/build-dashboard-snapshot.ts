@@ -46,6 +46,7 @@ import { buildDashboardSnapshotFilterOptions } from './dashboard-snapshot-filter
 import { groupSubagentsByParentPaneKey } from './dashboard-subagent-cards'
 import { selectDashboardOrchestration } from './dashboard-orchestration-selection'
 import { dashboardRowBucketProjection } from './dashboard-row-bucket'
+import { isDerivedChildRow } from './derived-child-row'
 
 /** The store slices the snapshot builder reads. Kept as a Pick so unit tests
  *  can pass a partial store without constructing the whole AppState. */
@@ -160,7 +161,7 @@ export function buildDashboardSnapshot(
 
     for (const row of rows) {
       // Child rows have no pane of their own; the board lists top-level agents.
-      if (row.rowSource === 'subagent') {
+      if (isDerivedChildRow(row)) {
         continue
       }
       // Title-derived rows (a live pane read only from its terminal title, no

@@ -3,6 +3,10 @@ import { AGENT_STATUS_MAX_SUBAGENTS, type AgentSubagentSnapshot } from './agent-
 import { isAgentChildWorkKind } from './agent-status-child-work-liveness'
 import type { AgentChildWorkOutcome, AgentChildWorkState } from './agent-status-child-work'
 import type { AgentChildWorkView } from './agent-status-child-work-view'
+import {
+  AGENT_STATUS_MAX_MONITORED_WORK,
+  type AgentMonitoredWorkSnapshot
+} from './agent-monitored-work'
 
 const LEGACY_PROVIDER_ID_MAX_LENGTH = 64
 const BACKGROUND_PROVIDER_ID_MAX_LENGTH = 512
@@ -116,6 +120,38 @@ export function projectAgentChildWorkLegacySubagents(
       ...(candidate.description !== undefined ? { description: candidate.description } : {})
     })
     if (projected.length === AGENT_STATUS_MAX_SUBAGENTS) {
+      break
+    }
+  }
+  return projected.length > 0 ? projected : undefined
+}
+
+/** Live, still-running non-agent work: what holds a native session in `monitoring`. */
+export function projectAgentChildWorkMonitoredWork(
+  candidates: readonly AgentChildWorkLegacyProjectionCandidate[]
+): AgentMonitoredWorkSnapshot[] | undefined {
+  const projected: AgentMonitoredWorkSnapshot[] = []
+  for (const candidate of candidates) {
+    if (
+      candidate.kind === 'agent' ||
+      candidate.membership !== 'live' ||
+      candidate.state === 'done' ||
+      candidate.state === 'idle'
+    ) {
+      continue
+    }
+    const id = legacyProviderId(candidate.providerId)
+    if (!id || !Number.isFinite(candidate.firstObservedAt) || candidate.firstObservedAt < 0) {
+      continue
+    }
+    const label = candidate.description ?? candidate.name
+    projected.push({
+      id,
+      kind: candidate.kind,
+      ...(label !== undefined ? { label } : {}),
+      firstObservedAt: candidate.firstObservedAt
+    })
+    if (projected.length === AGENT_STATUS_MAX_MONITORED_WORK) {
       break
     }
   }

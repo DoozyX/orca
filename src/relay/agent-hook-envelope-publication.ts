@@ -1,6 +1,7 @@
 import {
   AGENT_HOOK_NOTIFICATION_METHOD,
   AGENT_HOOK_SHED_FIELDS_KEY,
+  createShedMonitoredWorkField,
   createShedSubagentsField,
   type AgentHookRelayEnvelope
 } from '../shared/agent-hook-relay'
@@ -13,7 +14,13 @@ import type { RelayDispatcher } from './dispatcher'
 // only because it is cheaper to rebuild, NOT because it is cosmetic: a missing roster blanks live
 // subagent rows and unblocks pane hibernation, which is why shed fields are named on the wire —
 // `restoreShedStatusFields` re-attaches the restorable ones from Orca's cached payload.
-const SHED_ORDER = ['lastAssistantMessage', 'subagents', 'interactivePrompt'] as const
+// monitoredWork goes first: display-only, and the monitoring state itself travels in workingMode.
+const SHED_ORDER = [
+  'monitoredWork',
+  'lastAssistantMessage',
+  'subagents',
+  'interactivePrompt'
+] as const
 
 // Why: these envelopes are fire-and-forget state snapshots — no ack, no producer-side retry — and
 // the only other delivery path is the reattach replay. A queue-full drop would otherwise leave the
@@ -218,7 +225,11 @@ export function publishAgentHookEnvelope(
     // would permanently strip the cached copy too.
     candidate = { ...candidate, payload: { ...candidate.payload } }
     const shedField =
-      field === 'subagents' ? createShedSubagentsField(candidate.payload.subagents ?? []) : field
+      field === 'subagents'
+        ? createShedSubagentsField(candidate.payload.subagents ?? [])
+        : field === 'monitoredWork'
+          ? createShedMonitoredWorkField(candidate.payload.monitoredWork ?? [])
+          : field
     delete candidate.payload[field]
     shedFields.push(shedField)
   }

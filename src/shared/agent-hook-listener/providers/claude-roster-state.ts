@@ -18,6 +18,7 @@ import {
 } from '../../claude-subagent-roster'
 import type { AgentHookEventPayload } from '../listener-event'
 import type { ClaudeLeadTurnState, HookListenerState } from '../listener-state'
+import { replaceClaudeMonitoredCrons } from './claude-monitored-work'
 import { readString } from '../tool-input-preview'
 
 /** Lead events that may re-anchor a pane's owning session. Allow-list, not a deny-list: a payload we
@@ -84,6 +85,7 @@ export function voidClaimsOfReplacedClaudeSession(
     return
   }
   state.claudeActiveSessionCronPaneKeys.delete(paneKey)
+  replaceClaudeMonitoredCrons(state, paneKey, [])
   const roster = state.claudeSubagentRosterByPaneKey.get(paneKey)
   if (!roster) {
     return

@@ -1,0 +1,22 @@
+{
+  "source_scenario": "monitored-work",
+  "claude_version": "2.1.287 (Claude Code)",
+  "argv": [
+    "claude",
+    "-p",
+    "--model",
+    "haiku",
+    "--setting-sources",
+    "project",
+    "--settings",
+    "<capture>/settings.json",
+    "--allowedTools",
+    "Bash",
+    "Monitor",
+    "CronCreate"
+  ],
+  "platform": "darwin",
+  "recorded_at": "2026-10-02",
+  "clock": "t is the record ordinal; the capture logged no wall-clock offsets",
+  "note": "Every UserPromptSubmit, PostToolUse and Stop hook stdin logged by a capture hook. The prompt starts a Monitor-tool watch (`until [ -f ... ]; do sleep 5; done`) and a session-only CronCreate, then replies. The Monitor task is reported in background_tasks as type \"shell\"; the cron appears in session_crons as {id, schedule, recurring, prompt}. Scrubbed: session and prompt ids zeroed, username and temp paths replaced."
+}

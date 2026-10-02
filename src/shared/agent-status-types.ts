@@ -17,6 +17,10 @@ import {
   normalizeTurnCompletedAtField
 } from './agent-status-field-normalization'
 import { assertJsonTextStructureWithinLimits } from './json-text-structure-limit'
+import {
+  normalizeMonitoredWorkField,
+  type AgentMonitoredWorkSnapshot
+} from './agent-monitored-work'
 
 export { AGENT_STATUS_MAX_FIELD_LENGTH } from './agent-status-field-normalization'
 export type {
@@ -27,6 +31,7 @@ export type {
 } from './agent-status-ipc-payload'
 export { mainAgentStatusEqual, type AgentMainAgentStatus } from './main-agent-status'
 export { AGENT_STATE_HISTORY_MAX, type AgentStateHistoryEntry } from './agent-state-history'
+export { pickParsedAgentStatusPayload } from './agent-status-payload-pick'
 
 export const AGENT_STATUS_STATES = ['working', 'blocked', 'waiting', 'done'] as const
 export type AgentStatusState = (typeof AGENT_STATUS_STATES)[number]
@@ -139,6 +144,8 @@ export type AgentStatusEntry = {
   /** Live in-process subagents/teammates of this pane's session. Absent when
    *  none are tracked; the sidebar derives indented child rows from it. */
   subagents?: AgentSubagentSnapshot[]
+  /** Shells, monitors and crons holding this row in `monitoring`; display only, see AgentMonitoredWorkSnapshot. */
+  monitoredWork?: AgentMonitoredWorkSnapshot[]
   /** The main agent's own state; absent from old hosts and from writers that carry no main agent fact
    *  (OSC, launch seeds), where readers fall back to `state`. */
   mainAgent?: AgentMainAgentStatus
@@ -186,6 +193,8 @@ export type AgentStatusPayload = {
   turnCompletedAt?: number
   /** Live in-process children of the reporting session. See AgentStatusEntry. */
   subagents?: AgentSubagentSnapshot[]
+  /** See AgentStatusEntry. */
+  monitoredWork?: AgentMonitoredWorkSnapshot[]
   /** The main agent's own state and last-turn verdict. See AgentMainAgentStatus. Producers publish it
    *  beside the combined `state`; a reader that predates it keeps reading `state`. */
   mainAgent?: AgentMainAgentStatus
@@ -197,39 +206,6 @@ export type AgentStatusPayload = {
  * absence ("no new info") from an explicit empty string.
  */
 export type ParsedAgentStatusPayload = Omit<AgentStatusPayload, 'prompt'> & { prompt: string }
-
-/**
- * Narrow an `AgentStatusIpcPayload` (or any superset) down to the status fields alone.
- * Why: the IPC shape is flattened, so a spread cannot be narrowed structurally — copying
- * a hook row into a client-visible projection would otherwise ship `launchToken`,
- * `connectionId`, `promptInteractionKey` and `providerSessionOnly` to every paired client.
- */
-export function pickParsedAgentStatusPayload(
-  row: ParsedAgentStatusPayload
-): ParsedAgentStatusPayload {
-  return {
-    state: row.state,
-    ...(row.workingMode !== undefined ? { workingMode: row.workingMode } : {}),
-    prompt: row.prompt,
-    ...(row.agentType !== undefined ? { agentType: row.agentType } : {}),
-    ...(row.model !== undefined ? { model: row.model } : {}),
-    ...(row.modelSwitchCommand ? { modelSwitchCommand: row.modelSwitchCommand } : {}),
-    ...(row.toolName !== undefined ? { toolName: row.toolName } : {}),
-    ...(row.toolInput !== undefined ? { toolInput: row.toolInput } : {}),
-    ...(row.interactivePrompt !== undefined ? { interactivePrompt: row.interactivePrompt } : {}),
-    ...(row.lastAssistantMessage !== undefined
-      ? { lastAssistantMessage: row.lastAssistantMessage }
-      : {}),
-    ...(row.lastAssistantMessageIsToolOutput !== undefined
-      ? { lastAssistantMessageIsToolOutput: row.lastAssistantMessageIsToolOutput }
-      : {}),
-    ...(row.interrupted !== undefined ? { interrupted: row.interrupted } : {}),
-    ...(row.sessionBoundary !== undefined ? { sessionBoundary: row.sessionBoundary } : {}),
-    ...(row.turnCompletedAt !== undefined ? { turnCompletedAt: row.turnCompletedAt } : {}),
-    ...(row.subagents !== undefined ? { subagents: row.subagents } : {}),
-    ...(row.mainAgent !== undefined ? { mainAgent: row.mainAgent } : {})
-  }
-}
 
 /**
  * Wire shape for agent-status IPC. Both `agentStatus:set` and `agentStatus:getSnapshot`
@@ -421,6 +397,7 @@ function normalizeAgentStatusObject(parsed: unknown): ParsedAgentStatusPayload |
     sessionBoundary: obj.sessionBoundary === true && state === 'done' ? true : undefined,
     turnCompletedAt: normalizeTurnCompletedAtField(obj.turnCompletedAt, state),
     subagents: normalizeSubagentsField(obj.subagents),
+    monitoredWork: normalizeMonitoredWorkField(obj.monitoredWork),
     mainAgent: normalizeMainAgentStatusField(obj.mainAgent)
   }
 }

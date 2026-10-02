@@ -16,6 +16,7 @@ import {
   startWorktreeAgentRowsCachePass,
   type WorktreeAgentRowsCache
 } from './worktree-agent-rows-cache'
+import { isDerivedChildRow } from './derived-child-row'
 
 const EMPTY_COUNTS: Record<DashboardBucket, number> = {
   attention: 0,
@@ -128,7 +129,7 @@ function tallyWorktreeRows(
     number
   >
   for (const row of rows) {
-    if (row.rowSource === 'subagent') {
+    if (isDerivedChildRow(row)) {
       continue
     }
     tally[dashboardRowBucketProjection(row, acknowledgedAgentsByPaneKey).bucket] += 1

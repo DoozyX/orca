@@ -253,6 +253,11 @@ describe('AgentHookServer listener replay', () => {
       expect(server.getStatusSnapshot()[0]).toEqual(waiting)
       expect(server._getStateForTests().claudeRunningNonAgentTaskPaneKeys.has(PANE)).toBe(true)
       expect(server._getStateForTests().claudeActiveSessionCronPaneKeys.has(PANE)).toBe(true)
+      const monitored = server._getStateForTests().claudeMonitoredWorkByPaneKey.get(PANE)
+      expect([...(monitored?.tasks ?? []), ...(monitored?.crons ?? [])].map((w) => w.id)).toEqual([
+        'shell-1',
+        'cron-1'
+      ])
     } finally {
       server.stop()
     }

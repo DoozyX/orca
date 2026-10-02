@@ -5,6 +5,7 @@ import {
   AGENT_HOOK_REQUEST_REPLAY_METHOD,
   AGENT_HOOK_SHED_FIELDS_KEY,
   ORCA_FEATURE_REMOTE_AGENT_HOOKS_ENV,
+  createShedMonitoredWorkField,
   createShedSubagentsField,
   isAgentHookSource,
   isRemoteAgentHooksEnabled,
@@ -145,5 +146,37 @@ describe('restoreShedStatusFields', () => {
 
   it('is a no-op with no cached payload for the pane', () => {
     expect(restoreShedStatusFields(shed, ['subagents'], undefined)).toBe(shed)
+  })
+
+  describe('monitoredWork', () => {
+    const work = [{ id: 'shell-1', kind: 'command' as const, label: 'watch', firstObservedAt: 5 }]
+    const withWork: ParsedAgentStatusPayload = { ...cached, monitoredWork: work }
+
+    it('restores a matching shed list, so monitoring rows do not blank in transit', () => {
+      const restored = restoreShedStatusFields(shed, [createShedMonitoredWorkField(work)], withWork)
+      expect(restored.monitoredWork).toEqual(work)
+      expect(restored.subagents).toBeUndefined()
+    })
+
+    it('does not restore a changed list or across a prompt change', () => {
+      const changed = [{ ...work[0], id: 'shell-2' }]
+      expect(restoreShedStatusFields(shed, [createShedMonitoredWorkField(changed)], withWork)).toBe(
+        shed
+      )
+      const nextTurn = { ...shed, prompt: 'next prompt' }
+      expect(
+        restoreShedStatusFields(nextTurn, [createShedMonitoredWorkField(work)], withWork)
+      ).toBe(nextTurn)
+    })
+
+    it('restores both shed fields together', () => {
+      const restored = restoreShedStatusFields(
+        shed,
+        [createShedMonitoredWorkField(work), createShedSubagentsField(roster)],
+        withWork
+      )
+      expect(restored.monitoredWork).toEqual(work)
+      expect(restored.subagents).toEqual(roster)
+    })
   })
 })

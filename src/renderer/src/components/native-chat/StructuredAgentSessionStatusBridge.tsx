@@ -4,8 +4,10 @@ import { agentProviderSessionsEqual } from '../../../../shared/agent-session-res
 import type { AgentSessionStatusSummary } from '../../../../shared/agent-session-wire'
 import {
   agentChildWorkProjectionCandidateFromBackgroundTask,
-  projectAgentChildWorkLegacySubagents
+  projectAgentChildWorkLegacySubagents,
+  projectAgentChildWorkMonitoredWork
 } from '../../../../shared/agent-status-child-work-projection'
+import { agentMonitoredWorkEqual } from '../../../../shared/agent-monitored-work'
 import {
   continueMainAgentStatus,
   isAgentStatusHeldOpenByChildWork
@@ -75,12 +77,12 @@ function projectStatus(
     return
   }
   // Sidebar children are the agent-kind tasks, projected by the same code every
-  // child-work reader uses; a backgrounded shell never counts as a subagent.
-  const subagents = summary.backgroundTasks
-    ? projectAgentChildWorkLegacySubagents(
-        summary.backgroundTasks.map(agentChildWorkProjectionCandidateFromBackgroundTask)
-      )
-    : undefined
+  // child-work reader uses; a backgrounded shell is monitored work, never a subagent.
+  const candidates = summary.backgroundTasks?.map(
+    agentChildWorkProjectionCandidateFromBackgroundTask
+  )
+  const subagents = candidates ? projectAgentChildWorkLegacySubagents(candidates) : undefined
+  const monitoredWork = candidates ? projectAgentChildWorkMonitoredWork(candidates) : undefined
   // Shared with `worktree ps`, so the CLI and this row cannot disagree about one session.
   const agentStatus = structuredAgentSessionAgentStatus({
     status: summary.status,
@@ -107,6 +109,7 @@ function projectStatus(
     ...(summary.toolInput ? { toolInput: summary.toolInput } : {}),
     ...(summary.lastAssistantMessage ? { lastAssistantMessage: summary.lastAssistantMessage } : {}),
     ...(subagents ? { subagents, subagentObservation: observation } : {}),
+    ...(monitoredWork ? { monitoredWork } : {}),
     sessionBoundary: false
   } as const
   if (
@@ -121,6 +124,7 @@ function projectStatus(
     current.toolInput === summary.toolInput &&
     current.lastAssistantMessage === summary.lastAssistantMessage &&
     agentSubagentsEqual(current.subagents, subagents) &&
+    agentMonitoredWorkEqual(current.monitoredWork, monitoredWork) &&
     current.subagentObservation === desired.subagentObservation &&
     current.sessionBoundary === desired.sessionBoundary &&
     current.updatedAt === summary.updatedAt &&

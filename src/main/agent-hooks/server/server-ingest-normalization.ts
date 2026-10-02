@@ -3,12 +3,14 @@ import { normalizeHookPayload } from '../../../shared/agent-hook-listener'
 import { isAgentHookSource, type AgentHookSource } from '../../../shared/agent-hook-relay'
 import type { NormalizedLocalHook } from './server-types'
 import { AgentHookServerOpenCodeBinder } from './server-opencode-binder'
+import type { ClaudeMonitoredWork } from '../../../shared/agent-hook-listener/providers/claude-monitored-work'
 
 export abstract class AgentHookServerIngestNormalization extends AgentHookServerOpenCodeBinder {
   protected setClaudeBackgroundEvidence(
     paneKey: string,
     hasRunningTask: boolean,
-    hasActiveCron: boolean
+    hasActiveCron: boolean,
+    monitoredWork: ClaudeMonitoredWork | undefined
   ): void {
     if (hasRunningTask) {
       this.state.claudeRunningNonAgentTaskPaneKeys.add(paneKey)
@@ -19,6 +21,11 @@ export abstract class AgentHookServerIngestNormalization extends AgentHookServer
       this.state.claudeActiveSessionCronPaneKeys.add(paneKey)
     } else {
       this.state.claudeActiveSessionCronPaneKeys.delete(paneKey)
+    }
+    if (monitoredWork) {
+      this.state.claudeMonitoredWorkByPaneKey.set(paneKey, monitoredWork)
+    } else {
+      this.state.claudeMonitoredWorkByPaneKey.delete(paneKey)
     }
   }
 
@@ -42,17 +49,30 @@ export abstract class AgentHookServerIngestNormalization extends AgentHookServer
     }
     const previousRunningTask = this.state.claudeRunningNonAgentTaskPaneKeys.has(paneKey)
     const previousActiveCron = this.state.claudeActiveSessionCronPaneKeys.has(paneKey)
+    const previousMonitoredWork = this.state.claudeMonitoredWorkByPaneKey.get(paneKey)
     const event = normalizeHookPayload(this.state, source, body, this.env)
     const nextRunningTask = this.state.claudeRunningNonAgentTaskPaneKeys.has(paneKey)
     const nextActiveCron = this.state.claudeActiveSessionCronPaneKeys.has(paneKey)
-    this.setClaudeBackgroundEvidence(paneKey, previousRunningTask, previousActiveCron)
+    const nextMonitoredWork = this.state.claudeMonitoredWorkByPaneKey.get(paneKey)
+    this.setClaudeBackgroundEvidence(
+      paneKey,
+      previousRunningTask,
+      previousActiveCron,
+      previousMonitoredWork
+    )
     if (!event || event.paneKey !== paneKey) {
       return { event }
     }
     // Why: nested CLIs may inherit the pane key; only accepted statuses may mutate its background-work gate.
     return {
       event,
-      onAccepted: () => this.setClaudeBackgroundEvidence(paneKey, nextRunningTask, nextActiveCron)
+      onAccepted: () =>
+        this.setClaudeBackgroundEvidence(
+          paneKey,
+          nextRunningTask,
+          nextActiveCron,
+          nextMonitoredWork
+        )
     }
   }
 

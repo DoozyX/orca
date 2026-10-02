@@ -25,6 +25,7 @@ import type { SpoolRecord } from '../../../shared/agent-hook-spool'
 import { createAgentStatusStore, type AgentStatusStore } from '../../../shared/agent-status-store'
 import { AGENT_STATUS_2A_CURRENT_PRODUCER_MODE } from '../../../shared/agent-status-legacy-adapter'
 import type { AgentStatusStructuredSessionSubject } from '../../../shared/agent-status-subject'
+import type { ClaudeMonitoredWork } from '../../../shared/agent-hook-listener/providers/claude-monitored-work'
 import type {
   AgentHookAuthorityEvidence,
   AgentHookProviderSessionIdentity,
@@ -249,7 +250,8 @@ export abstract class AgentHookServerState {
   protected abstract setClaudeBackgroundEvidence(
     paneKey: string,
     hasRunningTask: boolean,
-    hasActiveCron: boolean
+    hasActiveCron: boolean,
+    monitoredWork: ClaudeMonitoredWork | undefined
   ): void
   protected abstract toRetainedProviderSessionRow(
     entry: EnrichedAgentHookEventPayload | null | undefined

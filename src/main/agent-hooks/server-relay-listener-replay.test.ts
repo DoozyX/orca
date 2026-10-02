@@ -5,7 +5,10 @@ import {
   type HookListenerState
 } from '../../shared/agent-hook-listener/listener-state'
 import { normalizeHookPayload } from '../../shared/agent-hook-listener'
-import { createShedSubagentsField } from '../../shared/agent-hook-relay'
+import {
+  createShedMonitoredWorkField,
+  createShedSubagentsField
+} from '../../shared/agent-hook-relay'
 import { buildBody, PANE } from './server.test-fixtures'
 
 const { getCohortAtEmitMock, trackMock } = vi.hoisted(() => ({
@@ -147,6 +150,28 @@ describe('AgentHookServer listener replay', () => {
       'conn-1'
     )
     expect(server.getStatusSnapshot()[0]).toMatchObject({ state: 'done', subagents: roster })
+  })
+
+  it('carries monitored work from an SSH host and restores it after the relay shed it', () => {
+    const server = new AgentHookServer()
+    const work = [{ id: 'shell-1', kind: 'command' as const, label: 'watch', firstObservedAt: 1 }]
+    const payload = {
+      state: 'working' as const,
+      workingMode: 'monitoring' as const,
+      prompt: 'watch',
+      agentType: 'claude' as const
+    }
+    server.ingestRemote({ paneKey: PANE, payload: { ...payload, monitoredWork: work } }, 'conn-1')
+    expect(server.getStatusSnapshot()[0]?.monitoredWork).toEqual(work)
+
+    server.ingestRemote(
+      { paneKey: PANE, shedFields: [createShedMonitoredWorkField(work)], payload },
+      'conn-1'
+    )
+    expect(server.getStatusSnapshot()[0]?.monitoredWork).toEqual(work)
+
+    server.ingestRemote({ paneKey: PANE, payload }, 'conn-1')
+    expect(server.getStatusSnapshot()[0]?.monitoredWork).toBeUndefined()
   })
 
   it('lets an unmarked absent roster clear, so a finished team still retires', () => {

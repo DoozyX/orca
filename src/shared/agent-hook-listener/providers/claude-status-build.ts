@@ -10,6 +10,7 @@ import { extractToolFields, isNewTurnEvent } from '../provider-event-routing'
 import type { HookListenerState } from '../listener-state'
 import { mainAgentTurnInterrupted } from '../../agent-lead-status-fold'
 import { claudeMainAgentStatusForPayload } from './claude-roster-state'
+import { claudeMonitoredWorkForPayload } from './claude-monitored-work'
 
 export function buildClaudeStatusPayload(
   state: HookListenerState,
@@ -54,6 +55,7 @@ export function buildClaudeStatusPayload(
     sessionBoundary: options.sessionBoundary,
     turnCompletedAt: mainAgentRecord?.turnCompletedAt,
     subagents: claudeRosterToSnapshots(state.claudeSubagentRosterByPaneKey.get(paneKey)),
+    monitoredWork: claudeMonitoredWorkForPayload(state, paneKey),
     mainAgent: mainAgentRecord ? claudeMainAgentStatusForPayload(mainAgentRecord) : undefined
   })
 }

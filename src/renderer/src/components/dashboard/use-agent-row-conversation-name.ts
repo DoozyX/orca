@@ -4,6 +4,7 @@ import { resolveAgentRowPaneLiveTitle } from './agent-row-pane-live-title'
 import { useAppStore } from '@/store'
 import type { AppState } from '@/store/types'
 import type { DashboardAgentRow } from './useDashboardData'
+import { isDerivedChildRow } from './derived-child-row'
 
 type WorktreeTabs = NonNullable<AppState['tabsByWorktree'][string]>
 
@@ -31,7 +32,7 @@ export function useAgentRowConversationName(agent: DashboardAgentRow): string | 
     agent.lineage?.depth === 1 &&
     parentPaneKey !== undefined &&
     parsePaneKey(parentPaneKey)?.tabId === agent.tab.id
-  const cannotOwnTabName = agent.rowSource === 'subagent' || usesParentTab
+  const cannotOwnTabName = isDerivedChildRow(agent) || usesParentTab
   const generatedTitlesEnabled = useAppStore(
     (s) => !cannotOwnTabName && s.settings?.tabAutoGenerateTitle === true
   )
