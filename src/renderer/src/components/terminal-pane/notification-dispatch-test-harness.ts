@@ -1,6 +1,9 @@
 import { vi } from 'vitest'
 import type { Mock } from 'vitest'
-import type { AgentStatusEntry } from '../../../../shared/agent-status-types'
+import type {
+  AgentStatusEntry,
+  AgentStatusOrchestrationContext
+} from '../../../../shared/agent-status-types'
 import type { TerminalLayoutSnapshot } from '../../../../shared/terminal-tab-types'
 
 // Why: the mocked store state lives here so each split suite's hoisted `vi.mock` factory can
@@ -21,6 +24,7 @@ export type NotificationDispatchMockState = {
   browserTabsByWorktree: Record<string, unknown[]>
   retainedAgentsByPaneKey: Record<string, { worktreeId: string }>
   agentStatusByPaneKey: Record<string, AgentStatusEntry>
+  runtimeAgentOrchestrationByPaneKey: Record<string, AgentStatusOrchestrationContext>
   worktreesByRepo: Record<
     string,
     {
@@ -74,6 +78,7 @@ function buildNotificationDispatchMockState(): NotificationDispatchMockState {
     browserTabsByWorktree: {},
     retainedAgentsByPaneKey: {},
     agentStatusByPaneKey: { [PANE_KEY]: makeAgentStatus(PANE_KEY) },
+    runtimeAgentOrchestrationByPaneKey: {},
     worktreesByRepo: {
       repo1: [
         { id: 'wt-primary', repoId: 'repo1', displayName: 'master', branch: 'master' },

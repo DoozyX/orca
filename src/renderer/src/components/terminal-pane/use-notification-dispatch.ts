@@ -19,6 +19,7 @@ import {
   resolveAgentAttention,
   type AgentAttentionDeliveryRequest
 } from '@/attention/agent-attention-policy'
+import { isQuietOrchestrationCompletion } from '@/attention/orchestration-completion-quieting'
 import {
   deliverAgentAttentionNotification,
   readAgentAttentionNotificationSound
@@ -161,7 +162,17 @@ export function dispatchTerminalNotification(
         })
       : null
 
+  // Why: unread markers stay, so a quiet completion is still visible in the sidebar.
+  const isQuietCompletion = isQuietOrchestrationCompletion({
+    paneKey: event.paneKey,
+    agentState: agentStatus?.state,
+    orchestrationByPaneKey: state.runtimeAgentOrchestrationByPaneKey
+  })
+
   const requestDelivery = (request: AgentAttentionDeliveryRequest): void => {
+    if (isQuietCompletion) {
+      return
+    }
     deliverAgentAttentionNotification(
       {
         source: event.source,
