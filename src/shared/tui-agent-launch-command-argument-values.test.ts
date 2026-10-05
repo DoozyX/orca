@@ -135,7 +135,7 @@ describe.each(['posix', 'powershell', 'cmd'] as const)('argument values on %s', 
 
   // Clap and yargs read the dash-leading token as a new flag, so a picked model would repeat it.
   it.each([
-    ['codex', 'gpt-5.5', '--profile -m o3', ['codex', '--profile', '-m', 'o3']],
+    ['codex', 'gpt-5.5', '--profile -m o3', ['codex', '--no-daemon', '--profile', '-m', 'o3']],
     [
       'opencode',
       'openai/gpt-5',

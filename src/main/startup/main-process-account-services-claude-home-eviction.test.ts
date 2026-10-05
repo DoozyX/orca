@@ -26,7 +26,10 @@ vi.mock('../rate-limits/service', () => ({
     evictBoundClaudeHomeUsage = evictBoundClaudeHomeUsage
     ingestLiveClaudeRateLimits = vi.fn()
     invalidateMiniMaxCredentialState = vi.fn()
+    invalidateOpenCodeGoCredentialState = vi.fn()
+    invalidateZcodeCredentialState = vi.fn()
     refresh = vi.fn(async () => {})
+    setAntigravityUsageEnabledResolver = vi.fn()
     setBoundClaudeHomesResolver = vi.fn()
     setClaudeAuthPreparationResolver = vi.fn()
     setClaudeFetchTarget = vi.fn()
@@ -39,6 +42,7 @@ vi.mock('../rate-limits/service', () => ({
     setMiniMaxConfigResolver = vi.fn()
     setNetworkProxySettingsResolver = vi.fn()
     setOpenCodeGoConfigResolver = vi.fn()
+    setZcodePlanConfigResolver = vi.fn()
   }
 }))
 
@@ -75,7 +79,8 @@ vi.mock('../codex/codex-state-db-backfill-recovery', () => ({
 vi.mock('../codex/codex-home-paths', () => ({ getOrcaManagedCodexHomePath: () => '/tmp/codex' }))
 vi.mock('../codex/hook-service', () => ({ setSystemCodexHomeHookSweepSuppressed: vi.fn() }))
 vi.mock('../codex/codex-real-home-hook-install', () => ({
-  isRealHomeCodexHookLaneUsable: () => false
+  isRealHomeCodexHookLaneUsable: () => false,
+  setRealHomeCodexHooksEnabledReader: vi.fn()
 }))
 vi.mock('../codex/codex-session-source-home', () => ({
   resolveHostCodexSessionSourceHome: () => undefined
@@ -115,7 +120,7 @@ function stubStore(): void {
     keybindings: {},
     tabSwitchKeybindingSeed: 'done'
   }
-  // Why a loosely-typed alias rather than a cast: the init path reads only these four members, and
+  // Why a loosely-typed alias rather than a cast: the init path reads only these members, and
   // every collaborator that would read more of them is mocked above — so a real `Store` would be a
   // hundred lines of stub for one assertion about one line of wiring.
   const mutable: Record<string, unknown> = state
@@ -123,7 +128,8 @@ function stubStore(): void {
     getSettings: () => settings,
     getProjectGroups: () => [],
     onSettingsChanged: vi.fn(),
-    updateSettings: vi.fn()
+    updateSettings: vi.fn(),
+    migrateLegacyOpenCodeGoApiKey: vi.fn()
   }
   mutable.claudeUsage = {}
   mutable.codexUsage = {}

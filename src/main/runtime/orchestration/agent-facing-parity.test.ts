@@ -38,8 +38,9 @@ const CHAT_ADDRESS = `orca_session_id:${CHAT_SESSION}`
 const TERMINAL_HANDLE = 'term_worker'
 // A structured worker's mailbox key: the handle it was minted, which its preamble never shows.
 const CHAT_WORKER_HANDLE = 'structworker_1'
-// `skill-guides/orchestration.md` on main, plus the one Orca session ID line.
-const MAIN_KERNEL_LINES = 198 + 1
+// `skill-guides/orchestration.md` on main, plus the one Orca session ID line, plus the fork's 13
+// added lines (fan-out trigger, fan-out row, wait-on-Deliveries rule, context-lifecycle row).
+const MAIN_KERNEL_LINES = 198 + 1 + 13
 
 const db = new OrchestrationDb(':memory:')
 const SELF_LINE = `\nYour Orca session ID is: ${CHAT_ADDRESS}`

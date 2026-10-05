@@ -13,7 +13,7 @@ import {
 } from '../native-chat/structured-agent-session-history-adoption'
 import { resolveSessionFilePath } from '../native-chat/session-file-resolver'
 import { configuredAdditionalCodexHomePaths } from '../ai-vault/cached-session-list'
-import { getOrcaManagedCodexHomePath, getSystemCodexHomePath } from '../codex/codex-home-paths'
+import { getSystemCodexHomePath, resolveOrcaManagedCodexHomePath } from '../codex/codex-home-paths'
 
 type AdoptionSettings = {
   codexManagedAccounts?: readonly { managedHomePath: string }[]
@@ -116,7 +116,8 @@ export function structuredAdoptionAccountHomeCandidates(input: {
     input.selectedAccountHomePath,
     ...(input.settings.codexManagedAccounts ?? []).map((account) => account.managedHomePath),
     ...configuredAdditionalCodexHomePaths(),
-    getOrcaManagedCodexHomePath(),
+    // Path only: a transcript search must not create the runtime home; launch owns that.
+    resolveOrcaManagedCodexHomePath(),
     getSystemCodexHomePath()
   ]
 }

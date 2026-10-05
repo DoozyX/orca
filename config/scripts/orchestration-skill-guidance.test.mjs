@@ -74,8 +74,9 @@ describe('orchestration kernel', () => {
       '## Conditional references'
     ]
 
-    // Why: 205 is the budget after the context-lifecycle routing row; the kernel is always in context.
-    expect(kernel.split('\n').length).toBeLessThanOrEqual(205)
+    // Why: 213 is the budget after the wait-on-Deliveries rule and the Orca session ID line; the
+    // kernel is always in context. The fork's guide additions account for the rise above upstream.
+    expect(kernel.split('\n').length).toBeLessThanOrEqual(213)
     for (let index = 1; index < headings.length; index += 1) {
       expect(kernel.indexOf(headings[index])).toBeGreaterThan(kernel.indexOf(headings[index - 1]))
     }
