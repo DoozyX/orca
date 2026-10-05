@@ -15,9 +15,29 @@ import {
 
 export function createAgentStatusOrchestrationActions(
   runtime: AgentStatusRuntime
-): Pick<AgentStatusSlice, 'setRuntimeAgentOrchestrationByPaneKey'> {
+): Pick<
+  AgentStatusSlice,
+  'setRuntimeAgentOrchestrationByPaneKey' | 'setRuntimeAgentRunWorkerPaneKeys'
+> {
   const { get, set } = runtime
   return {
+    setRuntimeAgentRunWorkerPaneKeys: (paneKeys: string[]) => {
+      set((s) => {
+        const current = s.runtimeAgentRunWorkerPaneKeys
+        // Why: graph publishes run every few frames; keep the reference so selectors stay quiet.
+        if (
+          Object.keys(current).length === paneKeys.length &&
+          paneKeys.every((paneKey) => current[paneKey])
+        ) {
+          return s
+        }
+        return {
+          runtimeAgentRunWorkerPaneKeys: Object.fromEntries(
+            paneKeys.map((paneKey) => [paneKey, true as const])
+          )
+        }
+      })
+    },
     setRuntimeAgentOrchestrationByPaneKey: (
       entries: Record<string, AgentStatusOrchestrationContext>
     ) => {

@@ -442,10 +442,11 @@ describe('OrcaRuntimeService', () => {
           activeDispatch: 100,
           latestDispatch: 100,
           task: 0,
-          run: 0,
+          // One lookup per distinct run decides whether settled panes are still run members.
+          run: 1,
           legacyCoordinator: 0,
           attention: 0,
-          total: 200
+          total: 201
         }
       })
     } finally {

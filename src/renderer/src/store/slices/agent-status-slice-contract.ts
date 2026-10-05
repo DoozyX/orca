@@ -34,6 +34,8 @@ export type AgentStatusSlice = {
   agentStatusByPaneKey: Record<string, AgentStatusEntry>
   /** Main-synced dispatch metadata for live panes that may only have title-derived status in the renderer. */
   runtimeAgentOrchestrationByPaneKey: Record<string, AgentStatusOrchestrationContext>
+  /** Main-synced panes past the orchestration display window whose run is still coordinated. */
+  runtimeAgentRunWorkerPaneKeys: Record<string, true>
   /** PTYs still reporting legacy numeric pane keys but with registry-backed UUID proof; stored separately from normal hook-reported status. */
   migrationUnsupportedByPtyId: Record<string, MigrationUnsupportedPtyEntry>
   /** Monotonic tick that advances when agent-status freshness boundaries pass. */
@@ -116,6 +118,7 @@ export type AgentStatusSlice = {
   setRuntimeAgentOrchestrationByPaneKey: (
     entries: Record<string, AgentStatusOrchestrationContext>
   ) => void
+  setRuntimeAgentRunWorkerPaneKeys: (paneKeys: string[]) => void
 
   setMigrationUnsupportedPty: (entry: MigrationUnsupportedPtyEntry) => void
   clearMigrationUnsupportedPty: (ptyId: string) => void

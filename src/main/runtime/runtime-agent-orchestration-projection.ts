@@ -8,6 +8,7 @@ import { parsePaneKey } from '../../shared/stable-pane-id'
 import type { OrchestrationCompatibilityTerminalAuthority } from './runtime-terminal-contracts'
 import type { RuntimeLeafRecord, RuntimePtyWorktreeRecord } from './runtime-terminal-state-records'
 import type { OrchestrationDb } from './orchestration/db'
+import type { DispatchContextRow } from './orchestration/types'
 import { runtimeWorktreeIdsEqual } from './runtime-worktree-path-identity'
 import {
   buildWorkerAttentionContext,
@@ -23,20 +24,33 @@ type RuntimeAgentOrchestrationDependencies = {
   makePaneKey(leaf: RuntimeLeafRecord): string
   getWorktreeId(handle: string): string | null
   getHandleForPaneKey(paneKey: string): string | null
+  /** True only while the pane's PTY runs; an exited PTY keeps its record. */
+  isPaneConnected(paneKey: string): boolean
   getPaneKey(handle: string): string | null
   getDispatchAuthority(handle: string): OrchestrationCompatibilityTerminalAuthority | null
   getAgentStatusSnapshot(): readonly FleetAgentStatusEvidence[]
+}
+
+export type RuntimeAgentOrchestrationPublication = {
+  byPaneKey?: Record<string, AgentStatusOrchestrationContext>
+  /** Live panes past the display window whose latest dispatch's run is still coordinated. */
+  runWorkerPaneKeys?: string[]
 }
 
 export class RuntimeAgentOrchestrationProjection {
   constructor(private readonly deps: RuntimeAgentOrchestrationDependencies) {}
 
   buildByPaneKey(): Record<string, AgentStatusOrchestrationContext> | undefined {
+    return this.buildPublication().byPaneKey
+  }
+
+  buildPublication(): RuntimeAgentOrchestrationPublication {
     const db = this.deps.getDb()
     if (!db || db.hasAnyDispatchContexts?.() === false) {
-      return undefined
+      return {}
     }
     const contexts: Record<string, AgentStatusOrchestrationContext> = {}
+    const settledRunIdByPaneKey = new Map<string, string>()
     const evidenceByPaneKey = new Map(
       this.deps.getAgentStatusSnapshot().map((evidence) => [evidence.activity.paneKey, evidence])
     )
@@ -53,7 +67,9 @@ export class RuntimeAgentOrchestrationProjection {
       const context = this.getForHandle(handle, db, {
         paneKey,
         evidence: evidenceByPaneKey.get(paneKey),
-        deferAttention: batchAttention
+        deferAttention: batchAttention,
+        onSettledPastDisplayWindow: (dispatch) =>
+          settledRunIdByPaneKey.set(paneKey, dispatch.run_id)
       })
       if (context) {
         contexts[paneKey] = context
@@ -68,18 +84,23 @@ export class RuntimeAgentOrchestrationProjection {
         continue
       }
       queriedHandles.add(handle)
+      const ptyPaneKey = pty.paneKey
       const context = this.getForHandle(handle, db, {
-        paneKey: pty.paneKey,
-        evidence: evidenceByPaneKey.get(pty.paneKey),
-        deferAttention: batchAttention
+        paneKey: ptyPaneKey,
+        evidence: evidenceByPaneKey.get(ptyPaneKey),
+        deferAttention: batchAttention,
+        onSettledPastDisplayWindow: (dispatch) =>
+          settledRunIdByPaneKey.set(ptyPaneKey, dispatch.run_id)
       })
       if (context) {
         contexts[pty.paneKey] = context
       }
     }
+    const runWorkerPaneKeys = this.filterLiveRunMembers(db, settledRunIdByPaneKey)
+    const membership = runWorkerPaneKeys.length > 0 ? { runWorkerPaneKeys } : {}
     const entries = Object.entries(contexts)
     if (entries.length === 0) {
-      return undefined
+      return membership
     }
     if (batchAttention) {
       const now = Date.now()
@@ -102,7 +123,25 @@ export class RuntimeAgentOrchestrationProjection {
         }
       }
     }
-    return contexts
+    return { byPaneKey: contexts, ...membership }
+  }
+
+  /** Keeps panes whose run is still coordinated from a live pane; an unbound run has no coordinator. */
+  private filterLiveRunMembers(db: OrchestrationDb, runIdByPaneKey: Map<string, string>): string[] {
+    const liveRunIds = new Set<string>()
+    for (const runId of new Set(runIdByPaneKey.values())) {
+      const run = db.getRun?.(runId)
+      if (
+        run?.legacy === 0 &&
+        run.coordinator_pane_key &&
+        this.deps.isPaneConnected(run.coordinator_pane_key)
+      ) {
+        liveRunIds.add(runId)
+      }
+    }
+    return [...runIdByPaneKey]
+      .filter(([, runId]) => liveRunIds.has(runId))
+      .map(([paneKey]) => paneKey)
   }
 
   getForHandle(
@@ -113,11 +152,14 @@ export class RuntimeAgentOrchestrationProjection {
       paneKey?: string
       evidence?: FleetAgentStatusEvidence
       deferAttention?: boolean
+      /** Receives a settled dispatch too old for the display window, so run membership survives it. */
+      onSettledPastDisplayWindow?: (dispatch: DispatchContextRow) => void
     } = {}
   ): AgentStatusOrchestrationContext | undefined {
-    const { paneKey, evidence, deferAttention = false } = options
+    const { paneKey, evidence, deferAttention = false, onSettledPastDisplayWindow } = options
     const dispatch =
-      db?.getActiveDispatchForTerminal?.(handle, paneKey) ?? this.getRecent(handle, db)
+      db?.getActiveDispatchForTerminal?.(handle, paneKey) ??
+      this.getRecent(handle, db, onSettledPastDisplayWindow)
     if (!dispatch) {
       return undefined
     }
@@ -255,7 +297,11 @@ export class RuntimeAgentOrchestrationProjection {
     return { handle: liveHandle, paneKey: this.deps.getPaneKey(liveHandle) ?? storedPaneKey }
   }
 
-  private getRecent(handle: string, db: OrchestrationDb | null) {
+  private getRecent(
+    handle: string,
+    db: OrchestrationDb | null,
+    onSettledPastDisplayWindow?: (dispatch: DispatchContextRow) => void
+  ) {
     const dispatch = db?.getLatestDispatchForTerminal?.(handle)
     if (
       !dispatch?.completed_at ||
@@ -269,8 +315,10 @@ export class RuntimeAgentOrchestrationProjection {
         ? dispatch.completed_at
         : `${dispatch.completed_at.replace(' ', 'T')}Z`
     )
-    return Number.isFinite(completedAt) && Date.now() - completedAt <= AGENT_STATUS_STALE_AFTER_MS
-      ? dispatch
-      : undefined
+    if (Number.isFinite(completedAt) && Date.now() - completedAt <= AGENT_STATUS_STALE_AFTER_MS) {
+      return dispatch
+    }
+    onSettledPastDisplayWindow?.(dispatch)
+    return undefined
   }
 }

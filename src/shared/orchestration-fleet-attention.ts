@@ -39,6 +39,12 @@ const ACTION_CATEGORIES = new Set<OrchestrationFleetAttentionCategory>([
   'unverifiable'
 ])
 
+export function isOrchestrationFleetActionCategory(
+  category: OrchestrationFleetAttentionCategory
+): boolean {
+  return ACTION_CATEGORIES.has(category)
+}
+
 export function projectOrchestrationFleetAttention(
   facts: OrchestrationFleetAttentionFacts
 ): OrchestrationFleetAttention {
@@ -81,7 +87,7 @@ export function projectOrchestrationFleetAttention(
   }
   return {
     categories,
-    requiresAction: categories.some((category) => ACTION_CATEGORIES.has(category))
+    requiresAction: categories.some(isOrchestrationFleetActionCategory)
   }
 }
 

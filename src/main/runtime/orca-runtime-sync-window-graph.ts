@@ -314,7 +314,8 @@ export class OrcaRuntimeWithSyncWindowGraph extends OrcaRuntimeWithAttachWindow 
       cb()
     }
 
-    const agentOrchestrationByPaneKey = this.agentOrchestrationProjection.buildByPaneKey()
+    const { byPaneKey: agentOrchestrationByPaneKey, runWorkerPaneKeys } =
+      this.agentOrchestrationProjection.buildPublication()
     const nativeChatLaunchDraftResolutions =
       this.getNativeChatLaunchDraftResolutionClientEventSnapshot().map(
         ({ tabId, text, createdAt }) => ({ tabId, text, createdAt })
@@ -322,6 +323,7 @@ export class OrcaRuntimeWithSyncWindowGraph extends OrcaRuntimeWithAttachWindow 
     return {
       ...this.getStatus(),
       ...(agentOrchestrationByPaneKey ? { agentOrchestrationByPaneKey } : {}),
+      ...(runWorkerPaneKeys ? { agentRunWorkerPaneKeys: runWorkerPaneKeys } : {}),
       ...(nativeChatLaunchDraftResolutions.length > 0 ? { nativeChatLaunchDraftResolutions } : {}),
       ...(mobileSessionResyncWorktrees.size > 0
         ? { mobileSessionResyncWorktrees: [...mobileSessionResyncWorktrees] }

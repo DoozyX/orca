@@ -105,6 +105,36 @@ describe('dispatchTerminalNotification in an orchestration run', () => {
     expect(window.api.notifications.dispatch).toHaveBeenCalledTimes(1)
   })
 
+  it('banners a failed worker dispatch once, then only marks its later turns unread', () => {
+    mockState.runtimeAgentOrchestrationByPaneKey = {
+      [PANE_KEY]: {
+        taskId: 'task_failed',
+        dispatchId: 'dispatch_failed',
+        dispatchStatus: 'failed',
+        parentPaneKey: 'tab-root:leaf-root',
+        attention: { categories: ['failure'], requiresAction: true }
+      }
+    }
+
+    dispatchCompletion()
+    dispatchCompletion()
+
+    expect(window.api.notifications.dispatch).toHaveBeenCalledTimes(1)
+    expect(mockState.markAgentCompletionPaneUnread).toHaveBeenCalledTimes(2)
+  })
+
+  it('only marks unread for a run member past the display window', () => {
+    mockState.runtimeAgentRunWorkerPaneKeys = { [PANE_KEY]: true }
+
+    dispatchCompletion()
+
+    expect(window.api.notifications.dispatch).not.toHaveBeenCalled()
+    expect(mockState.markAgentCompletionPaneUnread).toHaveBeenCalledWith(
+      PANE_KEY,
+      'agent-completion'
+    )
+  })
+
   it('delivers a terminal bell for an otherwise quiet worker', () => {
     mockState.runtimeAgentOrchestrationByPaneKey = {
       [PANE_KEY]: {

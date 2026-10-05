@@ -94,6 +94,7 @@ function buildProjection(db: OrchestrationDb): RuntimeAgentOrchestrationProjecti
     makePaneKey: (leaf) => paneByLeaf.get(leaf) ?? '',
     getWorktreeId: () => null,
     getHandleForPaneKey: (paneKey) => (paneKey === COORDINATOR_PANE ? COORDINATOR_HANDLE : null),
+    isPaneConnected: (paneKey) => paneKey === COORDINATOR_PANE,
     getPaneKey: (handle) => (handle === COORDINATOR_HANDLE ? COORDINATOR_PANE : null),
     getDispatchAuthority: (handle) =>
       handle === COORDINATOR_HANDLE

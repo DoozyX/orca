@@ -5,6 +5,7 @@ import type {
   AgentStatusOrchestrationContext
 } from '../../../../shared/agent-status-types'
 import type { TerminalLayoutSnapshot } from '../../../../shared/terminal-tab-types'
+import { resetOrchestrationFailureAnnouncementsForTest } from '../../attention/orchestration-failure-announcement-ledger'
 
 // Why: the mocked store state lives here so each split suite's hoisted `vi.mock` factory can
 // reach it through a lazy dynamic import (hoisted factories cannot close over imports).
@@ -25,6 +26,7 @@ export type NotificationDispatchMockState = {
   retainedAgentsByPaneKey: Record<string, { worktreeId: string }>
   agentStatusByPaneKey: Record<string, AgentStatusEntry>
   runtimeAgentOrchestrationByPaneKey: Record<string, AgentStatusOrchestrationContext>
+  runtimeAgentRunWorkerPaneKeys: Record<string, true>
   worktreesByRepo: Record<
     string,
     {
@@ -79,6 +81,7 @@ function buildNotificationDispatchMockState(): NotificationDispatchMockState {
     retainedAgentsByPaneKey: {},
     agentStatusByPaneKey: { [PANE_KEY]: makeAgentStatus(PANE_KEY) },
     runtimeAgentOrchestrationByPaneKey: {},
+    runtimeAgentRunWorkerPaneKeys: {},
     worktreesByRepo: {
       repo1: [
         { id: 'wt-primary', repoId: 'repo1', displayName: 'master', branch: 'master' },
@@ -102,6 +105,7 @@ function buildNotificationDispatchMockState(): NotificationDispatchMockState {
 /** Rebuilds the mocked store and stubs the notification bridge; returns the fresh state. */
 export function resetNotificationDispatchMockState(): NotificationDispatchMockState {
   vi.clearAllMocks()
+  resetOrchestrationFailureAnnouncementsForTest()
   mockState = buildNotificationDispatchMockState()
   vi.stubGlobal('window', {
     api: { notifications: { dispatch: vi.fn().mockResolvedValue({ delivered: true }) } }

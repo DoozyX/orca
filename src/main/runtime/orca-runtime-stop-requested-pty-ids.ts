@@ -109,6 +109,7 @@ export class OrcaRuntimeWithStopRequestedPtyIds extends OrcaRuntimeWithRuntimeId
     makePaneKey: (leaf) => this.makeRuntimePaneKey(leaf),
     getWorktreeId: (handle) => this.getTerminalWorktreeIdForHandle(handle),
     getHandleForPaneKey: (paneKey) => this.getTerminalHandleForPaneKey(paneKey),
+    isPaneConnected: (paneKey) => this.getPtyRecordForPaneKey(paneKey)?.connected === true,
     getPaneKey: (handle) => this.getPaneKeyForTerminalHandle(handle),
     getDispatchAuthority: (handle) => this.getOrchestrationDispatchAuthority(handle),
     getAgentStatusSnapshot: () => this.getOrchestrationFleetAgentStatusSnapshot()

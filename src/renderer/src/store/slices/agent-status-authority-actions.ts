@@ -72,6 +72,10 @@ export function createAgentStatusAuthorityActions(
             s.runtimeAgentOrchestrationByPaneKey,
             retiredPaneKeySet
           ),
+          runtimeAgentRunWorkerPaneKeys: removePaneKeys(
+            s.runtimeAgentRunWorkerPaneKeys,
+            retiredPaneKeySet
+          ),
           retainedAgentsByPaneKey: removePaneKeys(s.retainedAgentsByPaneKey, retiredPaneKeySet),
           sleepingAgentSessionsByPaneKey: options?.preserveSleepingAgentSession
             ? s.sleepingAgentSessionsByPaneKey
@@ -202,6 +206,11 @@ export function createAgentStatusAuthorityActions(
           : {}),
         runtimeAgentOrchestrationByPaneKey: movePaneKeyedRecord(
           s.runtimeAgentOrchestrationByPaneKey,
+          from,
+          to
+        ),
+        runtimeAgentRunWorkerPaneKeys: movePaneKeyedRecord(
+          s.runtimeAgentRunWorkerPaneKeys,
           from,
           to
         ),
