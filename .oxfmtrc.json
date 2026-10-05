@@ -9,6 +9,7 @@
     "resources/licenses/**",
     ".github/actions/cloud-sql-rollout-lease/**",
     ".anti-slop-plugin/**",
-    "src/main/rate-limits/__fixtures__/bound-claude-home/unreadable/**"
+    "src/main/rate-limits/__fixtures__/bound-claude-home/unreadable/**",
+    "src/main/runtime/__fixtures__/*.timing.json"
   ]
 }

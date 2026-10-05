@@ -78,6 +78,8 @@ async function spawnOptions(
 ) {
   const deps = {
     store: catalog(configDir),
+    // Folder pre-trust writes into the Claude config dir; it is not what this suite covers.
+    getSettings: () => ({ agentWorkspaceTrustEnabled: false }),
     prepareClaudeAuth: async () => ({
       configDir: '/personal',
       envPatch: { CLAUDE_CONFIG_DIR: '/personal' },

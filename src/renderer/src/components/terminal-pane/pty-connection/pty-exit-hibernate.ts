@@ -6,11 +6,11 @@ import {
   deferPtyShutdownExit,
   isHostPtySleepPending
 } from '../pty-shutdown-exit-deferral'
-import { replayIntoTerminal } from '../replay-guard'
 import { POST_REPLAY_MODE_RESET } from '../../../../../shared/terminal-mode-reset-profiles'
 import { isProvenProcessExit } from '../../../../../shared/terminal-exit-cause'
 import { getProviderSessionClaimKey } from '@/lib/sleeping-agent-pane-ownership'
 import type { SleepingAgentSessionRecord } from '../../../../../shared/agent-session-resume'
+import { agentTurnEndedUncleanly } from '../../../../../shared/agent-main-agent-verdict'
 import {
   createGitBashConsoleCapacityDetector,
   type GitBashConsoleCapacityDetector
@@ -25,7 +25,7 @@ export function noteArmsHibernatedPaneWake(record: SleepingAgentSessionRecord): 
   return (
     record.state === 'done' &&
     record.origin !== 'quit' &&
-    !(record.origin === 'live' && record.interrupted === true)
+    !(record.origin === 'live' && agentTurnEndedUncleanly(record))
   )
 }
 
@@ -224,9 +224,6 @@ export function installPtyExitHibernate(session: ConnectPanePtySession): void {
     if (!isUnverifiedExit) {
       session.clearPanePtyFitBinding()
     }
-    // Why: the negotiating application died with its PTY; any replacement
-    // session starts with kitty keyboard flags at zero.
-    session.kittyKeyboardModes.reset()
     const isSuppressedExit =
       session.deps.consumeSuppressedPtyExit(ptyId) ||
       preserveRendererBinding ||
@@ -271,14 +268,7 @@ export function installPtyExitHibernate(session: ConnectPanePtySession): void {
         // frame still has mouse-tracking/bracketed-paste armed, which silently
         // eats every click and keystroke against a dead transport — disarm the
         // modes now and arm the reveal-time wake.
-        replayIntoTerminal(session.pane, session.deps.replayingPanesRef, POST_REPLAY_MODE_RESET, {
-          breadcrumbIdentity: {
-            tabId: session.deps.tabId,
-            worktreeId: session.deps.worktreeId,
-            ptyId
-          },
-          shouldRefreshViewportSynchronously: session.shouldRefreshForegroundSynchronously
-        })
+        session.writeInputModeGround(POST_REPLAY_MODE_RESET)
         session.hibernatedWakeTarget = { ptyId, record: sleepingRecordEntry.record }
         const pendingWakeMatches =
           session.pendingHibernatedWakeTarget?.ptyId === ptyId &&

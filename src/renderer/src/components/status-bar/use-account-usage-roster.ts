@@ -45,6 +45,7 @@ function disconnectedUsage(state: RateLimitState): RateLimitState {
     antigravity: stale(state.antigravity),
     cursor: stale(state.cursor),
     omp: stale(state.omp ?? null),
+    zcode: stale(state.zcode),
     inactiveClaudeAccounts: state.inactiveClaudeAccounts.map((entry) => ({
       ...entry,
       isFetching: false,

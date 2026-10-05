@@ -12,6 +12,8 @@ import { fetchCursorRateLimits } from './cursor-fetcher'
 import { fetchOmpRateLimits } from './omp-usage-fetcher'
 import { readCursorAuthSession } from './cursor-auth'
 import { fetchOpenCodeGoUsage } from './opencode-go-usage-source-selection'
+import { fetchZcodeRateLimits } from './zcode-usage-fetcher'
+import { fetchAntigravityRateLimits } from './antigravity-usage-fetcher'
 import { hasMiniMaxSessionCookie } from '../minimax/minimax-cookie-store'
 
 export type Deferred<T> = {
@@ -97,6 +99,10 @@ export function mockFreshBackgroundProviderFetches(): void {
     ...unavailableProvider('omp'),
     daily: null
   }))
+  vi.mocked(fetchZcodeRateLimits).mockImplementation(async () => unavailableProvider('zcode'))
+  vi.mocked(fetchAntigravityRateLimits).mockImplementation(async () =>
+    unavailableProvider('antigravity')
+  )
 }
 
 /** Shared `beforeEach` body: healthy stubs for every provider the service polls. */
@@ -116,6 +122,8 @@ export function resetRateLimitProviderMocks(): void {
   })
   vi.mocked(fetchCursorRateLimits).mockResolvedValue(unavailableProvider('cursor'))
   vi.mocked(fetchOmpRateLimits).mockResolvedValue({ ...unavailableProvider('omp'), daily: null })
+  vi.mocked(fetchZcodeRateLimits).mockResolvedValue(unavailableProvider('zcode'))
+  vi.mocked(fetchAntigravityRateLimits).mockResolvedValue(unavailableProvider('antigravity'))
   vi.mocked(hasMiniMaxSessionCookie).mockReturnValue(false)
   vi.mocked(readGrokAuthSession).mockReturnValue({ status: 'missing' })
   vi.mocked(readCursorAuthSession).mockResolvedValue({ status: 'missing' })

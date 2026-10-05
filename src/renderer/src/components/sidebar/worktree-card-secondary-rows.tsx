@@ -1,6 +1,7 @@
 import React from 'react'
 import { AlertTriangle } from 'lucide-react'
 
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { translate } from '@/i18n/i18n'
 import { LinearAgentSkillSetupPrompt } from './LinearAgentSkillSetupPrompt'
 import WorktreeCardAgents from './WorktreeCardAgents'
@@ -27,7 +28,8 @@ export function WorktreeCardSecondaryRows({
     remoteBranchConflict,
     showInlineAgentList,
     agentActivityDisplayMode,
-    compactInlineAgentRows
+    compactInlineAgentRows,
+    isDeleting
   } = card
   const { hasMetaRow } = presentation
 
@@ -48,6 +50,27 @@ export function WorktreeCardSecondaryRows({
           </span>
         </div>
       )}
+
+      {/* Why from the row: the host lists a failed delete until it is retried, forgotten or gone.
+          Why a tooltip: the error leads with the path; the Delete dialog shows it inline too. */}
+      {worktree.removalError && !isDeleting ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div
+              className="mt-0.5 flex items-center gap-1.5 text-[11px] leading-snug text-destructive"
+              data-worktree-card-delete-failed=""
+            >
+              <AlertTriangle className="size-3 shrink-0" />
+              <span className="min-w-0 truncate">
+                {translate('auto.components.sidebar.WorktreeCard.deleteFailed', 'Delete failed')}
+              </span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="right" sideOffset={8} className="max-w-72 break-words">
+            {worktree.removalError}
+          </TooltipContent>
+        </Tooltip>
+      ) : null}
 
       {isActive && worktree.linkedLinearIssue ? (
         <LinearAgentSkillSetupPrompt

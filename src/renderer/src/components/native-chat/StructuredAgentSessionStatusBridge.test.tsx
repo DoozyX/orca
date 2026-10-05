@@ -10,6 +10,7 @@ import { buildSubagentChildRows } from '../sidebar/worktree-subagent-child-rows'
 import { resolveAttention } from '../sidebar/smart-attention'
 import { isExplicitAgentStatusFresh } from '@/lib/pane-agent-evidence'
 import type { AgentStatusEntry } from '../../../../shared/agent-status-types'
+import type { AgentChildWorkView } from '../../../../shared/agent-status-child-work-view'
 import type { Tab } from '../../../../shared/tab-types'
 import type { AppState } from '@/store/types'
 import type * as RuntimeRpcClientModule from '@/runtime/runtime-rpc-client'
@@ -47,7 +48,9 @@ vi.mock('@/store', async () => {
 
 vi.mock('@/lib/worktree-runtime-owner', () => ({
   getRuntimeEnvironmentIdForWorktree: (state: { testRuntimeOwner?: string | null }) =>
-    state.testRuntimeOwner ?? null
+    state.testRuntimeOwner ?? null,
+  getExecutionHostIdForWorktree: (state: { testRuntimeOwner?: string | null }) =>
+    state.testRuntimeOwner ? `runtime:${state.testRuntimeOwner}` : 'local'
 }))
 
 vi.mock('@/runtime/runtime-rpc-client', async (importOriginal) => ({
@@ -412,6 +415,48 @@ describe('StructuredAgentSessionStatusBridge', () => {
     ])
   })
 
+  it("lists the session's own shells from the host's child views, not a child agent's", async () => {
+    render(<StructuredAgentSessionStatusBridge />)
+    await waitFor(() => expect(mocks.subscribeStatus).toHaveBeenCalledOnce())
+    const view = (
+      id: string,
+      kind: 'agent' | 'command',
+      extra: Partial<AgentChildWorkView> = {}
+    ): AgentChildWorkView => ({
+      id,
+      providerId: id,
+      kind,
+      state: 'working',
+      membership: 'live',
+      firstObservedAt: 5,
+      observedAt: 6,
+      stoppable: true,
+      invocation: { invocationId: `${id}-run`, generation: 1 },
+      ...extra
+    })
+
+    act(() =>
+      feed().emit({
+        type: 'snapshot',
+        sessions: [
+          summary({
+            status: 'idle',
+            updatedAt: 1,
+            children: [
+              view('child-1', 'agent'),
+              view('shell-main', 'command', { description: 'dev server' }),
+              view('shell-child', 'command', { parentChildWorkId: 'child-1' })
+            ]
+          })
+        ]
+      })
+    )
+
+    expect(statuses()[0]?.monitoredWork).toEqual([
+      { id: 'shell-main', kind: 'command', label: 'dev server', firstObservedAt: 5 }
+    ])
+  })
+
   // A watch loop's age is not how long the agent has been working: the clock restarts when the
   // user's prompt turns a monitoring row into a real turn.
   it('restarts the state clock when monitoring becomes a real turn', async () => {
@@ -715,6 +760,20 @@ describe('StructuredAgentSessionStatusBridge', () => {
     expect(feed().target).toEqual({ kind: 'environment', environmentId: 'env-1' })
   })
 
+  // Two hosts can publish the same workspace id; the tab records which one holds this chat.
+  it("reads a chat's status from the host recorded on its tab, not its workspace", async () => {
+    mocks.store?.setState({
+      testRuntimeOwner: null,
+      unifiedTabsByWorktree: {
+        'wt-1': [{ ...structuredTab, executionHostId: 'runtime:server-1' }]
+      }
+    })
+    render(<StructuredAgentSessionStatusBridge />)
+    await waitFor(() => expect(mocks.subscribeStatus).toHaveBeenCalledOnce())
+
+    expect(feed().target).toEqual({ kind: 'environment', environmentId: 'server-1' })
+  })
+
   it('does not project an unknown provider as Codex', async () => {
     mocks.store?.setState({
       unifiedTabsByWorktree: {
@@ -728,8 +787,8 @@ describe('StructuredAgentSessionStatusBridge', () => {
     expect(mocks.setAgentStatus).not.toHaveBeenCalled()
   })
 
-  it('re-renders a startup-phase reader only when the phase changes', async () => {
-    const phases: (string | null)[] = []
+  it('re-renders a startup reader only when its phase changes', async () => {
+    const phases: ReturnType<typeof useStructuredAgentSessionHostExecutionPhase>[] = []
     function PhaseProbe(): null {
       phases.push(useStructuredAgentSessionHostExecutionPhase('session-1', { kind: 'local' }))
       return null
@@ -746,10 +805,20 @@ describe('StructuredAgentSessionStatusBridge', () => {
       })
     )
     expect(phases).toHaveLength(rendersWhileStarting)
+    // Older hosts (v1.4.218 on) also send which provider child is starting; nothing reads it.
+    const olderHostChild = { hostExecutionChild: { generation: 'child-1', fence: 2 } }
+    act(() =>
+      feed().emit({
+        type: 'status',
+        session: summary({ hostExecutionPhase: 'starting', ...olderHostChild })
+      })
+    )
+    expect(phases).toHaveLength(rendersWhileStarting)
 
     act(() => feed().emit({ type: 'status', session: summary({ hostExecutionPhase: 'ready' }) }))
     expect(phases.at(-1)).toBe('ready')
-    expect(phases).toContain('starting')
+    act(() => feed().emit({ type: 'status', session: summary({ hostExecutionPhase: 'starting' }) }))
+    expect(phases.at(-1)).toBe('starting')
   })
 })
 

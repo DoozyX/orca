@@ -24,7 +24,6 @@ const mockRegisterEagerPtyBuffer = vi.fn()
 const mockSubscribeToPtyData = vi.fn()
 const mockSubscribeToPtyExit = vi.fn()
 const mockPasteDraftWhenAgentReady = vi.fn()
-const mockMarkTrusted = vi.fn()
 const mockDispatchEvent = vi.fn()
 const mockGetAgentLaunchPlatformForRepo = vi.fn<() => NodeJS.Platform>()
 const state = createAgentBackgroundSessionTestState({
@@ -81,7 +80,6 @@ describe('launchAgentBackgroundSession remote runtime and SSH startup delivery',
       updateTabPtyId: mockUpdateTabPtyId,
       dispatchEvent: mockDispatchEvent,
       kill: mockKill,
-      markTrusted: mockMarkTrusted,
       spawn: mockSpawn,
       write: mockWrite
     })
@@ -178,7 +176,8 @@ describe('launchAgentBackgroundSession remote runtime and SSH startup delivery',
 
       expect(mockWrite).toHaveBeenCalledWith(
         'pty-1',
-        "claude '--dangerously-skip-permissions' 'run the automation'\r"
+        "claude '--dangerously-skip-permissions' 'run the automation'\r",
+        'launch'
       )
     } finally {
       vi.useRealTimers()
@@ -215,7 +214,8 @@ describe('launchAgentBackgroundSession remote runtime and SSH startup delivery',
 
       expect(mockWrite).toHaveBeenCalledWith(
         'pty-1',
-        "codex --no-daemon '--dangerously-bypass-approvals-and-sandbox' 'run the automation'\r"
+        "codex --no-daemon '--dangerously-bypass-approvals-and-sandbox' 'run the automation'\r",
+        'launch'
       )
     } finally {
       vi.useRealTimers()
@@ -242,7 +242,8 @@ describe('launchAgentBackgroundSession remote runtime and SSH startup delivery',
 
       expect(mockWrite).toHaveBeenCalledWith(
         'pty-1',
-        "codex --no-daemon '--dangerously-bypass-approvals-and-sandbox'\r"
+        "codex --no-daemon '--dangerously-bypass-approvals-and-sandbox'\r",
+        'launch'
       )
     } finally {
       vi.useRealTimers()
@@ -263,7 +264,8 @@ describe('launchAgentBackgroundSession remote runtime and SSH startup delivery',
 
       expect(mockWrite).toHaveBeenCalledWith(
         'pty-1',
-        "codex --no-daemon '--dangerously-bypass-approvals-and-sandbox'\r"
+        "codex --no-daemon '--dangerously-bypass-approvals-and-sandbox'\r",
+        'launch'
       )
     } finally {
       vi.useRealTimers()
@@ -289,7 +291,8 @@ describe('launchAgentBackgroundSession remote runtime and SSH startup delivery',
 
       expect(mockWrite).toHaveBeenCalledWith(
         'pty-1',
-        "codex --no-daemon '--dangerously-bypass-approvals-and-sandbox' 'run the automation'\r"
+        "codex --no-daemon '--dangerously-bypass-approvals-and-sandbox' 'run the automation'\r",
+        'launch'
       )
     } finally {
       vi.useRealTimers()
@@ -313,7 +316,8 @@ describe('launchAgentBackgroundSession remote runtime and SSH startup delivery',
 
       expect(mockWrite).toHaveBeenCalledWith(
         'pty-1',
-        "codex --no-daemon '--dangerously-bypass-approvals-and-sandbox' 'run the automation'\r"
+        "codex --no-daemon '--dangerously-bypass-approvals-and-sandbox' 'run the automation'\r",
+        'launch'
       )
     } finally {
       vi.useRealTimers()
@@ -354,7 +358,8 @@ describe('launchAgentBackgroundSession remote runtime and SSH startup delivery',
 
       expect(mockWrite).toHaveBeenCalledWith(
         'pty-1',
-        "codex --no-daemon --prefill 'draft from override' '--dangerously-bypass-approvals-and-sandbox'\r"
+        "codex --no-daemon --prefill 'draft from override' '--dangerously-bypass-approvals-and-sandbox'\r",
+        'launch'
       )
     } finally {
       vi.useRealTimers()
@@ -596,11 +601,6 @@ describe('launchAgentBackgroundSession remote runtime and SSH startup delivery',
       prompt: 'run the automation'
     })
 
-    expect(mockMarkTrusted).toHaveBeenCalledWith({
-      preset: 'codex',
-      workspacePath: '/srv/proj',
-      connectionId: 'ssh-1'
-    })
     expect(mockSpawn).toHaveBeenCalledWith(
       expect.objectContaining({ connectionId: 'ssh-1', cwd: '/srv/proj' })
     )

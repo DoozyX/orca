@@ -25,15 +25,6 @@ const E2E_ROOT = resolve(__dirname)
 const MODULE_SCOPE_ENV_WRITE =
   /^(?:process\.env\.[A-Za-z_][A-Za-z0-9_]*\s*(?:\??\|\||\?\?|)=[^=]|process\.env\[|delete\s+process\.env[.[]|Object\.assign\(\s*process\.env)/
 
-/**
- * The count of files writing `process.env` at module scope.
- *
- * May only ever be DECREASED. Raising it is never the fix: the replacement is a fixture option,
- * which is strictly more capable here because it reaches the app launch without touching the
- * worker every other spec shares.
- */
-const MODULE_SCOPE_ENV_WRITER_PIN = 0
-
 function collectE2eFiles(root: string): string[] {
   return scanSourceTree(root, { includeTests: true }).map((file) => file.path)
 }
@@ -48,26 +39,24 @@ function findModuleScopeEnvWrites(path: string): string[] {
     )
 }
 
+// No file may write at module scope. The replacement is a fixture option, which reaches the app
+// launch without touching the worker every other spec shares.
 describe('e2e worker env isolation', () => {
   it('no e2e file writes process.env at module scope', () => {
     const offenders = collectE2eFiles(E2E_ROOT).flatMap(findModuleScopeEnvWrites)
     expect(offenders).toEqual([])
   })
 
-  it('holds the module-scope env writer count at its ratchet', () => {
-    const offenders = collectE2eFiles(E2E_ROOT).flatMap(findModuleScopeEnvWrites)
-    const files = new Set(offenders.map((offender) => offender.split(':')[0]))
-    expect(files.size).toBeLessThanOrEqual(MODULE_SCOPE_ENV_WRITER_PIN)
-  })
-
-  it('scans owned E2E source but not generated release checkouts', () => {
+  it('checks current source while excluding extracted release copies', () => {
     const root = mkdtempSync(join(tmpdir(), 'orca-e2e-env-scan-'))
     try {
-      const generated = join(root, '.cross-version-checkouts', 'v1.4.190')
-      mkdirSync(generated, { recursive: true })
-      writeFileSync(join(root, 'owned.ts'), 'export const owned = true\n')
-      writeFileSync(join(generated, 'copied.ts'), "process.env.LEAK = '1'\n")
-      expect(collectE2eFiles(root)).toEqual([join(root, 'owned.ts')])
+      const cached = join(root, '.cross-version-checkouts')
+      mkdirSync(cached)
+      writeFileSync(join(cached, 'old.ts'), "process.env.ORCA_E2E_X = '1'\n")
+      const source = join(root, 'current.ts')
+      writeFileSync(source, "process.env.ORCA_E2E_X = '1'\n")
+      expect(collectE2eFiles(root)).toEqual([source])
+      expect(findModuleScopeEnvWrites(source)).toHaveLength(1)
     } finally {
       rmSync(root, { recursive: true, force: true })
     }

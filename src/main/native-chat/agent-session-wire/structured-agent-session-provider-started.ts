@@ -24,8 +24,6 @@ export type StructuredAgentSessionProviderStartedContext = {
   serialize: <T>(sessionId: string, task: () => Promise<T>) => Promise<T>
   now: () => number
   publishStatus?: (sessionId: string) => void
-  restartReleaseGrace: (sessionId: string) => void
-  onBarrierError: (sessionId: string, error: unknown) => void
 }
 
 export function settleStructuredAgentSessionProviderStarted(
@@ -44,13 +42,14 @@ export function settleStructuredAgentSessionProviderStarted(
     ) {
       return
     }
-    // Prompts held for the start are written now but open a turn only on their echo; a release
-    // tick in between would stop the child before it runs them.
-    context.restartReleaseGrace(event.sessionId)
     try {
       await persistStartedOptions(context, event)
     } catch (error) {
-      context.onBarrierError(event.sessionId, error)
+      context.deps.logger.warn('recording what a started provider reported failed', {
+        scope: 'provider-started-options',
+        sessionId: event.sessionId,
+        error
+      })
     } finally {
       context.publishStatus?.(event.sessionId)
     }

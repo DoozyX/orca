@@ -8,10 +8,13 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { agentSessionRecordFixture } from '../../../shared/agent-session-record.test-fixture'
 import type { AgentJournalMessageItem } from '../../../shared/agent-session-journal-types'
+import { projectStructuredAgentSessionStatusState } from '../../../shared/structured-agent-session-projection'
 import { digestPayload } from '../agent-session-journal/journal-payload-bounds'
-import { journalDirectoryFor } from '../agent-session-journal/journal-paths'
 import type { ProviderHistoryWindow } from '../agent-session-journal/journal-submission-reconciler'
-import { createTrackedJournalOpener } from '../agent-session-journal/journal-store-test-open'
+import {
+  createTrackedJournalOpener,
+  openTestJournalHostDatabase
+} from '../agent-session-journal/journal-host-database-test-support'
 import type { StructuredAgentSessionAdapter } from './structured-agent-session-adapter'
 import { openTestAttachConversation } from './structured-agent-session-attach-test-conversation'
 import {
@@ -67,10 +70,7 @@ function adapterWith(providerHistoryWindow?: () => Promise<ProviderHistoryWindow
 async function crashedJournal(clientMessageId = 'cm_1', text = 'deploy the thing') {
   const journal = await journals.open({
     identity: IDENTITY,
-    journalDir: journalDirectoryFor(root, {
-      workspaceId: IDENTITY.workspaceId,
-      sessionId: IDENTITY.sessionId
-    })
+    stateDirectory: root
   })
   await journal.appendSubmission({
     clientMessageId,
@@ -85,8 +85,7 @@ async function attach(adapter: StructuredAgentSessionAdapter) {
   const attached = await attachJournal({
     record: RECORD,
     params: PARAMS,
-    journalRoot: root,
-    openConversation: openTestAttachConversation(root),
+    openConversation: openTestAttachConversation(openTestJournalHostDatabase(root)),
     adapter
   })
   journals.track(attached.journal)
@@ -112,9 +111,22 @@ describe('attachJournal restart reconciliation', () => {
     expect(attached.unconfirmedClientMessageIds).toEqual([])
     const submission = attached.journal.submissions()[0]
     expect(submission?.dispatchState).toBe('rejected')
-    expect(submission?.reason).toBe('not_delivered')
+    expect(submission?.rejection).toEqual({ kind: 'notDelivered' })
     // Deciding is not sending: nothing here puts the message back on the wire.
     expect(dispatch).not.toHaveBeenCalled()
+  })
+
+  it('gives a send the provider never received no verdict and no listing', async () => {
+    await crashedJournal()
+    const { adapter } = adapterWith(async () => window())
+
+    const attached = await attach(adapter)
+
+    // Nobody failed: the crash stranded it, so the chat must not read Failed or be listed by it.
+    const { items, submissions } = attached.journal.snapshot()
+    expect(
+      projectStructuredAgentSessionStatusState(items, submissions, RECORD.lease.runtimeFence)
+    ).toMatchObject({ summary: { status: null }, latestRequest: null })
   })
 
   it('still reports a submission unconfirmed when the window cannot decide it', async () => {
@@ -153,10 +165,7 @@ describe('attachJournal restart reconciliation', () => {
   it('leaves a message the open conversation still has queued alone (W4′e)', async () => {
     const journal = await journals.open({
       identity: IDENTITY,
-      journalDir: journalDirectoryFor(root, {
-        workspaceId: IDENTITY.workspaceId,
-        sessionId: IDENTITY.sessionId
-      })
+      stateDirectory: root
     })
     await journal.appendSubmission({
       clientMessageId: 'queued',
@@ -171,8 +180,6 @@ describe('attachJournal restart reconciliation', () => {
     const attached = await attachJournal({
       record: RECORD,
       params: PARAMS,
-      journalRoot: root,
-
       adapter,
       openConversation: async () => journal
     })

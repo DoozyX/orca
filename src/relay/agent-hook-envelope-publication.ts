@@ -1,8 +1,9 @@
 import {
   AGENT_HOOK_NOTIFICATION_METHOD,
   AGENT_HOOK_SHED_FIELDS_KEY,
-  createShedMonitoredWorkField,
-  createShedSubagentsField,
+  AGENT_HOOK_SHED_ORDER,
+  shedFieldWireName,
+  type AgentHookUnavailableEnvelope,
   type AgentHookRelayEnvelope
 } from '../shared/agent-hook-relay'
 import type { RelayDispatcher } from './dispatcher'
@@ -14,13 +15,7 @@ import type { RelayDispatcher } from './dispatcher'
 // only because it is cheaper to rebuild, NOT because it is cosmetic: a missing roster blanks live
 // subagent rows and unblocks pane hibernation, which is why shed fields are named on the wire —
 // `restoreShedStatusFields` re-attaches the restorable ones from Orca's cached payload.
-// monitoredWork goes first: display-only, and the monitoring state itself travels in workingMode.
-const SHED_ORDER = [
-  'monitoredWork',
-  'lastAssistantMessage',
-  'subagents',
-  'interactivePrompt'
-] as const
+const SHED_ORDER = AGENT_HOOK_SHED_ORDER
 
 // Why: these envelopes are fire-and-forget state snapshots — no ack, no producer-side retry — and
 // the only other delivery path is the reattach replay. A queue-full drop would otherwise leave the
@@ -163,10 +158,25 @@ function logUnsendableEnvelope(
  *  background; one that no shedding can fit is dropped. */
 export function publishAgentHookEnvelope(
   dispatcher: RelayDispatcher,
-  envelope: AgentHookRelayEnvelope
+  envelope: AgentHookRelayEnvelope | AgentHookUnavailableEnvelope
 ): void {
   const clientIds = dispatcher.activeClientIds()
   if (clientIds.length === 0) {
+    return
+  }
+  if (envelope.payload === null) {
+    const params = { ...envelope }
+    if (!fitsProducerFrame(dispatcher, params)) {
+      clearPendingEnvelope(dispatcher, envelope.paneKey)
+      logUnsendableEnvelope(dispatcher, params, clientIds)
+      return
+    }
+    const rejected = publishToClients(dispatcher, params, clientIds)
+    if (rejected.length === 0) {
+      clearPendingEnvelope(dispatcher, envelope.paneKey)
+    } else {
+      setPendingEnvelope(dispatcher, envelope.paneKey, params, rejected)
+    }
     return
   }
   // Why: a fan-out must choose one payload before it writes anything, or the first client keeps a
@@ -224,12 +234,7 @@ export function publishAgentHookEnvelope(
     // Why: the hook server caches envelopes and replays them after --connect, so shedding in place
     // would permanently strip the cached copy too.
     candidate = { ...candidate, payload: { ...candidate.payload } }
-    const shedField =
-      field === 'subagents'
-        ? createShedSubagentsField(candidate.payload.subagents ?? [])
-        : field === 'monitoredWork'
-          ? createShedMonitoredWorkField(candidate.payload.monitoredWork ?? [])
-          : field
+    const shedField = shedFieldWireName(field, candidate.payload)
     delete candidate.payload[field]
     shedFields.push(shedField)
   }

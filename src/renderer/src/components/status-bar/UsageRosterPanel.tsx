@@ -5,15 +5,37 @@ import { SettingsSegmentedControl } from '@/components/settings/SettingsFormCont
 import { useResetCountdownClock } from '@/hooks/useResetCountdownClock'
 import { translate } from '@/i18n/i18n'
 import type { ProviderRateLimits } from '../../../../shared/rate-limit-types'
-import type { UsagePercentageDisplay } from '../../../../shared/usage-percentage-display'
+import {
+  clampUsedPercent,
+  type UsagePercentageDisplay
+} from '../../../../shared/usage-percentage-display'
 import type { StatusBarUsageMode } from '../../../../shared/status-bar-usage-mode'
 import { getUsageRosterRowState } from './usage-roster-row-state'
 import { UsageRow, usedSections } from './UsageRow'
 import { entryRateLimits, providerUsageEntry, type AccountUsageEntry } from './account-usage-entry'
 
-export { UsageRow, getTightestUsageSection } from './UsageRow'
+export { UsageRow, getTightestUsageSection, getUsageHeadlineSection } from './UsageRow'
 type ProviderId = ProviderRateLimits['provider']
 const EMPTY_PROVIDERS: ProviderRateLimits[] = []
+
+function entryMaxUsed(entry: AccountUsageEntry): number {
+  const sections = usedSections(entryRateLimits(entry))
+  return sections.length > 0
+    ? Math.max(...sections.map((s) => clampUsedPercent(s.window.usedPercent)))
+    : 0
+}
+
+// Worst-first so the agent nearest a limit sits on top; a stable sort keeps each provider's accounts together.
+function sortEntriesByProviderUsage(entries: AccountUsageEntry[]): AccountUsageEntry[] {
+  const providerMaxUsed = new Map<ProviderId, number>()
+  for (const entry of entries) {
+    const used = Math.max(providerMaxUsed.get(entry.provider) ?? 0, entryMaxUsed(entry))
+    providerMaxUsed.set(entry.provider, used)
+  }
+  return [...entries].sort(
+    (a, b) => (providerMaxUsed.get(b.provider) ?? 0) - (providerMaxUsed.get(a.provider) ?? 0)
+  )
+}
 
 // Shared account roster; explicit switching stays in the detail menus.
 export function UsageRosterPanel({
@@ -58,6 +80,7 @@ export function UsageRosterPanel({
       usedSections(entryRateLimits(entry)).map((section) => section.window.resetsAt)
     )
   )
+  const sorted = sortEntriesByProviderUsage(entries)
 
   return (
     <div className="w-[360px] text-xs">
@@ -110,7 +133,7 @@ export function UsageRosterPanel({
               label: translate('auto.components.status.bar.UsageRosterPanel.compact', 'Compact'),
               tooltip: translate(
                 'auto.components.status.bar.UsageRosterPanel.compactTooltip',
-                'Condensed usage: only the tightest window'
+                'Condensed usage: one summary per provider'
               )
             }
           ]}
@@ -118,7 +141,7 @@ export function UsageRosterPanel({
       </div>
       <div className="border-t border-border/70" />
       <div className="max-h-[360px] overflow-y-auto scrollbar-sleek">
-        {entries.map((entry) => {
+        {sorted.map((entry) => {
           const p = entryRateLimits(entry)
           const state = getUsageRosterRowState(p, usedSections(p).length > 0)
           const showSignInAction = state.kind === 'sign-in' && canSignIn(p.provider)

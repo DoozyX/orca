@@ -130,14 +130,14 @@ function createDeps(overrides: Record<string, unknown> = {}) {
 }
 
 describe('connectPanePty', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.resetModules()
     vi.clearAllMocks()
     transportFactoryQueue = []
     createdTransportOptions = []
     storeSubscribers = []
     mockStoreState = createInitialStoreState(() => mockStoreState)
-    installTerminalTestGlobals()
+    await installTerminalTestGlobals()
   })
 
   afterEach(async () => {
@@ -738,7 +738,7 @@ describe('connectPanePty', () => {
     sendTerminalInputThroughPane(pane, '\x1b[O')
     expect(mockStoreState.recordTerminalInput).not.toHaveBeenCalled()
     // The reply still reaches the shell; only the activity recording is gated.
-    expect(transport.sendInput).toHaveBeenCalledWith('\x1b[O')
+    expect(transport.sendInput).toHaveBeenCalledWith('\x1b[O', 'query-reply')
 
     // Real user input fires the core signal and records activity.
     for (const listener of userInputListeners) {

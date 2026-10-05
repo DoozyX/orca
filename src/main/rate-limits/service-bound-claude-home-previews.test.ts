@@ -46,6 +46,8 @@ vi.mock('./minimax/minimax-fetcher', () => ({
 }))
 
 vi.mock('./omp-usage-fetcher', () => ({ fetchOmpRateLimits: vi.fn() }))
+vi.mock('./zcode-usage-fetcher', () => ({ fetchZcodeRateLimits: vi.fn() }))
+vi.mock('./antigravity-usage-fetcher', () => ({ fetchAntigravityRateLimits: vi.fn() }))
 vi.mock('./grok-fetcher', () => ({
   fetchGrokRateLimits: vi.fn()
 }))

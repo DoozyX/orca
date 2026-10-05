@@ -1,5 +1,4 @@
 import { RateLimitServiceFullCyclePreparation } from './service-full-cycle-preparation'
-import { deriveAntigravityRateLimits } from '../antigravity-usage-mirror'
 import { settleSiblingProviderResult } from './service-sibling-provider-result'
 import type { ProviderRateLimits } from './service-types'
 
@@ -26,6 +25,8 @@ export abstract class RateLimitServiceFullCycleApplication extends RateLimitServ
       opencodeGeneration,
       miniMaxConfigChanged,
       miniMaxGeneration,
+      zcodeConfigChanged,
+      zcodeGeneration,
       claudeFetchGated,
       results: [
         claudeResult,
@@ -37,7 +38,9 @@ export abstract class RateLimitServiceFullCycleApplication extends RateLimitServ
       ],
       grokResultPromise,
       cursorResultPromise,
-      ompResultPromise
+      ompResultPromise,
+      zcodeResultPromise,
+      antigravityResultPromise
     } = prepared
     if (signal.aborted) {
       return
@@ -81,9 +84,6 @@ export abstract class RateLimitServiceFullCycleApplication extends RateLimitServ
               geminiResult.reason instanceof Error ? geminiResult.reason.message : 'Unknown error',
             status: 'error'
           } satisfies ProviderRateLimits)
-
-    // Why: Antigravity can only borrow a *successful* Gemini read; a Gemini failure is not an Antigravity failure.
-    const antigravity = deriveAntigravityRateLimits(gemini)
 
     const opencodeGo =
       opencodeGoResult.status === 'fulfilled'
@@ -159,7 +159,6 @@ export abstract class RateLimitServiceFullCycleApplication extends RateLimitServ
       this.trackActiveFailureStreak('codex', codex)
     }
     this.trackActiveFailureStreak('gemini', gemini)
-    this.trackActiveFailureStreak('antigravity', antigravity)
     if (shouldApplyOpencode) {
       this.trackActiveFailureStreak('opencode-go', opencodeGo)
     }
@@ -186,7 +185,6 @@ export abstract class RateLimitServiceFullCycleApplication extends RateLimitServ
           : this.applyStalePolicy(opencodeGo, previousState.opencodeGo)
         : this.state.opencodeGo,
       kimi: this.applyStalePolicy(kimi, previousState.kimi),
-      antigravity: this.applyStalePolicy(antigravity, previousState.antigravity),
       minimax: shouldApplyMiniMax
         ? miniMaxConfigChanged
           ? miniMax
@@ -194,17 +192,23 @@ export abstract class RateLimitServiceFullCycleApplication extends RateLimitServ
         : this.state.minimax
     })
 
-    const [grokSettled, cursorSettled, ompSettled] = await Promise.all([
-      grokResultPromise,
-      cursorResultPromise,
-      ompResultPromise
-    ])
+    const [grokSettled, cursorSettled, ompSettled, zcodeSettled, antigravitySettled] =
+      await Promise.all([
+        grokResultPromise,
+        cursorResultPromise,
+        ompResultPromise,
+        zcodeResultPromise,
+        antigravityResultPromise
+      ])
     if (signal.aborted) {
       return
     }
     const grok = settleSiblingProviderResult('grok', grokSettled)
     const cursor = settleSiblingProviderResult('cursor', cursorSettled)
     const omp = settleSiblingProviderResult('omp', ompSettled)
+    const zcode = settleSiblingProviderResult('zcode', zcodeSettled)
+    const shouldApplyZcode = zcodeGeneration === this.zcodeFetchGeneration
+    const antigravity = settleSiblingProviderResult('antigravity', antigravitySettled)
     // Why: the stale policy keeps a recent snapshot through a failed refresh, but
     // a snapshot belonging to a different Cursor account must not survive the
     // switch — the Accounts pane would name the new account beside the old
@@ -219,9 +223,19 @@ export abstract class RateLimitServiceFullCycleApplication extends RateLimitServ
     const ompModel = omp.usageMetadata?.modelIdentity
     const previousOmpModel = previousState.omp?.usageMetadata?.modelIdentity
     const ompModelMatches = ompModel !== undefined && ompModel === previousOmpModel
+    const previousZcodeAccount = previousState.zcode?.usageMetadata?.authProvenance
+    const zcodeAccount = zcode.usageMetadata?.authProvenance
+    const sameZcodeAccount =
+      previousZcodeAccount !== undefined &&
+      zcodeAccount !== undefined &&
+      previousZcodeAccount === zcodeAccount
     this.trackActiveFailureStreak('grok', grok)
     this.trackActiveFailureStreak('cursor', cursor)
     this.trackActiveFailureStreak('omp', omp)
+    if (shouldApplyZcode) {
+      this.trackActiveFailureStreak('zcode', zcode)
+    }
+    this.trackActiveFailureStreak('antigravity', antigravity)
     this.updateState({
       ...this.state,
       grok: this.applyStalePolicy(grok, previousState.grok),
@@ -229,7 +243,15 @@ export abstract class RateLimitServiceFullCycleApplication extends RateLimitServ
       omp:
         omp.status === 'error' && !ompModelMatches
           ? omp
-          : this.applyStalePolicy(omp, previousState.omp)
+          : this.applyStalePolicy(omp, previousState.omp),
+      zcode: !shouldApplyZcode
+        ? this.state.zcode
+        : zcodeConfigChanged
+          ? zcode
+          : zcode.status === 'error' && !sameZcodeAccount
+            ? zcode
+            : this.applyStalePolicy(zcode, previousState.zcode),
+      antigravity: this.applyStalePolicy(antigravity, previousState.antigravity)
     })
   }
 }

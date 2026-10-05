@@ -42,7 +42,14 @@ vi.mock('@/components/ui/dropdown-menu', () => ({
 vi.mock('./use-status-bar-controller', () => ({
   useStatusBarController: () => ({
     compact: state.narrow,
-    iconOnly: state.narrow,
+    usageTightestOnly: state.narrow,
+    segmentsIconOnly: state.narrow,
+    collapseUsage: state.narrow,
+    collapsedUsageProviders: [],
+    overflowing: false,
+    barRef: () => {},
+    usageRef: () => {},
+    segmentsRef: () => {},
     rosterProviders: [limits(8)],
     usageEntries: ['personal@example.test', 'work@example.test'].map((label, index) => ({
       key: `local:claude:${index}`,

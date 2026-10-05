@@ -1,3 +1,4 @@
+import type { AgentProcessPresence } from './agent-process-presence'
 // Why: defines the wire shape carried by the JSON-RPC `agent.hook` notification
 // the relay sends to Orca. Consumed by `src/relay/agent-hook-server.ts` (which
 // produces it after the shared listener parses an HTTP POST) and by
@@ -38,6 +39,10 @@ import type { AgentHookTarget } from './agent-hook-types'
 const AGENT_HOOK_SOURCES = [
   'claude',
   'codex',
+  'qoder',
+  'qoder-cn',
+  'qwen-code',
+  'codebuddy',
   'gemini',
   'antigravity',
   'amp',
@@ -56,7 +61,9 @@ const AGENT_HOOK_SOURCES = [
   'devin',
   'kimi',
   'muse',
-  'zcode'
+  'zcode',
+  'dsh',
+  'jcode'
 ] as const
 
 export type AgentHookSource = (typeof AGENT_HOOK_SOURCES)[number]
@@ -75,6 +82,7 @@ export const REMOTE_AGENT_HOOK_ENV = 'remote' as const
 export type AgentHookRelayEnvelope = {
   source: AgentHookSource
   paneKey: string
+  agentPresence?: AgentProcessPresence
   /** Ephemeral Orca launch identity stamped into the PTY env for this process. */
   launchToken?: string
   tabId?: string
@@ -119,7 +127,20 @@ export type AgentHookRelayEnvelope = {
   version?: string
   /** Pre-normalized status payload from the relay's `normalizeHookPayload`.
    *  Orca's `ingestRemote` validates it again at the SSH trust boundary. */
+  evidenceAgeMs?: number
   payload: ParsedAgentStatusPayload
+}
+
+/** Older clients ignore the null payload; newer clients clear only the selected projection. */
+export type AgentHookUnavailableEnvelope = {
+  source: 'opencode' | 'opencode2'
+  paneKey: string
+  tabId?: string
+  worktreeId?: string
+  launchToken?: string
+  connectionId: null
+  statusUnavailable: true
+  payload: null
 }
 
 /** JSON-RPC notification method name carried over the relay control channel. */
@@ -161,6 +182,28 @@ export function createShedMonitoredWorkField(work: readonly AgentMonitoredWorkSn
   ])
   const digest = createHash('sha256').update(JSON.stringify(stable)).digest('base64url')
   return `${AGENT_HOOK_SHED_MONITORED_WORK_DIGEST_PREFIX}${digest}`
+}
+
+/** Shed order for oversized relay frames; see `src/relay/agent-hook-envelope-publication.ts`.
+ *  monitoredWork goes first: display-only, and the monitoring state itself travels in workingMode. */
+export const AGENT_HOOK_SHED_ORDER = [
+  'monitoredWork',
+  'lastAssistantMessage',
+  'subagents',
+  'interactivePrompt'
+] as const
+
+/** The wire name for a shed field; rosters carry their digest so Orca can restore them. */
+export function shedFieldWireName(
+  field: (typeof AGENT_HOOK_SHED_ORDER)[number],
+  payload: Pick<ParsedAgentStatusPayload, 'subagents' | 'monitoredWork'>
+): string {
+  if (field === 'subagents') {
+    return createShedSubagentsField(payload.subagents ?? [])
+  }
+  return field === 'monitoredWork'
+    ? createShedMonitoredWorkField(payload.monitoredWork ?? [])
+    : field
 }
 
 function hasMatchingShedSubagentsField(
