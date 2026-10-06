@@ -10,6 +10,10 @@ import { getProjectGroupHostId } from '../../../../store/slices/project-group-ow
 export type MergedProjectGroup = {
   primary: ProjectGroup
   members: readonly ProjectGroup[]
+  /** What the sidebar keys its header, buckets and collapse state on: the primary's
+   *  id, host-qualified only when a second merged row's primary reuses that id.
+   *  Ownership and mutations keep routing through `primary`, never through this. */
+  rowId: string
 }
 
 /** Merged rows plus the lookups that map a raw (host, id) pair back onto one. */
@@ -19,13 +23,21 @@ export type MergedProjectGroupIndex = {
   /** Id-only fallback for callers with no host in hand. A null value marks an id
    *  that two hosts reuse for different merged rows, where guessing would be wrong. */
   byAmbiguousId: ReadonlyMap<string, MergedProjectGroup | null>
+  byRowId: ReadonlyMap<string, MergedProjectGroup>
+}
+
+/** Raw (host, id) lookup over the unmerged groups, for walks up a parent chain:
+ *  parentGroupId is per-host, so a bare-id map can cross to another host's group. */
+export type ProjectGroupHostIndex = {
+  byHostScopedKey: ReadonlyMap<string, ProjectGroup>
+  byAmbiguousId: ReadonlyMap<string, ProjectGroup | null>
 }
 
 function getHostScopedKey(group: ProjectGroup): string {
   return toHostScopedKey(getProjectGroupHostId(group), group.id)
 }
 
-function toHostScopedKey(hostId: string, groupId: string): string {
+export function toHostScopedKey(hostId: string, groupId: string): string {
   return `${hostId}\u0000${groupId}`
 }
 
@@ -91,6 +103,24 @@ function isPreferredPrimary(candidate: ProjectGroup, current: ProjectGroup): boo
  * host are two real groups the user can tell apart and move projects between, so
  * an identity any single host claims twice is left entirely unmerged.
  */
+type MergedProjectGroupRow = Omit<MergedProjectGroup, 'rowId'>
+
+/** A row id must survive two hosts reusing one group id for unrelated rows: both
+ *  primaries would otherwise render under the same header key and share a bucket. */
+function withMergedRowIds(rows: readonly MergedProjectGroupRow[]): MergedProjectGroup[] {
+  const primaryIdCounts = new Map<string, number>()
+  for (const row of rows) {
+    primaryIdCounts.set(row.primary.id, (primaryIdCounts.get(row.primary.id) ?? 0) + 1)
+  }
+  return rows.map((row) => ({
+    ...row,
+    rowId:
+      (primaryIdCounts.get(row.primary.id) ?? 0) > 1
+        ? getHostScopedKey(row.primary)
+        : row.primary.id
+  }))
+}
+
 export function mergeProjectGroupsAcrossHosts(
   projectGroups: readonly ProjectGroup[]
 ): MergedProjectGroup[] {
@@ -109,7 +139,7 @@ export function mergeProjectGroupsAcrossHosts(
     identityOrder.push(identity)
   }
 
-  const merged: MergedProjectGroup[] = []
+  const merged: MergedProjectGroupRow[] = []
   for (const identity of identityOrder) {
     const members = membersByIdentity.get(identity) ?? []
     const hostIds = new Set<ExecutionHostId>()
@@ -135,7 +165,7 @@ export function mergeProjectGroupsAcrossHosts(
     }
     merged.push({ primary, members })
   }
-  return merged
+  return withMergedRowIds(merged)
 }
 
 const mergedIndexCache = new WeakMap<object, MergedProjectGroupIndex>()
@@ -152,7 +182,9 @@ export function buildMergedProjectGroupIndex(
   const merged = mergeProjectGroupsAcrossHosts(projectGroups)
   const byHostScopedKey = new Map<string, MergedProjectGroup>()
   const byAmbiguousId = new Map<string, MergedProjectGroup | null>()
+  const byRowId = new Map<string, MergedProjectGroup>()
   for (const entry of merged) {
+    byRowId.set(entry.rowId, entry)
     for (const member of entry.members) {
       byHostScopedKey.set(getHostScopedKey(member), entry)
       const seen = byAmbiguousId.get(member.id)
@@ -164,7 +196,7 @@ export function buildMergedProjectGroupIndex(
       }
     }
   }
-  const index = { merged, byHostScopedKey, byAmbiguousId }
+  const index = { merged, byHostScopedKey, byAmbiguousId, byRowId }
   mergedIndexCache.set(projectGroups, index)
   return index
 }
@@ -176,21 +208,66 @@ export function findMergedProjectGroup(
   groupId: string,
   hostId?: ExecutionHostId
 ): MergedProjectGroup | undefined {
-  if (hostId) {
-    const hostScoped = index.byHostScopedKey.get(toHostScopedKey(hostId, groupId))
-    if (hostScoped) {
-      return hostScoped
-    }
+  // Why no id-only fallback here: a host-scoped miss means the *owning* host's copy
+  // is not indexed, and another host's same-id group is a different group entirely.
+  if (hostId !== undefined) {
+    return index.byHostScopedKey.get(toHostScopedKey(hostId, groupId))
   }
   return index.byAmbiguousId.get(groupId) ?? undefined
 }
 
-/** Raw group id -> the id the sidebar keys its header and collapse state on.
+/** Raw group id -> the row id the sidebar keys its header and collapse state on.
  *  Falls back to the raw id so callers stay correct for ids the index never saw. */
 export function resolveMergedProjectGroupId(
   index: MergedProjectGroupIndex,
   groupId: string,
   hostId?: ExecutionHostId
 ): string {
-  return findMergedProjectGroup(index, groupId, hostId)?.primary.id ?? groupId
+  return findMergedProjectGroup(index, groupId, hostId)?.rowId ?? groupId
+}
+
+/** The merged row behind a rendered row key, which carries no host of its own. */
+export function findMergedProjectGroupByRowId(
+  index: MergedProjectGroupIndex,
+  rowId: string
+): MergedProjectGroup | undefined {
+  return index.byRowId.get(rowId)
+}
+
+const hostIndexCache = new WeakMap<object, ProjectGroupHostIndex>()
+
+/** Memoized on the project-group array identity, like the merged index above. */
+export function buildProjectGroupHostIndex(
+  projectGroups: readonly ProjectGroup[]
+): ProjectGroupHostIndex {
+  const cached = hostIndexCache.get(projectGroups)
+  if (cached) {
+    return cached
+  }
+  const byHostScopedKey = new Map<string, ProjectGroup>()
+  const byAmbiguousId = new Map<string, ProjectGroup | null>()
+  for (const group of projectGroups) {
+    byHostScopedKey.set(getHostScopedKey(group), group)
+    const seen = byAmbiguousId.get(group.id)
+    if (seen === undefined) {
+      byAmbiguousId.set(group.id, group)
+    } else if (seen !== group) {
+      byAmbiguousId.set(group.id, null)
+    }
+  }
+  const index = { byHostScopedKey, byAmbiguousId }
+  hostIndexCache.set(projectGroups, index)
+  return index
+}
+
+/** Same host rule as findMergedProjectGroup: a known host never falls back to an id. */
+export function findProjectGroupByHost(
+  index: ProjectGroupHostIndex,
+  groupId: string,
+  hostId?: ExecutionHostId
+): ProjectGroup | undefined {
+  if (hostId !== undefined) {
+    return index.byHostScopedKey.get(toHostScopedKey(hostId, groupId))
+  }
+  return index.byAmbiguousId.get(groupId) ?? undefined
 }
