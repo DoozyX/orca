@@ -113,6 +113,9 @@ if (process.argv[1] && resolve(process.argv[1]) === resolve(import.meta.filename
       expectedVersion: identity.version
     })
     console.log(`[build:mac:install] Installed ${result.version} at ${result.destinationApp}`)
+    console.log(
+      'Stopped installed Computer Use agents; the next inspection launches the new helper.'
+    )
     console.log('Restart Orca when ready to use the new build. No backup was retained.')
   }
 }

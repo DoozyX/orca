@@ -10,7 +10,7 @@ import {
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, expect, it } from 'vitest'
-import { installLocalMacApp } from './install-local-mac-app.mjs'
+import { installLocalMacApp, stopInstalledComputerUseHelpers } from './install-local-mac-app.mjs'
 
 const roots = []
 afterEach(() => {
@@ -41,6 +41,7 @@ function fixture() {
     sourceApp,
     destinationApp,
     platform: 'darwin',
+    stopHelperProcesses: () => {},
     copyApp: (source, target) => cpSync(source, target, { recursive: true }),
     verifyApp: versionOf
   }
@@ -53,6 +54,54 @@ it('installs the verified build and retains no backup or staging directory', () 
   expect(versionOf(destinationApp)).toBe('1.4.207-local.200.abc')
   expect(readdirSync(applications)).toEqual(['Orca.app'])
   expect(result.version).toBe('1.4.207-local.200.abc')
+})
+
+it('stops the old helper only after the replacement has been verified', () => {
+  const { options, destinationApp } = fixture()
+  let helperRunning = true
+  installLocalMacApp({
+    ...options,
+    stopHelperProcesses: (app) => {
+      expect(app).toBe(destinationApp)
+      expect(versionOf(app)).toBe('1.4.207-local.200.abc')
+      helperRunning = false
+    }
+  })
+  expect(helperRunning).toBe(false)
+})
+
+it('leaves the helper running when installation rolls back', () => {
+  const { options, destinationApp } = fixture()
+  let helperRunning = true
+  expect(() =>
+    installLocalMacApp({
+      ...options,
+      verifyApp: (app) => {
+        if (app === destinationApp) {
+          throw new Error('Installed verification failed')
+        }
+        return versionOf(app)
+      },
+      stopHelperProcesses: () => {
+        helperRunning = false
+      }
+    })
+  ).toThrow('Installed verification failed')
+  expect(helperRunning).toBe(true)
+})
+
+it('reports helper stop failures without rolling back the verified installation', () => {
+  const { options, destinationApp, applications } = fixture()
+  expect(() =>
+    installLocalMacApp({
+      ...options,
+      stopHelperProcesses: () => {
+        throw new Error('Helper stop failed')
+      }
+    })
+  ).toThrow('Helper stop failed')
+  expect(versionOf(destinationApp)).toBe('1.4.207-local.200.abc')
+  expect(readdirSync(applications)).toEqual(['Orca.app'])
 })
 
 it('leaves the installed app intact when source verification fails', () => {
@@ -134,4 +183,47 @@ it('rejects non-macOS hosts without replacing anything', () => {
   const { options, destinationApp } = fixture()
   expect(() => installLocalMacApp({ ...options, platform: 'linux' })).toThrow(/macOS/)
   expect(versionOf(destinationApp)).toBe('1.4.207-local.100.abc')
+})
+
+it('stops only agent processes from the exact installed helper path', () => {
+  const app = '/Applications/Orca (Local).app'
+  const executable = join(
+    app,
+    'Contents',
+    'Resources',
+    'Orca Computer Use.app',
+    'Contents',
+    'MacOS',
+    'orca-computer-use-macos'
+  )
+  const otherCommands = [
+    `${executable} --permission-status-file status.json`,
+    `${executable.replace('Orca (Local).app', 'Orca (Local)Xapp')} --agent socket`,
+    `/dev${executable} --agent socket`,
+    `shell ${executable} --agent socket`
+  ]
+  let running = [`${executable} --agent socket --token-file token`, ...otherCommands]
+  stopInstalledComputerUseHelpers(app, (command, args) => {
+    if (command !== '/usr/bin/pkill' || args[0] !== '-TERM' || args[1] !== '-f') {
+      throw new Error('Unexpected stop command')
+    }
+    const pattern = new RegExp(args[2])
+    running = running.filter((processCommand) => !pattern.test(processCommand))
+  })
+  expect(running).toEqual(otherCommands)
+})
+
+it('accepts no running helper but reports process-tool failures', () => {
+  expect(() =>
+    stopInstalledComputerUseHelpers('/Applications/Orca.app', () => {
+      throw Object.assign(new Error('No matches'), { status: 1 })
+    })
+  ).not.toThrow()
+  expect(() =>
+    stopInstalledComputerUseHelpers('/Applications/Orca.app', () => {
+      throw Object.assign(new Error('Permission denied'), { status: 2 })
+    })
+  ).toThrow(
+    'Orca was installed, but its Computer Use helper could not be stopped: Permission denied'
+  )
 })
