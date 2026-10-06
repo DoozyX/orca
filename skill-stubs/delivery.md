@@ -30,3 +30,39 @@ parking and reporting, load only the reference that gate names with
 `ORCA skills get delivery --full` and read the named bundled reference before acting.
 
 <!-- shared: no-guessing -->
+
+## Automatic workspace organization
+
+This placement policy supplements the loaded guide and its handoff defaults.
+An injected Task/Dispatch uses its assigned workspace; these rules are for coordinators.
+
+- Every effort has one named parent workspace for its coordinator and worker tree.
+  Read `<root-run-directory>/workspace.md` from brainstorming and reuse the exact
+  host, workspace id/path, and run directory. Do not create a second root for delivery
+  or reuse another effort merely because its product name matches.
+- For an issue or task-list entrance without that record, load `worktree-safety`
+  and `orca-cli`, discover the target, and create an independent parent using
+  `worktree create --repo <exact-selector> --name <effort-slug> --no-parent --setup skip
+  --json`, without activation or an agent. Give it a product/effort display name with
+  `worktree set`, then record its exact identity in `workspace.md` beside the run's
+  design/orchestrate directories. These are workspace trees, not Project Groups;
+  never move the entire repository to organize one effort.
+- Start a new coordinator terminal in that parent through the `orca-cli` handoff
+  flow before opening the Run or launching workers. When already there, continue.
+  Pass the approved inputs, workspace record, and this placement policy in the
+  handoff. Do not relocate or restart an existing live coordinator.
+- Verify the coordinator's workspace before dispatch. Local worker checkouts use
+  `--worktree new-child`; workers sharing an existing checkout use its exact selector
+  within this effort. Reuse existing safe checkouts; not every reviewer needs a new
+  worktree. Keep worker lists scoped with `--run <run-id>`.
+- When adopting existing work, verify ownership first and use
+  `worktree set --worktree id:<child-id> --parent-worktree id:<parent-id> --json`.
+  Change only Orca parent metadata; preserve paths, branches, and running terminals.
+  Record the before/after mapping. A coordinator still running in a shared root is
+  an explicit placement limitation, not permission to move its session.
+- Remote workers follow orchestration's exact remote placement rules: remote
+  `new-child` is invalid. Keep their Dispatches in this Run and record their host
+  and workspace explicitly; do not claim cross-host sidebar nesting.
+- Folder workspaces use the supported folder flow and exact workspace selectors,
+  never Git worktree creation. If an effort's parent cannot be verified, report the
+  placement blocker before launching workers; do not silently mix it into `main`.
