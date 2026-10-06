@@ -77,6 +77,7 @@ async function closeThroughDaemon(
       created_at: '2026-08-16T00:00:00.000Z'
     })),
     isDispatchProcessCurrent: vi.fn(() => true),
+    getWorkerTerminalResourceByOwner: vi.fn(() => resource),
     workerTerminalResourceHasIdentityConflict: vi.fn(() => false),
     getWorkerTerminalArchive: vi.fn(() => ({ kind: 'transcript_pin' })),
     commitWorkerTerminalArchiveForRelease: vi.fn(() => ({

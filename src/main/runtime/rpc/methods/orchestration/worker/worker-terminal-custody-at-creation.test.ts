@@ -82,6 +82,129 @@ describe('worker terminal custody is recorded at terminal creation', () => {
     await expect(held.start).resolves.toMatchObject({ state: 'ready' })
   })
 
+  it('shows and reads the created process while readiness is still pending', async () => {
+    h.setup()
+    const held = await startHeldAtBootWait()
+
+    try {
+      expect(h.db.getDispatchContextById(held.dispatchId)).toMatchObject({
+        status: 'pending',
+        process_incarnation: null
+      })
+      await expect(
+        h.call('orchestration.workerShow', { dispatch: held.dispatchId })
+      ).resolves.toMatchObject({ observation: { status: 'live', exactWorker: true } })
+      await expect(
+        h.call('orchestration.workerRead', { dispatch: held.dispatchId, source: 'terminal' })
+      ).resolves.toMatchObject({
+        source: 'terminal',
+        status: { worker: 'starting', liveness: 'live' },
+        terminal: { tail: ['worker output line 1', 'worker output line 2'] }
+      })
+    } finally {
+      held.finish()
+      await held.start
+    }
+  })
+
+  it('keeps pending SSH custody unverifiable without a host verdict', async () => {
+    h.setup()
+    vi.spyOn(h.runtime, 'getOrchestrationDispatchAuthority').mockReturnValue({
+      runtimeId: 'runtime_test',
+      terminalHandle: 'term_worker',
+      ptyId: 'pty_worker',
+      worktreeId: 'repo::worktree',
+      launchTokenHash: null,
+      paneKey: h.workerPaneKey,
+      processIncarnation: 'runtime_test:term_worker:1',
+      hostScope: { kind: 'ssh', targetId: 'ssh-target' }
+    })
+    const held = await startHeldAtBootWait()
+
+    try {
+      expect(h.db.getDispatchContextById(held.dispatchId)?.host_scope).toBeNull()
+      expect(h.db.getWorkerTerminalResourceByOwner(held.dispatchId)?.host_scope).toBe(
+        JSON.stringify({ kind: 'ssh', targetId: 'ssh-target' })
+      )
+      vi.spyOn(h.runtime, 'getOrchestrationDispatchAuthority').mockReturnValue(null)
+      vi.spyOn(h.runtime, 'getTerminalLivenessVerdict').mockReturnValue(null)
+      const terminal = await h.runtime.showTerminal('term_worker')
+      vi.spyOn(h.runtime, 'showTerminal').mockResolvedValue({
+        ...terminal,
+        connected: false
+      })
+
+      await expect(
+        h.call('orchestration.workerShow', { dispatch: held.dispatchId })
+      ).resolves.toMatchObject({
+        observation: {
+          status: 'unverifiable',
+          exactWorker: true,
+          reason: 'missing_liveness_verdict'
+        }
+      })
+      await expect(
+        h.call('orchestration.workerRead', { dispatch: held.dispatchId, source: 'terminal' })
+      ).resolves.toMatchObject({
+        source: 'terminal',
+        status: { worker: 'starting', terminal: 'unknown', liveness: 'unverifiable' }
+      })
+    } finally {
+      held.finish(false)
+      await held.start
+    }
+  })
+
+  it('shows and reads the same booting leaf after a tab move', async () => {
+    h.setup()
+    const held = await startHeldAtBootWait()
+
+    try {
+      const movedPaneKey = h.workerPaneKey.replace('tab_worker:', 'tab_moved:')
+      expect(movedPaneKey).not.toBe(h.workerPaneKey)
+      expect(h.db.getWorkerTerminalResourceByOwner(held.dispatchId)?.pane_key).toBe(h.workerPaneKey)
+      vi.spyOn(h.runtime, 'getTerminalPaneKey').mockReturnValue(movedPaneKey)
+
+      await expect(
+        h.call('orchestration.workerShow', { dispatch: held.dispatchId })
+      ).resolves.toMatchObject({ observation: { status: 'live', exactWorker: true } })
+      await expect(
+        h.call('orchestration.workerRead', { dispatch: held.dispatchId, source: 'terminal' })
+      ).resolves.toMatchObject({
+        source: 'terminal',
+        status: { worker: 'starting', liveness: 'live' },
+        terminal: { tail: ['worker output line 1', 'worker output line 2'] }
+      })
+    } finally {
+      held.finish(false)
+      await held.start
+    }
+  })
+
+  it.each(['pane', 'process'])('rejects a replaced %s during the boot wait', async (identity) => {
+    h.setup()
+    const held = await startHeldAtBootWait()
+
+    try {
+      if (identity === 'pane') {
+        vi.spyOn(h.runtime, 'getTerminalPaneKey').mockReturnValue('tab_other:leaf_other')
+      } else {
+        vi.spyOn(h.runtime, 'getTerminalProcessIncarnation').mockReturnValue('pty_other:2')
+      }
+      await expect(
+        h.call('orchestration.workerShow', { dispatch: held.dispatchId })
+      ).resolves.toMatchObject({
+        observation: { status: 'identity_changed', exactWorker: false }
+      })
+      await expect(
+        h.call('orchestration.workerRead', { dispatch: held.dispatchId, source: 'terminal' })
+      ).rejects.toMatchObject({ code: 'worker_identity_changed' })
+    } finally {
+      held.finish(false)
+      await held.start
+    }
+  })
+
   it('claims nothing for an explicitly reused terminal until authority transfers it', async () => {
     h.setup()
     const held = await startHeldAtBootWait({ terminal: 'term_worker' })
@@ -172,6 +295,19 @@ describe('worker terminal custody is recorded at terminal creation', () => {
     expect(h.db.getWorkerTerminalResourceByOwner(receipt.dispatchId)).toMatchObject({
       ownership_state: 'owned'
     })
+    expect(h.db.getWorkerDispatch(receipt.dispatchId)?.state).toBe('start_unknown')
+    expect(h.db.getDispatchContextById(receipt.dispatchId)).toMatchObject({
+      status: 'pending',
+      process_incarnation: null
+    })
+    await expect(
+      h.call('orchestration.workerShow', { dispatch: receipt.dispatchId })
+    ).resolves.toMatchObject({
+      observation: { status: 'identity_changed', exactWorker: false }
+    })
+    await expect(
+      h.call('orchestration.workerRead', { dispatch: receipt.dispatchId, source: 'terminal' })
+    ).rejects.toMatchObject({ code: 'worker_identity_changed' })
   })
 
   it('promises no cleanup for a reused terminal whose start died', async () => {

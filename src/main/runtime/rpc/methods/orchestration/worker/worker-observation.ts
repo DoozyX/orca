@@ -2,6 +2,7 @@ import type { RuntimeTerminalInteractiveWait } from '../../../../../../shared/ru
 import type { OrcaRuntimeService } from '../../../../orca-runtime'
 import type { OrchestrationDb } from '../../../../orchestration/db'
 import { OrchestrationError } from '../../../../orchestration/orchestration-error'
+import { isStartingWorkerTerminalCurrent } from './starting-worker-terminal-identity'
 import { parseWorkerTerminalHostScope } from '../../../../orchestration/worker-terminal-process-liveness'
 import type { OrchestrationFleetWorker } from '../../../../../../shared/orchestration-fleet-projection'
 import { projectWorkerFleet } from './worker-list-projection'
@@ -98,11 +99,11 @@ export async function inspectWorkerTerminal(
     // The re-mint above failed, so no live handle resolved; report the durable handle unresolved.
     return { terminal: null, exact: false, status: 'missing', terminalHandle: null }
   }
-  const exact = db.isDispatchProcessCurrent({
-    dispatchId,
-    paneKey: runtime.getTerminalPaneKey(effectiveHandle),
-    processIncarnation: runtime.getTerminalProcessIncarnation(effectiveHandle)
-  })
+  const paneKey = runtime.getTerminalPaneKey(effectiveHandle)
+  const processIncarnation = runtime.getTerminalProcessIncarnation(effectiveHandle)
+  const exact =
+    db.isDispatchProcessCurrent({ dispatchId, paneKey, processIncarnation }) ||
+    isStartingWorkerTerminalCurrent(db, dispatchId, paneKey, processIncarnation)
   if (!exact) {
     return { terminal, exact, status: 'identity_changed', terminalHandle: effectiveHandle }
   }
@@ -130,7 +131,9 @@ export async function inspectWorkerTerminal(
   }
   if (!verdict) {
     const dispatch = db.getDispatchContextById?.(dispatchId)
-    const persistedHostScope = parseWorkerTerminalHostScope(dispatch?.host_scope ?? null)
+    const persistedHostScope = parseWorkerTerminalHostScope(
+      dispatch?.host_scope ?? db.getWorkerTerminalResourceByOwner(dispatchId)?.host_scope ?? null
+    )
     const currentHostScope = runtime.getOrchestrationDispatchAuthority?.(effectiveHandle)?.hostScope
     if (persistedHostScope?.kind === 'ssh' || currentHostScope?.kind === 'ssh') {
       return {
@@ -150,13 +153,7 @@ export async function inspectWorkerTerminal(
       terminalHandle: effectiveHandle
     }
   }
-  return {
-    terminal,
-    exact,
-    status: 'exited',
-    agentWait,
-    terminalHandle: effectiveHandle
-  }
+  return { terminal, exact, status: 'exited', agentWait, terminalHandle: effectiveHandle }
 }
 
 /** Why conditional: a present `agentWait: null` must mean "looked, nothing waiting"; an
