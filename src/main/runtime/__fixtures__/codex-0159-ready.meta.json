@@ -1,0 +1,9 @@
+{
+  "capturedAt": "2026-09-30T21:06:29.006Z",
+  "platform": "darwin",
+  "command": ["codex", "--dangerously-bypass-approvals-and-sandbox"],
+  "cols": 120,
+  "rows": 40,
+  "note": "Codex CLI 0.159.2; local startup, no task submitted; 120x40.",
+  "exitCode": 0
+}

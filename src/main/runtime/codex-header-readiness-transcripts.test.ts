@@ -359,3 +359,53 @@ describe('Codex 0.158 status readiness from captured bytes', () => {
     })
   }, 10_000)
 })
+
+describe('Codex 0.159 readiness from captured bytes', () => {
+  const fixture = 'codex-0159-ready'
+
+  it('waits for the ready footer and never settles during startup loading', async () => {
+    let sawReady = false
+    let sawLoading = false
+    for await (const frame of replayTranscript(readRuntimeFixture(fixture), 120, 40)) {
+      const screen = frame.screenLines.join('\n')
+      if (screen.includes('loading')) {
+        sawLoading = true
+        expect(isQuietReadyScreenBody('', 'codex', () => frame.screenLines)).toBe(false)
+      }
+      if (screen.includes('· Ready ·')) {
+        sawReady = true
+        expect(
+          isQuietReadyScreenBody('', 'codex', () => frame.screenLines),
+          screen
+        ).toBe(true)
+      }
+    }
+    expect(sawLoading).toBe(true)
+    expect(sawReady).toBe(true)
+  })
+
+  it('settles tui-idle through the runtime without injecting a task', async () => {
+    const { runtime, handle } = await createTranscriptPane({
+      paneTitle: 'Terminal',
+      foregroundProcess: 'codex',
+      launchAgent: 'codex',
+      data: readRuntimeFixture(fixture),
+      size: { cols: 120, rows: 40 }
+    })
+    await runtime.readTerminal(handle, { screen: true })
+    await expect(waitForTranscriptIdle({ runtime, handle }, 8_000)).resolves.toMatchObject({
+      condition: 'tui-idle',
+      satisfied: true
+    })
+  }, 15_000)
+
+  it('requires the empty composer and rejects another agent or a startup dialog', async () => {
+    const { screenLines } = await finalFrame(fixture, 120, 40)
+    const incomplete = screenLines.map((line) => line.replace('Ask Codex to do anything', ''))
+    expect(isQuietReadyScreenBody('', 'codex', () => incomplete)).toBe(false)
+    expect(isQuietReadyScreenBody('', 'claude', () => screenLines)).toBe(false)
+    const dialog = await finalFrame('codex-0-158-0-trustprompt', 120, 40)
+    expect(dialog.screenLines.join('\n').toLowerCase()).toContain('trust')
+    expect(isQuietReadyScreenBody(dialog.waitText, 'codex', () => dialog.screenLines)).toBe(false)
+  })
+})
