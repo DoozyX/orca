@@ -31,10 +31,11 @@ import {
   type AgentSessionConversationCommandRecord
 } from './agent-session-conversation-command'
 import {
-  isAgentSessionProviderHandleChain,
+  decodePersistedAgentSessionProviderHandleChain,
   type AgentSessionHandleProvider,
   type AgentSessionProviderHandleLink
 } from './agent-session-provider-handle'
+import { agentSessionProviderHandleBelongsTo } from './agent-session-provider-handle-encoding'
 
 export type { AgentSessionAccountHome } from './agent-session-account-home'
 
@@ -161,6 +162,8 @@ export type AgentSessionOptionsReplacement = {
   now: number
 }
 
+/** A death evidence's `detail` past this fails a load, so whoever writes one cuts it here. */
+export const MAX_AGENT_SESSION_DEATH_DETAIL_CHARS = MAX_ID_LENGTH
 const SESSION_ID_PATTERN = /^[A-Za-z0-9_-]{8,128}$/
 
 export function isAgentSessionId(value: unknown): value is string {
@@ -276,7 +279,7 @@ function isAgentSessionDeathEvidence(value: unknown): value is AgentSessionDeath
     (evidence.kind === 'exit-observed' ||
       evidence.kind === 'pid-absent' ||
       evidence.kind === 'identity-mismatch') &&
-    isBoundedString(evidence.detail, MAX_ID_LENGTH) &&
+    isBoundedString(evidence.detail, MAX_AGENT_SESSION_DEATH_DETAIL_CHARS) &&
     typeof observedAt === 'number' &&
     Number.isSafeInteger(observedAt) &&
     observedAt >= 0 &&
@@ -319,8 +322,8 @@ function isPersistedAgentSessionLease(value: unknown): value is PersistedAgentSe
   )
 }
 
-/** The on-disk shape, which still admits the removed terminal handoff's lease values. Decode
- *  through `normalizeLegacyHandoffRecord` before anything reads the lease. */
+/** The on-disk shape, which still admits the removed terminal handoff's lease values and stores
+ *  handles in their typed form. Decode through `decodePersistedAgentSessionRecord` before use. */
 export function isPersistedAgentSessionRecord(
   value: unknown
 ): value is PersistedAgentSessionRecord {
@@ -333,7 +336,6 @@ export function isPersistedAgentSessionRecord(
     isAgentSessionId(record.sessionId) &&
     isAgentSessionExecutionLocation(record.location) &&
     (record.provider === 'claude' || record.provider === 'codex') &&
-    isAgentSessionProviderHandleChain(record.providerHandleChain) &&
     isAgentSessionAccountHome(record.accountHome) &&
     (record.options === undefined || isAgentSessionOptions(record.options)) &&
     (record.rewind === undefined || isAgentSessionRewindRecord(record.rewind)) &&
@@ -351,9 +353,12 @@ export function isPersistedAgentSessionRecord(
     return false
   }
   const validated = record as AgentSessionRecord
-  const head = validated.providerHandleChain.at(-1)
+  // The row holds stored handles; validate the chain they decode to.
+  const chain = decodePersistedAgentSessionProviderHandleChain(validated.providerHandleChain)
+  const head = chain?.at(-1)
   return (
-    validated.providerHandleChain.every((link) => link.handle.provider === validated.provider) &&
+    chain !== null &&
+    chain.every((link) => agentSessionProviderHandleBelongsTo(link.handle, validated.provider)) &&
     (validated.lease.claimStatus !== 'live' ||
       (validated.lease.ownerProcess !== null &&
         head?.linkId === validated.lease.provenHandleLinkId &&

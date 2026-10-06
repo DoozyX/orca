@@ -50,7 +50,7 @@ describe('copied real-home Codex resume command', () => {
         session
       })
     ).toBe(
-      `cd '/home/alice/repo' && env -u CODEX_HOME -u ORCA_CODEX_HOME codex --no-daemon 'resume' 'session one'`
+      `cd '/home/alice/repo' && env -u CODEX_HOME -u ORCA_CODEX_HOME codex --no-daemon '-c' 'tui.resume_cwd=current' 'resume' 'session one'`
     )
   })
 })

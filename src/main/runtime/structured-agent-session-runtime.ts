@@ -275,8 +275,10 @@ async function installOnJournal(
       host?.publishChildWorkEvidence(sessionId, evidence),
     onDispatchSettledLate,
     onPrimaryThreadStoppedRunning: releaseUnansweredDispatches,
+    logger: deps.logger,
     onEvent: (event) => {
-      if (event.type === 'ended' && 'cause' in event && event.cause === 'unexpected-exit') {
+      // Every exit, expected or not: the host ends that child's record.
+      if (event.type === 'ended' && 'cause' in event) {
         lifecycle.deliver(event)
       }
     }
@@ -299,6 +301,7 @@ async function installOnJournal(
       : {}),
     ...(deps.readClaudeHomeBinding ? { readClaudeHomeBinding: deps.readClaudeHomeBinding } : {}),
     onLifecycleEvent: (event) => lifecycle.deliver(event),
+    logger: deps.logger,
     onChildWorkEvidence: (sessionId, evidence) =>
       host?.publishChildWorkEvidence(sessionId, evidence),
     onDispatchSettledLate,

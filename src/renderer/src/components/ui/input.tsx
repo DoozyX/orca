@@ -1,6 +1,7 @@
 import * as React from 'react'
 
 import { cn } from '@/lib/utils'
+import { ImeInput } from '@/lib/ime-text-field'
 
 /**
  * `sm` is the 32px density `SelectTrigger` already spells that way, at the matching text ramp.
@@ -12,7 +13,7 @@ const Input = React.forwardRef<
   Omit<React.ComponentProps<'input'>, 'size'> & { size?: number | 'default' | 'sm' }
 >(({ className, type, size = 'default', ...props }, ref) => {
   return (
-    <input
+    <ImeInput
       ref={ref}
       type={type}
       data-slot="input"
