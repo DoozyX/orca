@@ -15,6 +15,14 @@ this document fixes what each stage puts in them and what its report pastes back
 4. Restate binding rules inline. A path is backup for checking a detail, never a
    reading list the worker must finish before it can start.
 
+Target at most **6,000 Unicode characters** for the task-specific spec,
+excluding Orca’s injected preamble: a soft authoring target, not a token limit.
+Mandatory identity, authority, and evidence requirements win; state why the
+target is exceeded instead of omitting binding rules or mandated evidence.
+Carry the exact scope, invariants, required checks, baseline failures and evidence
+pointers; do not paste coordinator history or raw output into a worker brief.
+The size target never shortens an authoritative goal or applicable contract.
+
 ## Shared clauses
 
 Each stage row names the clauses its spec carries, in substance if not verbatim.

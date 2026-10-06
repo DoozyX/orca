@@ -222,6 +222,35 @@ second `invalid` makes the unit `needs-attention`.
 Budget exhaustion with blocking findings, or with a user decision still open,
 makes the unit `needs-attention` with no PR.
 
+### Pre-review rework
+
+Track pre-review rework in a separate table in the same `budget.md`, keyed by
+the original delivery unit. Defaults are **two amendments and two recovery attempts
+per unit** before further work requires a recorded continuation decision.
+An amendment is a distinct corrective instruction after the initial brief;
+normal test-first iterations are not amendments. Recovery is a corrective attempt
+after an environment or command failure; routine status inspection is not recovery.
+
+```text
+| unit | kind | attempt | task/dispatch | revision-or-source-evidence | outcome | reason | evidence-path |
+```
+
+`kind` is `amendment` or `recovery`. Reserve each attempt before work with
+`outcome=reserved`, then record `succeeded` or `failed` and the evidence path
+after settlement. Keep failed attempts and count every reserved attempt before
+starting another; a new Task, retry or rename never creates a fresh allowance.
+For uncommitted work, record its source evidence rather than treating HEAD alone
+as its identity. These counts never reset review/fix budgets, worker identities,
+or command deadlines.
+
+Existing user-authorized extensions are recorded and honored without asking again;
+record their scope and authority before continuing. Without continuation
+authority, checkpoint the unit as `needs-attention` and preserve its resources.
+Never stop a live worker solely because a counter is reached. Before additional
+corrective work, reconcile the active Dispatch and use the existing gate flow
+below for any decision the coordinator owns; do not create a duplicate worker
+or treat a budget extension as permission to relax evidence or resource guards.
+
 Use an orchestration decision gate for a budget override or a coordinator-owned
 branch decision, so the choice is durable rather than remembered:
 

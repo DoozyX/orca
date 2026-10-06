@@ -15,6 +15,16 @@ evidence. Do not certify a dirty or changing tree by HEAD alone. Reassign
 ownership explicitly when an owner settles — an idle terminal does not prove its
 jobs stopped.
 
+Before expensive validation, record its owner, execution host, required services
+and resources, scratch path, and result location in that same contract. Check
+capacity on the execution host using the repository's existing rules and probes
+before starting the command. Unavailable capacity blocks that validation;
+independent work may continue. Record the blocker and next prerequisite rather
+than repeatedly launching a suite that cannot run. Capacity observations are not
+grants, process-exit proof or permission to reuse an expired command window.
+No generic disk threshold, invented lease protocol, or automatic cleanup:
+resource recovery is explicit, scoped work under the unit's recovery accounting.
+
 ## Model tiers
 
 A tier is a task strength, not a model name. Record it for every dispatch. When

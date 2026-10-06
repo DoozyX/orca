@@ -13,6 +13,11 @@ worktree, the branch, the findings file, and every receipt. Never force-push,
 reset, delete a branch, or continue silently, and never take over the work
 yourself to make the number go green.
 
+The same checkpoint applies when another amendment or recovery would exceed
+the unit's allowance without recorded continuation authority. A capacity blocker
+parks the affected validation, not independent work. A checkpoint never proves
+process exit or authorizes stopping a live worker.
+
 A parked task keeps its terminal. Retain it explicitly rather than releasing it,
 so the next owner inherits a live session rather than a transcript.
 
@@ -120,6 +125,7 @@ Deliver it to the user, one block per task:
 - Outcome: done | needs-attention
 - PR: <url or "endgame: <what landed>"> - checks: green | failing | none
 - Review: <N> review(s), <M> fix(es) counted in budget.md - clean | open items: <list>
+- Rework: amendment and recovery attempts, continuation decisions, and capacity blockers
 - Models: <stage tier/model per dispatch> - escalations: <none | what and why>
 - Evidence: <the command output that settled it>
 - Screenshots: <orchestrate/<unit>/ capture paths> (UI units only)
