@@ -82,6 +82,55 @@ describe('worker terminal custody is recorded at terminal creation', () => {
     await expect(held.start).resolves.toMatchObject({ state: 'ready' })
   })
 
+  it('shows and reads the created process while readiness is still pending', async () => {
+    h.setup()
+    const held = await startHeldAtBootWait()
+
+    try {
+      expect(h.db.getDispatchContextById(held.dispatchId)).toMatchObject({
+        status: 'pending',
+        process_incarnation: null
+      })
+      await expect(
+        h.call('orchestration.workerShow', { dispatch: held.dispatchId })
+      ).resolves.toMatchObject({ observation: { status: 'live', exactWorker: true } })
+      await expect(
+        h.call('orchestration.workerRead', { dispatch: held.dispatchId, source: 'terminal' })
+      ).resolves.toMatchObject({
+        source: 'terminal',
+        status: { worker: 'starting', liveness: 'live' },
+        terminal: { tail: ['worker output line 1', 'worker output line 2'] }
+      })
+    } finally {
+      held.finish()
+      await held.start
+    }
+  })
+
+  it.each(['pane', 'process'])('rejects a replaced %s during the boot wait', async (identity) => {
+    h.setup()
+    const held = await startHeldAtBootWait()
+
+    try {
+      if (identity === 'pane') {
+        vi.spyOn(h.runtime, 'getTerminalPaneKey').mockReturnValue('tab_other:leaf_other')
+      } else {
+        vi.spyOn(h.runtime, 'getTerminalProcessIncarnation').mockReturnValue('pty_other:2')
+      }
+      await expect(
+        h.call('orchestration.workerShow', { dispatch: held.dispatchId })
+      ).resolves.toMatchObject({
+        observation: { status: 'identity_changed', exactWorker: false }
+      })
+      await expect(
+        h.call('orchestration.workerRead', { dispatch: held.dispatchId, source: 'terminal' })
+      ).rejects.toMatchObject({ code: 'worker_identity_changed' })
+    } finally {
+      held.finish(false)
+      await held.start
+    }
+  })
+
   it('claims nothing for an explicitly reused terminal until authority transfers it', async () => {
     h.setup()
     const held = await startHeldAtBootWait({ terminal: 'term_worker' })
