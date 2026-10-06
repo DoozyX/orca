@@ -256,6 +256,33 @@ describe('orchestration kernel', () => {
 })
 
 describe('owned orchestration references', () => {
+  it('bounds current-state recovery without discarding authority or history', () => {
+    const reference = squash(readReference('context-lifecycle.md'))
+
+    expect(reference).toContain('8,000 Unicode characters')
+    expect(reference).toContain('soft authoring target, not a token limit')
+    expect(reference).toContain('Mandatory identity, authority, and evidence requirements win')
+    expect(reference).toContain('pending Delivery and its consuming coordinator')
+    expect(reference).toContain('completed-unit summary with manifest pointers')
+    expect(reference).toContain('Read `handoff.md` and the applicable contracts')
+    expect(reference).toContain('Consult specific manifest entries and retained evidence')
+    expect(reference).toContain('missing or incomplete current state is an evidence gap')
+    expect(reference).not.toContain('Read `manifest.md` for what has landed')
+    expect(reference).toContain('Existing runs retain their contracts until explicitly adopted')
+  })
+
+  it('observes changes without hiding FIFO messages or rewriting unchanged state', () => {
+    const reference = squash(readReference('coordinator-loop.md'))
+
+    expect(reference).toContain('Keep full receipts in session scratch')
+    expect(reference).toContain('Batch independent reads')
+    expect(reference).toContain('Process every message in the FIFO Delivery before acknowledgment')
+    expect(reference).toContain('never truncate or filter a Delivery to meet a size target')
+    expect(reference).toContain('heartbeat, unchanged live observation, or empty wait alone')
+    expect(reference).toContain('does not warrant a document rewrite')
+    expect(reference).toContain('Preserve the kernel’s three-empty-wait inspection rule')
+  })
+
   it('routes every conditional read to exactly one shipped reference', () => {
     const kernel = readKernel()
     const routed = [...kernel.matchAll(/`references\/([^`]+\.md)`/gu)].map((match) => match[1])

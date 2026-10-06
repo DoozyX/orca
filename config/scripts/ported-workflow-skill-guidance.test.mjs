@@ -185,6 +185,50 @@ describe('delivery layers on orchestration rather than reimplementing it', () =>
     expect(guide).toContain('gate-resolve')
   })
 
+  it('accounts for pre-review rework without resetting budgets or stopping live workers', () => {
+    const guide = squash(readGuide('delivery'))
+
+    expect(guide).toContain('two amendments and two recovery attempts per unit')
+    expect(guide).toContain('normal test-first iterations are not amendments')
+    expect(guide).toContain('routine status inspection is not recovery')
+    expect(guide).toContain('Reserve each attempt before work')
+    expect(guide).toContain('revision-or-source-evidence')
+    expect(guide).toContain(
+      'Existing user-authorized extensions are recorded and honored without asking again'
+    )
+    expect(guide).toContain('Never stop a live worker solely because a counter is reached')
+    expect(guide).toContain(
+      'These counts never reset review/fix budgets, worker identities, or command deadlines'
+    )
+  })
+
+  it('keeps task briefs concise without omitting binding rules or mandated evidence', () => {
+    const reference = squash(readReference('delivery', 'stage-prompts.md'))
+
+    expect(reference).toContain('6,000 Unicode characters')
+    expect(reference).toContain('excluding Orca’s injected preamble')
+    expect(reference).toContain('soft authoring target, not a token limit')
+    expect(reference).toContain('Mandatory identity, authority, and evidence requirements win')
+    expect(reference).toContain('state why the target is exceeded')
+  })
+
+  it('plans expensive validation capacity on the execution host without inventing resource policy', () => {
+    const reference = squash(readReference('delivery', 'task-pipeline.md'))
+
+    expect(reference).toContain(
+      'execution host, required services and resources, scratch path, and result location'
+    )
+    expect(reference).toContain(
+      'Unavailable capacity blocks that validation; independent work may continue'
+    )
+    expect(reference).toContain(
+      'No generic disk threshold, invented lease protocol, or automatic cleanup'
+    )
+    expect(squash(readReference('delivery', 'parking-and-reporting.md'))).toContain(
+      'amendment and recovery attempts, continuation decisions, and capacity blockers'
+    )
+  })
+
   it('keeps the deployed-verification outcomes terminal and exhaustive', () => {
     const reference = readReference('delivery', 'deployed-verification.md')
 

@@ -37,8 +37,23 @@ workspace and never requires Git. A run that started without a brainstorm
 creates the same directory under a slug of its own.
 
 `manifest.md` is append-mostly and records outcomes. `handoff.md` is a live
-replacement, rewritten in full each time, and holds only what a successor needs
-to keep going.
+replacement, updated on meaningful transitions, and holds only what a successor
+needs to keep going. Keep chronology in the manifest or retained evidence, not
+in the current handoff; preserve that history rather than deleting it.
+
+Target at most **8,000 Unicode characters** for `handoff.md`: a soft authoring
+target, not a token limit. Mandatory identity, authority, and evidence requirements win;
+state why the target is exceeded rather than truncating them. Keep:
+
+- Run identity and execution host; active unit, Task and Dispatch identities,
+  owners, revision/tree identity or its evidence pointer.
+- Remaining acceptance criteria, open decisions and authorization boundaries,
+  pending Delivery and its consuming coordinator, and the next action.
+- Applicable verification and hazard references, plus a completed-unit summary
+  with manifest pointers. Keep raw logs, inventories and historical receipts in files.
+
+Existing runs retain their contracts until explicitly adopted; never rewrite a
+live run's records just because a new guide shipped.
 
 ## The run directory holds decisions, not outputs
 
@@ -61,14 +76,16 @@ rule belongs in that repository's own skill; this is the general form.
    long run.
 2. **Flush at every task completion.** Write the outcome into `manifest.md` and
    bring `handoff.md` up to date in the same turn the task settles. State that
-   only exists in your context is state you will lose.
+   only exists in your context is state you will lose. Follow the change-driven
+   observation rules in `references/coordinator-loop.md` between completions.
 3. **Delegate reads.** A worker that reads ten files and reports one conclusion
    costs you the conclusion. Reading them yourself costs you the files.
 
 ## Compaction
 
-The agent compacts its own context automatically; do not measure tokens or
-rotate on a threshold. Flushing at every task completion is what makes that
+The agent compacts its own context automatically; do not rotate on a threshold.
+Recorded usage can inform a retrospective, never authorize worker replacement.
+Flushing at every task completion is what makes that
 safe: a compaction summarizes your context, never the run directory. After any
 compaction, run the recovery steps below on yourself before the next decision.
 
@@ -110,7 +127,12 @@ A compacted coordinator or a successor starts from files, not from a summary.
 
 1. Read `goal.md` first, verbatim. It is the only record of the user's own
    words, and it outranks any later restatement.
-2. Read `manifest.md` for what has landed, then `handoff.md` for what is live.
+2. Read `handoff.md` and the applicable contracts in full. Consult specific
+   manifest entries and retained evidence for referenced decisions or unresolved
+   questions; do not load the entire history by default. A missing or incomplete
+   current state is an evidence gap: reconstruct it from targeted records and
+   runtime observations before acting, never guess. Size targets never shorten
+   the authoritative goal or applicable contracts.
 3. Reconcile `handoff.md` against the runtime before acting on it: a
    predecessor's self-written handoff is a claim, not a record. `worker-list`
    and the branch diff are the record. Check lineage in the same pass — a live

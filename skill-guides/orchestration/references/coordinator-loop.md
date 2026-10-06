@@ -4,6 +4,25 @@ Load this reference for expanded DAG waves, per-invocation launch preferences,
 same-terminal reuse, or review ownership. The compact guide remains the source
 of truth for the loop order and completion boundary.
 
+## Change-driven observation
+
+Prefer the kernel's blocking `check --wait` over repeated immediate checks.
+Keep one consuming inbox; observe the same pending command until it returns.
+Batch independent reads and use existing brief task views and worker projections
+for routine status. Keep full receipts in session scratch and print the
+decision-relevant identities, verdicts, required actions and evidence paths.
+
+Process every message in the FIFO Delivery before acknowledgment; never truncate
+or filter a Delivery to meet a size target. A projection is a view, not another
+status store, and never substitutes for current execution-host evidence at a
+decision boundary. Follow every page when a fleet enumeration is required.
+
+Update the manifest and current handoff only when phase, owner, revision,
+blocker, authority or accepted outcome changes. A heartbeat, unchanged live
+observation, or empty wait alone does not warrant a document rewrite. Preserve
+the kernel’s three-empty-wait inspection rule and liveness vocabulary; a timeout
+never proves exit or authorizes stopping, retrying or replacing a worker.
+
 ## Ready waves
 
 Create independent Tasks before the first wait. Encode only real dependencies,
