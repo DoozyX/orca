@@ -3,6 +3,32 @@ import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
+export class LocalMacHelperStopError extends Error {}
+
+export function stopInstalledComputerUseHelpers(app, execute = execFileSync) {
+  const executable = join(
+    app,
+    'Contents',
+    'Resources',
+    'Orca Computer Use.app',
+    'Contents',
+    'MacOS',
+    'orca-computer-use-macos'
+  )
+  const pattern = `^${executable.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} --agent `
+  try {
+    execute('/usr/bin/pkill', ['-TERM', '-f', pattern], { stdio: 'pipe' })
+  } catch (error) {
+    if (error.status === 1) {
+      return
+    }
+    throw new LocalMacHelperStopError(
+      `Orca was installed, but its Computer Use helper could not be stopped: ${error.message}`,
+      { cause: error }
+    )
+  }
+}
+
 function fingerprint(app) {
   if (!existsSync(app)) {
     return null
@@ -32,7 +58,8 @@ export function installLocalMacApp({
   destinationApp = join('/Applications', 'Orca.app'),
   platform = process.platform,
   copyApp = (source, target) => execFileSync('ditto', [source, target], { stdio: 'inherit' }),
-  verifyApp = verifyMacApp
+  verifyApp = verifyMacApp,
+  stopHelperProcesses = stopInstalledComputerUseHelpers
 }) {
   if (platform !== 'darwin') {
     throw new Error('Local app installation requires macOS.')
@@ -78,6 +105,7 @@ export function installLocalMacApp({
       throw error
     }
     rmSync(previousApp, { recursive: true, force: true })
+    stopHelperProcesses(destinationApp)
     return { destinationApp, version }
   } finally {
     // Preserve the displaced app if rollback itself fails.
