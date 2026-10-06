@@ -4,6 +4,13 @@ Load this reference when a task cannot finish, when a done task's resources need
 releasing, before the teardown check and retrospective, or when writing the
 closing report.
 
+Schedule one final audit and retrospective after the required acceptance arms
+settle or are explicitly parked. During delivery, update the existing manifest
+and handoff on meaningful changes instead of spawning repeated checkpoint tasks.
+If the final audit finds residue, use the bounded targeted cleanup and recheck
+below; keep the same audit record and append evidence. This never replaces
+independent code review, resets budgets, or releases unsettled workers.
+
 ## Parking a task
 
 A task that cannot pass its tests, exhausts its review budget with blocking or

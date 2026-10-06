@@ -1,3 +1,4 @@
+import type { OrchestrationFleetWorker } from '../../../shared/orchestration-fleet-projection'
 import type { CommandHandler } from '../../dispatch'
 import { printResult } from '../../format'
 import {
@@ -7,7 +8,11 @@ import {
 } from '../../flags'
 import { RuntimeClientError } from '../../runtime-client'
 import { callOrchestrationMutation } from './mutation-request'
-import { formatWorkerRelease, type WorkerReleaseReceipt } from './worker-output'
+import {
+  formatFleetDiagnostics,
+  formatWorkerRelease,
+  type WorkerReleaseReceipt
+} from './worker-output'
 import {
   formatWorkerListScope,
   resolveWorkerListRunScope,
@@ -114,6 +119,7 @@ export const ORCHESTRATION_WORKER_TERMINAL_HANDLERS: Record<string, CommandHandl
         terminalState: string | null
         resource: unknown
         projection?: {
+          diagnostics?: OrchestrationFleetWorker['diagnostics']
           provider: { id: string; model: string | null } | null
           host: { id: string }
           workspace: { id: string } | null
@@ -166,7 +172,7 @@ export const ORCHESTRATION_WORKER_TERMINAL_HANDLERS: Record<string, CommandHandl
                   : `]`
                 // Why: the enumerating command owes the literal argv the guides tell callers to run.
                 const next = projection
-                  ? ` next=${projection.nextAction.argv.join(' ') || 'none'}`
+                  ? ` next=${projection.nextAction.argv.join(' ') || 'none'} ${formatFleetDiagnostics(projection)}`
                   : ''
                 return `${worker.dispatchId} task=${worker.taskId} [${worker.workerState}${details} terminal=${worker.terminalState ?? 'none'}${next}`
               })

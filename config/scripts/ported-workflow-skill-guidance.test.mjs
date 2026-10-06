@@ -346,3 +346,39 @@ describe('folded trigger vocabulary from the skills that were not ported', () =>
     expect(readdirSync(join(projectDir, 'skills'))).not.toContain('session-share')
   })
 })
+
+describe('delivery investigation repairs', () => {
+  it('keeps attempt inputs separate from the canonical tested runner', () => {
+    const guide = readFileSync(
+      join(projectDir, 'skill-guides/delivery/references/task-pipeline.md'),
+      'utf8'
+    )
+    for (const phrase of [
+      'canonical tested runner',
+      'attempt inputs',
+      'PREP packets',
+      'ordinary reversible verification',
+      'shared resource owner',
+      'memory pressure',
+      'swap',
+      'unchanged-head proof',
+      'missing acceptance'
+    ]) {
+      expect(guide).toContain(phrase)
+    }
+  })
+  it('bounds infrastructure recovery and closes with one audit', () => {
+    const loop = readFileSync(
+      join(projectDir, 'skill-guides/orchestration/references/coordinator-loop.md'),
+      'utf8'
+    )
+    expect(loop).toContain('bounded infrastructure recovery')
+    expect(loop).toContain('no universal waiver')
+    const close = readFileSync(
+      join(projectDir, 'skill-guides/delivery/references/parking-and-reporting.md'),
+      'utf8'
+    )
+    expect(close).toContain('one final audit and retrospective')
+    expect(close).toContain('repeated checkpoint tasks')
+  })
+})

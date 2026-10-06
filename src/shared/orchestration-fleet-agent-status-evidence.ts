@@ -51,6 +51,9 @@ export type FleetAgentActivity = {
   paneKey: string
   connectionId: string | null
   state: AgentStatusState
+  waiting?: boolean
+  pendingInput?: boolean
+  stateStartedAt?: number
   agentType: AgentType | null
   model: string | null
   worktreeId: string | null
@@ -109,6 +112,9 @@ export function mintFleetAgentStatusEvidence(
       paneKey: status.paneKey,
       connectionId: status.connectionId,
       state: status.state,
+      pendingInput: Boolean(status.interactivePrompt),
+      waiting: (status.mainAgent ? status.mainAgent.state : status.state) === 'blocked',
+      stateStartedAt: status.mainAgent ? status.mainAgent.stateStartedAt : status.stateStartedAt,
       agentType: status.agentType ?? null,
       model: status.model ?? null,
       worktreeId: status.worktreeId ?? null,

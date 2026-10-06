@@ -29,6 +29,20 @@ export function projectWorkerAttentionContext(args: {
   evidence: FleetAgentStatusEvidence | undefined
   now: number
 }) {
+  const liveness = projectLiveness(
+    {
+      workerState: args.facts.workerState,
+      workerStage: args.facts.workerStage,
+      dispatchStatus: args.facts.dispatchStatus,
+      terminationReason: args.facts.terminationReason,
+      resource:
+        args.facts.hostScope === undefined
+          ? null
+          : { hostScope: args.facts.hostScope, releaseState: args.facts.releaseState }
+    },
+    args.evidence,
+    args.now
+  )
   return projectOrchestrationFleetAttention({
     isRoot: args.isRoot,
     outcome: resolveFleetWorkerOutcome({
@@ -36,25 +50,14 @@ export function projectWorkerAttentionContext(args: {
       workerState: args.facts.workerState,
       dispatchStatus: args.facts.dispatchStatus
     }),
-    pendingInput: args.facts.pendingInput,
+    pendingInput:
+      args.facts.pendingInput ||
+      (liveness.verdict === 'live' && args.evidence?.activity.pendingInput === true),
     pendingGuidance: args.facts.pendingGuidance,
     pendingApproval: args.facts.pendingApproval,
     interrupted:
       args.facts.terminationReason === 'operator_close' ||
       args.facts.terminationReason === 'signaled',
-    liveness: projectLiveness(
-      {
-        workerState: args.facts.workerState,
-        workerStage: args.facts.workerStage,
-        dispatchStatus: args.facts.dispatchStatus,
-        terminationReason: args.facts.terminationReason,
-        resource:
-          args.facts.hostScope === undefined
-            ? null
-            : { hostScope: args.facts.hostScope, releaseState: args.facts.releaseState }
-      },
-      args.evidence,
-      args.now
-    )
+    liveness
   })
 }

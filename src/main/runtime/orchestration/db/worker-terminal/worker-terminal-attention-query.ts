@@ -1,3 +1,4 @@
+import { exposeUtcTimestamp } from '../utc-timestamp'
 import { projectAttemptOutcome } from '../attempt-outcome-projection'
 import {
   activeSiblingAttemptSql,
@@ -13,6 +14,9 @@ import { ATTEMPT_OBSERVATION_FACT_COLUMN_LIST } from '../row-column-lists'
 export type WorkerAttentionFacts = {
   outcome: AttemptProjectedOutcome
   pendingInput: boolean
+  pendingInputAgeMs?: number | null
+  pendingApprovalAgeMs?: number | null
+  checkpointAgeMs?: number | null
   pendingGuidance: boolean
   pendingApproval: boolean
   terminationReason: TerminalExitCause['kind'] | null
@@ -37,12 +41,17 @@ export function getWorkerAttentionFactsForDispatches(
     return new Map()
   }
   const serializedIds = JSON.stringify(ids)
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the SELECT aliases and schema pin every field in this row projection.
   const rows = this.db
     .prepare(
       `SELECT d.id AS dispatch_id, d.task_id, d.status AS dispatch_status,
               d.termination_reason, w.state AS worker_state, w.stage AS worker_stage,
               t.parent_id AS parent_task_id,
               r.id AS resource_id, r.host_scope, r.release_state,
+              (SELECT MIN(q.created_at) FROM question_threads q
+                WHERE q.dispatch_id = d.id AND q.status = 'pending') AS input_started_at,
+              (SELECT MIN(g.created_at) FROM decision_gates g
+                WHERE g.task_id = d.task_id AND g.status = 'pending') AS approval_started_at,
               EXISTS (
                 SELECT 1 FROM question_threads q
                  WHERE q.dispatch_id = d.id AND q.status = 'pending'
@@ -74,6 +83,8 @@ export function getWorkerAttentionFactsForDispatches(
     resource_id: string | null
     host_scope: string | null
     release_state: string | null
+    input_started_at: string | null
+    approval_started_at: string | null
     pending_input: number
     pending_approval: number
     pending_guidance: number
@@ -92,8 +103,20 @@ export function getWorkerAttentionFactsForDispatches(
     facts.push(exposeAttemptObservationFact(observationRow))
     factsByDispatch.set(observationRow.dispatch_id, facts)
   }
+  const age = (timestamp: number): number | null =>
+    Number.isFinite(timestamp) && timestamp <= authorityNow ? authorityNow - timestamp : null
+  const storedAge = (timestamp: string | null): number | null =>
+    timestamp === null ? null : age(Date.parse(exposeUtcTimestamp(timestamp) ?? timestamp))
   return new Map(
     rows.map((row) => {
+      const facts = factsByDispatch.get(row.dispatch_id) ?? []
+      const checkpoints = facts.filter(
+        (fact) =>
+          fact.facet === 'artifact_git' ||
+          fact.facet === 'worker_report' ||
+          fact.facet === 'coordinator_ack'
+      )
+      const checkpoint = checkpoints.at(-1)
       const projected = projectAttemptOutcome({
         dispatchId: row.dispatch_id,
         taskId: row.task_id,
@@ -106,6 +129,9 @@ export function getWorkerAttentionFactsForDispatches(
         {
           outcome: projected,
           pendingInput: row.pending_input === 1,
+          pendingInputAgeMs: storedAge(row.input_started_at),
+          pendingApprovalAgeMs: storedAge(row.approval_started_at),
+          checkpointAgeMs: checkpoint ? age(checkpoint.homeReceivedAt) : null,
           pendingGuidance: row.pending_guidance === 1,
           pendingApproval: row.pending_approval === 1,
           terminationReason: row.termination_reason,

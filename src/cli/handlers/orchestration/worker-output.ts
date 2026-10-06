@@ -1,6 +1,15 @@
+import type { OrchestrationFleetWorker } from '../../../shared/orchestration-fleet-projection'
 import type { RuntimeTerminalRead } from '../../../shared/runtime-types'
 import type { OrchestrationWorkerReadResult } from '../../../shared/orchestration-worker-output'
 import { formatWorkerTranscriptMessage } from '../../../shared/worker-transcript-text'
+
+export function formatFleetDiagnostics(
+  projection: Pick<OrchestrationFleetWorker, 'diagnostics'>
+): string {
+  const age = (value: number | null | undefined): string =>
+    typeof value === 'number' && Number.isFinite(value) && value >= 0 ? `${value}ms` : 'unknown'
+  return `State age: ${age(projection.diagnostics?.stateAgeMs)}; checkpoint age: ${age(projection.diagnostics?.checkpointAgeMs)}; blocker age: ${age(projection.diagnostics?.blockerAgeMs)}`
+}
 
 export type LegacyWorkerReadResult = {
   dispatchId: string
@@ -85,6 +94,7 @@ function formatWorkerReadDetails(value: OrchestrationWorkerReadResult): string {
   }
   if (value.projection) {
     lines.push(`Agent liveness: ${value.projection.liveness.verdict}`)
+    lines.push(formatFleetDiagnostics(value.projection))
   }
   if (value.sourceExact !== undefined) {
     lines.push(`Source exact: ${value.sourceExact}`)

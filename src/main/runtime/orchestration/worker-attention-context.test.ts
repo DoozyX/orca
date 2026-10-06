@@ -120,3 +120,13 @@ describe('worker attention liveness', () => {
     expect(attention).toEqual({ categories: [], requiresAction: false })
   })
 })
+
+it('reads a canonical interactive question from fresh host evidence', () => {
+  const attention = projectWorkerAttentionContext({
+    facts: facts(),
+    isRoot: false,
+    evidence: status({ interactivePrompt: '{"questions":[]}' }),
+    now: NOW
+  })
+  expect(attention.categories).toContain('input')
+})

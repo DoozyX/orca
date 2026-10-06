@@ -25,6 +25,9 @@ export function projectWorkerFleet(args: {
   const workers: FleetDurableWorker[] = args.rows.map((row) => {
     return {
       ...row,
+      pendingInputAgeMs: args.attentionFacts.get(row.dispatchId)?.pendingInputAgeMs,
+      pendingApprovalAgeMs: args.attentionFacts.get(row.dispatchId)?.pendingApprovalAgeMs,
+      checkpointAgeMs: args.attentionFacts.get(row.dispatchId)?.checkpointAgeMs,
       outcome: resolveFleetWorkerOutcome({
         attemptOutcome: args.attentionFacts.get(row.dispatchId)?.outcome ?? 'outcome_unknown',
         workerState: row.workerState,

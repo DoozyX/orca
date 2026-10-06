@@ -626,3 +626,81 @@ describe('fleet liveness and attention after a host verdict', () => {
     expect(projected.workers[0]!.nextAction).toEqual({ kind: 'none', argv: [] })
   })
 })
+
+describe('fleet waiting and checkpoint diagnostics', () => {
+  it.each([{ pendingInput: true }, { pendingApproval: true }])(
+    'shows durable pending work as waiting independently of liveness: %j',
+    (pending) => {
+      const row = projectOrchestrationFleet({
+        workers: [worker('wait', pending)],
+        statuses: [status('wait', 10_000)],
+        now: 10_000
+      }).workers[0]!
+      expect(row.stage.activity).toBe('waiting')
+      expect(row.liveness.verdict).toBe('live')
+    }
+  )
+
+  it('uses the canonical interactive prompt even while children keep the combined state working', () => {
+    const row = projectOrchestrationFleet({
+      workers: [worker('wait')],
+      statuses: [
+        status('wait', 10_000, {
+          interactivePrompt: '{"questions":[]}',
+          mainAgent: { state: 'blocked', stateStartedAt: 1_000 }
+        })
+      ],
+      now: 10_000
+    }).workers[0]!
+    expect(row.stage.activity).toBe('waiting')
+    expect(row.attention.categories).toContain('input')
+    expect(row.diagnostics?.stateAgeMs).toBe(9_000)
+  })
+
+  it('repeated delivery and spinner snapshots do not advance the state checkpoint age', () => {
+    const project = (receivedAt: number) =>
+      projectOrchestrationFleet({
+        workers: [worker('clock')],
+        statuses: [status('clock', receivedAt, { stateStartedAt: 1_000 })],
+        now: 20_000
+      }).workers[0]!
+    expect(project(10_000).diagnostics?.stateAgeMs).toBe(19_000)
+    expect(project(20_000).diagnostics?.stateAgeMs).toBe(19_000)
+  })
+
+  it('remote missing status stays unknown and never becomes an exit or a synthetic checkpoint', () => {
+    const row = projectOrchestrationFleet({
+      workers: [
+        worker('remote', {
+          resource: {
+            id: 'r-remote',
+            ownerDispatchId: 'remote',
+            worktreeId: 'folder-remote',
+            paneKey: null,
+            hostScope: '{"kind":"ssh","targetId":"offline"}',
+            ownershipState: 'owned',
+            releaseState: 'active',
+            updatedAt: '2026-10-06T00:00:00Z'
+          }
+        })
+      ],
+      statuses: [],
+      now: 20_000
+    }).workers[0]!
+    expect(row.stage.activity).toBe('unknown')
+    expect(row.liveness.verdict).toBe('unverifiable')
+    expect(row.diagnostics?.stateAgeMs).toBeNull()
+  })
+})
+
+it('shows canonical approval blocking as waiting while preserving the unknown approval kind', () => {
+  const row = projectOrchestrationFleet({
+    workers: [worker('approval')],
+    statuses: [
+      status('approval', 10_000, { mainAgent: { state: 'blocked', stateStartedAt: 1_000 } })
+    ],
+    now: 10_000
+  }).workers[0]!
+  expect(row.stage.activity).toBe('waiting')
+  expect(row.attention.categories).not.toContain('approval')
+})

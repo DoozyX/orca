@@ -25,6 +25,43 @@ grants, process-exit proof or permission to reuse an expired command window.
 No generic disk threshold, invented lease protocol, or automatic cleanup:
 resource recovery is explicit, scoped work under the unit's recovery accounting.
 
+## Verification attempts and authority
+
+Use the repository's canonical tested runner with separate attempt inputs for
+revision, environment, service endpoints, output path, deadline, and required
+checks. Keep one runner implementation; do not clone PREP packets or scripts for
+each attempt. If no runner exists, the assigned implementer may create a small,
+repository-specific runner and test its command/exit contract before use. This
+is verification plumbing, not a new scheduler. Record the literal command and
+inputs with its output; a runner returning is not proof its child finished.
+
+Approved implementation includes ordinary reversible verification: focused
+checks, isolated fixtures, and repeatable local builds within the assigned
+worktree and resource envelope. Record this bounded authority in the contract
+once; do not ask again at each command. Shared-service mutation, destructive
+cleanup, deployment, new cost, and broader credentials remain outside it unless
+already authorized. Independent review, sole-writer occupancy, budgets, command
+deadlines, and process custody still apply.
+
+Name a shared resource owner for each database, port, simulator, build directory,
+and suite before scheduling a wave. That owner sequences users of that resource;
+independent work continues. Transfer ownership explicitly with the prior job's
+exit evidence, never from an idle pane or a successful wrapper alone.
+
+Admission measures disk, memory pressure, swap growth, and active workload on
+the execution host using existing host probes. Record the observation, time,
+owner, and repository's thresholds. Swap allocation alone does not show current
+pressure; compare measurements over time. When pressure blocks a heavy check,
+queue that check with its owner and next admission condition. Do not invent a
+universal threshold, cleanup policy, or waiver; preserve other workers' custody.
+
+For missing acceptance at an unchanged revision, continue only that acceptance
+arm. Reuse unchanged-head proof only after checking the tree, environment,
+runner inputs, and required checks still match the original contract. Name the
+missing acceptance explicitly and its evidence owner; do not restart already
+proven stages or independent review merely because a checkpoint was reported.
+A changed head or relevant environment invalidates the affected proof.
+
 ## Model tiers
 
 A tier is a task strength, not a model name. Record it for every dispatch. When

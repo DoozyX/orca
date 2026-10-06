@@ -31,6 +31,9 @@ export type FleetDurableWorker = {
   terminalState: FleetTerminalState | null
   pendingInput?: boolean
   pendingApproval?: boolean
+  pendingInputAgeMs?: number | null
+  pendingApprovalAgeMs?: number | null
+  checkpointAgeMs?: number | null
   terminationReason?: 'operator_close' | 'signaled' | 'exited' | 'unknown' | null
   outcome?: 'in_progress' | 'succeeded' | 'failed' | 'outcome_unknown' | 'finished_unverified'
   resource: {
@@ -110,6 +113,12 @@ export type OrchestrationFleetWorker = {
     durable: true
     liveStatus: 'fresh' | 'stale' | 'unavailable' | 'redacted_restore'
     lastObservedAt: number | null
+  }
+  /** Host-computed durations; absent on older hosts, null when the source clock is unknown. */
+  diagnostics?: {
+    stateAgeMs: number | null
+    checkpointAgeMs: number | null
+    blockerAgeMs: number | null
   }
   resource: FleetResourceProjection
   nextAction: FleetNextAction

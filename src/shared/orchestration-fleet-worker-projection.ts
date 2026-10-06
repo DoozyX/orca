@@ -217,6 +217,12 @@ export function projectOrchestrationFleetWorker(
   const liveness = projectLiveness(worker, evidence, now)
   const fresh = liveness.verdict === 'live'
   const activity = evidence?.activity
+  const pendingInput = worker.pendingInput || (fresh && activity?.pendingInput === true)
+  const waiting = pendingInput || worker.pendingApproval || (fresh && activity?.waiting === true)
+  const blockerAges = [worker.pendingInputAgeMs, worker.pendingApprovalAgeMs].filter(
+    (age): age is number => typeof age === 'number' && Number.isFinite(age) && age >= 0
+  )
+  const stateStartedAt = fresh ? activity?.stateStartedAt : undefined
   const workspaceId =
     activity?.worktreeId ?? worker.worktreeId ?? worker.resource?.worktreeId ?? null
   const outcome = resolveFleetWorkerOutcome({
@@ -238,7 +244,7 @@ export function projectOrchestrationFleetWorker(
       worker: worker.workerState,
       dispatch: worker.dispatchStatus,
       detail: worker.workerStage,
-      activity: fresh && activity ? activity.state : 'unknown'
+      activity: waiting ? 'waiting' : fresh && activity ? activity.state : 'unknown'
     },
     outcome,
     liveness,
@@ -253,12 +259,20 @@ export function projectOrchestrationFleetWorker(
             : 'stale',
       lastObservedAt: evidence ? evidence.clock.at : null
     },
+    diagnostics: {
+      stateAgeMs:
+        stateStartedAt !== undefined && Number.isFinite(stateStartedAt) && stateStartedAt <= now
+          ? now - stateStartedAt
+          : null,
+      checkpointAgeMs: worker.checkpointAgeMs ?? null,
+      blockerAgeMs: blockerAges.length ? Math.max(...blockerAges) : null
+    },
     resource: projectResource(worker),
-    nextAction: projectFleetNextAction(worker, liveness),
+    nextAction: projectFleetNextAction({ ...worker, pendingInput }, liveness),
     attention: projectOrchestrationFleetAttention({
       isRoot: worker.parentTaskId === null,
       outcome,
-      pendingInput: worker.pendingInput,
+      pendingInput,
       pendingApproval: worker.pendingApproval,
       interrupted:
         worker.workerState === 'abandoned' ||

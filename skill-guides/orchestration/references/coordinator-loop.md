@@ -23,6 +23,24 @@ observation, or empty wait alone does not warrant a document rewrite. Preserve
 the kernel’s three-empty-wait inspection rule and liveness vocabulary; a timeout
 never proves exit or authorizes stopping, retrying or replacing a worker.
 
+Use bounded infrastructure recovery: diagnose the first failed boundary, reserve
+an attempt in the delivery unit's existing recovery ledger, and run one scoped
+repair with a deadline and a falsifiable check. Preserve failed evidence; after
+the allowance is exhausted use recorded continuation authority or park the
+blocked arm. Already-authorized recovery does not need another confirmation.
+There is no universal waiver for pressure, budgets, authority, or custody.
+Resource owners admit heavy jobs from measured host workload, memory pressure,
+swap trend, and disk; the coordinator queues conflicting checks rather than
+launching duplicate suites or stopping another owner's process.
+
+Fleet waiting is a pending question or approval, separate from agent liveness.
+Read attention categories and available host-computed diagnostics: state age
+is time in the same state, checkpoint age dates artifact/report/ack evidence,
+and blocker age dates the oldest still-pending question or gate. Heartbeats and
+spinner output prove neither progress nor a reset of these clocks. Missing
+optional diagnostics from older hosts remain unknown; never turn remote absence
+into exit or compare wall clocks from different hosts.
+
 ## Ready waves
 
 Create independent Tasks before the first wait. Encode only real dependencies,
