@@ -704,3 +704,42 @@ it('shows canonical approval blocking as waiting while preserving the unknown ap
   expect(row.stage.activity).toBe('waiting')
   expect(row.attention.categories).not.toContain('approval')
 })
+
+it.each(['stale boundary', 'restored', 'released', 'certified exit'])(
+  'rejects canonical interactive input from %s evidence while retaining durable input',
+  (kind) => {
+    const now = 10 * AGENT_STATUS_STALE_AFTER_MS
+    const project = (pendingInput: boolean) =>
+      projectOrchestrationFleet({
+        workers: [
+          worker('prompt', {
+            pendingInput,
+            ...(kind === 'released' ? { workerStage: 'released' } : {}),
+            ...(kind === 'certified exit' ? { terminationReason: 'exited' } : {})
+          })
+        ],
+        statuses: [
+          status('prompt', now, {
+            interactivePrompt: '{"questions":[]}',
+            mainAgent: { state: 'blocked', stateStartedAt: now - 100 },
+            ...(kind === 'stale boundary'
+              ? { evidenceObservedAt: now - AGENT_STATUS_STALE_AFTER_MS - 1 }
+              : {}),
+            ...(kind === 'restored' ? { restoredUnconfirmed: true } : {})
+          })
+        ],
+        now
+      }).workers[0]!
+    const row = project(false)
+    expect(row.liveness.verdict).toBe(
+      kind === 'released' || kind === 'certified exit' ? 'exited' : 'unverifiable'
+    )
+    expect(row.stage.activity).toBe('unknown')
+    expect(row.attention.categories).not.toContain('input')
+    expect(row.diagnostics?.stateAgeMs).toBeNull()
+    const durable = project(true)
+    expect(durable.stage.activity).toBe('waiting')
+    expect(durable.attention.categories).toContain('input')
+    expect(durable.nextAction.kind).toBe(kind === 'released' ? 'none' : 'inspect')
+  }
+)

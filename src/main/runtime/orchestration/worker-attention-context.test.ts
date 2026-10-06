@@ -130,3 +130,29 @@ it('reads a canonical interactive question from fresh host evidence', () => {
   })
   expect(attention.categories).toContain('input')
 })
+
+it.each(['stale boundary', 'restored', 'released', 'certified exit'])(
+  'rejects canonical interactive input from %s evidence while retaining durable input',
+  (kind) => {
+    const project = (pendingInput: boolean) =>
+      projectWorkerAttentionContext({
+        facts: facts({
+          pendingInput,
+          ...(kind === 'released' ? { workerStage: 'released' } : {}),
+          ...(kind === 'certified exit' ? { terminationReason: 'exited' } : {})
+        }),
+        isRoot: false,
+        evidence: status({
+          interactivePrompt: '{"questions":[]}',
+          ...(kind === 'stale boundary'
+            ? { evidenceObservedAt: NOW - AGENT_STATUS_STALE_AFTER_MS - 1 }
+            : {}),
+          ...(kind === 'restored' ? { restoredUnconfirmed: true } : {})
+        }),
+        now: NOW
+      })
+    expect(project(false).categories).not.toContain('input')
+    expect(project(true).categories).toContain('input')
+    expect(project(true).requiresAction).toBe(true)
+  }
+)

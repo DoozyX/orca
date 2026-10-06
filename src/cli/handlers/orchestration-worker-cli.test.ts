@@ -593,6 +593,7 @@ describe('orchestration worker-start CLI contract', () => {
             terminalState: 'active',
             resource: null,
             projection: {
+              diagnostics: { stateAgeMs: 2000, checkpointAgeMs: 3000, blockerAgeMs: 4000 },
               provider: { id: 'claude', model: 'opus' },
               host: { id: 'local' },
               workspace: { id: 'ws_1' },
@@ -642,10 +643,10 @@ describe('orchestration worker-start CLI contract', () => {
       | undefined
     const output = formatter?.(response.result)
     expect(output).toContain(
-      'ctx_live task=task_live [running/working] attention=settled liveness=live provider=claude/opus host=local workspace=ws_1 terminal=active next=orchestration worker-release --dispatch ctx_live'
+      'ctx_live task=task_live [running/working] attention=settled liveness=live provider=claude/opus host=local workspace=ws_1 terminal=active next=orchestration worker-release --dispatch ctx_live State age: 2000ms; checkpoint age: 3000ms; blocker age: 4000ms'
     )
     expect(output).toContain(
-      'ctx_done task=task_done [released/released] attention=none liveness=exited provider=unknown host=local workspace=unknown terminal=none next=none'
+      'ctx_done task=task_done [released/released] attention=none liveness=exited provider=unknown host=local workspace=unknown terminal=none next=none State age: unknown; checkpoint age: unknown; blocker age: unknown'
     )
   })
 

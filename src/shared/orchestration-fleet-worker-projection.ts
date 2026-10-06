@@ -222,7 +222,9 @@ export function projectOrchestrationFleetWorker(
   const blockerAges = [worker.pendingInputAgeMs, worker.pendingApprovalAgeMs].filter(
     (age): age is number => typeof age === 'number' && Number.isFinite(age) && age >= 0
   )
-  const stateStartedAt = fresh ? activity?.stateStartedAt : undefined
+  // Relay main-agent clocks and receipt-derived starts do not prove a local state boundary.
+  const stateStartedAt =
+    fresh && activity?.connectionId === null ? activity.stateStartedAt : undefined
   const workspaceId =
     activity?.worktreeId ?? worker.worktreeId ?? worker.resource?.worktreeId ?? null
   const outcome = resolveFleetWorkerOutcome({
