@@ -36,10 +36,16 @@ cleanup, deployment, new cost, and broader credentials remain outside it unless
 already authorized. Independent review, sole-writer occupancy, budgets, command
 deadlines, and process custody still apply.
 
-Name a shared resource owner for each database, port, simulator, build directory,
-and suite before scheduling a wave. That owner sequences users of that resource;
-independent work continues. Transfer ownership explicitly with the prior job's
-exit evidence, never from an idle pane or a successful wrapper alone.
+Name a shared resource owner when concurrent checks would conflict over a
+database, port, simulator, build directory, or suite. Sequence conflicting users;
+independent checks may run together. Transfer ownership explicitly with the prior
+job's exit evidence, never from an idle pane or a successful wrapper alone.
+
+Reuse an existing simulator, browser session, or app instance when no other user
+or test is using it and its state suits the check. A fresh instance is required
+only when the check needs separate mutable state or a destructive reset would
+affect another session. Use explicit device or instance targets, and preserve
+the repository's desktop focus rules.
 
 For missing acceptance at an unchanged revision, continue only that acceptance
 arm. Reuse unchanged-head proof only after checking the tree, environment,

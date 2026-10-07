@@ -56,8 +56,9 @@ Each stage row names the clauses its spec carries, in substance if not verbatim.
 **Implement.** In order: install from the frozen lockfile; run the contract's
 baseline once before touching anything and record only task-specific deltas;
 implement under `tdd`; rerun the full suite and the repository's lint, format,
-and build checks; drive the real surface end to end in an isolated browser or
-app instance; for UI work capture the before/after pairs described in
+and build checks; drive the real surface end to end in a browser or app instance
+that does not conflict with another session; reuse an existing idle instance when
+its state suits the check. For UI work capture the before/after pairs described in
 `task-pipeline.md`; commit with explicit paths, never `git add -A`, and do not
 push. Append commits, touched files, and concerns to the task file's
 `## Record (append-only)` at its absolute path.
