@@ -16,14 +16,7 @@ ownership explicitly when an owner settles — an idle terminal does not prove i
 jobs stopped.
 
 Before expensive validation, record its owner, execution host, required services
-and resources, scratch path, and result location in that same contract. Check
-capacity on the execution host using the repository's existing rules and probes
-before starting the command. Unavailable capacity blocks that validation;
-independent work may continue. Record the blocker and next prerequisite rather
-than repeatedly launching a suite that cannot run. Capacity observations are not
-grants, process-exit proof or permission to reuse an expired command window.
-No generic disk threshold, invented lease protocol, or automatic cleanup:
-resource recovery is explicit, scoped work under the unit's recovery accounting.
+and resources, scratch path, and result location in that same contract.
 
 ## Verification attempts and authority
 
@@ -47,13 +40,6 @@ Name a shared resource owner for each database, port, simulator, build directory
 and suite before scheduling a wave. That owner sequences users of that resource;
 independent work continues. Transfer ownership explicitly with the prior job's
 exit evidence, never from an idle pane or a successful wrapper alone.
-
-Admission measures disk, memory pressure, swap growth, and active workload on
-the execution host using existing host probes. Record the observation, time,
-owner, and repository's thresholds. Swap allocation alone does not show current
-pressure; compare measurements over time. When pressure blocks a heavy check,
-queue that check with its owner and next admission condition. Do not invent a
-universal threshold, cleanup policy, or waiver; preserve other workers' custody.
 
 For missing acceptance at an unchanged revision, continue only that acceptance
 arm. Reuse unchanged-head proof only after checking the tree, environment,

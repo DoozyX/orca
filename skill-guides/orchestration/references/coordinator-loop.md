@@ -28,9 +28,8 @@ an attempt in the delivery unit's existing recovery ledger, and run one scoped
 repair with a deadline and a falsifiable check. Preserve failed evidence; after
 the allowance is exhausted use recorded continuation authority or park the
 blocked arm. Already-authorized recovery does not need another confirmation.
-There is no universal waiver for pressure, budgets, authority, or custody.
-Resource owners admit heavy jobs from measured host workload, memory pressure,
-swap trend, and disk; the coordinator queues conflicting checks rather than
+There is no universal waiver for budgets, authority, or custody.
+The coordinator queues checks that conflict over shared resources rather than
 launching duplicate suites or stopping another owner's process.
 
 Fleet waiting is a pending question or approval, separate from agent liveness.

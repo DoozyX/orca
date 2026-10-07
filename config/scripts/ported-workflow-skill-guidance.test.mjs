@@ -212,23 +212,6 @@ describe('delivery layers on orchestration rather than reimplementing it', () =>
     expect(reference).toContain('state why the target is exceeded')
   })
 
-  it('plans expensive validation capacity on the execution host without inventing resource policy', () => {
-    const reference = squash(readReference('delivery', 'task-pipeline.md'))
-
-    expect(reference).toContain(
-      'execution host, required services and resources, scratch path, and result location'
-    )
-    expect(reference).toContain(
-      'Unavailable capacity blocks that validation; independent work may continue'
-    )
-    expect(reference).toContain(
-      'No generic disk threshold, invented lease protocol, or automatic cleanup'
-    )
-    expect(squash(readReference('delivery', 'parking-and-reporting.md'))).toContain(
-      'amendment and recovery attempts, continuation decisions, and capacity blockers'
-    )
-  })
-
   it('keeps the deployed-verification outcomes terminal and exhaustive', () => {
     const reference = readReference('delivery', 'deployed-verification.md')
 
@@ -359,8 +342,6 @@ describe('delivery investigation repairs', () => {
       'PREP packets',
       'ordinary reversible verification',
       'shared resource owner',
-      'memory pressure',
-      'swap',
       'unchanged-head proof',
       'missing acceptance'
     ]) {
