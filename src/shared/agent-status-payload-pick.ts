@@ -30,6 +30,9 @@ export function pickParsedAgentStatusPayload(
     ...(row.turnCompletedAt !== undefined ? { turnCompletedAt: row.turnCompletedAt } : {}),
     ...(row.subagents !== undefined ? { subagents: row.subagents } : {}),
     ...(row.monitoredWork !== undefined ? { monitoredWork: row.monitoredWork } : {}),
-    ...(row.mainAgent !== undefined ? { mainAgent: row.mainAgent } : {})
+    ...(row.mainAgent !== undefined ? { mainAgent: row.mainAgent } : {}),
+    ...(row.claudeTaskWakeupPending !== undefined
+      ? { claudeTaskWakeupPending: row.claudeTaskWakeupPending }
+      : {})
   }
 }

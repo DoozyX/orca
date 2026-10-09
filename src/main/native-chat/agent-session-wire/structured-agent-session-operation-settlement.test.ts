@@ -19,6 +19,7 @@ import type { AgentSessionTurnContext } from './structured-agent-session-turns'
 import { sendPlan } from './structured-agent-session-mutation-plans'
 import { createStructuredAgentSessionLogger } from './structured-agent-session-logger'
 import { codexProviderHandle } from '../../../shared/agent-session-provider-handle-encoding'
+import { NO_STRUCTURED_AGENTS } from './structured-agent-session-adapter-router-test-support'
 
 async function context(): Promise<AgentSessionTurnContext> {
   return {
@@ -35,6 +36,8 @@ async function context(): Promise<AgentSessionTurnContext> {
       stateDirectory: join(hostTestState().root, 'settlement')
     }),
     fence: 1,
+    agents: NO_STRUCTURED_AGENTS,
+    agent: 'codex',
     adapter: adapter(),
     persistOptions: async () => {},
     resolvedBy: 'test',
@@ -160,4 +163,34 @@ it('refuses a superseded send at acceptance, recording and dispatching nothing',
   expect(ctx.journal.submissions()).toEqual([])
   expect(hostTestState().dispatch).not.toHaveBeenCalled()
   expect(vi.getTimerCount()).toBe(0)
+})
+
+it('keeps the original refusal reason and message in its settled receipt', async () => {
+  const ctx = await context()
+  const { store } = hostTestState()
+  const writes = vi.spyOn(store, 'recordOperationOutcome').mockResolvedValue()
+  const body = hostTestMessage('message')
+  const operation = envelope('agentSession.send', { body })
+  const refusal = {
+    code: 'agent_session_operation_invalid' as const,
+    details: { reason: 'journalWriteFailed' as const },
+    message: 'The message could not be saved.'
+  }
+  expect(
+    await runSettledAgentSessionMutation({
+      store,
+      operationCallerKey: 'test',
+      envelope: operation,
+      context: ctx,
+      plan: {
+        ...sendPlan({ envelope: operation, body }),
+        run: async () => ({ ok: false, refusal })
+      }
+    })
+  ).toMatchObject({ ok: false, refusal })
+  expect(writes).toHaveBeenCalledWith({
+    callerKey: 'test',
+    operationId: operation.clientOperationId,
+    outcome: { status: 'failed', ...refusal }
+  })
 })

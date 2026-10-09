@@ -17,7 +17,10 @@ import {
   type AssertClaudeBoundHomeUsable
 } from './claude-bound-home-refusal'
 import { isCustomClaudeConfigDir } from './claude-config-dir-pin'
-import { resolveStructuredClaudeAccountHomePath } from '../runtime/structured-agent-account-home'
+import {
+  resolveStructuredClaudeAccountHomePath,
+  type StructuredClaudeAccountHomeDeps
+} from '../runtime/structured-agent-account-home'
 
 /** The store accessors the binding decision reads. Each is optional only so a missing one can be
  *  *detected*; see `readClaudeHomeBindingCatalog`. */
@@ -143,7 +146,7 @@ export async function resolveClaudeStructuredAccountHome(input: {
   }
   launchEnv: NodeJS.ProcessEnv
   /** The account selector's answer for this runtime, when it has one. */
-  readSelectedConfigDir: () => string | undefined
+  getClaudeConfigDirectory: StructuredClaudeAccountHomeDeps['getClaudeConfigDirectory']
   assertBoundHomeUsable?: AssertClaudeBoundHomeUsable
 }): Promise<ClaudeStructuredAccountHome> {
   const binding = resolveClaudeHomeBindingForSession({
@@ -176,7 +179,7 @@ export async function resolveClaudeStructuredAccountHome(input: {
     path: resolveStructuredClaudeAccountHomePath({
       launchEnv: input.launchEnv,
       wslDistro: input.location.wslDistro,
-      getClaudeConfigDirectory: input.readSelectedConfigDir
+      getClaudeConfigDirectory: input.getClaudeConfigDirectory
     })
   }
 }

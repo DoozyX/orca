@@ -208,6 +208,8 @@ export type AgentStatusPayload = {
   /** The main agent's own state and last-turn verdict. See AgentMainAgentStatus. Producers publish it
    *  beside the combined `state`; a reader that predates it keeps reading `state`. */
   mainAgent?: AgentMainAgentStatus
+  /** The execution host awaits a launched Claude task’s wake-up or its finishing turn. */
+  claudeTaskWakeupPending?: 'notification' | 'finishing-turn'
 }
 
 /**
@@ -268,6 +270,7 @@ export function normalizeMainAgentStatusField(value: unknown): AgentMainAgentSta
     state,
     // Why: a verdict belongs to a finished turn; anything riding on a live state is stale.
     ...(state === 'done' && isAgentTurnOutcome(obj.outcome) ? { outcome: obj.outcome } : {}),
+    ...(state === 'working' && obj.stopping === true ? { stopping: true as const } : {}),
     stateStartedAt: obj.stateStartedAt
   }
 }
@@ -321,7 +324,13 @@ function normalizeAgentStatusObject(parsed: unknown): ParsedAgentStatusPayload |
     turnCompletedAt: normalizeTurnCompletedAtField(obj.turnCompletedAt, state),
     subagents: normalizeAgentSubagentsField(obj.subagents),
     monitoredWork: normalizeMonitoredWorkField(obj.monitoredWork),
-    mainAgent: normalizeMainAgentStatusField(obj.mainAgent)
+    mainAgent: normalizeMainAgentStatusField(obj.mainAgent),
+    ...(obj.agentType === 'claude' &&
+    state !== 'done' &&
+    (obj.claudeTaskWakeupPending === 'notification' ||
+      obj.claudeTaskWakeupPending === 'finishing-turn')
+      ? { claudeTaskWakeupPending: obj.claudeTaskWakeupPending }
+      : {})
   }
 }
 

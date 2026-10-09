@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import { XIcon } from 'lucide-react'
-import { Dialog as DialogPrimitive } from 'radix-ui'
+import * as DialogPrimitive from 'radix-ui/dialog'
 
 import { cn } from '@/lib/utils'
 import { handleImeOverlayEscape } from '@/lib/ime-overlay-escape'
@@ -127,19 +127,20 @@ function DialogFooter({
   )
 }
 
-/** `sm` is the type ramp of dialogs raised from the sidebar, a step below the app's. */
 function DialogTitle({
   className,
   size = 'default',
   ...props
-}: React.ComponentProps<typeof DialogPrimitive.Title> & { size?: 'default' | 'sm' }) {
+}: React.ComponentProps<typeof DialogPrimitive.Title> & {
+  /** `sm` is the type ramp of dialogs raised from the sidebar, a step below the app's; `display` is the large headline of the two-column feature tip dialogs. */
+  size?: 'default' | 'sm' | 'display'
+}) {
   return (
     <DialogPrimitive.Title
       data-slot="dialog-title"
       data-size={size}
       className={cn(
-        'text-lg leading-snug font-semibold break-words',
-        'data-[size=sm]:text-sm',
+        'text-lg leading-snug font-semibold break-words data-[size=sm]:text-sm data-[size=display]:text-2xl data-[size=display]:leading-tight data-[size=display]:tracking-tight md:data-[size=display]:text-[1.75rem]',
         className
       )}
       {...props}

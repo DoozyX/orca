@@ -80,7 +80,7 @@ export function NativeChatPromptEditor({
           role: 'textbox',
           'aria-multiline': 'true',
           'aria-label': placeholder,
-          class: `${className ?? ''} whitespace-pre-wrap break-words [&_p]:m-0 [&_p.is-editor-empty:first-child]:before:content-[attr(data-placeholder)] [&_p.is-editor-empty:first-child]:before:text-muted-foreground/60 [&_p.is-editor-empty:first-child]:before:float-left [&_p.is-editor-empty:first-child]:before:h-0 [&_p.is-editor-empty:first-child]:before:pointer-events-none`,
+          class: `${className ?? ''} whitespace-pre-wrap break-words [&_p]:m-0 [&_p.is-editor-empty:first-child]:before:content-[attr(data-placeholder)] [&_p.is-editor-empty:first-child]:before:text-chat-foreground-faint [&_p.is-editor-empty:first-child]:before:float-left [&_p.is-editor-empty:first-child]:before:h-0 [&_p.is-editor-empty:first-child]:before:pointer-events-none`,
           ...Object.fromEntries(Object.entries(events).filter(([key]) => key.startsWith('aria-')))
         },
         // Clipboard input is always literal text; only the picker creates skill nodes.
@@ -222,6 +222,24 @@ export function NativeChatPromptEditor({
               editor.view.dom.focus()
             },
             contains: (node) => editor.view.dom.contains(node),
+            isCaretOnVisualEdge: (edge) => {
+              const { selection, doc } = editor.state
+              if (!selection.empty) {
+                return false
+              }
+              const { text } = promptTextMap(doc)
+              // An empty composer has one line: no layout read on the path every recall starts from.
+              if (text === '') {
+                return true
+              }
+              const caret = promptTextOffset(doc, selection.from)
+              const beyond = edge === 'start' ? text.slice(0, caret) : text.slice(caret)
+              // Why both: the text check covers other paragraphs, the view covers soft wraps.
+              return (
+                !beyond.includes('\n') &&
+                editor.view.endOfTextblock(edge === 'start' ? 'up' : 'down')
+              )
+            },
             select: () => {
               editor.commands.selectAll()
             },

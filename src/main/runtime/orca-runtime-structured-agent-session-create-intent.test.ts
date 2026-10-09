@@ -16,12 +16,18 @@ const EMPTY_BINDING_CATALOG = {
   getRepos: () => [],
   getFolderWorkspaces: () => []
 }
+import { FLOATING_TERMINAL_WORKTREE_ID } from '../../shared/constants'
+import { attachFingerprintFields } from '../native-chat/agent-session-wire/structured-agent-session-attach'
 
 beforeEach(() => {
   applyAgentWorkspaceTrust.mockClear()
 })
 
-function createCodexIntentRuntime(settings: Record<string, unknown>) {
+function createCodexIntentRuntime(
+  settings: Record<string, unknown>,
+  workspaceId = 'workspace-1',
+  workspacePath = '/repos/workspace-1'
+) {
   const prepareCodexStructuredLaunch = vi.fn(() => '/accounts/selected/home')
   const runtime = new OrcaRuntimeService(
     // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: create intent only reads getSettings from the store.
@@ -36,21 +42,39 @@ function createCodexIntentRuntime(settings: Record<string, unknown>) {
     resolveStructuredAgentSessionLocation: vi.fn(async () => ({
       executionHostId: 'local',
       wslDistro: null,
-      workspaceId: 'workspace-1',
+      workspaceId,
       workspaceKind: 'git-worktree' as const
     })),
-    resolveRuntimeFileTarget: vi.fn(async () => ({ worktree: { path: '/repos/workspace-1' } }))
+    resolveRuntimeFileTarget: vi.fn(async () => ({ worktree: { path: workspacePath } }))
   })
   const createIntent = () =>
     runtime.resolveStructuredAgentSessionCreateIntent({
       envelope: { sessionId: 'session-1', clientOperationId: 'operation-1' },
-      worktree: 'id:workspace-1',
+      worktree: `id:${workspaceId}`,
       agent: 'codex'
     })
   return { prepareCodexStructuredLaunch, createIntent }
 }
 
 describe('structured Codex folder trust', () => {
+  it('takes a floating chat directory from the host-resolved workspace', async () => {
+    const { createIntent } = createCodexIntentRuntime(
+      {},
+      FLOATING_TERMINAL_WORKTREE_ID,
+      '/host/floating-folder'
+    )
+
+    const intent = await createIntent()
+
+    expect(intent.hostLaunchDirectory).toBe('/host/floating-folder')
+    expect(applyAgentWorkspaceTrust).toHaveBeenCalledWith(
+      'codex',
+      '/host/floating-folder',
+      expect.any(Object)
+    )
+    expect(attachFingerprintFields(intent)).not.toHaveProperty('hostLaunchDirectory')
+  })
+
   it('pre-trusts the chat folder before launch preparation, as a Codex terminal launch does', async () => {
     const { prepareCodexStructuredLaunch, createIntent } = createCodexIntentRuntime({})
 
@@ -504,7 +528,7 @@ describe('project-group Claude home binding', () => {
       agentDefaultEnv: { codex: { CODEX_HOME: '/configured/codex-home' } }
     }).resolveStructuredAgentSessionCreateIntent({ ...createInput, agent: 'codex' })
 
-    expect(intent.accountHome.variable).toBe('CODEX_HOME')
+    expect(intent.accountHome).toMatchObject({ variable: 'CODEX_HOME' })
     expect(intent.accountHome).not.toHaveProperty('binding')
   })
 })

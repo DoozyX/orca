@@ -101,7 +101,7 @@ export async function resolveClaudeTerminalConfigDirEnv(input: {
     store: input.store,
     location: { ...input.location, executionHostId: LOCAL_EXECUTION_HOST_ID },
     launchEnv: input.launchEnv,
-    readSelectedConfigDir: input.readSelectedConfigDir,
+    getClaudeConfigDirectory: () => input.readSelectedConfigDir(),
     ...(input.assertBoundHomeUsable ? { assertBoundHomeUsable: input.assertBoundHomeUsable } : {})
   })
   if (!isEffectiveBoundClaudeHome(accountHome, { env: childEnv })) {

@@ -72,6 +72,8 @@ export function readClaudeBackgroundAgentTasks(hookPayload: Record<string, unkno
   hasRunningNonAgentTask: boolean
   /** Live non-agent entries, in inventory order. */
   monitoredWork: ClaudeMonitoredWorkObservation[]
+  /** Ids of the running shell-like entries; one without an id is counted but not listed. */
+  runningNonAgentTaskIds: string[]
 } {
   const raw = hookPayload['background_tasks']
   if (!Array.isArray(raw)) {
@@ -80,13 +82,15 @@ export function readClaudeBackgroundAgentTasks(hookPayload: Record<string, unkno
       tasks: [],
       truncated: false,
       hasRunningNonAgentTask: false,
-      monitoredWork: []
+      monitoredWork: [],
+      runningNonAgentTaskIds: []
     }
   }
   const tasks: ClaudeBackgroundAgentTask[] = []
   const monitoredWork: ClaudeMonitoredWorkObservation[] = []
   let truncated = false
   let hasRunningNonAgentTask = false
+  const runningNonAgentTaskIds: string[] = []
   for (const item of raw) {
     if (typeof item !== 'object' || item === null) {
       truncated = true
@@ -111,6 +115,10 @@ export function readClaudeBackgroundAgentTasks(hookPayload: Record<string, unkno
       if (observation) {
         monitoredWork.push(observation)
       }
+      const id = typeof obj.id === 'string' ? obj.id.trim() : ''
+      if (id.length > 0) {
+        runningNonAgentTaskIds.push(id)
+      }
     }
     if (!isAgentTask) {
       continue
@@ -133,7 +141,14 @@ export function readClaudeBackgroundAgentTasks(hookPayload: Record<string, unkno
       teammate: taskType === 'teammate'
     })
   }
-  return { present: true, tasks, truncated, hasRunningNonAgentTask, monitoredWork }
+  return {
+    present: true,
+    tasks,
+    truncated,
+    hasRunningNonAgentTask,
+    monitoredWork,
+    runningNonAgentTaskIds
+  }
 }
 
 /** Read `session_crons`. `present: false` means the field was absent, so callers keep what they have. */
