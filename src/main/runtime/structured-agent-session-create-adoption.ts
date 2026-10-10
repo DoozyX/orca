@@ -1,3 +1,4 @@
+import { getClaudeProfileRouter } from '../claude-accounts/claude-profile-installed-router'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import type { AgentSessionExecutionLocation } from '../../shared/agent-session-record'
@@ -110,7 +111,11 @@ export function structuredAdoptionAccountHomeCandidates(input: {
     return [input.selectedAccountHomePath]
   }
   if (input.agent === 'claude') {
-    return [input.selectedAccountHomePath, join(homedir(), '.claude')]
+    return [
+      input.selectedAccountHomePath,
+      join(homedir(), '.claude'),
+      ...(getClaudeProfileRouter()?.accountHomes() ?? [])
+    ]
   }
   return [
     input.selectedAccountHomePath,

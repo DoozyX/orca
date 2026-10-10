@@ -18,6 +18,7 @@ import {
   getFolderWorkspaceHostId,
   getFolderWorkspaceProjectGroupHostId
 } from '../../folder-workspace-host-id'
+import { getHostSectionCollapseKey } from '../../host-section-collapse'
 
 function findFolderWorkspaceByKey(
   worktreeId: string,
@@ -75,6 +76,7 @@ export function getFolderWorkspaceRevealGroupKeys(
     groupBy?: WorktreeGroupBy
     workspaceStatuses?: readonly WorkspaceStatusDefinition[]
     defaultHostId?: ExecutionHostId
+    hostScopedGroups?: boolean
   }
 ): string[] {
   const folderWorkspace = findFolderWorkspaceByKey(worktreeId, folderWorkspaces)
@@ -110,12 +112,18 @@ export function getFolderWorkspaceRevealGroupKeys(
     ? findProjectGroupByHost(groupHostIndex, folderWorkspace.projectGroupId, groupHostId)
     : undefined
   if (options?.groupBy && options.groupBy !== 'repo' && owningGroup) {
+    const laneKey = getFolderWorkspaceLaneKey(
+      { folderWorkspace, projectGroup: owningGroup },
+      options.groupBy,
+      options.workspaceStatuses ?? []
+    )
     keys.push(
-      getFolderWorkspaceLaneKey(
-        { folderWorkspace, projectGroup: owningGroup },
-        options.groupBy,
-        options.workspaceStatuses ?? []
-      )
+      options.hostScopedGroups && options.defaultHostId
+        ? getHostSectionCollapseKey(
+            laneKey,
+            getFolderWorkspaceHostId(folderWorkspace, owningGroup, options.defaultHostId)
+          )
+        : laneKey
     )
   }
   if (owningGroup && options?.defaultHostId) {
