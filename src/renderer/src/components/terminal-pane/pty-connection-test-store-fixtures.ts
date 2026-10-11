@@ -4,6 +4,7 @@ import { LEAF_1 } from './pty-connection-test-pane-fixtures'
 import type { StoreState } from './pty-connection-test-store-state'
 
 export function createInitialStoreState(getState: () => StoreState): StoreState {
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: pty-connection tests read only the slices listed here.
   return {
     activeWorktreeId: 'wt-1',
     tabsByWorktree: {

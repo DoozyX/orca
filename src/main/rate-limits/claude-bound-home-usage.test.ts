@@ -128,8 +128,11 @@ const ratchet = vi.hoisted(() => {
    * A module with no legitimate read on this path: every named export throws. Built without
    * `importOriginal` so guarding a native or Electron-only module never loads it.
    */
-  const forbiddenModule = (label: string, names: readonly string[]): Record<string, unknown> => {
-    const guarded: Record<string, unknown> = {}
+  const forbiddenModule = (
+    label: string,
+    names: readonly string[]
+  ): Record<string, () => never> => {
+    const guarded: Record<string, () => never> = {}
     for (const name of names) {
       guarded[name] = () => {
         throw new Error(`D9 violation: bound-home usage called ${label}.${name}`)
@@ -185,7 +188,7 @@ vi.mock('node:module', async (importOriginal) => {
     createRequire: (filename: string) =>
       String(filename).endsWith('windows-process-table.ts')
         ? actual.createRequire(filename)
-        : (forbidden.createRequire as () => never)()
+        : forbidden.createRequire()
   }
   return { ...guarded, default: guarded }
 })

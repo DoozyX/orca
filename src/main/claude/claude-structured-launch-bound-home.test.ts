@@ -12,11 +12,13 @@ import { claudeStructuredPermissionModeForSettings } from './claude-structured-p
 import { claudeProviderHandle } from '../../shared/agent-session-provider-handle-encoding'
 
 const SESSION_ID = 'orca-session-1'
+// oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the resolver reads only the identity's session id.
 const IDENTITY = { sessionId: SESSION_ID } as Parameters<
   ReturnType<typeof createClaudeStructuredLaunchResolver>
 >[0]['identity']
 
 function record(overrides: Partial<AgentSessionRecord> = {}): AgentSessionRecord {
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the resolver reads only the fields set here.
   return {
     sessionId: SESSION_ID,
     provider: 'claude',
