@@ -459,6 +459,9 @@ describe('RateLimitService', () => {
     )
     expect(fetchCodexRateLimits).toHaveBeenCalledTimes(1)
     expect(fetchGeminiRateLimits).toHaveBeenCalledTimes(1)
+    expect(fetchCodexRateLimits).toHaveBeenCalledWith(
+      expect.objectContaining({ networkProxySettings, signal: expect.any(AbortSignal) })
+    )
     expect(fetchGeminiRateLimits).toHaveBeenCalledWith(true)
     expect(fetchOpenCodeGoUsage).toHaveBeenCalledTimes(1)
     expect(fetchOpenCodeGoUsage).toHaveBeenCalledWith(

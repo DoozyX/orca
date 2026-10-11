@@ -238,6 +238,7 @@ export abstract class RateLimitServiceFullCyclePreparation extends RateLimitServ
           : (missingWslCodexHome ??
             fetchCodexRateLimits({
               codexHomePath,
+              networkProxySettings: this.networkProxySettingsResolver?.(),
               signal
             })),
         fetchGeminiRateLimits(geminiCliOAuthEnabled),
