@@ -1,10 +1,6 @@
 // @ts-nocheck -- mechanically split from OrcaRuntimeService; behavior is covered by AST equivalence and characterization tests.
 import { OrcaRuntimeWithRemoveManagedWorktree } from './orca-runtime-remove-managed-worktree'
 import type { ExecutionHostId } from '../../shared/execution-host'
-import {
-  resolveClaudeTerminalConfigDirEnv,
-  resolveClaudeTerminalWslDistro
-} from '../claude/claude-terminal-account-home'
 import type {
   RemoveManagedWorktreeOptions,
   RuntimeWorktreeRemovalTarget
@@ -303,7 +299,7 @@ export class OrcaRuntimeWithResolveWorktreeRemovalTarget extends OrcaRuntimeWith
       return opts
     }
 
-    const launch = await buildRuntimeAgentTerminalStartupOptions(
+    return buildRuntimeAgentTerminalStartupOptions(
       workspace,
       opts,
       store.getSettings(),
@@ -311,34 +307,5 @@ export class OrcaRuntimeWithResolveWorktreeRemovalTarget extends OrcaRuntimeWith
       this.toAgentSessionOptions(opts.launchPreferences),
       this.runtimeId
     )
-    if (!launch.launchAgent) {
-      return launch
-    }
-    // A project group may bind this workspace's Claude to its own config dir. Resolved here
-    // because this is the one funnel every terminal create passes through, and resolved by the
-    // same function a structured session uses so the two routes cannot answer differently. An
-    // unusable binding throws, which refuses the create — never a silent fall back to the shared
-    // home, per `claude-bound-home-refusal.ts`.
-    const isRemote = Boolean(workspace.connectionId)
-    const claudeHomeEnv = await resolveClaudeTerminalConfigDirEnv({
-      agent: launch.launchAgent,
-      store,
-      location: {
-        executionHostId: isRemote ? null : LOCAL_EXECUTION_HOST_ID,
-        wslDistro: resolveClaudeTerminalWslDistro({
-          store,
-          repo: workspace.repo,
-          workspacePath: workspace.path,
-          isLocalHost: !isRemote
-        }),
-        workspaceId: workspace.id
-      },
-      launchEnv: { ...process.env, ...launch.env },
-      readSelectedConfigDir: () =>
-        this.accounts?.getClaudeConfigDirectory({ runtime: 'host' }) ?? undefined,
-      assertBoundHomeUsable: this.assertClaudeBoundHomeUsableFn
-    })
-    const env = { ...launch.env, ...claudeHomeEnv }
-    return Object.keys(env).length > 0 ? { ...launch, env } : launch
   }
 }

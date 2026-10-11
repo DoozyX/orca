@@ -5,7 +5,10 @@ import { OrcaRuntimeWithStartTuiIdleVisibleReadProbe } from './orca-runtime-star
 import { DEFAULT_WORKTREE_PS_LIMIT } from './orca-runtime-postlude'
 import type { RuntimeWorktreePsResult } from '../../shared/runtime-types'
 import { buildRuntimeWorktreePsSummaries } from './runtime-worktree-ps-summaries'
-import { buildRuntimeWorktreeSummaryPathIndex } from './runtime-worktree-summary-paths'
+import {
+  buildRuntimeWorktreeSummaryPathIndex,
+  createRuntimeWorktreePsSummaryLookup
+} from './runtime-worktree-summary-paths'
 import {
   applyRuntimeWorktreePsSessionActivity,
   applyRuntimeWorktreePsTerminalActivity
@@ -86,18 +89,13 @@ export class OrcaRuntimeWithGetWorktreePs extends OrcaRuntimeWithStartTuiIdleVis
       platformByRepoId
     })
 
-    const runtimeWorktreeSummaryPathIndex = buildRuntimeWorktreeSummaryPathIndex(
+    const getSummary = createRuntimeWorktreePsSummaryLookup(
       summaries,
-      resolvedWorktrees,
-      platformByRepoId
+      buildRuntimeWorktreeSummaryPathIndex(summaries, resolvedWorktrees, platformByRepoId)
     )
-    const missingRuntimeWorktreeIds = new Set<string>()
     const session = this.store?.getWorkspaceSession?.()
     const countedPtyIds = new Set<string>()
     const workingTerminalEvidenceByWorktreeId = applyRuntimeWorktreePsTerminalActivity({
-      summaries,
-      pathIndex: runtimeWorktreeSummaryPathIndex,
-      missingIds: missingRuntimeWorktreeIds,
       freshPtyLiveness,
       countedPtyIds,
       leaves: this.leaves.values(),
@@ -106,37 +104,27 @@ export class OrcaRuntimeWithGetWorktreePs extends OrcaRuntimeWithStartTuiIdleVis
       session,
       getPaneKey: (leaf) => this.makeRuntimePaneKey(leaf),
       getTitleDisplayClear: (ptyId) => this.getPtyTitleDisplayClear(ptyId),
-      getSummary: (summaryMap, pathIndex, missingIds, worktreeId) =>
-        this.getSummaryForRuntimeWorktreeId(summaryMap, pathIndex, missingIds, worktreeId)
+      getSummary
     })
     applyRuntimeWorktreePsUnverifiableTerminals({
-      summaries,
-      pathIndex: runtimeWorktreeSummaryPathIndex,
-      missingIds: missingRuntimeWorktreeIds,
       countedPtyIds,
       leaves: this.leaves.values(),
       ptysById: this.ptysById,
       getLivenessVerdict: (ptyId) => this.getPtyLivenessVerdict(ptyId),
-      getSummary: (summaryMap, pathIndex, missingIds, worktreeId) =>
-        this.getSummaryForRuntimeWorktreeId(summaryMap, pathIndex, missingIds, worktreeId)
+      getSummary
     })
     const { mirroredWorktreeIdByTabId, connectedPtyEvidence } =
       applyRuntimeWorktreePsSessionActivity({
         store: this.store,
         summaries,
         repoById,
-        pathIndex: runtimeWorktreeSummaryPathIndex,
-        missingIds: missingRuntimeWorktreeIds,
         ptysById: this.ptysById,
         tabs: this.tabs,
         getTerminalHandlesForPty: (ptyId) => this.getExistingTerminalHandlesForPtyId(ptyId),
-        getSummary: (summaryMap, pathIndex, missingIds, worktreeId) =>
-          this.getSummaryForRuntimeWorktreeId(summaryMap, pathIndex, missingIds, worktreeId)
+        getSummary
       })
     attachRuntimeWorktreeAgentRows({
       summaries,
-      pathIndex: runtimeWorktreeSummaryPathIndex,
-      missingWorktreeIds: missingRuntimeWorktreeIds,
       workingTerminalEvidenceByWorktreeId,
       rowSources: collectRuntimeWorktreeAgentSources({
         mirroredWorktreeIdByTabId,
@@ -145,8 +133,7 @@ export class OrcaRuntimeWithGetWorktreePs extends OrcaRuntimeWithStartTuiIdleVis
         hookSnapshots: this.getAgentStatusSnapshotFn?.() ?? []
       }),
       orchestrationByPaneKey: this.agentOrchestrationProjection.buildByPaneKey(),
-      getSummary: (summaryMap, pathIndex, missingIds, worktreeId) =>
-        this.getSummaryForRuntimeWorktreeId(summaryMap, pathIndex, missingIds, worktreeId)
+      getSummary
     })
 
     const sorted = [...summaries.values()].sort(compareWorktreePs)
@@ -261,8 +248,6 @@ export class OrcaRuntimeWithGetWorktreePs extends OrcaRuntimeWithStartTuiIdleVis
       resolveAgentCommandSettings: () => this.requireStore().getSettings(),
       resolveCodexAccountKind: (home) =>
         resolveStructuredCodexAccountKind(home, this.requireStore().getSettings()),
-      // Same gate and same settings as agentSession.createSupport, re-read on every acquisition.
-      getClaudeManagedAccountGateSettings: () => this.requireStore().getSettings(),
       // Read per acquisition from the same catalog the create path reads, so a chat created before
       // its group was bound is told rather than left running on the old account.
       readClaudeHomeBinding: (location) =>

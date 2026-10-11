@@ -7,7 +7,21 @@ const COMMAND_SCOPED_FLAG_HELP: Record<string, Record<string, string>> = {
   'account list': {
     'refresh-usage': '--refresh-usage        Fetch current provider usage before listing accounts'
   },
+  'reference add': {
+    url: '--url <url>            Full review or issue URL; pass all URLs positionally or all as repeated --url'
+  },
+  'reference remove': {
+    url: '--url <url>            Full review or issue URL; pass all URLs positionally or all as repeated --url',
+    key: '--key <key>            Opaque key from reference list; repeat for several'
+  },
+  'reference find': {
+    query: '--query <url-or-key>   Full URL or native issue key such as STA-1234',
+    repo: '--repo <selector>      Filter by workspace repository membership',
+    'include-archived': '--include-archived     Include archived workspaces',
+    limit: '--limit <n>            Maximum matching workspaces (default 50)'
+  },
   'worktree create': {
+    reference: '--reference <url>      Attach an issue or review URL; repeat for several',
     pr: '--pr <number>          Linked GitHub pull request number',
     'gitlab-issue': '--gitlab-issue <number|url> Linked GitLab issue in the source project',
     'gitlab-mr': '--gitlab-mr <number|url> Linked GitLab merge request in the source project'

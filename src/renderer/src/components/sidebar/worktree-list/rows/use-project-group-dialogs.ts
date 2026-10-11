@@ -7,6 +7,7 @@ import type { ProjectGroup } from '../../../../../../shared/project-group-types'
 import type { Repo } from '../../../../../../shared/repo-types'
 import {
   getProjectGroupExecutionHostId,
+  getRepoExecutionHostId,
   type ExecutionHostId
 } from '../../../../../../shared/execution-host'
 import {
@@ -125,14 +126,14 @@ export function useProjectGroupDialogs(args: {
       if (repo.projectGroupId === groupId) {
         return
       }
-      void moveProjectToGroup(repo.id, groupId)
+      void moveProjectToGroup(repo.id, groupId, undefined, getRepoExecutionHostId(repo))
     },
     [moveProjectToGroup]
   )
 
   const handleRemoveProjectFromGroup = useCallback(
     (repo: Repo) => {
-      void moveProjectToGroup(repo.id, null)
+      void moveProjectToGroup(repo.id, null, undefined, getRepoExecutionHostId(repo))
     },
     [moveProjectToGroup]
   )
@@ -150,9 +151,10 @@ export function useProjectGroupDialogs(args: {
         return
       }
       if (nameDialog.type === 'create-from-repo') {
-        const group = await createProjectGroup(name)
+        const hostId = getRepoExecutionHostId(nameDialog.repo)
+        const group = await createProjectGroup(name, hostId)
         if (group) {
-          await moveProjectToGroup(nameDialog.repo.id, group.id)
+          await moveProjectToGroup(nameDialog.repo.id, group.id, undefined, hostId)
         }
         return
       }

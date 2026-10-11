@@ -6,7 +6,12 @@ import {
   watchProviderAccounts,
   type ProviderAccountsSnapshot
 } from '@/runtime/runtime-provider-accounts-client'
-import { callRuntimeRpc, getActiveRuntimeTarget } from '@/runtime/runtime-rpc-client'
+import { callRuntimeRpc } from '@/runtime/runtime-rpc-client'
+import {
+  runtimeTargetEnvironmentId,
+  runtimeTargetForOwnerEnvironment
+} from '@/runtime/runtime-client-target'
+import { defaultScopeHost } from '@/lib/default-creation-host'
 import type { ProviderRateLimits, RateLimitState } from '../../../../shared/rate-limit-types'
 import { createEmptyRateLimitState } from '../../../../shared/rate-limit-state-factory'
 import { resolveClaudeStatusAccountState } from './status-bar-claude-accounts'
@@ -69,10 +74,10 @@ export function useAccountUsageRoster() {
   const refreshLocal = useAppStore((s) => s.refreshRateLimits)
   const claudeKey = getClaudeAccountSyncKey(settings)
   const codexKey = getCodexAccountSyncKey(settings)
-  const environmentId = settings?.activeRuntimeEnvironmentId?.trim() || null
+  const environmentId = runtimeTargetEnvironmentId(defaultScopeHost(settings))
   const ownerKey = environmentId ? `environment:${environmentId}` : 'local'
-  const ownerSettings = useMemo(
-    () => ({ activeRuntimeEnvironmentId: environmentId }),
+  const ownerTarget = useMemo(
+    () => runtimeTargetForOwnerEnvironment(environmentId),
     [environmentId]
   )
   const [received, setReceived] = useState<{
@@ -95,7 +100,7 @@ export function useAccountUsageRoster() {
       return
     }
     let closed = false
-    const watcher = watchProviderAccounts(ownerSettings, {
+    const watcher = watchProviderAccounts(ownerTarget, {
       onSnapshot: (next) => {
         if (closed) {
           return
@@ -123,7 +128,7 @@ export function useAccountUsageRoster() {
       watcher.close()
     }
   }, [
-    ownerSettings,
+    ownerTarget,
     ownerKey,
     visible,
     environmentId,
@@ -152,7 +157,7 @@ export function useAccountUsageRoster() {
     if (environmentId) {
       // The subscription delivers results; never install a late RPC snapshot after an owner change.
       try {
-        await callRuntimeRpc(getActiveRuntimeTarget(ownerSettings), 'accounts.list', {
+        await callRuntimeRpc(ownerTarget, 'accounts.list', {
           refreshUsage: true
         })
       } catch {
@@ -161,7 +166,7 @@ export function useAccountUsageRoster() {
       return
     }
     await Promise.all([refreshLocal(), refreshPreviews()])
-  }, [environmentId, ownerSettings, refreshLocal, refreshPreviews, markDisconnected])
+  }, [environmentId, ownerTarget, refreshLocal, refreshPreviews, markDisconnected])
 
   const accounts: ProviderAccountsSnapshot = {
     ...snapshot,

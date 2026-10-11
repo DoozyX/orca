@@ -4,6 +4,9 @@ import { applyClaudeEnvPatch } from '../claude-accounts/environment'
 import { AgentSessionPreSpawnError } from '../native-chat/agent-session-wire/structured-agent-session-adapter'
 import { resolveSessionFilePath } from '../native-chat/session-file-resolver'
 import { resolveStructuredClaudeAccountHomePath } from '../runtime/structured-agent-account-home'
+import type { ResolvedClaudeHomeBinding } from '../../shared/claude-home-binding'
+import { prepareClaudeBoundHomeLaunch } from '../claude-accounts/claude-bound-home-route'
+import type { AssertClaudeBoundHomeUsable } from './claude-bound-home-refusal'
 
 /**
  * The folder a structured launch runs under, and the env patch that pins it there.
@@ -12,8 +15,22 @@ import { resolveStructuredClaudeAccountHomePath } from '../runtime/structured-ag
 export async function resolveClaudeStructuredLaunchHome(
   router: ClaudeProfileRouter | undefined,
   env: Record<string, string>,
-  recordHome: string
+  recordHome: string,
+  bound: {
+    boundHome?: ResolvedClaudeHomeBinding
+    launchEnv?: NodeJS.ProcessEnv
+    assertUsable?: AssertClaudeBoundHomeUsable
+  } = {}
 ): Promise<string> {
+  const { boundHome, launchEnv, assertUsable } = bound
+  if (boundHome) {
+    // Why: a bound home is re-proved every acquisition; it may have been deleted or signed out since.
+    const preparation = router
+      ? await router.prepareLaunch({ boundHome, launchEnv })
+      : await prepareClaudeBoundHomeLaunch(boundHome, launchEnv, assertUsable)
+    applyClaudeEnvPatch(env, preparation.envPatch)
+    return preparation.configDir
+  }
   if (!router) {
     return recordHome
   }
@@ -32,7 +49,7 @@ export async function resolveClaudeStructuredLaunchHome(
 }
 
 /** Whether Claude wrote a transcript for this id under the given config folder. */
-export async function claudeTranscriptExists(input: {
+async function claudeTranscriptExists(input: {
   providerSessionId: string
   claudeConfigDir: string
 }): Promise<boolean> {

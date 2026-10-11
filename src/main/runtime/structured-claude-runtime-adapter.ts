@@ -18,7 +18,6 @@ import {
   recordAgentSessionProviderHandle,
   reviseAgentSessionProviderResumePoint
 } from './agent-session-provider-handle-transition'
-import type { ClaudeManagedAccountGateSettings } from '../native-chat/claude-structured-managed-account-support'
 import type { AgentSessionRecordStore } from './agent-session-record-store'
 import { ClaudeAtRestCommandCatalog } from '../claude/claude-at-rest-commands'
 import { openClaudeStreamJsonConnection } from '../claude/claude-stream-json-connection'
@@ -43,14 +42,12 @@ export type StructuredClaudeRuntimeAdapterDeps = {
   resolveClaudeAuthPolicy: () => Promise<ClaudeStructuredAuthPolicy> | ClaudeStructuredAuthPolicy
   /** The user's Agent Permissions setting for Claude; absent means prompting. */
   resolveClaudePermissionMode?: () => Promise<PermissionMode> | PermissionMode
-  readClaudeManagedAccountGate?: () => ClaudeManagedAccountGateSettings | null
   /** The workspace group's current Claude binding, for the "this chat predates the binding" check. */
   readClaudeHomeBinding?: ClaudeStructuredLaunchResolverDeps['readClaudeHomeBinding']
   /** Where the host stores chat attachments; granted to the agent as a readable directory. */
   attachmentDirectory?: string
   openClaudeConnection?: ClaudeStructuredSessionAdapterDeps['openConnection']
   readProcessStartTime?: ClaudeStructuredSessionAdapterDeps['readProcessStartTime']
-  modelCatalog?: ClaudeStructuredSessionAdapterDeps['modelCatalog']
   onLifecycleEvent: (event: StructuredAgentSessionLifecycleEvent) => void
   onDispatchSettledLate?: ClaudeStructuredSessionAdapterDeps['onDispatchSettledLate']
   onSessionIdle?: ClaudeStructuredSessionAdapterDeps['onSessionIdle']
@@ -126,9 +123,6 @@ export function createStructuredClaudeRuntimeAdapter(
       ...(deps.resolveClaudePermissionMode
         ? { resolvePermissionMode: deps.resolveClaudePermissionMode }
         : {}),
-      ...(deps.readClaudeManagedAccountGate
-        ? { readManagedAccountGate: deps.readClaudeManagedAccountGate }
-        : {}),
       ...(deps.readClaudeHomeBinding ? { readClaudeHomeBinding: deps.readClaudeHomeBinding } : {}),
       ...(deps.attachmentDirectory ? { attachmentDirectory: deps.attachmentDirectory } : {}),
       ...(deps.claudeCliFlags ? { cliFlags: deps.claudeCliFlags } : {}),
@@ -173,8 +167,7 @@ export function createStructuredClaudeRuntimeAdapter(
     ...(deps.onChildWorkEvidence ? { onChildWorkEvidence: deps.onChildWorkEvidence } : {}),
     ...(deps.logger ? { logger: deps.logger } : {}),
     ...openClaudeConnectionOf(deps),
-    ...(deps.readProcessStartTime ? { readProcessStartTime: deps.readProcessStartTime } : {}),
-    ...(deps.modelCatalog ? { modelCatalog: deps.modelCatalog } : {})
+    ...(deps.readProcessStartTime ? { readProcessStartTime: deps.readProcessStartTime } : {})
   })
 }
 

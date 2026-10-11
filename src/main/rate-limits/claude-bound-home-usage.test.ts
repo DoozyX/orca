@@ -1,9 +1,6 @@
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import {
-  readActiveClaudeKeychainCredentials,
-  readActiveClaudeKeychainCredentialsStrict
-} from '../claude-accounts/keychain'
+import { readActiveClaudeKeychainCredentialsStrict } from '../claude-accounts/keychain'
 import { fetchBoundClaudeHomeUsage } from './claude-bound-home-usage'
 import { fetchClaudeOAuthUsage } from './claude-oauth-usage-request'
 import { okProvider } from './rate-limit-service-test-harness'
@@ -25,9 +22,8 @@ import { okProvider } from './rate-limit-service-test-harness'
  *
  * A token refresh has no filesystem sink at all — it is a network call that makes the bound
  * directory's own single-use refresh token dead server-side — so its sinks are guarded by specifier
- * too: `fetch` (a global, invisible to `vi.mock`), `node:https`, `node:http`, Electron's `net` —
- * the spelling `oauth-refresh.ts` uses — and the raw `node:net` / `node:tls` sockets underneath
- * them. `electron`'s `utilityProcess.fork` rides the same specifier and is guarded with them.
+ * too: `fetch` (a global, invisible to `vi.mock`), `node:https`, `node:http`, Electron's `net`,
+ * and the raw `node:net` / `node:tls` sockets underneath them. `electron`'s `utilityProcess.fork` rides the same specifier and is guarded with them.
  *
  * The self-test at the bottom fires every probe, so dropping a mock or renaming a specifier fails
  * the suite instead of quietly widening what a bound directory is exposed to.
@@ -162,7 +158,7 @@ vi.mock('node:child_process', async (importOriginal) => {
   return { ...guarded, default: guarded }
 })
 
-vi.mock('../../shared/child-process/run-process', async (importOriginal) =>
+vi.mock('@orca/process-host', async (importOriginal) =>
   ratchet.guardSpawnModule(await importOriginal<object>(), 'shared/child-process')
 )
 
@@ -196,9 +192,8 @@ vi.mock('node:module', async (importOriginal) => {
 
 // Why: a token refresh is the fifth write this file's header names, and it is the one write with no
 // filesystem sink at all — the server rotates a single-use refresh token and the copy still sitting
-// in the bound directory dies. `vi.mock('../claude-accounts/oauth-refresh')` below guards the
-// *wrapper*; the specifiers below are the sinks that wrapper and every other in-repo network call
-// reach. A guard written against the verb name `refresh` would cover none of them.
+// in the bound directory dies. The specifiers below are the sinks every in-repo network call
+// reaches. A guard written against the verb name `refresh` would cover none of them.
 //
 // `fetch` is a global, not a module, so `vi.mock` cannot see it at all and only a stub reaches it.
 vi.stubGlobal('fetch', () => {
@@ -222,7 +217,7 @@ vi.mock('node:http', async (importOriginal) => {
 })
 
 // Why: `net.fetch` is the only sanctioned spelling in this repo — `proxy-guarded-fetch-call-site-audit`
-// enforces it and `oauth-refresh.ts:142` uses it — so a copied refresh lands here, not on `fetch`.
+// enforces it — so a copied refresh lands here, not on `fetch`.
 // `utilityProcess.fork` rides the same specifier and is the `node:worker_threads` escape with a
 // different name: a second process whose module graph none of these mocks reach, so it is guarded
 // for the same reason the `Worker` constructor is. Built without `importOriginal` because outside an
@@ -276,13 +271,8 @@ vi.mock('node:worker_threads', async (importOriginal) => {
 // the developer's real Keychain; every write export still throws.
 vi.mock('../claude-accounts/keychain', async (importOriginal) => ({
   ...ratchet.guardModule(await importOriginal<object>(), 'keychain'),
-  readActiveClaudeKeychainCredentials: vi.fn(async () => null),
   readActiveClaudeKeychainCredentialsStrict: vi.fn(async () => null)
 }))
-
-vi.mock('../claude-accounts/oauth-refresh', async (importOriginal) =>
-  ratchet.guardModule(await importOriginal<object>(), 'oauth-refresh')
-)
 
 vi.mock('./claude-managed-account-credentials', async (importOriginal) =>
   ratchet.guardModule(await importOriginal<object>(), 'claude-managed-account-credentials')
@@ -311,7 +301,6 @@ function keychainPayload(overrides: Record<string, unknown> = {}): string {
 }
 
 beforeEach(() => {
-  vi.mocked(readActiveClaudeKeychainCredentials).mockResolvedValue(null)
   vi.mocked(readActiveClaudeKeychainCredentialsStrict).mockReset()
   vi.mocked(readActiveClaudeKeychainCredentialsStrict).mockResolvedValue(null)
   ratchet.readPaths.length = 0
@@ -420,9 +409,6 @@ describe('fetchBoundClaudeHomeUsage', () => {
     vi.mocked(readActiveClaudeKeychainCredentialsStrict).mockImplementation(async (configDir) =>
       configDir === undefined ? keychainPayload({ accessToken: 'personal-token' }) : null
     )
-    vi.mocked(readActiveClaudeKeychainCredentials).mockResolvedValue(
-      keychainPayload({ accessToken: 'personal-token' })
-    )
 
     const result = await fetchBoundClaudeHomeUsage(fixtureDir('absent'))
 
@@ -478,7 +464,6 @@ describe('fetchBoundClaudeHomeUsage', () => {
       await fetchBoundClaudeHomeUsage(fixtureDir(fixture))
     }
 
-    expect(readActiveClaudeKeychainCredentials).not.toHaveBeenCalled()
     expect(vi.mocked(readActiveClaudeKeychainCredentialsStrict).mock.calls.length).toBeGreaterThan(
       0
     )
@@ -512,7 +497,7 @@ describe('the D9 ratchet itself', () => {
 
   it('fails a Keychain item write however it is spawned, and allows only the read verb', async () => {
     const { execFile } = await import('node:child_process')
-    const { runProcess } = await import('../../shared/child-process/run-process')
+    const { runProcess } = await import('@orca/process-host')
 
     expect(() =>
       execFile('security', ['add-generic-password', '-s', 'Claude Code-credentials'])
@@ -525,21 +510,6 @@ describe('the D9 ratchet itself', () => {
     expect(() =>
       runProcess({ program: 'security', args: ['find-generic-password', '-s', 'x'] })
     ).not.toThrow()
-  })
-
-  it('fails a Keychain write export and a credential stage', async () => {
-    const keychain = await import('../claude-accounts/keychain')
-    const refresh = await import('../claude-accounts/oauth-refresh')
-
-    expect(() => keychain.writeActiveClaudeKeychainCredentials('{}')).toThrow('D9 violation')
-    expect(() => keychain.deleteActiveClaudeKeychainCredentials()).toThrow('D9 violation')
-    expect(Object.keys(refresh).length).toBeGreaterThan(0)
-    for (const entry of Object.values(refresh)) {
-      const exported: unknown = entry
-      if (typeof exported === 'function') {
-        expect(() => exported()).toThrow('D9 violation')
-      }
-    }
   })
 
   it('fails a PTY spawn reached as a dynamic `node-pty` import', async () => {
@@ -587,9 +557,8 @@ describe('the D9 ratchet itself', () => {
   })
 
   it("fails a token refresh reached through Electron's `net`, the in-repo spelling", async () => {
-    // `oauth-refresh.ts:142` is `net.fetch(OAUTH_TOKEN_URL, { method: 'POST', ... })`, and
-    // `proxy-guarded-fetch-call-site-audit.test.ts` makes that the only sanctioned spelling, so a
-    // copied refresh lands here rather than on `fetch` or `node:https`.
+    // `proxy-guarded-fetch-call-site-audit.test.ts` makes `net.fetch` the only sanctioned spelling,
+    // so a refresh lands here rather than on `fetch` or `node:https`.
     const { net } = await import('electron')
 
     expect(() => net.fetch(probeTokenUrl, { method: 'POST' })).toThrow('D9 violation')

@@ -14,6 +14,8 @@ export function toOrcadDestinationProjectGroup(source: ProjectGroup): ProjectGro
   const destination = structuredClone(source)
   destination.connectionId = null
   delete destination.executionHostId
+  // Why: the store reads an absent binding back as null, so a reimport must compare the same shape.
+  destination.claudeConfigDir ??= null
   return destination
 }
 

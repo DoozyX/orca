@@ -168,7 +168,6 @@ describe('registerFilesystemHandlers', () => {
       const prepareForClaudeLaunch = vi.fn().mockResolvedValue({
         configDir: '\\\\wsl.localhost\\Ubuntu\\home\\tester\\.claude',
         envPatch: { CLAUDE_CONFIG_DIR: '/home/tester/.claude' },
-        stripAuthEnv: true,
         provenance: 'managed:account-1'
       })
       const folderStore = {
@@ -195,10 +194,10 @@ describe('registerFilesystemHandlers', () => {
         worktreePath: folderPath
       })
 
-      expect(prepareForClaudeLaunch).toHaveBeenCalledWith({
-        runtime: 'wsl',
-        wslDistro: 'Ubuntu'
-      })
+      expect(prepareForClaudeLaunch).toHaveBeenCalledWith(
+        { runtime: 'wsl', wslDistro: 'Ubuntu' },
+        undefined
+      )
       expect(discoverCommitMessageModelsLocalMock).toHaveBeenCalledWith(
         'claude',
         expect.objectContaining({ CLAUDE_CONFIG_DIR: '/home/tester/.claude' }),

@@ -68,6 +68,9 @@ const KNOWN_PREEXISTING_I2_FAILURES: Record<string, number> = {
   'codex-0158-hooks-review-dialog': 8,
   'codex-0157-model-retired-dialog': 22,
   'codex-0158-model-retired-dialog': 6,
+  // Fork readiness captures: same live-pen leak; also fails on upstream's serializer.
+  'codex-0158-status-ready': 4,
+  'codex-0159-ready': 4,
   // Same extra dim bit on the 0.157/0.158 header row (STA-8834 fixtures).
   'codex-0-157-1-update-dialog': 16,
   'codex-0-157-1-timed-sleep-turn': 6,

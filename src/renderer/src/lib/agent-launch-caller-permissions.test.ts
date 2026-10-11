@@ -277,7 +277,7 @@ describe('agent launch caller arguments and permission bypass', () => {
       const command = queuedStartupCommand(store)
       expect(command).not.toContain("'-m'")
       expect(command).not.toContain('model_reasoning_effort')
-      expect(command).toBe(`codex '${expectedArgs}'`)
+      expect(command).toBe(`codex --no-daemon '${expectedArgs}'`)
     }
   )
 })

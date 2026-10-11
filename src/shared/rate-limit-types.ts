@@ -68,7 +68,6 @@ export type UsageRateLimitMetadata = {
   credentialSource?: string
   authProvenance?: string
   modelIdentity?: string
-  deferredByLiveClaudeSession?: boolean
   lastSuccessfulSource?: UsageRateLimitSource
   /** Unix ms timestamp before which usage refetches should not be attempted (from HTTP Retry-After). */
   retryAtMs?: number

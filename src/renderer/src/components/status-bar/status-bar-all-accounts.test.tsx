@@ -19,8 +19,8 @@ vi.mock('./RemoteServerUpdateStatusSegment', () => ({
   RemoteServerUpdateStatusSegment: () => null
 }))
 vi.mock('./StatusBarVisibilityMenu', () => ({ StatusBarVisibilityMenu: () => null }))
-vi.mock('./UsagePercentageDisplayChangeNotice', () => ({
-  UsagePercentageDisplayChangeNotice: ({ children }: PropsWithChildren) => children
+vi.mock('./StatusBarUsageChangeNotices', () => ({
+  StatusBarUsageChangeNotices: ({ children }: PropsWithChildren) => children
 }))
 vi.mock('./ClaudeSwitcherMenu', () => ({
   ClaudeSwitcherMenu: ({ triggerContent }: { triggerContent: ReactNode }) => triggerContent

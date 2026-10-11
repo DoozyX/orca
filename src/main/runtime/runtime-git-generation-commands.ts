@@ -106,7 +106,8 @@ export class RuntimeGitGenerationCommands {
     const localEnv = await prepareLocalCommitMessageAgentEnv(
       resolvedSettings.params.agentId,
       this.host.getCommitMessageAgentEnvironment?.(),
-      localAgentRuntimeTargetForTarget(target)
+      localAgentRuntimeTargetForTarget(target),
+      { workspaceId: target.worktree.id }
     )
     if (!localEnv.ok) {
       return { success: false, error: localEnv.error }
@@ -226,7 +227,8 @@ export class RuntimeGitGenerationCommands {
     const localEnv = await prepareLocalCommitMessageAgentEnv(
       resolvedSettings.params.agentId,
       this.host.getCommitMessageAgentEnvironment?.(),
-      localAgentRuntimeTargetForTarget(target)
+      localAgentRuntimeTargetForTarget(target),
+      { workspaceId: target.worktree.id }
     )
     if (!localEnv.ok) {
       return { success: false, error: localEnv.error }
@@ -275,7 +277,8 @@ export class RuntimeGitGenerationCommands {
     const localEnv = await prepareLocalCommitMessageAgentEnv(
       typedAgentId,
       this.host.getCommitMessageAgentEnvironment?.(),
-      localAgentRuntimeTargetForTarget(target)
+      localAgentRuntimeTargetForTarget(target),
+      { workspaceId: target.worktree.id }
     )
     if (!localEnv.ok) {
       return { success: false, error: localEnv.error }

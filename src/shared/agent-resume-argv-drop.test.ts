@@ -51,7 +51,7 @@ describe('dropAgentResumeArgvFromCommand', () => {
         agent: 'codex',
         providerSession: CODEX_SESSION
       })
-    ).toEqual({ status: 'dropped', command: "codex '-c' 'tui.resume_cwd=current'" })
+    ).toEqual({ status: 'dropped', command: "codex --no-daemon '-c' 'tui.resume_cwd=current'" })
   })
 
   it('keeps the user CLI args that precede the resume argv', () => {

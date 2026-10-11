@@ -1,9 +1,6 @@
 import { activeProviderContext } from '../../shared/agent-session-provider-context'
 import { getClaudeProfileRouter } from '../claude-accounts/claude-profile-installed-router'
-import {
-  isLegacyAgentSessionAccountHome,
-  requireLegacyAgentSessionAccountHome
-} from '../../shared/agent-session-account-home'
+import { requireLegacyAgentSessionAccountHome } from '../../shared/agent-session-account-home'
 import type {
   Options as ClaudeAgentSdkOptions,
   PermissionMode
@@ -13,26 +10,7 @@ import { agentSessionProviderHandleRoot } from '../../shared/agent-session-provi
 import { claudeProviderHandleLeafUuid } from '../../shared/agent-session-provider-handle-encoding'
 import { LOCAL_EXECUTION_HOST_ID } from '../../shared/execution-host'
 import { structuredSessionChildIdentityEnv } from '../runtime/structured-session-child-identity-env'
-import {
-  CLAUDE_AUTH_ENV_CONFLICT_MESSAGE,
-  CLAUDE_AUTH_SWITCH_IN_PROGRESS_MESSAGE,
-  hasClaudeAuthEnvConflict
-} from '../claude-accounts/environment'
 import type { ClaudeStructuredAuthPolicy } from '../claude-accounts/claude-structured-auth-policy'
-import {
-  CLAUDE_AUTH_SWITCH_SETTLE_TIMEOUT_MS,
-  whenClaudeAuthSwitchSettles
-} from '../claude-accounts/live-pty-gate'
-import { AgentSessionPreSpawnError } from '../native-chat/agent-session-wire/structured-agent-session-adapter'
-import {
-  hasWslBoundClaudeAccount,
-  structuredClaudeMatchesActiveManagedAccount,
-  type ClaudeManagedAccountGateSettings
-} from '../native-chat/claude-structured-managed-account-support'
-import type { AssertClaudeBoundHomeUsable } from './claude-bound-home-refusal'
-import { assertClaudeBoundHomeAtAcquisition } from './claude-structured-bound-home-checks'
-import { claudeChildLaunchEnv, isEffectiveBoundClaudeHome } from './claude-structured-account-home'
-import type { ResolvedClaudeHomeBinding } from '../../shared/claude-home-binding'
 import {
   claudeChildEnv,
   claudeProbeEnv,
@@ -55,6 +33,10 @@ import type { AgentSessionRecordStore } from '../runtime/agent-session-record-st
 import { resolveAgentSessionLaunchDirectory } from '../runtime/agent-session-launch-directory'
 import { CLAUDE_STRUCTURED_AGENT } from './claude-structured-agent-definition'
 import { claudeSessionIdForOrcaSession } from './claude-structured-session-id'
+import type { ResolvedClaudeHomeBinding } from '../../shared/claude-home-binding'
+import type { AssertClaudeBoundHomeUsable } from './claude-bound-home-refusal'
+import { assertClaudeChatPredatesNoBinding } from './claude-structured-bound-home-checks'
+import { claudeChildLaunchEnv, isEffectiveBoundClaudeHome } from './claude-structured-account-home'
 
 export { claudeSessionIdForOrcaSession }
 
@@ -137,27 +119,15 @@ export type ClaudeStructuredLaunchResolverDeps = {
     | undefined
   /** The env the child inherits before auth stripping; absent inherits Orca's own process env. */
   resolveInheritedEnv?: () => Promise<Record<string, string>>
-  /**
-   * Required, and deliberately not defaulted. `stripAuthEnv` used to be a literal
-   * `true` here, so a missing dependency could not under-strip. Now it can, and the
-   * failure is silent — so every caller states the account's policy rather than
-   * inherit a guess. Build it with claudeStructuredAuthPolicyForSettings.
-   */
+  /** Required, so every caller states which login a failed sign-in names rather than inherit a
+   *  guess. Build it with claudeStructuredAuthPolicyForSettings. */
   resolveAuthPolicy: () => Promise<ClaudeStructuredAuthPolicy> | ClaudeStructuredAuthPolicy
   /** The user's Agent Permissions setting, re-read per acquisition. Absent means prompting. */
   resolvePermissionMode?: () => Promise<PermissionMode> | PermissionMode
-  /** How long an in-flight account switch may hold a launch before it is refused. */
-  authSwitchSettleTimeoutMs?: number
-  /** Account state for the managed-account gate; null when it cannot be read, which refuses. */
-  readManagedAccountGate?: () => ClaudeManagedAccountGateSettings | null
-  /** Re-proves a bound home per acquisition. Overridden only by tests. */
+  /** Re-proves a bound home per acquisition when no router is installed. Overridden by tests. */
   assertBoundHomeUsable?: AssertClaudeBoundHomeUsable
-  /**
-   * The binding this workspace's group carries *now*. The account home is pinned when the chat is
-   * created and a resume rebuilds it verbatim, so a binding added afterwards never reaches an
-   * existing chat — this is what lets the launch say so instead of billing the old account
-   * silently. Absent leaves the check off, for embedders with no project catalog.
-   */
+  /** The binding the workspace's group carries now; a chat created before it refuses by name.
+   *  Absent leaves the check off, for embedders with no project catalog. */
   readClaudeHomeBinding?: (location: {
     workspaceId: string
     executionHostId: string
@@ -190,52 +160,18 @@ export type ClaudeStructuredInvocation = {
  * drift there heals on the next refresh.
  */
 export async function resolveClaudeStructuredInvocation(
-  deps: ClaudeEnvDeps &
-    Pick<ClaudeStructuredLaunchResolverDeps, 'resolveAuthPolicy'> & {
-      authSwitchSettleTimeoutMs?: number
-      /** A bound custom home reads none of the shared auth a switch mutates. */
-      skipAuthSwitchSettle?: boolean
-    },
+  deps: ClaudeEnvDeps & Pick<ClaudeStructuredLaunchResolverDeps, 'resolveAuthPolicy'>,
   decorateEnv: (env: Record<string, string>) => Record<string, string> = (env) => env,
   /** Already resolved by a caller that needed them earlier; read again otherwise. */
   resolvedSources?: ClaudeChildEnvSources
 ): Promise<ClaudeStructuredInvocation> {
   const sources = resolvedSources ?? (await resolveClaudeChildEnvSources(deps))
   const auth = await deps.resolveAuthPolicy()
-  // A switch can begin while the policy and overlay resolve, exactly as it can
-  // during the terminal preflight's prepareClaudeAuth — recheck after the awaits.
-  if (!deps.skipAuthSwitchSettle) {
-    await assertClaudeAuthSwitchSettled(deps.authSwitchSettleTimeoutMs)
-  }
-  // Under a managed account the pinned credential is the only auth this launch may
-  // use, so an explicit override is refused rather than silently beating the pin.
-  if (auth.stripAuthEnv && hasClaudeAuthEnvConflict(sources.overlay)) {
-    throw new AgentSessionPreSpawnError(new Error(CLAUDE_AUTH_ENV_CONFLICT_MESSAGE), {
-      reason: 'managedAccountEnvOverride'
-    })
-  }
+  // Why never strip: a shell proxy's key must travel with its ANTHROPIC_BASE_URL, on every account.
   return {
     command: sources.command,
-    env: claudeChildEnv(sources, auth.stripAuthEnv, decorateEnv),
-    account: auth.stripAuthEnv ? 'managed' : 'system'
-  }
-}
-
-/**
- * Wait a running account switch out, and refuse only if it never settles.
- *
- * Launch resolution is reached from `acquireClaudeSession` *after* the old child has
- * been closed and proved, so a plain refusal here would leave the user with a dead
- * chat and no replacement — the very harm the acquire-entry guard exists to prevent.
- * The entry guard still refuses outright, because nothing has been torn down yet.
- */
-export async function assertClaudeAuthSwitchSettled(
-  timeoutMs = CLAUDE_AUTH_SWITCH_SETTLE_TIMEOUT_MS
-): Promise<void> {
-  if (!(await whenClaudeAuthSwitchSettles(timeoutMs))) {
-    throw new AgentSessionPreSpawnError(new Error(CLAUDE_AUTH_SWITCH_IN_PROGRESS_MESSAGE), {
-      reason: 'accountSwitchInProgress'
-    })
+    env: claudeChildEnv(sources, decorateEnv),
+    account: auth.account
   }
 }
 
@@ -243,25 +179,7 @@ export function createClaudeStructuredLaunchResolver(
   deps: ClaudeStructuredLaunchResolverDeps
 ): (input: { identity: AgentSessionJournalIdentity }) => Promise<ClaudeStructuredLaunch> {
   return async ({ identity }) => {
-    // Resolved first because every check below that has to agree with the config-dir pin reads the
-    // environment the child actually receives, not the overlay alone.
-    const overlay = await deps.resolveEnv?.()
-    const childEnv = claudeChildLaunchEnv(overlay)
     const record = deps.store.getRecord(identity.sessionId)
-    // A project-group binding to a *custom* home is not a managed one: it does not read the shared
-    // runtime auth a switch mutates, and the active managed selection does not describe it. Both
-    // the switch gate and the managed-account gate therefore have nothing to say about it. A
-    // binding that resolves to the home the CLI would find anyway is none of that — it pins
-    // nothing, so it keeps every gate, decided by the one predicate all three readers share.
-    const boundHome =
-      record && isLegacyAgentSessionAccountHome(record.accountHome)
-        ? isEffectiveBoundClaudeHome(record.accountHome, { env: childEnv })
-        : false
-    // Ahead of the record validations, exactly where it sat before the bound branch existed: an
-    // unbound caller's error precedence is unchanged.
-    if (!boundHome) {
-      await assertClaudeAuthSwitchSettled(deps.authSwitchSettleTimeoutMs)
-    }
     if (!record) {
       throw new Error(`no durable agent-session record for ${identity.sessionId}`)
     }
@@ -281,17 +199,16 @@ export function createClaudeStructuredLaunchResolver(
     if (accountHome.variable !== pinned) {
       throw new Error(`claude sessions pin ${pinned}, not ${accountHome.variable}`)
     }
-    // Every acquisition, not just the first: the account state can change under a live session, and
-    // a reacquire after an unexpected exit would otherwise spawn under whatever it has become.
-    // Codex has no gate here — it resolves its account on a different path.
     const router = getClaudeProfileRouter()
-    const gate = router || boundHome ? undefined : deps.readManagedAccountGate?.()
-    if (gate !== undefined && !structuredClaudeMatchesActiveManagedAccount(gate)) {
-      // Unreadable account state names no situation a person can act on, so only the log reads it.
-      throw new AgentSessionPreSpawnError(
-        'structured Claude is not offered under the active managed Claude account',
-        gate && hasWslBoundClaudeAccount(gate) ? { reason: 'managedAccountUnsupported' } : {}
-      )
+    // Why the child's whole env: an ambient CLAUDE_CONFIG_DIR reaches the CLI whether or not the overlay names one.
+    const childEnv = claudeChildLaunchEnv(await deps.resolveEnv?.())
+    // A group-bound chat keeps the home pinned at create, as its transcript lives there.
+    const boundHome =
+      accountHome.binding && isEffectiveBoundClaudeHome(accountHome, { env: childEnv })
+        ? { configDir: accountHome.path, groupId: accountHome.binding.groupId }
+        : undefined
+    if (!boundHome) {
+      assertClaudeChatPredatesNoBinding({ deps, location: record.location, accountHome, childEnv })
     }
     // A Claude record's chain holds only Claude handles; the attach admission refuses anything else.
     const active = activeProviderContext(record)
@@ -326,30 +243,23 @@ export function createClaudeStructuredLaunchResolver(
     const permission = claudeStructuredPermissionOptions(
       (await deps.resolvePermissionMode?.()) ?? 'default'
     )
-    await assertClaudeBoundHomeAtAcquisition({
-      deps,
-      location: record.location,
-      accountHome,
-      boundHome,
-      childEnv
-    })
     // A start that failed before its first turn wrote no transcript, and `--resume` of an absent
     // one exits; launch that id fresh instead. With a transcript, `--session-id` would collide.
     const leafUuid = head ? claudeProviderHandleLeafUuid(head) : null
     const resumes = async (claudeConfigDir: string): Promise<boolean> =>
       (head !== null || active.pendingClear) &&
       (await claudeLaunchResumesTranscript({
-        router,
+        router: boundHome ? undefined : router,
         leafUuid,
         providerSessionId,
         claudeConfigDir,
         hasTranscript: deps.hasTranscript
       }))
     // Why: without a router the home is fixed, so check it before the recheck that must stay last.
-    const resumedWithoutRouter = router ? undefined : await resumes(accountHome.path)
+    const resumedWithoutRouter = router && !boundHome ? undefined : await resumes(accountHome.path)
     // Last: it rechecks the account switch, which may have begun during any await above.
     const { command, env, account } = await resolveClaudeStructuredInvocation(
-      { ...deps, skipAuthSwitchSettle: boundHome },
+      deps,
       (base) =>
         // Every structured session speaks orchestration as itself: its injected id and the Orca CLI.
         structuredSessionChildIdentityEnv(
@@ -365,7 +275,11 @@ export function createClaudeStructuredLaunchResolver(
         ),
       sources
     )
-    const launchHome = await resolveClaudeStructuredLaunchHome(router, env, accountHome.path)
+    const launchHome = await resolveClaudeStructuredLaunchHome(router, env, accountHome.path, {
+      boundHome,
+      launchEnv: childEnv,
+      assertUsable: deps.assertBoundHomeUsable
+    })
     const resumesTranscript = resumedWithoutRouter ?? (await resumes(launchHome))
     return {
       pathToClaudeCodeExecutable: command,

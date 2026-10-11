@@ -3,10 +3,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { SleepingAgentSessionRecord } from '../../../shared/agent-session-resume'
-import { LOCAL_EXECUTION_HOST_ID } from '../../../shared/execution-host'
 import { buildAgentResumeStartupPlan } from '../../../shared/tui-agent-resume-startup'
 import type { WorkspaceSessionState } from '../../../shared/workspace-session-state-types'
-import { projectTerminalTopologySlice } from '../../runtime/terminal-topology-projection'
 import type { Store } from '../loading-store/store'
 import {
   emptyTerminalSessionProfile,
@@ -95,15 +93,16 @@ async function storeWithAgentPane() {
   return { directory, store, window }
 }
 
-/** What main holds for the slept pane, and what the window would show from its slice. */
+/** What main holds for the slept pane: its record, the worktree's tabs and the pane's binding. */
 function heldForPane(store: Store) {
   const session = store.getWorkspaceSession()
-  const slice = projectTerminalTopologySlice(session, LOCAL_EXECUTION_HOST_ID, WORKTREE)
+  const record = session.sleepingAgentSessionsByPaneKey?.[PANE_KEY]
   return {
-    record: session.sleepingAgentSessionsByPaneKey?.[PANE_KEY],
-    sliceRecord: slice.sleeping[PANE_KEY],
-    tabs: slice.tabs.map((tab) => tab.id),
-    binding: slice.layouts[TAB]?.ptyIdsByLeafId?.[LEAF]
+    record,
+    // A reader of this worktree's records finds it: the record names the worktree.
+    worktreeRecord: record?.worktreeId === WORKTREE ? record : undefined,
+    tabs: (session.tabsByWorktree[WORKTREE] ?? []).map((tab) => tab.id),
+    binding: session.terminalLayoutsByTabId?.[TAB]?.ptyIdsByLeafId?.[LEAF]
   }
 }
 
@@ -132,7 +131,7 @@ describe('sleep → quit → resume', () => {
     try {
       const expected = {
         record: record('quit', 2),
-        sliceRecord: record('quit', 2),
+        worktreeRecord: record('quit', 2),
         tabs: [TAB],
         binding: PTY
       }
@@ -140,7 +139,9 @@ describe('sleep → quit → resume', () => {
       // The relaunched window's first save is its hydrated copy; the record stays.
       relaunched.setWorkspaceSession(structuredClone(relaunched.getWorkspaceSession()))
       expect(heldForPane(relaunched)).toEqual(expected)
-      expect(resumeCommand(heldForPane(relaunched).record)).toBe("codex 'resume' 'session-2'")
+      expect(resumeCommand(heldForPane(relaunched).record)).toBe(
+        "codex --no-daemon 'resume' 'session-2'"
+      )
     } finally {
       await relaunched.freezeWritesAsync()
     }
@@ -155,11 +156,13 @@ describe('sleep → quit → resume', () => {
     try {
       expect(heldForPane(relaunched)).toEqual({
         record: record('quit', 3),
-        sliceRecord: record('quit', 3),
+        worktreeRecord: record('quit', 3),
         tabs: [TAB],
         binding: PTY
       })
-      expect(resumeCommand(heldForPane(relaunched).record)).toBe("codex 'resume' 'session-3'")
+      expect(resumeCommand(heldForPane(relaunched).record)).toBe(
+        "codex --no-daemon 'resume' 'session-3'"
+      )
     } finally {
       await relaunched.freezeWritesAsync()
     }

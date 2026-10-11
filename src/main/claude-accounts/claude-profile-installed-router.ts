@@ -2,6 +2,8 @@ import { lstatSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 // Why type-only: scan workers import this module, and the router's setup graph must not load there.
 import type { ClaudeProfileRouter } from './claude-profile-router'
+import type { ClaudeBoundHomeOverride, ClaudeLaunchScope } from './claude-bound-home-route'
+import type { ClaudeWslProfileRouter } from './claude-profile-wsl-router'
 import type { ClaudeAccountSelectionTarget } from './runtime-selection'
 
 /** A real directory; a link is false, so a history folder shared by link is not read twice. */
@@ -25,29 +27,53 @@ export function listClaudeProfileHomes(dataRoot: string): string[] {
 }
 
 let installed: ClaudeProfileRouter | undefined
+let installedBoundHome: ClaudeBoundHomeOverride | undefined
 
-/** Installed by the host runtime only when routing is enabled; workers and child processes have none. */
-export function installClaudeProfileRouter(router: ClaudeProfileRouter | undefined): void {
+/** Installed by the desktop's account services; workers, child processes and orcad have none. */
+export function installClaudeProfileRouter(
+  router: ClaudeProfileRouter | undefined,
+  boundHome?: ClaudeBoundHomeOverride
+): void {
   installed = router
+  installedBoundHome = boundHome
 }
 
 export function getClaudeProfileRouter(): ClaudeProfileRouter | undefined {
   return installed
 }
 
-/** A local or WSL pane's env with the routed account's pointer added; SSH panes keep theirs. */
+let installedWsl: ClaudeWslProfileRouter | undefined
+
+/** Windows only, beside the host router. */
+export function installClaudeWslProfileRouter(router: ClaudeWslProfileRouter | undefined): void {
+  installedWsl = router
+}
+
+export function getClaudeWslProfileRouter(): ClaudeWslProfileRouter | undefined {
+  return installedWsl
+}
+
+/**
+ * A local or WSL pane's env with the routed account's pointer added; SSH panes keep theirs.
+ * A pane in a project group bound to its own Claude home runs there instead, with no pointer.
+ */
 export function withClaudeProfileTerminalEnv<Env extends Record<string, string> | undefined>(
   env: Env,
   connectionId: string | null | undefined,
-  target: ClaudeAccountSelectionTarget
+  target: ClaudeAccountSelectionTarget,
+  scope?: ClaudeLaunchScope
 ): Env | Record<string, string> {
-  const profileEnv = connectionId ? undefined : installed?.terminalEnv(target)
+  if (connectionId) {
+    return env
+  }
+  const profileEnv =
+    installedBoundHome?.terminalEnv(target, scope) ?? installed?.terminalEnv(target)
   return profileEnv ? { ...env, ...profileEnv } : env
 }
 
 /**
- * Account `<surface>` folders the System default readers cannot see. Step 1 links history into the
- * System default on macOS/Linux, so only Windows (or a cross-filesystem refusal) adds any.
+ * Account `<surface>` folders the System default readers cannot see. Setup links history into the
+ * System default on every platform, so only a folder setup could not link (e.g. across drives) adds any.
  */
 export function claudeProfileHistoryDirs(surface: 'projects' | 'transcripts'): string[] {
   return (installed?.accountHomes() ?? []).map((home) => join(home, surface)).filter(isDirectory)

@@ -11,10 +11,6 @@ import { getLocalProjectWorktreeGitOptions } from '../project-runtime-git-option
 import type { AgentSessionAttachParams } from '../native-chat/agent-session-wire/structured-agent-session-attach'
 import { resolveTuiAgentLaunchEnv } from '../../shared/tui-agent-launch-defaults'
 import { adoptedStructuredAgentAccountHome } from './structured-agent-account-home'
-import {
-  claudeChildLaunchEnv,
-  hasClaudeHomeBindingForSupport
-} from '../claude/claude-structured-account-home'
 import { resolveHostStructuredAgentCreateSupport } from './structured-agent-launch-support'
 import { structuredAgentRuntimeRegistration } from './structured-agent-runtime-registrations'
 import { structuredAgentAccountHomeResolver } from './structured-agent-account-home-resolver'
@@ -43,33 +39,12 @@ export class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport extends OrcaR
     worktreeSelector: string,
     agent: StructuredAgentId
   ): Promise<{ supported: boolean; reason?: 'agent' | 'remote' | 'wsl' }> {
-    const location = await this.resolveStructuredAgentSessionLocation(worktreeSelector)
     return resolveHostStructuredAgentCreateSupport({
       agent,
       worktreeSelector,
-      location,
-      runtime: this,
-      // The managed-account gate describes the ambient Claude config, which a bound group's chat
-      // does not launch against. Disagreeing with the acquisition gate would make a bound group
-      // unusable for exactly the users it exists for.
-      boundClaudeHome:
-        agent === 'claude' &&
-        hasClaudeHomeBindingForSupport({
-          store: this.store ?? null,
-          workspaceId: location.workspaceId,
-          executionHostId: location.executionHostId,
-          readChildEnv: () => this.claudeLaunchChildEnv()
-        }),
-      getSettings: () => this.requireStore().getSettings()
+      location: await this.resolveStructuredAgentSessionLocation(worktreeSelector),
+      runtime: this
     })
-  }
-
-  // A binding that resolves to the home the CLI would find anyway pins nothing, so it is not the
-  // custom home the managed-account gate may be skipped for — the same test the launch uses.
-  private claudeLaunchChildEnv() {
-    return claudeChildLaunchEnv(
-      resolveTuiAgentLaunchEnv('claude', this.requireStore().getSettings().agentDefaultEnv)
-    )
   }
 
   /** Where a launch of `agent` finds its account, resolved on this host by the agent's own

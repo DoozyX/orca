@@ -3,10 +3,6 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { AgentSessionRecord } from '../../shared/agent-session-record'
 import { LOCAL_EXECUTION_HOST_ID } from '../../shared/execution-host'
-import { AgentSessionPreSpawnError } from '../native-chat/agent-session-wire/structured-agent-session-adapter'
-import { CLAUDE_AUTH_SWITCH_IN_PROGRESS_MESSAGE } from '../claude-accounts/environment'
-import { beginClaudeAuthSwitch, endClaudeAuthSwitch } from '../claude-accounts/live-pty-gate'
-import type { ClaudeManagedAccountGateSettings } from '../native-chat/claude-structured-managed-account-support'
 import {
   createClaudeStructuredLaunchResolver,
   type ClaudeStructuredLaunchResolverDeps
@@ -49,7 +45,7 @@ function resolverFor(
     store: { getRecord: () => value, pinLaunchDirectory: vi.fn() },
     resolveWorkspacePath: async (id) => `/repos/${id}`,
     resolveCommand: () => '/usr/local/bin/claude',
-    resolveAuthPolicy: () => ({ stripAuthEnv: false }),
+    resolveAuthPolicy: () => ({ account: 'system' }),
     resolvePermissionMode: () =>
       claudeStructuredPermissionModeForSettings({ agentDefaultArgs: { claude: '' } }),
     // A no-op by default so a test that is not about the bound home does not need a real directory.
@@ -79,65 +75,9 @@ function boundRecord(binding: boolean): AgentSessionRecord {
   })
 }
 
-const WSL_ONLY_NORMALIZED: ClaudeManagedAccountGateSettings = {
-  claudeManagedAccounts: [
-    {
-      id: 'wsl-1',
-      email: 'wsl-1@example.com',
-      managedAuthPath: '/managed/wsl-1',
-      managedAuthRuntime: 'wsl',
-      authMethod: 'subscription-oauth' as const,
-      createdAt: 0,
-      updatedAt: 0,
-      lastAuthenticatedAt: 0
-    }
-  ],
-  activeClaudeManagedAccountId: null,
-  activeClaudeManagedAccountIdsByRuntime: { host: null, wsl: { Ubuntu: 'wsl-1' } }
-}
-
 describe('claude structured launch resolution: project-group bound home', () => {
   afterEach(() => {
     vi.unstubAllEnvs()
-  })
-
-  describe('auth-switch settle assertion', () => {
-    function resolveBound(binding: boolean) {
-      return resolverFor(boundRecord(binding), undefined, {
-        authSwitchSettleTimeoutMs: 10
-      })
-    }
-
-    it('does not block a bound record mid switch, and still blocks an unbound one', async () => {
-      beginClaudeAuthSwitch()
-      try {
-        await expect(
-          resolveBound(true)({ identity: identityAt('leaf-current') })
-        ).resolves.toBeDefined()
-        await expect(resolveBound(false)({ identity: identityAt('leaf-current') })).rejects.toThrow(
-          CLAUDE_AUTH_SWITCH_IN_PROGRESS_MESSAGE
-        )
-      } finally {
-        endClaudeAuthSwitch()
-      }
-    })
-
-    // Was the resolver's first statement before the bound-home branch existed; an unbound caller
-    // must still see the switch message rather than a record-shape error.
-    it('reports an in-flight switch ahead of a missing record', async () => {
-      beginClaudeAuthSwitch()
-      try {
-        await expect(
-          resolverFor(null, undefined, {
-            authSwitchSettleTimeoutMs: 10
-          })({
-            identity: identityAt('leaf-current')
-          })
-        ).rejects.toThrow(CLAUDE_AUTH_SWITCH_IN_PROGRESS_MESSAGE)
-      } finally {
-        endClaudeAuthSwitch()
-      }
-    })
   })
 
   describe('bound home re-verification at acquisition', () => {
@@ -173,6 +113,14 @@ describe('claude structured launch resolution: project-group bound home', () => 
       )
     })
 
+    it('launches in the bound directory and resumes the transcript there', async () => {
+      const launch = await resolverFor(boundRecord(true))({ identity: identityAt('leaf-current') })
+
+      expect(launch.claudeConfigDir).toBe('/bound/claude-home')
+      expect(launch.env?.CLAUDE_CONFIG_DIR).toBe('/bound/claude-home')
+      expect(launch.resumesTranscript).toBe(true)
+    })
+
     it('leaves an unbound record untouched by the bound-home check', async () => {
       const assertBoundHomeUsable = vi.fn(async () => {})
       await expect(
@@ -185,8 +133,8 @@ describe('claude structured launch resolution: project-group bound home', () => 
   })
   describe("a binding naming the CLI's own default home", () => {
     // Binding a group to `~/.claude` pins nothing — the config-dir patch emits nothing because the
-    // path is already what the CLI finds. The marker must therefore not switch off the gates that
-    // exist to protect exactly that home.
+    // path is already what the CLI finds. The marker must therefore not take the launch off the
+    // account routing that covers exactly that home.
     function sharedHomeRecord(): AgentSessionRecord {
       return record({
         providerHandleChain: RESUMABLE.providerHandleChain,
@@ -197,27 +145,6 @@ describe('claude structured launch resolution: project-group bound home', () => 
         }
       })
     }
-
-    it('keeps the managed-account gate', async () => {
-      await expect(
-        resolverFor(sharedHomeRecord(), undefined, {
-          readManagedAccountGate: () => WSL_ONLY_NORMALIZED
-        })({ identity: identityAt('leaf-current') })
-      ).rejects.toBeInstanceOf(AgentSessionPreSpawnError)
-    })
-
-    it('keeps the auth-switch settle assertion', async () => {
-      beginClaudeAuthSwitch()
-      try {
-        await expect(
-          resolverFor(sharedHomeRecord(), undefined, {
-            authSwitchSettleTimeoutMs: 10
-          })({ identity: identityAt('leaf-current') })
-        ).rejects.toThrow(CLAUDE_AUTH_SWITCH_IN_PROGRESS_MESSAGE)
-      } finally {
-        endClaudeAuthSwitch()
-      }
-    })
 
     it('runs no bound-home re-proof, exactly as an unbound session does not', async () => {
       const assertBoundHomeUsable = vi.fn(async () => {})

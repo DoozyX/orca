@@ -39,7 +39,7 @@ describe('agent fork startup', () => {
       fork: true
     })
 
-    expect(plan?.launchCommand).toBe("codex '-c' 'tui.resume_cwd=current' 'fork' 's1'")
+    expect(plan?.launchCommand).toBe("codex --no-daemon '-c' 'tui.resume_cwd=current' 'fork' 's1'")
   })
 
   it('refuses a fork for an agent that cannot fork rather than resuming it', () => {

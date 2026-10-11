@@ -2,10 +2,10 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { runProcess } from '../../shared/child-process/run-process'
+import { runProcess } from '@orca/process-host'
 import { fetchOmpRateLimits } from './omp-usage-fetcher'
 
-vi.mock('../../shared/child-process/run-process', () => ({ runProcess: vi.fn() }))
+vi.mock('@orca/process-host', () => ({ runProcess: vi.fn() }))
 
 const dirs: string[] = []
 const usage = JSON.stringify({
@@ -145,9 +145,7 @@ describe('fetchOmpRateLimits', () => {
 
   it('reports an absent omp executable as unavailable', async () => {
     const dir = configDir()
-    const actual = await vi.importActual<{ runProcess: typeof runProcess }>(
-      '../../shared/child-process/run-process'
-    )
+    const actual = await vi.importActual<{ runProcess: typeof runProcess }>('@orca/process-host')
     vi.mocked(runProcess).mockImplementationOnce(actual.runProcess)
     const result = await fetchOmpRateLimits({
       env: { OMP_CODING_AGENT_DIR: dir },

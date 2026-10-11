@@ -25,7 +25,11 @@ import { getPreferredPairingOffer } from '../../shared/runtime-environments'
 import { fingerprintOrchestrationPeer } from '../runtime/orchestration/environment-transport'
 import { callRuntimeEnvironment } from '../ipc/runtime-environment-transport-routing'
 import { mainProcessState as state } from './main-process-state'
-import { prepareCodexRuntimeHomeForLaunch } from './codex-launch-preparation'
+import {
+  codexStructuredLaunchHomeResolvers,
+  prepareCodexRuntimeHomeForLaunch
+} from './codex-launch-preparation'
+import { resolveHostAgentBaseEnvironment } from '../runtime/structured-agent-shell-environment'
 import type { RuntimeDesktopWindowStatus } from '../../shared/runtime-types'
 import { ArtifactCloudService } from '../artifacts/artifact-cloud-service'
 import { SkillCloudService } from '../skills/skill-cloud-service'
@@ -78,7 +82,8 @@ export function initializeMainProcessRuntime(): OrcaRuntimeService {
   // `orca serve`, which never opens one, and the fleet path runs there too.
   const observedPaneIdentities = new AgentStatusObservedPaneIdentities()
   const runtime = new OrcaRuntimeService(store, stats, {
-    prepareClaudeAuth: (target) => state.claudeRuntimeAuth!.prepareForClaudeLaunch(target),
+    prepareClaudeAuth: (target, scope) =>
+      state.claudeRuntimeAuth!.prepareForClaudeLaunch(target, scope),
     agentSessionClaimSigner: loadAgentSessionClaimSigner(
       getProfileUserDataPath(),
       getProfileUserDataPath()
@@ -143,17 +148,7 @@ export function initializeMainProcessRuntime(): OrcaRuntimeService {
         systemCodexHomePath: resolveHostCodexSessionSourceHome(store.getSettings()),
         preparePinnedLaunchHome: (home) => prepareCodexPinnedLaunchHome(home)
       }),
-    prepareCodexStructuredLaunch: ({ launchEnv }) =>
-      prepareCodexRuntimeHomeForLaunch(undefined, launchEnv),
-    // Why throw like prepare does: a null from an uninitialized service would
-    // map to the system home and key a catalog read to the wrong account.
-    resolveCodexStructuredLaunchHome: ({ launchEnv }) => {
-      const runtimeHome = state.codexRuntimeHome
-      if (!runtimeHome) {
-        throw new Error('Codex runtime home service is not initialized')
-      }
-      return runtimeHome.resolveHostCodexHomePathForLaunchReadOnly(launchEnv)
-    },
+    ...codexStructuredLaunchHomeResolvers,
     prepareCodexCatalogProbeHome: (homePath) =>
       state.codexRuntimeHome?.prepareHostCodexHomeForReadOnlyAppServer(
         homePath,
@@ -212,6 +207,8 @@ export function configureRuntimeServices(runtime: OrcaRuntimeService): void {
   runtime.setCommitMessageAgentEnvironmentResolvers({
     // Why: Codex hooks/auth live in Orca's managed runtime home even for the default path, so every launch must resolve CODEX_HOME via runtime-home.
     prepareForCodexLaunch: prepareCodexRuntimeHomeForLaunch,
-    prepareForClaudeLaunch: (target) => state.claudeRuntimeAuth!.prepareForClaudeLaunch(target)
+    prepareForClaudeLaunch: (target, scope) =>
+      state.claudeRuntimeAuth!.prepareForClaudeLaunch(target, scope),
+    resolveBaseEnvironment: () => resolveHostAgentBaseEnvironment(store.getSettings())
   })
 }

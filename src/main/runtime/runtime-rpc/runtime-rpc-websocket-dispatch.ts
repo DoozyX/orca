@@ -8,9 +8,11 @@ import type { AuthenticatedMobileSocket } from '../rpc/mobile-socket-wiring'
 import type { RpcRequest, RpcResponse } from '../rpc/core'
 import type { WebSocketTransport } from '../rpc/ws-transport'
 import type { DeviceScope } from '../device-registry'
-import { RuntimeRpcRequestAdmission } from './runtime-rpc-request-admission'
+import { RuntimeRpcMobileDevices } from './runtime-rpc-mobile-devices'
 import { classifyRuntimeLongPoll } from './runtime-rpc-long-poll'
+import type { RpcBinarySender } from '../rpc/rpc-binary-sender'
 import type { RpcCallerScope } from '../rpc/rpc-caller-scope'
+import { limitRuntimeRpcReplySize } from './runtime-rpc-reply-size-limit'
 
 // Why: status.get has no per-connection context in the dispatcher, so stamp the scope here at the transport boundary.
 function injectDeviceScope(response: string, scope: DeviceScope): string {
@@ -26,12 +28,12 @@ function injectDeviceScope(response: string, scope: DeviceScope): string {
   }
 }
 
-export class RuntimeRpcWebSocketDispatch extends RuntimeRpcRequestAdmission {
+export class RuntimeRpcWebSocketDispatch extends RuntimeRpcMobileDevices {
   // Why: WebSocket dispatch is streaming (multiple responses) and auths via per-device tokens, not the shared token.
   protected async handleWebSocketMessage(
     rawMessage: string,
     reply: (response: string) => void,
-    sendBinary: (response: Uint8Array<ArrayBufferLike>) => boolean | void,
+    sendBinary: RpcBinarySender,
     wsTransport?: WebSocketTransport,
     ws?: WebSocket,
     authenticatedDeviceToken?: string | null,
@@ -76,7 +78,7 @@ export class RuntimeRpcWebSocketDispatch extends RuntimeRpcRequestAdmission {
     // Why: the dispatcher enforces this scope's permissions; it never trusts a request field.
     const callerScope: RpcCallerScope =
       device.scope === 'mobile'
-        ? { kind: 'mobile' }
+        ? { kind: 'mobile', delegated: device.parentDeviceId !== undefined }
         : { kind: 'runtime-paired', grants: device.grants ?? [] }
 
     // Why: bind deviceToken to this socket so ws.on('close') knows which mobile client disconnected.
@@ -94,10 +96,13 @@ export class RuntimeRpcWebSocketDispatch extends RuntimeRpcRequestAdmission {
     const abortRegistration = ws ? this.registerWebSocketDispatchAbort(ws) : null
 
     // Why: older pairings may lack scope metadata, so stamp the authenticated scope onto status.get.
+    const boundedReply = limitRuntimeRpcReplySize(request.id, reply, (id, code, message) =>
+      this.buildError(id, code, message)
+    )
     const replyForRequest =
       request.method === 'status.get'
-        ? (response: string): void => reply(injectDeviceScope(response, device.scope))
-        : reply
+        ? (response: string): void => boundedReply(injectDeviceScope(response, device.scope))
+        : boundedReply
 
     const connectionId = ws ? this.mobileSocketWiring?.getConnectionId(ws) : undefined
     const pairingProvider = this.mobileRelayPairingProvider
@@ -142,6 +147,10 @@ export class RuntimeRpcWebSocketDispatch extends RuntimeRpcRequestAdmission {
               }
             : undefined,
         pairing: pairingContext,
+        delegatedMobileDevices:
+          device.scope === 'runtime'
+            ? { sync: (phones) => this.syncDelegatedMobileDevices(device.deviceId, phones) }
+            : undefined,
         signal: abortRegistration?.signal,
         sendBinary,
         registerBinaryStreamHandler: (streamId, handler) =>

@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -15,6 +15,8 @@ import { createRuntimePtySpawnState } from './runtime/spawn-state'
 import type { PtyRuntimeControllerDeps } from './runtime/controller-deps'
 import { prepareRuntimePtySpawn } from './runtime/spawn-preflight'
 import { buildRuntimePtySpawnOptions } from './runtime/spawn-options'
+import { createClaudeBoundHomeOverride } from '../../claude-accounts/claude-bound-home-route'
+import { installClaudeProfileRouter } from '../../claude-accounts/claude-profile-installed-router'
 
 // Only the credential-store read is substituted; binding, preflight, and spawn options are real.
 vi.mock('../../rate-limits/claude-oauth-credentials', () => ({
@@ -26,6 +28,7 @@ vi.mock('../../rate-limits/claude-oauth-credentials', () => ({
 
 const home = mkdtempSync(join(tmpdir(), 'claude-group-spawn-'))
 afterAll(() => rmSync(home, { recursive: true, force: true }))
+afterEach(() => installClaudeProfileRouter(undefined))
 
 function catalog(configDir: string | null): Store {
   const group = {
@@ -76,16 +79,20 @@ async function spawnOptions(
   env?: Record<string, string>,
   worktreeId = 'folder:workspace'
 ) {
+  const store = catalog(configDir)
+  // The router's override, as the auth service installs it; the selection behind it is a stub.
+  const boundHome = createClaudeBoundHomeOverride(store)
+  installClaudeProfileRouter(undefined, boundHome)
   const deps = {
-    store: catalog(configDir),
+    store,
     // Folder pre-trust writes into the Claude config dir; it is not what this suite covers.
     getSettings: () => ({ agentWorkspaceTrustEnabled: false }),
-    prepareClaudeAuth: async () => ({
-      configDir: '/personal',
-      envPatch: { CLAUDE_CONFIG_DIR: '/personal' },
-      stripAuthEnv: false,
-      provenance: 'personal'
-    }),
+    prepareClaudeAuth: async (_target: unknown, scope?: { workspaceId?: string }) =>
+      boundHome.prepareLaunch(scope) ?? {
+        configDir: '/personal',
+        envPatch: { CLAUDE_CONFIG_DIR: '/personal' },
+        provenance: 'personal'
+      },
     assertFolderWorkspacePtyPathUsable: () => undefined,
     resolvePtySpawnStartupCwd: (_id: unknown, cwd: string | undefined) => cwd,
     transitionSpawnHiddenRendererPtyDeliveryState: () => {},
@@ -130,7 +137,8 @@ for (const lane of ['desktop', 'runtime'] as const) {
     it('passes the inherited group directory to the PTY instead of the personal account', async () => {
       const options = await spawnOptions(lane, home)
       expect(options.env?.CLAUDE_CONFIG_DIR).toBe(home)
-      expect(options.envToDelete).toContain('CLAUDE_CODE_OAUTH_TOKEN')
+      // No pointer: the pane's `claude` function must not route it to the selected account.
+      expect(options.env?.ORCA_CLAUDE_PROFILE_POINTER).toBeUndefined()
     })
     it('keeps the group account when an earlier launch stage already pinned it', async () => {
       expect(
@@ -151,11 +159,6 @@ for (const lane of ['desktop', 'runtime'] as const) {
       await expect(
         spawnOptions(lane, home, { CLAUDE_CONFIG_DIR: '/other-account' })
       ).rejects.toThrow('launch environment sets CLAUDE_CONFIG_DIR')
-    })
-    it('rejects explicit credentials that could override the team account', async () => {
-      await expect(
-        spawnOptions(lane, home, { CLAUDE_CODE_OAUTH_TOKEN: 'personal-token' })
-      ).rejects.toThrow('explicit Anthropic auth')
     })
     it('preserves the selected account for unbound workspaces', async () => {
       expect((await spawnOptions(lane, null)).env?.CLAUDE_CONFIG_DIR).toBe('/personal')

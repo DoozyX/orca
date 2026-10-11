@@ -3,9 +3,12 @@ import { homedir } from 'node:os'
 import { resolve } from 'node:path'
 import { parse } from 'yaml'
 import { z } from 'zod'
-import { runProcess } from '../../shared/child-process/run-process'
+import { runProcess } from '@orca/process-host'
 import { resolveCliCommand, withCliRuntimeOnPath } from '../../shared/node-cli-command-resolution'
-import { resolveOmpConfigDirName, resolvePiSourceAgentDir } from '../../relay/plugin-overlay-env'
+import {
+  resolveOmpConfigDirName,
+  resolvePiSourceAgentDir
+} from '../../wsl-guest/plugin-overlay-env'
 import { resolveOmpAgentDir } from '../ai-vault/omp-session-root'
 import { mapOmpUsage, type OmpRateLimits } from './omp-usage-mapping'
 

@@ -78,30 +78,6 @@ export function resolveClaudeHomeBindingForSession(input: {
 }
 
 /**
- * The create-support probe's question, answered fail-closed.
- *
- * Unlike the binding decision below, an unreadable catalog here answers "not bound", which keeps
- * the managed-account gate ON: this can only make the probe refuse, never admit a launch onto the
- * wrong home. The decision that picks a credential directory still refuses by name.
- */
-export function hasClaudeHomeBindingForSupport(input: {
-  store: ClaudeHomeBindingCatalogSource
-  workspaceId: string
-  executionHostId: ExecutionHostId | null
-  /** Read inside the guard, so settings this probe cannot reach fail closed like the catalog. */
-  readChildEnv: () => NodeJS.ProcessEnv
-}): boolean {
-  try {
-    const binding = resolveClaudeHomeBindingForSession(input)
-    return Boolean(
-      binding && isCustomClaudeConfigDir(binding.configDir, { env: input.readChildEnv() })
-    )
-  } catch {
-    return false
-  }
-}
-
-/**
  * The environment the Claude child is actually launched with: this process's own, with the agent
  * launch overlay on top (`claude-structured-launch-resolution.ts` merges them the same way). Every
  * check that has to agree with the config-dir pin reads this, never the overlay alone — an ambient
@@ -112,10 +88,9 @@ export function claudeChildLaunchEnv(overlay: NodeJS.ProcessEnv | undefined): No
 }
 
 /**
- * Whether a record's account home is a bound *custom* home — the only state the managed-account
- * gate and the auth-switch settle assertions may be skipped for. A record bound to the home the
- * CLI would find on its own reads the shared runtime auth exactly as an unbound session does, so
- * it keeps every gate.
+ * Whether a record's account home is a bound *custom* home — the only state that takes a launch off
+ * the account router. A record bound to the home the CLI would find on its own is routed exactly as
+ * an unbound session is.
  */
 export function isEffectiveBoundClaudeHome(
   accountHome: ClaudeStructuredAccountHome,
@@ -139,35 +114,36 @@ export type ClaudeStructuredAccountHome = {
  */
 export async function resolveClaudeStructuredAccountHome(input: {
   store: ClaudeHomeBindingCatalogSource
+  /** Absent for a read with no workspace: there is no group to bind it. */
   location: {
     executionHostId: ExecutionHostId
     wslDistro: string | null
     workspaceId: string
-  }
+  } | null
   launchEnv: NodeJS.ProcessEnv
   /** The account selector's answer for this runtime, when it has one. */
   getClaudeConfigDirectory: StructuredClaudeAccountHomeDeps['getClaudeConfigDirectory']
   assertBoundHomeUsable?: AssertClaudeBoundHomeUsable
 }): Promise<ClaudeStructuredAccountHome> {
-  const binding = resolveClaudeHomeBindingForSession({
-    store: input.store,
-    workspaceId: input.location.workspaceId,
-    executionHostId: input.location.executionHostId
-  })
+  const { location } = input
+  const binding = location
+    ? resolveClaudeHomeBindingForSession({
+        store: input.store,
+        workspaceId: location.workspaceId,
+        executionHostId: location.executionHostId
+      })
+    : null
   const childEnv = claudeChildLaunchEnv(input.launchEnv)
   if (binding && !isCustomClaudeConfigDir(binding.configDir, { env: childEnv })) {
     // The binding names the home the CLI would find on its own, so the pin emits nothing and the
     // child reads exactly what an unbound session reads. Keep the directory, drop the marker: a
-    // no-op binding must not switch off the gates that protect the shared home.
+    // no-op binding must not take the launch off the account router.
     return { path: binding.configDir }
   }
-  if (binding) {
+  if (binding && location) {
     await (input.assertBoundHomeUsable ?? assertClaudeBoundHomeUsable)({
       binding,
-      location: {
-        executionHostId: input.location.executionHostId,
-        wslDistro: input.location.wslDistro
-      },
+      location: { executionHostId: location.executionHostId, wslDistro: location.wslDistro },
       launchEnv: childEnv
     })
     return {
@@ -178,7 +154,7 @@ export async function resolveClaudeStructuredAccountHome(input: {
   return {
     path: resolveStructuredClaudeAccountHomePath({
       launchEnv: input.launchEnv,
-      wslDistro: input.location.wslDistro,
+      wslDistro: location?.wslDistro ?? null,
       getClaudeConfigDirectory: input.getClaudeConfigDirectory
     })
   }
