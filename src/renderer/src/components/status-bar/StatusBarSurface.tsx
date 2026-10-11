@@ -98,7 +98,11 @@ export function StatusBarSurface({
     usageTightestOnly
   } = controller
   const usageMode = usageTightestOnly ? 'compact' : statusBarUsageMode
-  const unitLabelState = getEntryUsageUnitLabelState(usageEntries, collapsedUsageProviders, usageMode)
+  const unitLabelState = getEntryUsageUnitLabelState(
+    usageEntries,
+    collapsedUsageProviders,
+    usageMode
+  )
 
   return (
     <div
