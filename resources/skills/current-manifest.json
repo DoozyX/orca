@@ -1,12 +1,10 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "skills": [
     {
       "name": "brainstorming",
       "sourcePath": "skills/brainstorming",
-      "releaseRevision": 1,
       "packageDigest": "48941eeadf7fd387a14b0e0966de4d01d9a75802baadd877959ab4f7680a86df",
-      "gitTreeSha": "8b3ad0ba7deac79d0f233d3b649d078188e0cc4e",
       "files": [
         {
           "path": "SKILL.md",
@@ -22,9 +20,7 @@
     {
       "name": "computer-use",
       "sourcePath": "skills/computer-use",
-      "releaseRevision": 9,
       "packageDigest": "425634e3ebf27690cc613eaf17b6337b36769153ec6bca85dc4ebf65d4d6b8b4",
-      "gitTreeSha": "b59f27370a41225c22127e91da0c91cd2519f217",
       "files": [
         {
           "path": "SKILL.md",
@@ -40,9 +36,7 @@
     {
       "name": "debug",
       "sourcePath": "skills/debug",
-      "releaseRevision": 1,
       "packageDigest": "fd4278b018c9e390b6c024d5a205df225c9f83a2616a5b2a8f9e21473523b6fe",
-      "gitTreeSha": "56ee59af8eb7df402fb81591f0c2373af507b0af",
       "files": [
         {
           "path": "SKILL.md",
@@ -58,9 +52,7 @@
     {
       "name": "delivery",
       "sourcePath": "skills/delivery",
-      "releaseRevision": 1,
       "packageDigest": "d7493807c0dac0ec4db0149ccb3dd61b29f3055276bd97e0209f969f88c3fedc",
-      "gitTreeSha": "cd4b57d8c1a975602b7486bd2a1b417c186b1289",
       "files": [
         {
           "path": "SKILL.md",
@@ -76,9 +68,7 @@
     {
       "name": "linear-tickets",
       "sourcePath": "skills/linear-tickets",
-      "releaseRevision": 11,
       "packageDigest": "1eab442d048b79ab0b836adf57663ac384988dd79172ec5f14193eb05e037715",
-      "gitTreeSha": "30d9b40144d4a9a07ce12f0d1a9261fd9cf9649b",
       "files": [
         {
           "path": "SKILL.md",
@@ -94,9 +84,7 @@
     {
       "name": "orca-cli",
       "sourcePath": "skills/orca-cli",
-      "releaseRevision": 37,
       "packageDigest": "02a3400eb8c97031e3a6bcce9a8c68e34c8de4446e9f55463438aa66d1cb297e",
-      "gitTreeSha": "a6a2ad8e845aded43817e0ad47cf27e44e7d57da",
       "files": [
         {
           "path": "SKILL.md",
@@ -112,9 +100,7 @@
     {
       "name": "orca-emulator",
       "sourcePath": "skills/orca-emulator",
-      "releaseRevision": 8,
       "packageDigest": "1dc42e5addc613abd85eba639d4ac36d9c7b3bc6f7186f0a2d54d10dae3f06d3",
-      "gitTreeSha": "110f6ab59bd73428d7de28bd4761d1fc332efa20",
       "files": [
         {
           "path": "SKILL.md",
@@ -130,9 +116,7 @@
     {
       "name": "orca-emulator-android",
       "sourcePath": "skills/orca-emulator-android",
-      "releaseRevision": 6,
       "packageDigest": "c348091d953427fc9800a1d49d94054866348008766879b24ef742cb613dc3d9",
-      "gitTreeSha": "437ed5e35698ee6421386a5a08fe7f8c7cf1a2a7",
       "files": [
         {
           "path": "SKILL.md",
@@ -148,9 +132,7 @@
     {
       "name": "orca-linear",
       "sourcePath": "skills/orca-linear",
-      "releaseRevision": 9,
       "packageDigest": "95f52429823e887317046f23b671d05408a947c296e5b2e44e9173dfc1d5aa4e",
-      "gitTreeSha": "8e747165847651926ca54804b012689ebcbd9432",
       "files": [
         {
           "path": "SKILL.md",
@@ -166,9 +148,7 @@
     {
       "name": "orca-per-workspace-env",
       "sourcePath": "skills/orca-per-workspace-env",
-      "releaseRevision": 6,
       "packageDigest": "103f0671da111c9ad3def6c46da8d432e656878b840e6cc742219f4a3a4dbceb",
-      "gitTreeSha": "58dfb5dc3ad287a6a42625f9d15c7c0c3dfd02ec",
       "files": [
         {
           "path": "SKILL.md",
@@ -184,9 +164,7 @@
     {
       "name": "orchestration",
       "sourcePath": "skills/orchestration",
-      "releaseRevision": 29,
       "packageDigest": "185e6741ed649298290f4ba73b3b3d53572b53e9adc6c3effe935f1befab42ff",
-      "gitTreeSha": "a4210e55ff8ef49335a6b90d3815dc2a68db2354",
       "files": [
         {
           "path": "SKILL.md",
@@ -202,9 +180,7 @@
     {
       "name": "review",
       "sourcePath": "skills/review",
-      "releaseRevision": 1,
       "packageDigest": "1b6fa40de5b476784591cdeae06b5b64ae0b7c4f15f1f84e1978d8874c92fd78",
-      "gitTreeSha": "4ef77fa6343a2bcd30754b98724b2ae7c1320c94",
       "files": [
         {
           "path": "SKILL.md",
@@ -220,9 +196,7 @@
     {
       "name": "tdd",
       "sourcePath": "skills/tdd",
-      "releaseRevision": 1,
       "packageDigest": "f6ff09ade3e56d41119083635e455ea76d958f786a7ad67d1cfc05fb5e84f387",
-      "gitTreeSha": "f2e83017702db4315600b5182d9e8327ae62973a",
       "files": [
         {
           "path": "SKILL.md",
@@ -238,9 +212,7 @@
     {
       "name": "verify",
       "sourcePath": "skills/verify",
-      "releaseRevision": 1,
       "packageDigest": "dd5d39a0b9d94dfd5add5ad6cc635e4a7bd509d74c75addf4a64cd2f5a4b5da5",
-      "gitTreeSha": "95e0366b95a9b3d5fcc48ddd16fc0ff36fd481a1",
       "files": [
         {
           "path": "SKILL.md",
