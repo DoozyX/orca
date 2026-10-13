@@ -115,6 +115,26 @@ own endgame — and the target branch by name. The summary is input to the
 question, not its answer. Record one line per repository in the manifest; a
 per-task deviation is a recorded coordinator decision, never an improvisation.
 
+## Evidence retention
+
+Carry these rules into implementation, verification, and cleanup Task specs.
+Keep disposable build output in the execution workspace's run `tmp/`; retain
+only artifacts supporting a named result under the root run's
+`orchestrate/evidence/<unit>/<artifact>`. For SSH, both paths belong to the
+execution host; folder workspaces use their workspace root.
+
+Never mirror absolute source paths (`Users/...`), copy a worktree or its `.orca/`
+tree into evidence, or nest `.worktrees/` inside the run directory. Record source
+paths and hashes in a manifest instead. DerivedData, SourcePackages, SDK/module
+caches, and dependency frameworks/dSYMs are disposable build inputs or output;
+a `.json`, `.log`, `.png`, or `.dSYM` extension alone is not evidence. Retain
+selected logs, screenshots, cited test-result bundles, and explicitly required
+binary provenance; do not archive whole build or dependency trees.
+
+Before moving evidence or disposing scratch, follow the selection and manifest
+procedure in `references/parking-and-reporting.md`. Preserving a parked task
+means keeping its resources in place, not copying them into the run directory.
+
 ## Entrance
 
 Pick the entrance from what you were given; planning is a stage some entrances

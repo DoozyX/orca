@@ -45,6 +45,31 @@ landed on — the remote-tracking ref after a fetch, not the primary checkout's
 local branch, which the run never moved. A cleanup worker handed the local name
 finds nothing merged into it and refuses the whole list: correctly, and uselessly.
 
+## Retaining evidence before cleanup
+
+Apply the main guide's evidence-retention rules to the cleanup Task spec before
+it runs. A cleanup candidate is not permission to archive all its descendants.
+
+1. List the exact artifacts supporting named results or explicit retention
+   requirements, including cited test-result bundles and required binary
+   provenance. Measure their total size on the execution host. Keep build and
+   dependency caches out of that list; file extensions alone do not qualify.
+2. Assign short destinations under `orchestrate/evidence/<unit>/`. Never mirror
+   an absolute source path or copy a worktree, its `.orca/` tree, or an entire
+   build/cache directory. Check that no source contains its destination before
+   copying or moving anything.
+3. Record each source, destination, size, supporting result, and content hash
+   in a preservation manifest. Verify destination hashes, including bundle
+   contents, before any authorized disposal. Existing citations resolve through
+   the manifest; preserving their absolute directory structure is unnecessary.
+4. If a prior directive requires broad cache retention or preserving absolute
+   directory structures, report the conflict and keep the affected candidate
+   in place until the retention scope is resolved. Do not silently duplicate it
+   or delete required evidence.
+
+Existing retained archives remain in place unless their cleanup is explicitly
+authorized. This procedure adds no authority to delete worktrees or scratch.
+
 ## Teardown check
 
 Per-task cleanup proves only that the recorded worktrees were removed. Before the
