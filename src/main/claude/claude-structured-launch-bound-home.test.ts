@@ -3,12 +3,9 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { AgentSessionRecord } from '../../shared/agent-session-record'
 import { LOCAL_EXECUTION_HOST_ID } from '../../shared/execution-host'
-import {
-  createClaudeStructuredLaunchResolver,
-  type ClaudeStructuredLaunchResolverDeps
-} from './claude-structured-launch-resolution'
+import { createClaudeStructuredLaunchResolver } from '../runtime/structured-agent-launch-composition.test-support'
+import type { ClaudeStructuredLaunchPartDeps } from './claude-structured-launch-resolution'
 import { ClaudeBoundHomeRefusalError } from './claude-bound-home-refusal'
-import { claudeStructuredPermissionModeForSettings } from './claude-structured-permission-mode'
 import { claudeProviderHandle } from '../../shared/agent-session-provider-handle-encoding'
 
 const SESSION_ID = 'orca-session-1'
@@ -41,15 +38,13 @@ function identityAt(leafUuid: string | null): typeof IDENTITY {
 function resolverFor(
   value: AgentSessionRecord | null,
   resolveEnv?: () => Record<string, string>,
-  extraDeps: Partial<ClaudeStructuredLaunchResolverDeps> = {}
+  extraDeps: Partial<ClaudeStructuredLaunchPartDeps> = {}
 ) {
   return createClaudeStructuredLaunchResolver({
     store: { getRecord: () => value, pinLaunchDirectory: vi.fn() },
     resolveWorkspacePath: async (id) => `/repos/${id}`,
     resolveCommand: () => '/usr/local/bin/claude',
     resolveAuthPolicy: () => ({ account: 'system' }),
-    resolvePermissionMode: () =>
-      claudeStructuredPermissionModeForSettings({ agentDefaultArgs: { claude: '' } }),
     // A no-op by default so a test that is not about the bound home does not need a real directory.
     assertBoundHomeUsable: async () => {},
     hasTranscript: async () => true,

@@ -170,8 +170,8 @@ export function useAccountUsageRoster() {
 
   const accounts: ProviderAccountsSnapshot = {
     ...snapshot,
-    claude: resolveClaudeStatusAccountState(settings, snapshot.claude),
-    codex: resolveCodexStatusAccountState(settings, snapshot.codex)
+    claude: resolveClaudeStatusAccountState(settings, snapshot.claude, environmentId),
+    codex: resolveCodexStatusAccountState(settings, snapshot.codex, environmentId)
   }
   const remoteLimits = snapshot.rateLimits ?? EMPTY_LIMITS
   return {

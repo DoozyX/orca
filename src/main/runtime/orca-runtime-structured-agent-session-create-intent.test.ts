@@ -160,7 +160,12 @@ describe('structured agent-session create intent', () => {
       variable: 'CODEX_HOME',
       path: '/accounts/selected/home'
     })
-    expect(intent.options).toEqual({ model: 'gpt-5.6-sol', effort: 'medium', fastMode: 'true' })
+    expect(intent.options).toEqual({
+      model: 'gpt-5.6-sol',
+      effort: 'medium',
+      fastMode: 'true',
+      permissionMode: 'ask'
+    })
   })
 
   it('resolves the record-less catalog account home read-only, never through launch preparation', async () => {
@@ -246,7 +251,12 @@ describe('structured agent-session create intent', () => {
       variable: 'CLAUDE_CONFIG_DIR',
       path: '/configured/claude-home'
     })
-    expect(intent.options).toEqual({ model: 'opus', effort: 'high', fastMode: 'true' })
+    expect(intent.options).toEqual({
+      model: 'opus',
+      effort: 'high',
+      fastMode: 'true',
+      permissionMode: 'ask'
+    })
     // createSupport reports this same seed, so a paired client's picker shows what create runs.
     expect(runtime.structuredAgentSessionLaunchSeedOptions('claude')).toEqual(intent.options)
   })
@@ -497,5 +507,34 @@ describe('project-group Claude home binding', () => {
 
     expect(intent.accountHome).toMatchObject({ variable: 'CODEX_HOME' })
     expect(intent.accountHome).not.toHaveProperty('binding')
+  })
+})
+
+describe('adopting a conversation recorded outside Orca', () => {
+  it('refuses an agent registered with no transcript importer before any adoption work', async () => {
+    const runtime = new OrcaRuntimeService(
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: create intent only reads getSettings from the store.
+      { getSettings: () => ({ agentDefaultEnv: {} }) } as never
+    )
+    vi.spyOn(runtime, 'getStructuredAgentSessionCreateSupport').mockResolvedValue({
+      supported: true
+    })
+    const resolveStructuredAgentSessionLocation = vi.fn()
+    Object.assign(runtime, { resolveStructuredAgentSessionLocation })
+
+    await expect(
+      runtime.resolveStructuredAgentSessionCreateIntent({
+        envelope: { sessionId: 'session-1', clientOperationId: 'operation-1' },
+        worktree: 'id:workspace-1',
+        agent: 'opencode',
+        resumeFrom: { providerSessionId: 'provider-1' }
+      })
+    ).rejects.toMatchObject({
+      refusal: {
+        code: 'structured_agent_session_unsupported',
+        details: { reason: 'hostUnsupported' }
+      }
+    })
+    expect(resolveStructuredAgentSessionLocation).not.toHaveBeenCalled()
   })
 })

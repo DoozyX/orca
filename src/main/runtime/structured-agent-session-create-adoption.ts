@@ -1,7 +1,5 @@
-import { getClaudeProfileRouter } from '../claude-accounts/claude-profile-installed-router'
-import { homedir } from 'node:os'
-import { join } from 'node:path'
 import type { AgentSessionExecutionLocation } from '../../shared/agent-session-record'
+import type { StructuredAgentId } from '../../shared/agent-session-provider-handle'
 import { agentSessionExecutionLocationsEqual } from '../../shared/agent-session-record'
 import type { AgentSessionAttachParams } from '../native-chat/agent-session-wire/structured-agent-session-attach'
 import type { StructuredAgentSessionHost } from '../native-chat/agent-session-wire/structured-agent-session-host'
@@ -12,18 +10,15 @@ import {
   resolveStructuredAgentSessionAdoption,
   structuredAdoptionConflictError
 } from '../native-chat/structured-agent-session-history-adoption'
-import { resolveSessionFilePath } from '../native-chat/session-file-resolver'
-import { configuredAdditionalCodexHomePaths } from '../ai-vault/cached-session-list'
-import { getSystemCodexHomePath, resolveOrcaManagedCodexHomePath } from '../codex/codex-home-paths'
-
-type AdoptionSettings = {
-  codexManagedAccounts?: readonly { managedHomePath: string }[]
-}
+import type {
+  StructuredAgentTranscriptImport,
+  StructuredAgentTranscriptImportSettings
+} from '../native-chat/structured-agent-cli-conversations'
 
 export function resolveCommittedStructuredAgentSessionAdoptionIntent(input: {
   host: StructuredAgentSessionHost | null
   envelope: { sessionId: string; clientOperationId: string }
-  agent: 'claude' | 'codex'
+  agent: StructuredAgentId
   callerKey?: string
   resumeFrom?: { providerSessionId: string }
   location: AgentSessionExecutionLocation
@@ -63,8 +58,10 @@ export function resolveCommittedStructuredAgentSessionAdoptionIntent(input: {
 
 export async function resolveStructuredAgentSessionAdoptionForCreate(input: {
   host: StructuredAgentSessionHost | null
-  settings: AdoptionSettings
-  agent: 'claude' | 'codex'
+  settings: StructuredAgentTranscriptImportSettings
+  agent: StructuredAgentId
+  /** The agent's registered importer; only an agent with one adopts. */
+  transcriptImport: StructuredAgentTranscriptImport
   providerSessionId: string
   selfSessionId: string
   selectedAccountHomePath: string
@@ -83,46 +80,8 @@ export async function resolveStructuredAgentSessionAdoptionForCreate(input: {
     throw structuredAdoptionConflictError(conflict)
   }
   return resolveStructuredAgentSessionAdoption({
-    agent: input.agent,
     providerSessionId: input.providerSessionId,
-    candidateAccountHomes: structuredAdoptionAccountHomeCandidates(input),
-    resolveTranscript: async ({ agent, providerSessionId, accountHomePath }) =>
-      resolveSessionFilePath(
-        agent,
-        providerSessionId,
-        agent === 'claude'
-          ? { claudeProjectsDir: join(accountHomePath, 'projects') }
-          : { codexSessionsDirs: [join(accountHomePath, 'sessions')] }
-      )
+    candidateAccountHomes: input.transcriptImport.accountHomeCandidates(input),
+    resolveTranscript: input.transcriptImport.findTranscript
   })
-}
-
-/** Recognised adoption homes, most-preferred first. */
-export function structuredAdoptionAccountHomeCandidates(input: {
-  settings: AdoptionSettings
-  agent: 'claude' | 'codex'
-  selectedAccountHomePath: string
-  selectedAccountHomeBound: boolean
-}): string[] {
-  // A bound group offers its own home and nothing else. Falling through to the shared `~/.claude`
-  // would commit the session to another organisation's account without a word; a miss here surfaces
-  // the existing `agent_session_identity_required` refusal instead.
-  if (input.selectedAccountHomeBound) {
-    return [input.selectedAccountHomePath]
-  }
-  if (input.agent === 'claude') {
-    return [
-      input.selectedAccountHomePath,
-      join(homedir(), '.claude'),
-      ...(getClaudeProfileRouter()?.accountHomes() ?? [])
-    ]
-  }
-  return [
-    input.selectedAccountHomePath,
-    ...(input.settings.codexManagedAccounts ?? []).map((account) => account.managedHomePath),
-    ...configuredAdditionalCodexHomePaths(),
-    // Path only: a transcript search must not create the runtime home; launch owns that.
-    resolveOrcaManagedCodexHomePath(),
-    getSystemCodexHomePath()
-  ]
 }

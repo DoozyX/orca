@@ -293,10 +293,7 @@ describe('release checkout materialization', () => {
   // Cold extraction and transforms need the cross-version suite's startup budget.
   it('loads a baseline module whose source imports another checkout-root file', async () => {
     const cacheRoot = temporaryCacheRoot()
-    const checkout = await materializeReleaseCheckout('v1.4.190', {
-      cacheRoot,
-      testHooks: { archivePaths: ['src/shared'] }
-    })
+    const checkout = await materializeReleaseCheckout('v1.4.190', { cacheRoot })
     const protocol = await importReleaseCheckoutModule(checkout, '/src/shared/protocol-version.ts')
 
     expect(protocol.REMOTE_SERVER_UPDATE_CAPABILITY).toBe('updater.remote-control.v1')

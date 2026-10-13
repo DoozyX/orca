@@ -241,8 +241,8 @@ export async function extractReleaseCheckoutTree(
   repoRoot: string,
   staging: string,
   commit: string,
-  archivePaths: readonly string[] = ARCHIVE_PATHS
-): Promise<void> {
+  sourceOnly = false
+): Promise<PackageImports> {
   const archive = join(staging, '.release-checkout.tar')
   const deadline = Date.now() + CHECKOUT_PROCESS_TIMEOUT_MS
   const workspacePaths = await releaseWorkspaceArchivePaths(repoRoot, commit, deadline)
@@ -257,7 +257,7 @@ export async function extractReleaseCheckoutTree(
         `--output=${archive}`,
         commit,
         '--',
-        ...archivePaths,
+        ...ARCHIVE_PATHS,
         ...optionalPaths,
         ...workspacePaths
       ],
@@ -274,12 +274,15 @@ export async function extractReleaseCheckoutTree(
   }
   const packageImports: PackageImports = new Map()
   await prepareExtractedTree(staging, workspacePaths, packageImports)
-  await installMissingPackageStandIns(
-    staging,
-    commit,
-    packageImports,
-    JSON.parse(await readFile(join(repoRoot, 'package.json'), 'utf8'))
-  )
+  if (!sourceOnly) {
+    await installMissingPackageStandIns(
+      staging,
+      commit,
+      packageImports,
+      JSON.parse(await readFile(join(repoRoot, 'package.json'), 'utf8'))
+    )
+  }
+  return packageImports
 }
 
 export async function scavengeReleaseCheckoutStaging(

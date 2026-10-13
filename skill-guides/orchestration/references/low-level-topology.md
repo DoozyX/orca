@@ -2,7 +2,8 @@
 
 Load this reference only when `worker-start` cannot express required custom argv
 or terminal topology. It is not the normal supervised loop and is never a full
-handoff recipe.
+handoff recipe. A model or effort is not custom argv: `worker-start --model
+--effort` carries them and keeps the user's Chat UI setting.
 
 Readiness timeouts and quota limits are not expressiveness gaps. Never replace
 an interactive worker with `codex exec`, a redirected batch script, or a detached
