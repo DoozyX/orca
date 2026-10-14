@@ -98,9 +98,14 @@ export function getFolderWorkspaceRevealGroupKeys(
     workspaceStatuses?: readonly WorkspaceStatusDefinition[]
     defaultHostId?: ExecutionHostId
     hostScopedGroups?: boolean
+    executionHostId?: ExecutionHostId
   }
 ): string[] {
-  const folderWorkspace = findFolderWorkspaceByKey(worktreeId, folderWorkspaces)
+  const folderWorkspace = findFolderWorkspaceByKey(
+    worktreeId,
+    folderWorkspaces,
+    options?.executionHostId
+  )
   if (!folderWorkspace) {
     return []
   }

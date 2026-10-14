@@ -12,7 +12,6 @@
 
 import type { AgentSessionAccountKind } from '../../shared/agent-session-availability'
 import type { PiRpcSessionDeps } from '../pi/rpc-session'
-import { existsSync } from 'node:fs'
 import type { AgentSessionRecord } from '../../shared/agent-session-record'
 import type { AgentSessionResumeTrigger } from '../../shared/agent-session-resume-marker'
 import type { StructuredAttentionMobileDelivery } from './structured-agent-session-mobile-attention'
@@ -42,8 +41,6 @@ import {
   releaseAgentSessionRecordStore,
   type OpenedAgentSessionRecordStore
 } from './agent-session-record-store-slot'
-import { journalDatabasePath } from '../native-chat/agent-session-journal/journal-host-database'
-import { journalDatabaseHoldsAgentSessions } from '../native-chat/agent-session-journal/journal-database'
 import {
   createStructuredAgentSessionOwnerProbe,
   createStructuredAgentSessionOwnerProbes
@@ -73,22 +70,7 @@ import {
   type NativeChatVisualsSweepDeps
 } from '../native-chat/native-chat-visuals-sweep'
 
-/** Whether this profile holds a structured chat: a record or tab in the journal database. */
-export function hasPersistedStructuredAgentSessionStore(
-  stateDirectory: string,
-  fileExists: (path: string) => boolean = existsSync
-): boolean {
-  const databasePath = journalDatabasePath(stateDirectory)
-  if (!fileExists(databasePath)) {
-    return false
-  }
-  try {
-    return journalDatabaseHoldsAgentSessions(databasePath)
-  } catch {
-    // A database that cannot be read cannot say it is empty.
-    return true
-  }
-}
+export { hasPersistedStructuredAgentSessionStore } from './agent-session-record-store-slot'
 
 export type StructuredAgentSessionRuntimeDeps = {
   /** Host state root. The record store and the journal database both hang off it. */
@@ -100,12 +82,12 @@ export type StructuredAgentSessionRuntimeDeps = {
   claimKeyId: string
   resolveWorkspacePath: (workspaceId: string) => Promise<string>
   resolveCodexCommand?: (options?: { pathEnv?: string | null; homePath?: string }) => string
-  resolveClaudeCommand?: () => string
+  resolveClaudeCommand?: (options?: { pathEnv?: string | null; homePath?: string }) => string
   openPiConnection?: PiRpcSessionDeps['openConnection']
   /** Which version-gated flags a Claude CLI takes; absent never passes one. */
   claudeCliFlags?: ClaudeCliFlagSupport
-  /** Gives each chat a visuals folder and the skill that teaches it, and sweeps folders whose chat
-   *  is gone. Wired by the real hosts only, so a test runtime never loads the bundled skill. */
+  /** Gives each chat a scratch folder and the visuals skill that teaches it, and sweeps folders
+   *  whose chat is gone. Wired by the real hosts only, so a test runtime never loads the bundled skill. */
   nativeChatVisuals?: {
     /** Read this host's preference when a chat starts a provider process. */
     isEnabled: () => boolean
@@ -122,7 +104,7 @@ export type StructuredAgentSessionRuntimeDeps = {
   resolveLaunchArgs: (provider: AgentSessionRecord['provider']) => Promise<string[]> | string[]
   /** Required, and asserted at install time — an absent policy must not degrade to a guess. */
   resolveClaudeAuthPolicy: () => Promise<ClaudeStructuredAuthPolicy> | ClaudeStructuredAuthPolicy
-  /** Agent Permissions for an ACP agent; Claude and Codex chats run their own permission mode. */
+  /** Agent Permissions for an ACP agent; also fills Claude and Codex chats saved before modes. */
   resolveAgentFullAccess?: (agent: string) => boolean
   /** The user's per-agent environment overlay from settings, laid over every agent's base env. */
   resolveAgentLaunchEnv?: (agent: string) => Record<string, string>
@@ -266,6 +248,18 @@ async function install(deps: StructuredAgentSessionRuntimeDeps): Promise<Install
     hostId: deps.hostId,
     logger
   })
+  try {
+    // Without the Arguments source there is nothing to fill from; missing modes run Ask.
+    if (deps.resolveAgentFullAccess) {
+      await recordStore.store.backfillChatPermissionModes(deps.resolveAgentFullAccess)
+    }
+  } catch (error) {
+    // Missing choices safely run Ask; the next host install retries this pass.
+    logger.warn('saving existing chat permission choices failed', {
+      scope: 'permission-mode-backfill',
+      error
+    })
+  }
   return await installOnJournal({ ...deps, logger }, recordStore)
 }
 

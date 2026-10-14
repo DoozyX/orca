@@ -1,3 +1,4 @@
+import { AGENT_CHAT_PERMISSION_MODE_OPTION_ID } from '../../../../shared/agent-chat-permission-mode'
 import type { z } from 'zod'
 import { agentSessionRefusalError } from '../../../../shared/agent-session-wire-refusals'
 import { agentSessionFingerprintConflict } from '../../../../shared/agent-session-mutation-envelope'
@@ -32,9 +33,19 @@ async function resolveClientSuppliedAttach(params: z.infer<typeof AttachParams>,
       reason: 'hostUnsupported'
     })
   }
-  // Why: `accountHome.binding` routes the launch to a group's bound home; only the host proves it.
+  // Why: only the host can prove a project group's bound account home.
   const { binding: _clientBinding, ...accountHome } = params.accountHome
-  const attachParams: AgentSessionAttachParams = { ...params, accountHome }
+  // Reservation seeds options only when it creates a record.
+  const permissionMode = ctx.runtime.structuredAgentSessionLaunchSeedOptions(params.agent)?.[
+    AGENT_CHAT_PERMISSION_MODE_OPTION_ID
+  ]
+  const attachParams: AgentSessionAttachParams = {
+    ...params,
+    accountHome,
+    ...(permissionMode
+      ? { options: { [AGENT_CHAT_PERMISSION_MODE_OPTION_ID]: permissionMode } }
+      : {})
+  }
   return { host, attachParams }
 }
 
