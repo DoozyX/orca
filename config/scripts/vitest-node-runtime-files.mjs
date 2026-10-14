@@ -5,6 +5,8 @@ export const NODE_RUNTIME_INCLUDE = [
   'config/scripts/vitest-sqlite-runtime-boundary.test.ts',
   'config/scripts/cloud-security-history-workflow.test.mjs',
   'config/scripts/skill-recipe-shell.test.mjs',
+  // Bundled schema data URLs require Node's module loader.
+  'config/scripts/build-mobile-web-app-bundle.test.mjs',
   'src/main/ssh/ssh-relay-endpoint-incumbent-shell.integration.test.ts',
   'src/main/ssh/ssh-remote-commands.test.ts',
   'src/packages/process-host/src/run-process.test.ts',
@@ -12,6 +14,10 @@ export const NODE_RUNTIME_INCLUDE = [
   'tests/e2e/helpers/electron-process-shutdown.unit.test.ts',
   'src/main/ai-vault-search/session-search-index-writer.test.ts',
   'src/main/ai-vault/session-scanner-unlimited-dedup.test.ts',
+  // Disk checkpoints require Node's iterable writeFile semantics.
+  'src/main/ai-vault/session-parse-cache-checkpoint.test.ts',
+  'src/main/ai-vault/session-parse-cache-save-lane.test.ts',
+  'src/main/ai-vault/session-parse-cache-metadata-checkpoint.test.ts',
   // Electron main bridges streams with Node's implementation.
   'src/main/host/electron-http-client.test.ts',
   'src/main/daemon/daemon-init-provider-installation.test.ts',
@@ -51,6 +57,10 @@ export const NODE_RUNTIME_INCLUDE = [
   'src/main/ai-vault-search/session-search-fts5-contract.test.ts',
   'src/main/foreign-sqlite-readers/**/*.test.ts',
   'src/main/browser/*cookie*.test.ts',
+  // Playwright's CDP transport needs Node's WebSocket implementation.
+  'src/main/browser/browser-popup-compatibility.electron.test.ts',
+  'src/main/browser/browser-popup-native-compatibility.electron.test.ts',
+  'src/main/browser/browser-popup-background-compatibility.electron.test.ts',
   'src/main/ai-vault/session-scanner-devin-db.test.ts',
   'src/shared/workspace-session-salvage.test.ts',
   'src/main/git/repo-detection.test.ts',

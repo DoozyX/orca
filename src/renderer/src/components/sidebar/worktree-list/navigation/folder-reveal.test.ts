@@ -1,3 +1,4 @@
+import { toHostScopedKey } from '../grouping/cross-host-project-group-merge'
 import { describe, expect, it } from 'vitest'
 import type { FolderWorkspace } from '../../../../../../shared/folder-workspace-types'
 import type { ProjectGroup } from '../../../../../../shared/project-group-types'
@@ -118,6 +119,43 @@ describe('worktree list folder reveal', () => {
       )
     ).toEqual([getProjectGroupHeaderKey(root.id), getProjectGroupHeaderKey(child.id)])
   })
+
+  it.each(['local', 'ssh:builder', 'runtime:builder'] as const)(
+    'expands only the %s owner when folder and group ids repeat across hosts',
+    (executionHostId) => {
+      const otherHostId = executionHostId === 'local' ? 'runtime:other' : 'local'
+      const root = makeProjectGroup({ id: 'selected-root', name: 'Selected', executionHostId })
+      const child = makeProjectGroup({
+        id: 'group-child',
+        parentGroupId: root.id,
+        executionHostId
+      })
+      const otherRoot = makeProjectGroup({
+        id: 'other-root',
+        name: 'Other',
+        executionHostId: otherHostId
+      })
+      const otherChild = makeProjectGroup({
+        id: child.id,
+        parentGroupId: otherRoot.id,
+        executionHostId: otherHostId
+      })
+      const folderWorkspace = makeFolderWorkspace({ executionHostId })
+
+      expect(
+        getFolderWorkspaceRevealGroupKeys(
+          folderWorkspaceKey(folderWorkspace.id),
+          [{ ...folderWorkspace, executionHostId: otherHostId }, folderWorkspace],
+          [root, child, otherRoot, otherChild],
+          { executionHostId, defaultHostId: 'local' }
+        )
+      ).toEqual([
+        getProjectGroupHeaderKey(root.id),
+        getProjectGroupHeaderKey(toHostScopedKey(executionHostId, child.id)),
+        `host:${executionHostId}`
+      ])
+    }
+  )
 })
 
 describe('reveal keys under non-repo grouping', () => {

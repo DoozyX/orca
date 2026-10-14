@@ -109,7 +109,7 @@ export type ClaudeStructuredLaunch = {
 
 export type ClaudeStructuredLaunchPartDeps = {
   resolveLaunchArgs: () => Promise<string[]> | string[]
-  resolveCommand?: () => string
+  resolveCommand?: ClaudeEnvDeps['resolveCommand']
   /** Required, so every caller states which login a failed sign-in names rather than inherit a
    *  guess. Build it with claudeStructuredAuthPolicyForSettings. */
   resolveAuthPolicy: () => Promise<ClaudeStructuredAuthPolicy> | ClaudeStructuredAuthPolicy
@@ -173,7 +173,7 @@ export function claudeStructuredLaunchPart(
     const accountHome = requireLegacyAgentSessionAccountHome(record.accountHome)
     const router = getClaudeProfileRouter()
     // Why the child's whole env: an ambient CLAUDE_CONFIG_DIR reaches the CLI whether or not the overlay names one.
-    const childEnv = claudeChildLaunchEnv(await basis.launchEnv())
+    const childEnv = claudeChildLaunchEnv(basis.launchEnv())
     // A group-bound chat keeps the home pinned at create, as its transcript lives there.
     const boundHome =
       accountHome.binding && isEffectiveBoundClaudeHome(accountHome, { env: childEnv })
@@ -205,6 +205,8 @@ export function claudeStructuredLaunchPart(
       ...(deps.resolveCommand ? { resolveCommand: deps.resolveCommand } : {}),
       resolveEnv: () => basis.launchEnv(),
       resolveInheritedEnv: basis.baseEnvironment,
+      refreshEnvironmentAfterMiss: basis.refreshAfterMissingProgram,
+      resolveWorkingDirectory: () => cwd,
       resolveAuthPolicy: deps.resolveAuthPolicy
     }
     const sources = await resolveClaudeChildEnvSources(envDeps)

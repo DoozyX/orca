@@ -1,3 +1,9 @@
+import { existsSync } from 'node:fs'
+import {
+  journalDatabasePath,
+  type JournalHostDatabase
+} from '../native-chat/agent-session-journal/journal-host-database'
+import { journalDatabaseHoldsAgentSessions } from '../native-chat/agent-session-journal/journal-database'
 // The process's one durable agent-session record store, opened on its own.
 //
 // The launch ledger lives in this store, and admitting a launch is the first thing every replay-safe
@@ -12,7 +18,6 @@
 // process exit.
 
 import { AgentSessionRecordStore } from './agent-session-record-store'
-import type { JournalHostDatabase } from '../native-chat/agent-session-journal/journal-host-database'
 import { openStructuredAgentSessionJournalDatabase } from './structured-agent-session-journal-open'
 import type { StructuredAgentSessionLogger } from '../native-chat/agent-session-wire/structured-agent-session-logger'
 
@@ -92,4 +97,21 @@ export async function releaseAgentSessionRecordStore(): Promise<OpenedAgentSessi
   const released = opening
   opening = null
   return released ? released.opened.catch(() => null) : null
+}
+
+/** Whether this profile holds a structured chat: a record or tab in the journal database. */
+export function hasPersistedStructuredAgentSessionStore(
+  stateDirectory: string,
+  fileExists: (path: string) => boolean = existsSync
+): boolean {
+  const databasePath = journalDatabasePath(stateDirectory)
+  if (!fileExists(databasePath)) {
+    return false
+  }
+  try {
+    return journalDatabaseHoldsAgentSessions(databasePath)
+  } catch {
+    // A database that cannot be read cannot say it is empty.
+    return true
+  }
 }

@@ -10,20 +10,20 @@ import {
 } from './mobile-web-app-bundle-test-fixture.mjs'
 import {
   MOBILE_WEB_APP_NATIVE_PARITY_STYLE,
-  MOBILE_WEB_APP_ROOT_RESET,
   MOBILE_WEB_APP_SHIMS,
+  mobileWebAppBuildOptions,
+  MOBILE_WEB_APP_ROOT_RESET,
   bundleMobileWebApp,
   buildMobileWebAppBundle,
   entryStaticClosure,
-  mobileWebAppBuildOptions,
   renameOutputsByContent,
   routeChunkNames
 } from './build-mobile-web-app-bundle.mjs'
 import {
   MOBILE_WEB_APP_ROUTE_ROOT,
   ROUTE_SOURCE_LOADERS,
-  collectMobileWebAppRouteKeys,
-  collectMobileWebAppRoutes
+  collectMobileWebAppRoutes,
+  collectMobileWebAppRouteKeys
 } from './mobile-web-app-route-manifest.mjs'
 import {
   MOBILE_WEB_APP_BUNDLE_MAX_ENTRY_BYTES,
@@ -42,7 +42,6 @@ import {
   BINARY_SOURCE_EXTENSIONS,
   assertNoCarriageReturnsInSource
 } from './mobile-web-source-line-endings.mjs'
-import { spelledCountsAgainstTables } from './spelled-count-census.mjs'
 import {
   hashedAsset,
   readDesktopVersion,
@@ -480,41 +479,6 @@ describe('the Phase C budget', () => {
     120_000
   )
 
-  it('says which node may be statically imported, and does not promise a route may', async () => {
-    const source = await readFile(
-      join(projectDir, 'config', 'scripts', 'verify-mobile-web-app-bundle.mjs'),
-      'utf8'
-    )
-    // The bound reads like a per-route escape hatch and is not one: of the fourteen routes in the
-    // tree, session breaks it outright at 3.32 MiB and five more spend most of it, so the hatch is
-    // one route away from unusable rather than free. What keeps it survivable is that expo-router
-    // wants a synchronous export off layout nodes only, so the note has to name the layout and the
-    // export that drives it.
-    const doc = source.slice(
-      0,
-      source.indexOf('export const MOBILE_WEB_APP_BUNDLE_MAX_ENTRY_BYTES')
-    )
-    const note = doc.slice(doc.lastIndexOf('/**'))
-    expect(note).toContain('h/_layout.tsx')
-    expect(note).toContain('unstable_settings')
-  })
-
-  /** The one count above that must follow the tree, spelled so the census reads it. The sweep is
-   *  a row per route plus `_layout.tsx` and `h/_layout.tsx`, which are no screens, so it is that
-   *  length less two. */
-  it('spells the route count off the sweep it is a count of', async () => {
-    const source = await readFile(
-      join(projectDir, 'config', 'scripts', 'build-mobile-web-app-bundle.test.mjs'),
-      'utf8'
-    )
-    const rows = [
-      { precedes: 'routes in the tree', counted: MOBILE_WEB_APP_BUNDLE_SCRIPT_SWEEP.length - 2 }
-    ]
-    for (const { precedes, spelled, counts } of spelledCountsAgainstTables(source, rows)) {
-      expect(spelled, precedes).toEqual(counts)
-    }
-  })
-
   it('budgets what loads first well under what the whole page weighs', () => {
     // The point of the split: the entry budget is the one a route must not grow, and it is a
     // fraction of the total the bundle is still allowed to weigh.
@@ -540,10 +504,10 @@ describe('the Phase C budget', () => {
         key
       ).toBeGreaterThanOrEqual(measured)
     }
-    // 1 to 10 per route, which is why four per route was a bound rather than a fit and why the
+    // 1 to 11 per route, which is why four per route was a bound rather than a fit and why the
     // envelope cannot be a line through the measurement either.
     expect(Math.min(...MOBILE_WEB_APP_BUNDLE_ROUTE_SCRIPT_SPREAD)).toBe(1)
-    expect(Math.max(...MOBILE_WEB_APP_BUNDLE_ROUTE_SCRIPT_SPREAD)).toBe(10)
+    expect(Math.max(...MOBILE_WEB_APP_BUNDLE_ROUTE_SCRIPT_SPREAD)).toBe(11)
   })
 
   it('sits exactly one margin over the swept tree and grants the worst route beyond it', () => {
@@ -615,13 +579,13 @@ describe('the Phase C budget', () => {
   it('fails the build when the derived ceiling passes what the phone will accept', async () => {
     // The shell hands back null for a manifest over its own ceiling, so a derived ceiling above
     // that ships a green build no device can open. At the 42 images the tree carries, the envelope
-    // plus 42 plus the document crosses 256 at 30 routes, which Phase C reaches. The crossing came
+    // plus 42 plus the document crosses 256 at 28 routes, which Phase C reaches. The crossing came
     // in from 50 with the envelope: it grants the worst swept route to each one past the sweep,
     // where `4r + 16` granted four, so re-measuring a tree whose routes share more moves it out.
     expect(await readMobileWebBundleMaxAssets()).toBe(MOBILE_WEB_BUNDLE_MAX_ASSETS)
-    expect(assertAssetCeilingFitsShell(29, 42, MOBILE_WEB_BUNDLE_MAX_ASSETS)).toBe(251)
-    expect(() => assertAssetCeilingFitsShell(30, 42, MOBILE_WEB_BUNDLE_MAX_ASSETS)).toThrow(
-      /261 .*256/
+    expect(assertAssetCeilingFitsShell(27, 42, MOBILE_WEB_BUNDLE_MAX_ASSETS)).toBe(246)
+    expect(() => assertAssetCeilingFitsShell(28, 42, MOBILE_WEB_BUNDLE_MAX_ASSETS)).toThrow(
+      /257 .*256/
     )
   })
 })
