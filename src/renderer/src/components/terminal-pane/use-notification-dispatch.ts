@@ -137,8 +137,7 @@ export function dispatchTerminalNotification(
       // Why: main-process hook IPC can update inactive worktrees before the renderer's live-PTY
       // map catches up. An accepted fresh hook snapshot is authority that the turn ended;
       // title/BEL-only paths still need surface liveness.
-      hasFreshActivityEvidence: Boolean(agentStatus),
-      groupAttentionEnabled: state.settings?.experimentalTerminalAttention === true
+      hasFreshActivityEvidence: Boolean(agentStatus)
     },
     createTerminalAttentionSurface(state)
   )
@@ -210,12 +209,7 @@ export function dispatchTerminalNotification(
   }
 
   applyAgentAttention(attentionDecision, {
-    unread: {
-      markWorkspaceUnread: state.markWorktreeUnread,
-      markSubjectUnread: state.markAgentCompletionPaneUnread,
-      markGroupUnread: state.markTerminalTabUnread,
-      markSurfaceUnread: state.markTerminalPaneUnread
-    },
+    unread: state.markAgentAttentionUnread,
     requestDelivery
   })
 }

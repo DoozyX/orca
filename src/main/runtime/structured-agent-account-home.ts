@@ -100,9 +100,13 @@ export async function resolveRecordlessStructuredAgentAccountHome(input: {
 
 export function resolveStructuredCodexAccountKind(
   home: string,
-  settings: Pick<
-    GlobalSettings,
-    'codexManagedAccounts' | 'activeCodexManagedAccountId' | 'activeCodexManagedAccountIdsByRuntime'
+  settings: Partial<
+    Pick<
+      GlobalSettings,
+      | 'codexManagedAccounts'
+      | 'activeCodexManagedAccountId'
+      | 'activeCodexManagedAccountIdsByRuntime'
+    >
   >
 ): AgentSessionAccountKind | undefined {
   const same = (other: string): boolean =>
@@ -139,17 +143,21 @@ export function resolveStructuredEnvAccountHomePath(input: {
 }
 
 /** The account home a create commits: the selected one, re-pinned to where an adopted conversation
- *  lives. The group binding stays only while the committed path is still the bound one. */
+ *  lives. The group binding stays only while the committed home is still the bound one. */
 export function adoptedStructuredAgentAccountHome(
   selected: AgentSessionAccountHome,
-  adoptedPath: string | undefined
+  adopted: AgentSessionAccountHome | undefined
 ): AgentSessionAccountHome {
-  if (adoptedPath === undefined || !isLegacyAgentSessionAccountHome(selected)) {
+  if (adopted === undefined) {
     return selected
   }
-  return {
-    variable: selected.variable,
-    path: adoptedPath,
-    ...(selected.binding && adoptedPath === selected.path ? { binding: selected.binding } : {})
+  if (
+    isLegacyAgentSessionAccountHome(selected) &&
+    isLegacyAgentSessionAccountHome(adopted) &&
+    selected.binding &&
+    adopted.path === selected.path
+  ) {
+    return { ...adopted, binding: selected.binding }
   }
+  return adopted
 }

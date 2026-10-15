@@ -15,10 +15,12 @@ describe('Claude transcript import account-home candidates', () => {
     expect(
       accountHomeCandidates({
         settings: {},
-        selectedAccountHomePath: '/accounts/selected',
-        selectedAccountHomeBound: false
+        selectedAccountHome: { variable: 'CLAUDE_CONFIG_DIR', path: '/accounts/selected' }
       })
-    ).toEqual(['/accounts/selected', SHARED_CLAUDE_HOME])
+    ).toEqual([
+      { variable: 'CLAUDE_CONFIG_DIR', path: '/accounts/selected' },
+      { variable: 'CLAUDE_CONFIG_DIR', path: SHARED_CLAUDE_HOME }
+    ])
   })
 
   // The shared home is another organisation's account; a bound group must refuse, not adopt there.
@@ -26,9 +28,12 @@ describe('Claude transcript import account-home candidates', () => {
     expect(
       accountHomeCandidates({
         settings: {},
-        selectedAccountHomePath: '/bound/claude-home',
-        selectedAccountHomeBound: true
+        selectedAccountHome: {
+          variable: 'CLAUDE_CONFIG_DIR',
+          path: '/bound/claude-home',
+          binding: { kind: 'project-group', groupId: 'group-1' }
+        }
       })
-    ).toEqual(['/bound/claude-home'])
+    ).toEqual([{ variable: 'CLAUDE_CONFIG_DIR', path: '/bound/claude-home' }])
   })
 })

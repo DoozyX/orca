@@ -23,8 +23,6 @@ export function WorktreeCardSecondaryRows({
     repo,
     settings,
     isActive,
-    newCardStyle,
-    lineageChildren,
     remoteBranchConflict,
     showInlineAgentList,
     agentActivityDisplayMode,
@@ -90,12 +88,6 @@ export function WorktreeCardSecondaryRows({
           expansionControls={agentExpansion}
           compactSummaryInHeader={agentActivityDisplayMode === 'compact'}
         />
-      )}
-
-      {!newCardStyle && lineageChildren && (
-        <div className="-ml-[1.125rem] mt-1.5 w-[calc(100%+1.125rem)] space-y-1">
-          {lineageChildren}
-        </div>
       )}
     </>
   )

@@ -50,10 +50,12 @@ describe('dispatchTerminalNotification in an orchestration run', () => {
     dispatchCompletion()
 
     expect(window.api.notifications.dispatch).not.toHaveBeenCalled()
-    expect(mockState.markWorktreeUnread).toHaveBeenCalledWith('wt-primary')
-    expect(mockState.markAgentCompletionPaneUnread).toHaveBeenCalledWith(
-      PANE_KEY,
-      'agent-completion'
+    expect(mockState.markAgentAttentionUnread).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workspaceId: 'wt-primary',
+        subjectKey: PANE_KEY,
+        reason: 'agent-completion'
+      })
     )
   })
 
@@ -86,7 +88,13 @@ describe('dispatchTerminalNotification in an orchestration run', () => {
     dispatchCompletion()
 
     expect(window.api.notifications.dispatch).not.toHaveBeenCalled()
-    expect(mockState.markWorktreeUnread).toHaveBeenCalledWith('wt-primary')
+    expect(mockState.markAgentAttentionUnread).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workspaceId: 'wt-primary',
+        subjectKey: PANE_KEY,
+        reason: 'agent-completion'
+      })
+    )
   })
 
   it('delivers the banner for a worker that requires action', () => {
@@ -120,7 +128,7 @@ describe('dispatchTerminalNotification in an orchestration run', () => {
     dispatchCompletion()
 
     expect(window.api.notifications.dispatch).toHaveBeenCalledTimes(1)
-    expect(mockState.markAgentCompletionPaneUnread).toHaveBeenCalledTimes(2)
+    expect(mockState.markAgentAttentionUnread).toHaveBeenCalledTimes(2)
   })
 
   it('only marks unread for a run member past the display window', () => {
@@ -129,9 +137,12 @@ describe('dispatchTerminalNotification in an orchestration run', () => {
     dispatchCompletion()
 
     expect(window.api.notifications.dispatch).not.toHaveBeenCalled()
-    expect(mockState.markAgentCompletionPaneUnread).toHaveBeenCalledWith(
-      PANE_KEY,
-      'agent-completion'
+    expect(mockState.markAgentAttentionUnread).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workspaceId: 'wt-primary',
+        subjectKey: PANE_KEY,
+        reason: 'agent-completion'
+      })
     )
   })
 

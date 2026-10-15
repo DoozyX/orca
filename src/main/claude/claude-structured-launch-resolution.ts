@@ -1,4 +1,5 @@
 import { activeProviderContext } from '../../shared/agent-session-provider-context'
+import type { ExecutionHostId } from '../../shared/execution-host'
 import { getClaudeProfileRouter } from '../claude-accounts/claude-profile-installed-router'
 import { requireLegacyAgentSessionAccountHome } from '../../shared/agent-session-account-home'
 import type {
@@ -119,7 +120,7 @@ export type ClaudeStructuredLaunchPartDeps = {
    *  Absent leaves the check off, for embedders with no project catalog. */
   readClaudeHomeBinding?: (location: {
     workspaceId: string
-    executionHostId: string
+    executionHostId: ExecutionHostId
   }) => ResolvedClaudeHomeBinding | null
   /** The host's chat attachment store: files a client attached live there, outside the workspace,
    *  and the agent reads them without asking. */
