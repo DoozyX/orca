@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { ORCHESTRATION_CONTRACT_VERSION } from '../../../../../../shared/protocol-version'
 import type { OrcaRuntimeService } from '../../../../orca-runtime'
 import { createOrchestrationWorkerReleaseHarness } from './worker-release.test-support'
 
@@ -172,6 +173,91 @@ describe('orchestration worker release', () => {
       'not_requested'
     )
   })
+
+  it.each([
+    ['settled', true, ''],
+    ['still running', false, ' once it settles (it is ready)']
+  ])(
+    'points a former owner to the other Orca whose %s remote worker now holds its terminal',
+    async (_case, settled, pending) => {
+      h.setup()
+      const first = await h.startSettledWorker('succeeded')
+      const owner = attachRemoteOwner(first.dispatchId, settled)
+
+      await expect(
+        h.call('orchestration.workerRelease', { dispatch: first.dispatchId })
+      ).resolves.toMatchObject({
+        state: 'retained',
+        reason: 'ownership_transferred',
+        processAction: 'none',
+        currentOwnerDispatchId: owner,
+        recovery: expect.stringContaining(
+          `another Orca runs on this host, so this Orca cannot release it; release it from that Orca${pending}: orca orchestration worker-release --dispatch ${owner} --run run_on_other_home --json`
+        )
+      })
+      expect(h.runtime.closeTerminal).not.toHaveBeenCalled()
+      expect(h.db.getWorkerTerminalResourceByOwner(owner)?.release_state).toBe('not_requested')
+    }
+  )
+
+  it("points a user takeover of another Orca's remote worker terminal to that Orca", async () => {
+    h.setup()
+    const first = await h.startSettledWorker('succeeded')
+    const owner = attachRemoteOwner(first.dispatchId, true)
+    await h.call('orchestration.workerTerminalUserInput', { paneKey: h.workerPaneKey })
+
+    await expect(
+      h.call('orchestration.workerRelease', { dispatch: first.dispatchId })
+    ).resolves.toMatchObject({
+      state: 'retained',
+      currentOwnerDispatchId: owner,
+      takeover: { source: 'desktop_terminal_input' },
+      recovery: expect.stringContaining(
+        `another Orca runs on this host; inspect it from that Orca: orca orchestration worker-show --dispatch ${owner} --run run_on_other_home --json`
+      )
+    })
+    expect(h.runtime.closeTerminal).not.toHaveBeenCalled()
+  })
+
+  /** A remote worker another Orca starts on this host, reusing the settled local worker's terminal. */
+  function attachRemoteOwner(formerOwnerId: string, settled: boolean): string {
+    const resource = h.db.getWorkerTerminalResourceByOwner(formerOwnerId)
+    if (!resource?.pane_key || !resource.process_incarnation) {
+      throw new Error('Expected the local worker to own an identified terminal')
+    }
+    const dispatchId = 'ctx_remote_owner'
+    h.db.createRemoteDispatchAttachment({
+      runId: 'run_on_other_home',
+      dispatchId,
+      taskId: 'task_remote_owner',
+      homePeerFingerprint: 'other-home',
+      protocolVersion: ORCHESTRATION_CONTRACT_VERSION,
+      runtimeEpoch: h.runtime.getRuntimeId(),
+      mutationReceipt: {
+        callerFingerprint: 'other-home',
+        requestId: 'request_remote_owner',
+        method: 'orchestration.federationAttachStart',
+        payloadHash: 'hash_remote_owner'
+      }
+    })
+    h.db.prepareRemoteAttachmentAuthority({
+      dispatchId,
+      paneKey: resource.pane_key,
+      processIncarnation: resource.process_incarnation,
+      worktreeId: 'repo::worktree',
+      terminalHandle: resource.terminal_handle,
+      hostScope: resource.host_scope,
+      setupState: 'not_applicable',
+      effects: [],
+      terminalOwnership: 'external'
+    })
+    h.db.markRemoteAttachmentReady(dispatchId)
+    if (settled) {
+      h.db.recordRemoteAttachmentStage({ dispatchId, state: 'succeeded', stage: 'worker_reported' })
+    }
+    expect(h.db.getWorkerTerminalResourceByOwner(dispatchId)?.id).toBe(resource.id)
+    return dispatchId
+  }
 
   it('retains a dead external terminal the orchestration never owned', async () => {
     h.setup()
