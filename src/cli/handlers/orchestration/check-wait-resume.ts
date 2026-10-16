@@ -1,4 +1,5 @@
 import type { z } from 'zod'
+import { ORCHESTRATION_MESSAGE_WAIT_DEFAULT_TIMEOUT_MS } from '../../../shared/orchestration-message-wait-timeout'
 import type { OrchestrationMutationRequestShowResult } from '../../../shared/orchestration-mutation-request'
 import type { CheckParams } from '../../../shared/rpc-contract/orchestration-params'
 import {
@@ -23,7 +24,8 @@ export async function callCheckWaitWithResume<T>(
   params: OrchestrationCheckParams,
   timeoutMs: number | undefined
 ): Promise<RuntimeRpcSuccess<T>> {
-  const startedAt = Date.now()
+  // Why: an omitted timeout is the host's finite default, so every resume spends from that budget too.
+  const deadline = Date.now() + (timeoutMs ?? ORCHESTRATION_MESSAGE_WAIT_DEFAULT_TIMEOUT_MS)
   let callFlags = flags
   let callParams = params
   for (let resumes = 0; ; resumes += 1) {
@@ -49,8 +51,8 @@ export async function callCheckWaitWithResume<T>(
       if (shown?.result.state !== 'completed' || typeof receipt !== 'object' || receipt === null) {
         throw error
       }
-      const remainingMs = timeoutMs === undefined ? undefined : timeoutMs - (Date.now() - startedAt)
-      if (!isEmptyLostWait(receipt) || (remainingMs !== undefined && remainingMs <= 0)) {
+      const remainingMs = deadline - Date.now()
+      if (!isEmptyLostWait(receipt) || remainingMs <= 0) {
         // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: a completed orchestration.check receipt is that call's stored result.
         return { ...shown, result: receipt as T }
       }
