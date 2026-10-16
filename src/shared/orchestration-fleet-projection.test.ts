@@ -456,6 +456,20 @@ describe('fleet liveness and attention after a host verdict', () => {
     expect(subject.attention.requiresAction).toBe(true)
   })
 
+  it('asks for action on a live worker whose turn ended without a report, never release', () => {
+    const now = 10_000
+    const subject = projectOrchestrationFleet({
+      workers: [worker('1', { outcome: 'finished_unverified' })],
+      statuses: [status('1', now - 1, { state: 'done' })],
+      now
+    }).workers[0]!
+
+    expect(subject.liveness.verdict).toBe('live')
+    expect(subject.attention.categories).toContain('unverifiable')
+    expect(subject.attention.requiresAction).toBe(true)
+    expect(subject.nextAction.kind).not.toBe('release')
+  })
+
   it('drops a stale category the host verdict disproves', () => {
     const now = 10 * AGENT_STATUS_STALE_AFTER_MS
     const projected = projectOrchestrationFleet({

@@ -321,6 +321,36 @@ describe('durable Attempt observation and outcome projection', () => {
     })
   })
 
+  it('projects a structured turn that ended without a report until a worker_done arrives', () => {
+    const { dispatchId } = createAttempt()
+    // The fact the structured idle edge records for a turn that ended with the Dispatch active.
+    db!.recordAttemptObservation(
+      fact(dispatchId, {
+        id: 'structured-turn-finished',
+        sequence: 1,
+        facet: 'process_turn',
+        payload: { process: 'running', turn: 'finished' }
+      })
+    )
+    expect(projectOutcome(db!, dispatchId, { execution: 1_001, home: 50_001 })).toMatchObject({
+      outcome: 'finished_unverified',
+      outcomeSource: 'observation'
+    })
+
+    db!.recordAttemptObservation(
+      fact(dispatchId, {
+        id: 'later_report',
+        sequence: 2,
+        facet: 'worker_report',
+        payload: { status: 'accepted', outcome: 'failed', reportId: 'message-2' }
+      })
+    )
+    expect(projectOutcome(db!, dispatchId, { execution: 1_001, home: 50_001 })).toMatchObject({
+      outcome: 'failed',
+      outcomeSource: 'worker_report'
+    })
+  })
+
   it('never infers success from a quiet PTY, clean Git, or coordinator acknowledgment', () => {
     const { dispatchId } = createAttempt()
     for (const observation of [

@@ -20,6 +20,7 @@ import {
   structuredSessionIdleEdgeMailboxes
 } from './structured-session-mail-target'
 import { exitedChatDispatchesForSession } from './chat-assignee'
+import { recordStructuredTurnEndedWithoutReport } from './structured-turn-settlement-watch'
 import { OPERATOR_CLOSE_EXIT_CAUSE } from '../../../shared/terminal-exit-cause'
 import { resolveTerminalIdentityFromProbes } from '../terminal-identity-probe'
 
@@ -202,6 +203,7 @@ export abstract class OrcaRuntimeWithGetPtyRecordForPaneKey extends OrcaRuntimeW
   onStructuredSessionStatusForMail(summary: {
     sessionId: string
     status: 'working' | 'attention' | 'idle' | null
+    statusStartedAt?: number
   }): void {
     if (summary.status === 'working' || summary.status === 'attention') {
       return
@@ -212,6 +214,7 @@ export abstract class OrcaRuntimeWithGetPtyRecordForPaneKey extends OrcaRuntimeW
       const openDb = () => this.getExistingOrchestrationDb()
       const deliver = (mailbox: string) => this.deliverPendingMessagesForHandle(mailbox)
       structuredSessionIdleEdgeMailboxes(summary.sessionId, openDb).forEach(deliver)
+      recordStructuredTurnEndedWithoutReport(openDb(), summary)
     } catch (error) {
       console.warn('[orchestration] structured session mail redrive failed', {
         sessionId: summary.sessionId,

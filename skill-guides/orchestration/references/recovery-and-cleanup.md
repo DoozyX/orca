@@ -55,6 +55,10 @@ Leave the wait only on positive proof the agent stopped: `exited` liveness, the
 worker's own observation of process exit, or a transcript whose final agent turn
 sent no `worker_done`. Only then choose `worker-stop` or `worker-abandon`.
 
+A structured worker whose turn ended without `worker_done` shows outcome
+`finished_unverified` with attention `unverifiable`. Read its transcript, then
+choose `worker-abandon` or a retry explicitly; nothing is closed for you.
+
 `unverifiable` is always absence — `missing_status`, `stale_status`,
 `restored_unconfirmed`, or a remote worker with no connection — and a null
 `agentWait` or an unchanged `worker-read` tail is that same absence seen again.
