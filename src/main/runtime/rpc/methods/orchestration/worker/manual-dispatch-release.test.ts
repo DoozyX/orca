@@ -10,6 +10,7 @@ import {
   agentSessionLeaseFixture,
   agentSessionRecordFixture
 } from '../../../../../../shared/agent-session-record.test-fixture'
+import { computeAgentSessionPayloadFingerprint } from '../../../../../../shared/agent-session-mutation-envelope'
 import {
   mintStructuredWorkerHandle,
   mintStructuredWorkerPaneKey,
@@ -36,6 +37,9 @@ describe('manual Dispatch release', () => {
   let db: OrchestrationDb
   let runtime: OrcaRuntimeService
   let runId: string
+  // The structured worker's running turn, as the fake host's current work reads it.
+  let activeTurn: string | null
+  let owesSend: boolean
 
   beforeEach(() => {
     db = new OrchestrationDb(':memory:')
@@ -49,6 +53,8 @@ describe('manual Dispatch release', () => {
     vi.spyOn(runtime, 'ensureStructuredAgentSessionHost').mockResolvedValue(undefined)
     structuredWorkerIdentities.clear()
     hostRef.current = null
+    activeTurn = 'turn-1'
+    owesSend = false
     runId = db.createRun({
       objective: 'Release manual Dispatches',
       coordinatorHandle: COORDINATOR,
@@ -179,7 +185,7 @@ describe('manual Dispatch release', () => {
     [true, 'cancelled'],
     [false, 'no_running_turn']
   ] as const)(
-    'interrupts a structured worker whose context-only Dispatch is stopped (cancelled: %s)',
+    'interrupts the turn a stopped context-only Dispatch was running (cancelled: %s)',
     async (cancelled, outcome) => {
       const cancel = vi.fn(async () => ({
         ok: true,
@@ -196,7 +202,18 @@ describe('manual Dispatch release', () => {
       expect(cancel).toHaveBeenCalledTimes(1)
       expect(cancel).toHaveBeenCalledWith(
         { callerKey: `trusted-local:orchestration:${dispatchId}` },
-        { envelope: expect.objectContaining({ sessionId: SESSION, expectedRuntimeFence: 3 }) }
+        {
+          turnId: 'turn-1',
+          envelope: expect.objectContaining({
+            sessionId: SESSION,
+            expectedRuntimeFence: 3,
+            payloadFingerprint: computeAgentSessionPayloadFingerprint({
+              method: 'agentSession.cancel',
+              sessionId: SESSION,
+              fields: { turnId: 'turn-1' }
+            })
+          })
+        }
       )
       await expect(
         call('orchestration.workerStop', { dispatch: dispatchId })
@@ -205,8 +222,61 @@ describe('manual Dispatch release', () => {
     }
   )
 
+  it('never cancels the turn of a Dispatch that takes the worker over during the stop', async () => {
+    const worker = structuredWorker()
+    let replacement = ''
+    // At the stop's first await, a new Dispatch acquires the worker and its turn opens.
+    const replace = async () => {
+      if (!replacement) {
+        replacement = await dispatchTask(createTask('replacement'), worker)
+        activeTurn = 'turn-2'
+      }
+    }
+    vi.mocked(runtime.ensureStructuredAgentSessionHost).mockImplementation(replace)
+    const cancel = vi.fn(async (_caller: unknown, params: { turnId?: string }) => {
+      await replace()
+      // As the host: an unnamed Stop ends whatever runs; a named one only that turn.
+      const stops = params.turnId === undefined ? activeTurn !== null : params.turnId === activeTurn
+      return { ok: true, replayed: false, fence: 3, value: { cancelled: stops } }
+    })
+    installStructuredHost('local', cancel)
+    const stopped = await dispatchTask(createTask('stopped'), worker)
+
+    await expect(call('orchestration.workerStop', { dispatch: stopped })).resolves.toMatchObject({
+      state: 'stopped',
+      interrupt: { outcome: 'no_running_turn' }
+    })
+    expect(cancel).toHaveBeenCalledTimes(1)
+    expect(cancel.mock.calls[0]?.[1]).toMatchObject({ turnId: 'turn-1' })
+    expect(db.getDispatchContextById(replacement)?.status).toBe('dispatched')
+  })
+
+  it.each([
+    ['nothing runs', false, { outcome: 'no_running_turn' }],
+    [
+      'its next turn has not opened',
+      true,
+      { outcome: 'not_interrupted', reason: expect.stringContaining('has not opened') }
+    ]
+  ] as const)(
+    'cancels nothing for a stopped structured worker when %s',
+    async (_case, owes, interrupt) => {
+      const cancel = vi.fn()
+      installStructuredHost('local', cancel)
+      const dispatchId = await dispatchTask(createTask('structured idle'), structuredWorker())
+      activeTurn = null
+      owesSend = owes
+
+      await expect(
+        call('orchestration.workerStop', { dispatch: dispatchId })
+      ).resolves.toMatchObject({ state: 'stopped', processAction: 'none', interrupt })
+      expect(cancel).not.toHaveBeenCalled()
+    }
+  )
+
   it.each([
     ['runs on another host', 'ssh-1', 'another host'],
+    ['has no readable session record', null, 'No durable record'],
     ['refuses the cancel', 'local', 'The session fence moved.']
   ])(
     'says a structured worker may still be running when its session %s',
@@ -276,20 +346,27 @@ describe('manual Dispatch release', () => {
     return handle
   }
 
-  function installStructuredHost(executionHostId: string, cancel: unknown): void {
+  /** `executionHostId` null: the host holds no durable record for the session. */
+  function installStructuredHost(executionHostId: string | null, cancel: unknown): void {
     const record = agentSessionRecordFixture(
       agentSessionLeaseFixture({ sessionId: SESSION, runtimeFence: 3 })
     )
-    const located = { ...record, location: { ...record.location, executionHostId } }
+    const located = executionHostId
+      ? { ...record, location: { ...record.location, executionHostId } }
+      : null
     hostRef.current = {
       deps: {
         store: {
           getRecord: (id: string) => (id === SESSION ? located : null),
-          listRecords: () => [located]
+          listRecords: () => (located ? [located] : [])
         }
       },
       hasSession: () => true,
       getPersistedVisibleSessionTabIndex: () => ({ present: true, sessionIds: [SESSION] }),
+      currentWork: (id: string) =>
+        id === SESSION
+          ? { activeTurnId: () => activeTurn, working: () => activeTurn !== null || owesSend }
+          : null,
       cancel
     }
   }
