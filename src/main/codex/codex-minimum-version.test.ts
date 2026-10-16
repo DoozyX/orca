@@ -194,7 +194,7 @@ describe('Codex structured launch version admission', () => {
   )
 
   it.each(['posix', 'powershell', 'cmd'] as const)(
-    'leaves terminal Codex launch unchanged in %s',
+    'launches terminal Codex isolated from the shared daemon in %s',
     (shell) => {
       vi.mocked(readCodexCliInstallation).mockResolvedValue(codexCliInstallation(true, '0.135.0'))
       expect(
@@ -207,7 +207,10 @@ describe('Codex structured launch version admission', () => {
         })
       ).toMatchObject({
         ok: true,
-        command: shell === 'cmd' ? 'codex "--model" "chosen"' : "codex '--model' 'chosen'"
+        command:
+          shell === 'cmd'
+            ? 'codex --no-daemon "--model" "chosen"'
+            : "codex --no-daemon '--model' 'chosen'"
       })
       expect(readCodexCliInstallation).not.toHaveBeenCalled()
     }

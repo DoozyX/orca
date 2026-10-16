@@ -1,4 +1,5 @@
 import type { AgentSessionExecutionLocation } from '../../shared/agent-session-record'
+import type { ExecutionHostId } from '../../shared/execution-host'
 import type { LegacyAgentSessionAccountHome } from '../../shared/agent-session-account-home'
 import type { ResolvedClaudeHomeBinding } from '../../shared/claude-home-binding'
 import { ClaudeBoundHomeRefusalError } from './claude-bound-home-refusal'
@@ -13,7 +14,7 @@ export function assertClaudeChatPredatesNoBinding(input: {
   deps: {
     readClaudeHomeBinding?: (location: {
       workspaceId: string
-      executionHostId: string
+      executionHostId: ExecutionHostId
     }) => ResolvedClaudeHomeBinding | null
   }
   location: AgentSessionExecutionLocation

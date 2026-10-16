@@ -6,14 +6,17 @@ import { cloneDefaultWorkspaceStatuses } from '../../../../../../shared/workspac
 import type { AppState } from '../../../../store/types'
 import { ALL_GROUP_KEY, getPRGroupKey, getProjectGroupHeaderKey } from './group-keys'
 import { getRepoExecutionHostId } from '../../../../../../shared/execution-host'
-import { buildProjectGroupingIndex, getProjectGroupingForRepo } from './project-grouping'
+import {
+  buildProjectGroupingIndex,
+  getProjectGroupingForRepo
+} from '../../../../../../shared/project-section-grouping'
 import {
   buildMergedProjectGroupIndex,
   buildProjectGroupHostIndex,
   findProjectGroupByHost,
   resolveMergedProjectGroupId
 } from './cross-host-project-group-merge'
-import type { ProjectGroupingModel } from './project-grouping'
+import type { ProjectGroupingModel } from '../../../../../../shared/project-section-grouping'
 import type { WorktreeGroupBy } from './row-types'
 
 export function getGroupKeyForWorktree(

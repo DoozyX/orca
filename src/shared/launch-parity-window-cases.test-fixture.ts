@@ -112,8 +112,8 @@ export const WINDOW_LAUNCH_CASES: WindowLaunchCase[] = [
     'darwin',
     repo(POSIX_PATH),
     {
-      command: `codex '--dangerously-bypass-approvals-and-sandbox' 'fix Bob'"'"'s bug'`,
-      agentCommand: `codex '--dangerously-bypass-approvals-and-sandbox'`
+      command: `codex --no-daemon '--dangerously-bypass-approvals-and-sandbox' 'fix Bob'"'"'s bug'`,
+      agentCommand: `codex --no-daemon '--dangerously-bypass-approvals-and-sandbox'`
     },
     ZSH
   ),

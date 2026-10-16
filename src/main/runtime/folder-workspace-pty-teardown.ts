@@ -1,9 +1,8 @@
-import { killAllProcessesForWorktree } from './worktree-teardown'
+import { killAllProcessesForWorktree, type WorktreeTeardownRuntime } from './worktree-teardown'
 import type { IPtyProvider } from '../providers/pty-provider-contract'
-import type { OrcaRuntimeService } from './orca-runtime'
 
 export type FolderWorkspacePtyTeardownDeps = {
-  runtime: OrcaRuntimeService
+  runtime: WorktreeTeardownRuntime
   getLocalProvider: () => IPtyProvider | null
   onPtyStopped: ((ptyId: string) => void) | null
 }
@@ -34,4 +33,24 @@ export async function teardownFolderWorkspacePtys(
   }).catch((error) => {
     console.warn(`[worktree-teardown] failed for ${worktreeId}:`, error)
   })
+}
+
+/** The sweep over a runtime that is itself the teardown host. */
+export function teardownRuntimeFolderWorkspacePtys(
+  runtime: WorktreeTeardownRuntime &
+    Pick<FolderWorkspacePtyTeardownDeps, 'onPtyStopped'> & {
+      getLocalProvider: FolderWorkspacePtyTeardownDeps['getLocalProvider']
+    },
+  worktreeId: string,
+  connectionId: string | null
+): Promise<void> {
+  return teardownFolderWorkspacePtys(
+    {
+      runtime,
+      getLocalProvider: () => runtime.getLocalProvider(),
+      onPtyStopped: runtime.onPtyStopped
+    },
+    worktreeId,
+    connectionId
+  )
 }

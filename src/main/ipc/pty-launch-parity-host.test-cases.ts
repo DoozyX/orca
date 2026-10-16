@@ -94,8 +94,8 @@ const aiButtonSource = (workspace: LaunchWorkspace): string =>
 const QUICK_COMMAND = { agent_kind: 'codex', launch_source: 'quick_command', request_kind: 'new' }
 export const AGENT_PHONE = { title: 'Terminal', launchAgent: 'claude', isActive: true }
 const POSIX_CLAUDE = "claude '--dangerously-skip-permissions'"
-// main today: a local POSIX host hands the provider the settings shell untrimmed.
-export const ZSH = { shellOverride: '  /bin/zsh  ', terminalWindowsWslDistro: null }
+// A local POSIX host hands the provider the settings shell as stored, which settings load trims.
+export const ZSH = { shellOverride: '/bin/zsh', terminalWindowsWslDistro: null }
 export const CMD_EXE = { shellOverride: 'cmd.exe', terminalWindowsWslDistro: null }
 export const CMD = { terminalWindowsShell: 'cmd.exe' }
 // A saved default argument with an apostrophe: the byte that tells POSIX and PowerShell quoting apart.
@@ -103,7 +103,7 @@ const BOB_ARGS = {
   agentDefaultArgs: { claude: `--dangerously-skip-permissions --name "Bob's box"` }
 }
 const BOB_POSIX = `${POSIX_CLAUDE} '--name' 'Bob'"'"'s box'`
-const CODEX = "codex '--dangerously-bypass-approvals-and-sandbox'"
+const CODEX = "codex --no-daemon '--dangerously-bypass-approvals-and-sandbox'"
 
 /** Row 3: agent.launch with no prompt; `command` + shell are what the provider gets. */
 function aiButton(

@@ -559,9 +559,13 @@ beforeAll(async () => {
   process.env = inheritedEnvironment()
   installAppEnvironment()
   settings = defaultSettings()
-  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the host wiring reads only the store's getSettings method.
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the host wiring reads only the settings and the (empty, hydrated) project catalog a Claude launch checks for a home binding.
   const runtime = new OrcaRuntimeService({
-    getSettings: () => settings
+    getSettings: () => settings,
+    hasHydratedProjectCatalog: () => true,
+    getProjectGroups: () => [],
+    getRepos: () => [],
+    getFolderWorkspaces: () => []
   } as never)
   await runtime.ensureStructuredAgentSessionHost()
   const production = capture.productionDeps.at(-1)
