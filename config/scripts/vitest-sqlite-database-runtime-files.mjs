@@ -179,6 +179,7 @@ export const SQLITE_DATABASE_RUNTIME_INCLUDE = [
   'src/main/runtime/rpc/terminal-prompt-delivery-receipt.test.ts',
   'src/main/runtime/runtime-orchestration-sender-names.test.ts',
   'src/main/runtime/runtime-rpc-long-poll-transport.test.ts',
+  'src/main/runtime/runtime-rpc-exclusive-wait-close.test.ts',
   'src/main/runtime/runtime-orchestration-sender-names.test.ts',
   'src/main/runtime/runtime-rpc-orchestration-db-migration.test.ts',
   'src/main/runtime/runtime-rpc-request-authorization.test.ts',
