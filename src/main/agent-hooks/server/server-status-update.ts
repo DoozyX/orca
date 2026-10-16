@@ -44,7 +44,8 @@ export abstract class AgentHookServerStatusUpdate extends AgentHookServerStatusA
   }
 
   protected applyNormalizedStatus(
-    incoming: AgentHookEventPayload & { authorityRestartId?: string },
+    /** `restatesRow`: the event repeats the stored row unchanged, so it is no word from the agent. */
+    incoming: AgentHookEventPayload & { authorityRestartId?: string; restatesRow?: true },
     onAccepted?: () => void,
     origin: AgentStatusObservationOrigin = 'hook',
     observedAt?: number,
@@ -57,7 +58,7 @@ export abstract class AgentHookServerStatusUpdate extends AgentHookServerStatusA
     if (!transitioned) {
       return undefined
     }
-    const { authorityRestartId, ...payload } = { ...incoming, ...transitioned }
+    const { authorityRestartId, restatesRow, ...payload } = { ...incoming, ...transitioned }
     if (!this.canWriteLegacyStatusRow(payload)) {
       return undefined
     }
@@ -252,7 +253,7 @@ export abstract class AgentHookServerStatusUpdate extends AgentHookServerStatusA
         ? unpairedPayload
         : { ...unpairedPayload, claudeRunningNonAgentTask: runningNonAgentTask }
     const enriched = {
-      ...this.attachStatusTiming(pairedPayload, now, observedAt),
+      ...this.attachStatusTiming(pairedPayload, now, observedAt, restatesRow === true),
       observation: this.stampObservation(pairedPayload, origin, observedAt ?? now)
     }
     if (

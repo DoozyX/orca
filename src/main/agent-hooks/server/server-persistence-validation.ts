@@ -54,6 +54,10 @@ function legacyChildOnlyBoundaryMainAgent(
   return { state: 'done', stateStartedAt: payload.turnCompletedAt ?? stateStartedAt }
 }
 
+function positiveTime(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : undefined
+}
+
 export function sanitizeHydratedEntry(
   paneKey: string,
   rawEntry: unknown
@@ -150,7 +154,8 @@ export function sanitizeHydratedEntry(
     source === 'claude' && (record.compactTrigger === 'manual' || record.compactTrigger === 'auto')
       ? record.compactTrigger
       : undefined
-  const turnStartedAt = record.turnStartedAt
+  const turnStartedAt = positiveTime(record.turnStartedAt)
+  const agentEvidenceObservedAt = positiveTime(record.agentEvidenceObservedAt)
   return {
     paneKey,
     agentPresence: readAgentProcessPresence(record.agentPresence),
@@ -174,9 +179,8 @@ export function sanitizeHydratedEntry(
     payload,
     receivedAt,
     stateStartedAt,
-    ...(typeof turnStartedAt === 'number' && Number.isFinite(turnStartedAt) && turnStartedAt > 0
-      ? { turnStartedAt }
-      : {})
+    ...(turnStartedAt === undefined ? {} : { turnStartedAt }),
+    ...(agentEvidenceObservedAt === undefined ? {} : { agentEvidenceObservedAt })
   }
 }
 

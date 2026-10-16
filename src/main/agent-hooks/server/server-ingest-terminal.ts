@@ -123,8 +123,7 @@ export abstract class AgentHookServerIngestTerminal extends AgentHookServerInges
     const preserveActiveTurnStamp =
       previous?.payload.turnCompletedAt !== undefined &&
       previous.payload.turnCompletedAt === this.activeHookTurnCompletedAtByPaneKey.get(paneKey)
-    if (
-      !previous?.restoredUnconfirmed &&
+    const restatesRow =
       previous?.connectionId === connectionId &&
       previous.tabId === tabId &&
       previous.worktreeId === worktreeId &&
@@ -132,7 +131,7 @@ export abstract class AgentHookServerIngestTerminal extends AgentHookServerInges
       // only just acquired one (or moved to another) must still refresh the row it is stamped on.
       previous.terminalHandle === (terminalHandle ?? previous.terminalHandle) &&
       terminalStatusPayloadMatchesHook(previous.payload, event.payload, preserveActiveTurnStamp)
-    ) {
+    if (restatesRow && !previous.restoredUnconfirmed) {
       // A handle-authority transfer is a new pane observation even when its payload is a
       // duplicate; enriched subscribers must capture the replacement pane identity.
       this.refreshTerminalStatusEvidence(previous, mutationBefore, mutationBefore !== undefined)
@@ -174,6 +173,8 @@ export abstract class AgentHookServerIngestTerminal extends AgentHookServerInges
         connectionId,
         ...(preservedProviderSession ? { providerSession: preservedProviderSession } : {}),
         ...(terminalHandle ? { terminalHandle } : {}),
+        // Why: confirming a restored row unchanged must not renew its agent evidence clock (#17).
+        ...(restatesRow ? { restatesRow: true as const } : {}),
         payload: preservedMainAgent
           ? { ...event.payload, mainAgent: preservedMainAgent }
           : event.payload

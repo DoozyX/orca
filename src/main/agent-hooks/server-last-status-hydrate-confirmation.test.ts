@@ -86,6 +86,82 @@ describe('Last-status persistence', () => {
     }
   })
 
+  describe('the agent evidence clock across a restart', () => {
+    const payload = { state: 'working' as const, prompt: 'long turn', agentType: 'claude' as const }
+    const pane = { paneKey: PANE, tabId: 'tab-1', worktreeId: 'wt-1', connectionId: null }
+
+    /** Persists one row whose agent last spoke at `spokeAt`, letting `rewrite` edit the file. */
+    async function restartAfterRow(
+      spokeAt: number,
+      rewrite?: (entry: Record<string, unknown>) => void
+    ): Promise<AgentHookServer> {
+      const firstServer = new AgentHookServer()
+      await firstServer.start({ env: 'production', userDataPath })
+      vi.spyOn(Date, 'now').mockReturnValue(spokeAt)
+      firstServer.ingestTerminalStatus({ ...pane, payload })
+      firstServer.flushStatusPersistSync()
+      firstServer.stop()
+      vi.restoreAllMocks()
+      if (rewrite) {
+        const file = JSON.parse(readFileSync(lastStatusPath(), 'utf8'))
+        rewrite(file.entries[PANE])
+        writeFileSync(lastStatusPath(), JSON.stringify(file))
+      }
+      const server = new AgentHookServer()
+      await server.start({ env: 'production', userDataPath })
+      return server
+    }
+
+    it('keeps the persisted clock when an unchanged OSC confirms the restored row', async () => {
+      const spokeAt = Date.now() - 40 * 60_000
+      const confirmAt = spokeAt + 31 * 60_000
+      const server = await restartAfterRow(spokeAt)
+      try {
+        expect(server.getStatusSnapshot()[0]).toMatchObject({
+          restoredUnconfirmed: true,
+          agentEvidenceObservedAt: spokeAt
+        })
+
+        const clock = vi.spyOn(Date, 'now').mockReturnValue(confirmAt)
+        server.ingestTerminalStatus({ ...pane, payload })
+        const confirmed = server.getStatusSnapshot()[0]
+        expect(confirmed?.restoredUnconfirmed).toBeUndefined()
+        expect(confirmed).toMatchObject({
+          evidenceObservedAt: confirmAt,
+          agentEvidenceObservedAt: spokeAt
+        })
+
+        // A changed state is the agent's own word, so it renews the clock.
+        clock.mockReturnValue(confirmAt + 1_000)
+        server.ingestTerminalStatus({ ...pane, payload: { ...payload, state: 'done' } })
+        expect(server.getStatusSnapshot()[0]?.agentEvidenceObservedAt).toBe(confirmAt + 1_000)
+      } finally {
+        server.stop()
+      }
+    })
+
+    it.each([
+      ['absent', undefined],
+      ['negative', -5],
+      ['not a number', 'soon']
+    ])('restores no clock from an %s value and invents none on confirmation', async (_l, value) => {
+      const spokeAt = Date.now() - 40 * 60_000
+      const server = await restartAfterRow(spokeAt, (entry) => {
+        entry.agentEvidenceObservedAt = value
+      })
+      try {
+        expect(server.getStatusSnapshot()[0]).not.toHaveProperty('agentEvidenceObservedAt')
+
+        vi.spyOn(Date, 'now').mockReturnValue(spokeAt + 31 * 60_000)
+        server.ingestTerminalStatus({ ...pane, payload })
+        // The fleet then reads `evidenceObservedAt`, as for a row from an older host.
+        expect(server.getStatusSnapshot()[0]?.agentEvidenceObservedAt).toBeUndefined()
+      } finally {
+        server.stop()
+      }
+    })
+  })
+
   it('does not let a hydrated Claude permission suppress the first live working event', async () => {
     const firstServer = new AgentHookServer()
     await firstServer.start({ env: 'production', userDataPath })

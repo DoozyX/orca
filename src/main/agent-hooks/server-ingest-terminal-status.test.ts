@@ -325,6 +325,45 @@ describe('AgentHookServer ingestTerminalStatus', () => {
     }
   })
 
+  it('keeps the agent clock when a relay replay without its own clock follows a repaint', () => {
+    const t0 = 1_800_000_000_000
+    const repaintAt = t0 + 31 * 60_000
+    const replayAt = repaintAt + 1_000
+    const agedReplayAt = replayAt + 1_000
+    const hookAt = agedReplayAt + 60_000
+    const working = { state: 'working' as const, prompt: 'long turn', agentType: 'codex' as const }
+    vi.useFakeTimers()
+    vi.setSystemTime(t0)
+    try {
+      const server = new AgentHookServer()
+      server.ingestRemote({ paneKey: PANE, payload: working }, 'conn-1')
+      vi.setSystemTime(repaintAt)
+      server.ingestTerminalStatus({ paneKey: PANE, connectionId: 'conn-1', payload: working })
+
+      vi.setSystemTime(replayAt)
+      server.ingestRemote({ paneKey: PANE, isReplay: true, payload: working }, 'conn-1')
+      expect(server.getStatusSnapshot()[0]).toMatchObject({
+        receivedAt: replayAt,
+        evidenceObservedAt: repaintAt,
+        agentEvidenceObservedAt: t0
+      })
+
+      // A replay that carries the relay's own evidence age is dated by it.
+      vi.setSystemTime(agedReplayAt)
+      server.ingestRemote(
+        { paneKey: PANE, isReplay: true, evidenceAgeMs: 5_000, payload: working },
+        'conn-1'
+      )
+      expect(server.getStatusSnapshot()[0]?.agentEvidenceObservedAt).toBe(agedReplayAt - 5_000)
+
+      vi.setSystemTime(hookAt)
+      server.ingestRemote({ paneKey: PANE, payload: { ...working, toolName: 'Edit' } }, 'conn-1')
+      expect(server.getStatusSnapshot()[0]?.agentEvidenceObservedAt).toBe(hookAt)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('accepts a runtime-owned legacy pane without opening legacy relay ingress', () => {
     const server = new AgentHookServer()
     const event = {

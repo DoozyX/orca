@@ -216,7 +216,8 @@ export abstract class AgentHookServerState {
   protected abstract attachStatusTiming(
     payload: AgentHookEventPayload,
     now?: number,
-    observedAt?: number
+    observedAt?: number,
+    restatesPrevious?: boolean
   ): EnrichedAgentHookEventPayload
   protected abstract hashPromptForTelemetryDedupe(prompt: string): string
   protected abstract maybeTrackAgentPromptSent(
@@ -229,7 +230,7 @@ export abstract class AgentHookServerState {
     observedAt: number
   ): AgentStatusObservation
   protected abstract applyNormalizedStatus(
-    payload: AgentHookEventPayload,
+    payload: AgentHookEventPayload & { restatesRow?: true },
     onAccepted?: () => void,
     origin?: AgentStatusObservationOrigin,
     observedAt?: number,

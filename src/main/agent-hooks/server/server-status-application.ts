@@ -129,7 +129,8 @@ export abstract class AgentHookServerStatusApplication extends AgentHookServerSt
   protected attachStatusTiming(
     payload: AgentHookEventPayload,
     now = Date.now(),
-    observedAt?: number
+    observedAt?: number,
+    restatesPrevious = false
   ): EnrichedAgentHookEventPayload {
     const previous = this.state.lastStatusByPaneKey.get(payload.paneKey) as
       | EnrichedAgentHookEventPayload
@@ -152,12 +153,16 @@ export abstract class AgentHookServerStatusApplication extends AgentHookServerSt
         : (observedAt ?? now)
     const turnStartedAt = resolveTurnStartedAt(previous, payload, observedAt ?? now)
     const evidenceObservedAt = observedAt ?? this.resolveEvidenceObservedAt(payload, previous, now)
+    // Why: a clockless replay or a confirmation of a restored row restates the agent's last word,
+    // while the row's own clock may be a repaint's (#17).
+    const restated = restatesPrevious || (observedAt === undefined && payload.isReplay === true)
     // Why: `stateStartedAt` tracks the current state, while `receivedAt` tracks every arrival.
     return {
       ...payload,
       receivedAt: now,
       evidenceObservedAt,
-      agentEvidenceObservedAt: evidenceObservedAt,
+      agentEvidenceObservedAt:
+        restated && previous ? previous.agentEvidenceObservedAt : evidenceObservedAt,
       stateStartedAt,
       // Always written here, so a producer can never declare it.
       turnStartedAt
