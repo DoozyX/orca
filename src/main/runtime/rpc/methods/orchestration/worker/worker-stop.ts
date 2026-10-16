@@ -11,14 +11,16 @@ import {
 } from '../../orchestration-structured-worker-lifecycle'
 import { isStructuredWorkerHandle } from '../../../../structured-worker-identity'
 import { WorkerDispatchParams } from '../../../../../../shared/rpc-contract/orchestration-worker-stop-params'
+import { assertWorkerDispatchInRun } from './worker-dispatch-run-guard'
 
 export const ORCHESTRATION_WORKER_STOP_METHODS = [
   defineMethod({
     name: 'orchestration.workerStop',
     permission: 'workspace',
     params: WorkerDispatchParams,
-    handler: (params, { runtime, orchestrationMutation }) =>
-      dedupeWorkerStop(runtime, params.dispatch, async () => {
+    handler: async (params, { runtime, orchestrationMutation }) => {
+      assertWorkerDispatchInRun(runtime.getOrchestrationDb(), params.dispatch, params.run)
+      return dedupeWorkerStop(runtime, params.dispatch, async () => {
         const db = runtime.getOrchestrationDb()
         const federated = db.getFederatedDispatch(params.dispatch)
         if (federated) {
@@ -245,6 +247,7 @@ export const ORCHESTRATION_WORKER_STOP_METHODS = [
           ...('close' in closed ? { close: closed.close } : {})
         }
       })
+    }
   })
 ]
 

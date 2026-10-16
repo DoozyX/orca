@@ -74,10 +74,11 @@ Inspect / recover:
 ```bash
 orca orchestration worker-show --dispatch <dispatchId> --json
 orca orchestration worker-read --dispatch <dispatchId> --limit 50 --json
-orca orchestration worker-stop --dispatch <dispatchId> --json
+orca orchestration worker-stop --dispatch <dispatchId> [--run <runId>] --json
 # After an accepted worker_done: reuse the same terminal for a follow-up Dispatch, or release it
 # (archives inspectable output, then closes only that coordinator-owned agent terminal):
-orca orchestration worker-release --dispatch <dispatchId> --json
+orca orchestration worker-release --dispatch <dispatchId> [--run <runId>] --json
+# --run refuses a Dispatch from another Run (dispatch_run_mismatch) before anything changes.
 # Keep a settled worker live for debugging when the user asked to retain it:
 orca orchestration worker-retain --dispatch <dispatchId> --json
 # retry placement is explicit — --retry-of does not inherit --on/worktree:

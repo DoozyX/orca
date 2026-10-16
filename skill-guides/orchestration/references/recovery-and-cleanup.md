@@ -133,6 +133,8 @@ ORCA orchestration worker-abandon --dispatch <dispatch_id> --json
 
 `worker-stop` closes only the exact proven supervised agent terminal. It never
 deletes the worktree, setup terminal, configured tabs, or unrelated processes.
+Both `worker-stop` and `worker-release` accept `--run <run_id>`: a Dispatch in
+another Run is refused with `dispatch_run_mismatch` and nothing changes.
 `worker-abandon` fences orchestration while accepting that resources may remain
 live; it performs no remote, process, or filesystem action. When it settles a
 worker, it retains an owned terminal by the same rule as `worker-retain`, so Orca

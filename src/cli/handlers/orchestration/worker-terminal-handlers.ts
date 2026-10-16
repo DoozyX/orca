@@ -28,6 +28,15 @@ const WORKER_TERMINAL_LIST_STATES = [
   'released'
 ] as const
 
+// Why: `run` only when given, so an unscoped call stays byte-identical for older hosts.
+function runScopedDispatchParams(flags: Map<string, string | boolean>): {
+  dispatch: string
+  run?: string
+} {
+  const run = getOptionalStringFlag(flags, 'run')
+  return { dispatch: getRequiredStringFlag(flags, 'dispatch'), ...(run ? { run } : {}) }
+}
+
 export const ORCHESTRATION_WORKER_TERMINAL_HANDLERS: Record<string, CommandHandler> = {
   'orchestration worker-stop': async ({ flags, client, json }) => {
     const result = await callOrchestrationMutation<{
@@ -36,9 +45,7 @@ export const ORCHESTRATION_WORKER_TERMINAL_HANDLERS: Record<string, CommandHandl
       processAction: string
       lastError?: string
       warning?: string
-    }>(client, flags, 'orchestration.workerStop', {
-      dispatch: getRequiredStringFlag(flags, 'dispatch')
-    })
+    }>(client, flags, 'orchestration.workerStop', runScopedDispatchParams(flags))
     if (result.result.state === 'stop_unknown') {
       process.exitCode = 1
     }
@@ -70,7 +77,7 @@ export const ORCHESTRATION_WORKER_TERMINAL_HANDLERS: Record<string, CommandHandl
       client,
       flags,
       'orchestration.workerRelease',
-      { dispatch: getRequiredStringFlag(flags, 'dispatch') }
+      runScopedDispatchParams(flags)
     )
     // Why: only an unprovable close is a failure; retained/pending/already-released are settled answers.
     if (result.result.state === 'release_unknown') {

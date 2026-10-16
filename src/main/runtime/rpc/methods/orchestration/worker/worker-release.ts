@@ -13,6 +13,7 @@ import {
   WorkerRetainParams
 } from '../../../../../../shared/rpc-contract/orchestration-worker-release-schemas-params'
 import { OrchestrationWorkerTerminalUserInputParams } from '../../../../../../shared/rpc-contract/orchestration-worker-release-params'
+import { assertWorkerDispatchInRun } from './worker-dispatch-run-guard'
 
 export const ORCHESTRATION_WORKER_RELEASE_METHODS = [
   defineMethod({
@@ -21,6 +22,7 @@ export const ORCHESTRATION_WORKER_RELEASE_METHODS = [
     params: WorkerDispatchParams,
     handler: async (params, { runtime, orchestrationMutation }): Promise<WorkerReleaseReceipt> => {
       const db = runtime.getOrchestrationDb()
+      assertWorkerDispatchInRun(db, params.dispatch, params.run)
       const federated = db.getFederatedDispatch(params.dispatch)
       if (federated) {
         if (!orchestrationMutation) {

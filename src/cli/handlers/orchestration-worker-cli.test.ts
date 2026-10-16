@@ -18,7 +18,7 @@ vi.mock('../selectors', () => ({ getTerminalHandle: vi.fn() }))
 
 import { ORCHESTRATION_HANDLERS } from './orchestration'
 import { printResult } from '../format'
-import { BOOLEAN_FLAGS, parseArgs } from '../args'
+import { BOOLEAN_FLAGS, parseArgs, validateCommandAndFlags } from '../args'
 import { formatCommandHelp } from '../help'
 import { ORCHESTRATION_WORKER_COMMAND_SPECS } from '../specs/orchestration-worker-specs'
 import { ORCHESTRATION_WORKER_LAUNCH_PREFERENCES_RUNTIME_CAPABILITY } from '../../shared/protocol-version'
@@ -830,5 +830,30 @@ describe('orchestration worker-start CLI contract', () => {
       json: true
     } as never)
     expect(callMock).toHaveBeenCalledWith('orchestration.workerRetain', { dispatch: 'ctx_1' })
+  })
+
+  it.each([
+    ['worker-stop', 'orchestration.workerStop'],
+    ['worker-release', 'orchestration.workerRelease']
+  ])('scopes %s to a Run only when --run is given', async (command, method) => {
+    callMock.mockResolvedValue({ result: { dispatchId: 'd', state: 'retained' } })
+    for (const argv of [['--run', 'run_1'], []]) {
+      const parsed = parseArgs(['orchestration', command, '--dispatch', 'd', ...argv])
+      expect(() =>
+        validateCommandAndFlags(ORCHESTRATION_WORKER_COMMAND_SPECS, parsed)
+      ).not.toThrow()
+      const context = {
+        flags: parsed.flags,
+        client: { call: callMock },
+        cwd: '/tmp/repo',
+        json: true
+      }
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: these handlers read only flags, json and client.call, which the stub provides.
+      await ORCHESTRATION_HANDLERS[`orchestration ${command}`](context as never)
+    }
+    expect(callMock.mock.calls.map((call) => call.slice(0, 2))).toStrictEqual([
+      [method, { dispatch: 'd', run: 'run_1' }],
+      [method, { dispatch: 'd' }]
+    ])
   })
 })

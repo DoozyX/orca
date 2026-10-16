@@ -132,6 +132,25 @@ describe('manual Dispatch release', () => {
     await expect(dispatchNewTask(TARGET, 'reuses superseded terminal')).resolves.toMatch(/^ctx_/)
   })
 
+  it('refuses a stop scoped to another Run without changing anything', async () => {
+    const task = createTask('run scoped stop')
+    const dispatchId = await dispatchTask(task, TARGET)
+    const before = db.getDispatchContextById(dispatchId)
+
+    await expect(
+      call('orchestration.workerStop', { dispatch: dispatchId, run: 'run_other' })
+    ).rejects.toMatchObject({
+      code: 'dispatch_run_mismatch',
+      message: `Dispatch ${dispatchId} belongs to Run ${runId}, not run_other.`
+    })
+    expect(db.getDispatchContextById(dispatchId)).toEqual(before)
+    expect(db.getTask(task)?.status).toBe('dispatched')
+
+    await expect(
+      call('orchestration.workerStop', { dispatch: dispatchId, run: runId })
+    ).resolves.toMatchObject({ state: 'stopped', alreadySettled: false })
+  })
+
   it('keeps unknown Dispatch errors honest', async () => {
     await expect(
       call('orchestration.workerAbandon', { dispatch: 'ctx_missing' })

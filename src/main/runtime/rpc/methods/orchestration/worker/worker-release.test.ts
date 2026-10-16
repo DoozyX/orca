@@ -432,6 +432,55 @@ describe('orchestration worker release', () => {
     expect(h.db.getWorkerTerminalResourceByOwner(dispatchId)?.release_state).toBe('requested')
   })
 
+  it('refuses a release scoped to another Run without any effect', async () => {
+    h.setup()
+    const { dispatchId } = await h.startSettledWorker()
+    const before = h.db.getWorkerTerminalResourceByOwner(dispatchId)
+    const mismatch = {
+      code: 'dispatch_run_mismatch',
+      message: `Dispatch ${dispatchId} belongs to Run ${h.activeRunId}, not run_other.`
+    }
+
+    await expect(
+      h.call('orchestration.workerRelease', { dispatch: dispatchId, run: 'run_other' })
+    ).rejects.toMatchObject(mismatch)
+    expect(h.db.getWorkerTerminalResourceByOwner(dispatchId)).toEqual(before)
+    expect(h.runtime.closeTerminal).not.toHaveBeenCalled()
+    expect(h.db.getWorkerTerminalArchive(dispatchId)).toBeUndefined()
+
+    await expect(
+      h.call('orchestration.workerRelease', { dispatch: dispatchId, run: h.activeRunId })
+    ).resolves.toMatchObject({ state: 'released', processAction: 'closed_agent_terminal' })
+  })
+
+  it('refuses a federated release scoped to another Run before relaying it', async () => {
+    h.setup()
+    const { dispatchId } = await h.startSettledWorker()
+    h.db.db
+      .prepare(
+        `INSERT INTO federated_dispatches (dispatch_id, environment_id, environment_name, peer_fingerprint)
+         VALUES (?, 'env_1', 'remote', 'peer_1')`
+      )
+      .run(dispatchId)
+    const relay = vi.spyOn(h.runtime, 'callOrchestrationWorkerServer')
+
+    await expect(
+      h.call('orchestration.workerRelease', { dispatch: dispatchId, run: 'run_other' })
+    ).rejects.toMatchObject({ code: 'dispatch_run_mismatch' })
+    expect(relay).not.toHaveBeenCalled()
+    await expect(
+      h.call('orchestration.workerRelease', { dispatch: dispatchId, run: h.activeRunId })
+    ).rejects.toThrow('Remote worker-release requires a durable retry request.')
+  })
+
+  it('keeps worker-retain scoped to a Dispatch alone', async () => {
+    h.setup()
+    const { dispatchId } = await h.startSettledWorker()
+    await expect(
+      h.call('orchestration.workerRetain', { dispatch: dispatchId, run: h.activeRunId })
+    ).rejects.toThrow(/unrecognized/i)
+  })
+
   it('marks release_unknown when the close itself fails', async () => {
     h.setup()
     const { dispatchId } = await h.startSettledWorker()

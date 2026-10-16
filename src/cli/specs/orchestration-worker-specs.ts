@@ -75,9 +75,10 @@ export const ORCHESTRATION_WORKER_COMMAND_SPECS: CommandSpec[] = [
     destructive: true,
     summary: 'Fence one Dispatch and stop its supervised agent terminal',
     usage:
-      'orca orchestration worker-stop --dispatch <dispatch_id> [--retry-request <id>] [--json]',
-    allowedFlags: [...GLOBAL_FLAGS, 'dispatch', 'retry-request'],
+      'orca orchestration worker-stop --dispatch <dispatch_id> [--run <run_id>] [--retry-request <id>] [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'dispatch', 'run', 'retry-request'],
     notes: [
+      'With --run, a Dispatch in another Run is refused with dispatch_run_mismatch and nothing is stopped.',
       'A Dispatch created by orchestration dispatch is fenced without closing its unsupervised terminal process.',
       'Never deletes the worktree, setup terminal, configured tabs, or unrelated processes.'
     ]
@@ -95,10 +96,11 @@ export const ORCHESTRATION_WORKER_COMMAND_SPECS: CommandSpec[] = [
     destructive: true,
     summary: 'Release the terminal of one settled supervised worker',
     usage:
-      'orca orchestration worker-release --dispatch <dispatch_id> [--retry-request <id>] [--json]',
-    allowedFlags: [...GLOBAL_FLAGS, 'dispatch', 'retry-request'],
+      'orca orchestration worker-release --dispatch <dispatch_id> [--run <run_id>] [--retry-request <id>] [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'dispatch', 'run', 'retry-request'],
     notes: [
       'Post-completion cleanup for a settled (succeeded or failed) worker; closes only the exact coordinator-owned agent terminal of that worker.',
+      'With --run, a Dispatch in another Run is refused with dispatch_run_mismatch and nothing is released.',
       'A settled Dispatch created by orchestration dispatch has no owned terminal resource and is reported retained without process action.',
       'An inspectable output archive is preserved before the terminal closes, so worker-read still returns output afterwards.',
       'Never closes setup terminals, configured tabs, reused or pre-existing terminals, user-taken-over terminals, or unproven identities.',
