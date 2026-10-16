@@ -52,6 +52,9 @@ describe.skipIf(process.platform === 'win32')('real sidecar exit reaping', () =>
               export function shutdownComputerProviders() {
                 if (child) reapMacOSProviderProcess(child);
               }
+              export function peekLiveHelperIdentity() {
+                return null;
+              }
             `
             }))
           }

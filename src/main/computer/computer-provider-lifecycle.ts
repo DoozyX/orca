@@ -1,3 +1,4 @@
+import type { MacOSNativeHelperIdentity } from './macos-native-helper-identity'
 import { MacOSNativeProviderClient } from './macos-native-provider-client'
 import { shouldUseMacOSNativeProvider } from './macos-native-provider-availability'
 import {
@@ -48,6 +49,14 @@ export class ComputerProviderLifecycle {
     return null
   }
 
+  /** Observes the running macOS helper without creating a provider or starting one. */
+  peekLiveHelperIdentity(): MacOSNativeHelperIdentity | null {
+    if (!this.nativeMacOSProvider) {
+      return null
+    }
+    return this.nativeMacOSProvider.liveHelperIdentity()
+  }
+
   shutdown(): void {
     this.nativeMacOSProvider?.shutdown()
     this.nativeMacOSProvider = null
@@ -60,6 +69,10 @@ const lifecycle = new ComputerProviderLifecycle()
 
 export function currentComputerProvider(): ComputerProvider | null {
   return lifecycle.current()
+}
+
+export function peekLiveHelperIdentity(): MacOSNativeHelperIdentity | null {
+  return lifecycle.peekLiveHelperIdentity()
 }
 
 export function shutdownComputerProviders(): void {

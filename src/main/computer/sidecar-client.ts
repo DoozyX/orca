@@ -11,6 +11,7 @@ import type {
 import { normalizeComputerActionResult } from './computer-action-verification-normalization'
 import { isComputerSidecarDiagnostic, logComputerDiagnostic } from './computer-sidecar-diagnostics'
 import { validateComputerSidecarPasteText } from './computer-sidecar-paste-validation'
+import { parseLiveHelperIdentity } from './macos-native-helper-identity'
 import { RuntimeClientError } from './runtime-client-error'
 
 type ComputerSidecarMethod =
@@ -27,6 +28,7 @@ type ComputerSidecarMethod =
   | 'hotkey'
   | 'pasteText'
   | 'setValue'
+  | 'liveProvider'
 
 type ComputerSidecarRequest = {
   id: number
@@ -74,7 +76,7 @@ export async function callComputerSidecarSnapshot(
 export async function callComputerSidecarAction(
   method: Exclude<
     ComputerSidecarMethod,
-    'capabilities' | 'listApps' | 'listWindows' | 'getAppState'
+    'capabilities' | 'listApps' | 'listWindows' | 'getAppState' | 'liveProvider'
   >,
   params: unknown
 ): Promise<ComputerActionResult> {
@@ -85,6 +87,12 @@ export async function callComputerSidecarAction(
   return normalizeComputerActionResult(
     (await getComputerSidecar().call(method, params)) as ComputerActionResult
   )
+}
+
+/** The running sidecar's live macOS helper, or null; never forks a sidecar just to look. */
+export async function callComputerSidecarLiveProvider() {
+  const peek = sidecar?.peekLiveProvider()
+  return peek ? parseLiveHelperIdentity(await peek) : null
 }
 
 export function resetComputerSidecarForTest(): void {
@@ -153,6 +161,11 @@ class ComputerSidecarProcess {
       }
     })
     return result
+  }
+
+  // Why off the queue: a read-only peek must not wait behind a queued 60 s action.
+  peekLiveProvider(): Promise<unknown> | null {
+    return this.child && !this.child.killed ? this.send('liveProvider', {}) : null
   }
 
   private send(method: ComputerSidecarMethod, params: unknown): Promise<unknown> {

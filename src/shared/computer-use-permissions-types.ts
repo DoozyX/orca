@@ -12,6 +12,8 @@ export type ComputerUsePermissionStatusResult = {
   helperAppPath: string | null
   helperUnavailableReason: string | null
   permissions: ComputerUsePermissionState[]
+  /** The helper live computer-use calls run through; absent when none was observed. */
+  liveProvider?: { executablePath: string; matchesCurrentHelper: boolean }
 }
 
 export type ComputerUsePermissionSetupResult = {

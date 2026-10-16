@@ -17,6 +17,7 @@ import {
   type PendingNativeRequest,
   writeNativeProviderLine
 } from './macos-native-provider-contract'
+import { MacOSNativeHelperGeneration } from './macos-native-helper-identity'
 import { resolveMacOSComputerUseExecutablePath } from './macos-native-provider-paths'
 import { MacOSProviderProcessOwner } from './macos-native-provider-process-reaping'
 import {
@@ -33,6 +34,7 @@ const REQUEST_TIMEOUT_MS = 60_000
 export class MacOSNativeProviderClient {
   private socket: net.Socket | null = null
   private readonly providerProcess = new MacOSProviderProcessOwner()
+  private readonly helper = new MacOSNativeHelperGeneration()
   private socketStartPromise: Promise<net.Socket> | null = null
   private socketPath: string | null = null
   private socketDirectory: string | null = null
@@ -64,6 +66,10 @@ export class MacOSNativeProviderClient {
     )
     await this.ensureActionSupported(method)
     return normalizeComputerActionResult((await this.call(method, params)) as ComputerActionResult)
+  }
+  /** The helper behind the open socket; null when none is running. */
+  liveHelperIdentity(): MacOSNativeHelperGeneration['identity'] {
+    return this.socket && !this.socket.destroyed ? this.helper.identity : null
   }
   shutdown(): void {
     const socket = this.socket
@@ -132,6 +138,10 @@ export class MacOSNativeProviderClient {
     return await result
   }
   private async ensureCompatible(): Promise<void> {
+    // Why (#14): a reinstall leaves the old process live with the removed install's TCC grant.
+    if (this.helper.changedFrom(resolveMacOSComputerUseExecutablePath())) {
+      this.shutdown()
+    }
     if (this.providerCapabilities) {
       return
     }
@@ -190,6 +200,7 @@ export class MacOSNativeProviderClient {
   }
   private async startSocket(helperExecutablePath: string): Promise<net.Socket> {
     const startGeneration = ++this.socketStartGeneration
+    this.helper.record(helperExecutablePath)
     const started = await startMacOSNativeProviderSocket({
       helperExecutablePath,
       isCurrent: (socketPath) =>
@@ -277,6 +288,7 @@ export class MacOSNativeProviderClient {
     // Why: `terminate` only lands if the helper is still reading its socket, and
     // the wedged helpers this reaps are exactly the ones that are not.
     this.providerProcess.reap()
+    this.helper.clear()
     if (!this.socketDirectory) {
       return
     }

@@ -8,6 +8,7 @@ import {
 import {
   callComputerSidecarAction,
   callComputerSidecarCapabilities,
+  callComputerSidecarLiveProvider,
   resetComputerSidecarForTest
 } from './sidecar-client'
 
@@ -137,6 +138,43 @@ describe('computer sidecar client', () => {
     })
 
     await expect(secondCall).resolves.toEqual({ supports: { screenshots: true } })
+  })
+
+  // #14: status peeks must not fork a sidecar, which would create a provider on first use.
+  it('answers no live provider without forking a sidecar', async () => {
+    await expect(callComputerSidecarLiveProvider()).resolves.toBeNull()
+    expect(forkMock).not.toHaveBeenCalled()
+  })
+
+  it('peeks the running sidecar ahead of a queued action', async () => {
+    const capabilities = callComputerSidecarCapabilities()
+    const child = children[0]!
+    const peek = callComputerSidecarLiveProvider()
+
+    expect(child.sent.map((request) => request.method)).toEqual(['capabilities', 'liveProvider'])
+    const identity = { executablePath: '/helper', dev: 1, ino: 2, mtimeMs: 3 }
+    child.emit('message', { id: child.sent[1]!.id, ok: true, result: identity })
+    await expect(peek).resolves.toEqual(identity)
+
+    child.emit('message', { id: child.sent[0]!.id, ok: true, result: { provider: 'first' } })
+    await expect(capabilities).resolves.toEqual({ provider: 'first' })
+    expect(forkMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('rejects a malformed live provider identity', async () => {
+    const capabilities = callComputerSidecarCapabilities()
+    const child = children[0]!
+    child.emit('message', { id: child.sent[0]!.id, ok: true, result: {} })
+    await capabilities
+
+    const peek = callComputerSidecarLiveProvider()
+    child.emit('message', {
+      id: child.sent[1]!.id,
+      ok: true,
+      result: { executablePath: '/helper' }
+    })
+
+    await expect(peek).rejects.toMatchObject({ code: 'accessibility_error' })
   })
 
   it('serializes requests so desktop actions cannot overlap', async () => {

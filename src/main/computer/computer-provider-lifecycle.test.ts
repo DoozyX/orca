@@ -14,6 +14,30 @@ function provider(name: string) {
 }
 
 describe('ComputerProviderLifecycle', () => {
+  // #14: a status peek must never create a provider, which would start a helper just to look.
+  it('peeks the live helper identity without creating a provider', () => {
+    const identity = { executablePath: '/helper', dev: 1, ino: 2, mtimeMs: 3 }
+    const macProvider = { ...provider('mac'), liveHelperIdentity: vi.fn(() => identity) }
+    const createMacOSNativeProvider = vi.fn(() => macProvider as never)
+    const createDesktopScriptProvider = vi.fn()
+    const lifecycle = new ComputerProviderLifecycle({
+      shouldUseMacOSNativeProvider: vi.fn(() => true),
+      createMacOSNativeProvider,
+      shouldUseDesktopScriptProvider: vi.fn(() => true),
+      createDesktopScriptProvider
+    })
+
+    expect(lifecycle.peekLiveHelperIdentity()).toBeNull()
+    expect(createMacOSNativeProvider).not.toHaveBeenCalled()
+    expect(createDesktopScriptProvider).not.toHaveBeenCalled()
+
+    lifecycle.current('darwin')
+    expect(lifecycle.peekLiveHelperIdentity()).toEqual(identity)
+
+    lifecycle.shutdown()
+    expect(lifecycle.peekLiveHelperIdentity()).toBeNull()
+  })
+
   it('rechecks macOS provider availability after an initial miss', () => {
     const macProvider = provider('mac')
     const shouldUseMacOSNativeProvider = vi.fn().mockReturnValueOnce(false).mockReturnValue(true)

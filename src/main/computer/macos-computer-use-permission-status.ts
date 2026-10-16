@@ -14,6 +14,8 @@ import {
 } from './macos-native-provider-paths'
 import { RuntimeClientError } from './runtime-client-error'
 import { stopMacOSPermissionStatusHelper } from './macos-computer-use-permission-status-cleanup'
+import { describeLiveHelper } from './macos-native-helper-identity'
+import { callComputerSidecarLiveProvider } from './sidecar-client'
 
 const PERMISSION_STATUS_HELPER_LAUNCH_TIMEOUT_MS = 5_000
 
@@ -35,16 +37,26 @@ async function getComputerUsePermissionStatusAsync(): Promise<ComputerUsePermiss
   }
 
   const helperAppPath = resolveMacOSComputerUseAppPath()
+  const executablePath = helperAppPath ? resolveMacOSComputerUseExecutablePath() : null
+  // Why (#14): this probe checks the current helper; live calls may still run an older install's.
+  const liveHelper = await callComputerSidecarLiveProvider()
+  const liveProvider = liveHelper
+    ? { liveProvider: describeLiveHelper(executablePath, liveHelper) }
+    : {}
   if (!helperAppPath) {
-    return createUnavailablePermissionStatus('Orca Computer Use.app was not found', null)
+    return {
+      ...createUnavailablePermissionStatus('Orca Computer Use.app was not found', null),
+      ...liveProvider
+    }
   }
-
-  const executablePath = resolveMacOSComputerUseExecutablePath()
   if (!executablePath) {
-    return createUnavailablePermissionStatus(
-      `${helperAppPath}/Contents/MacOS/orca-computer-use-macos was not found`,
-      helperAppPath
-    )
+    return {
+      ...createUnavailablePermissionStatus(
+        `${helperAppPath}/Contents/MacOS/orca-computer-use-macos was not found`,
+        helperAppPath
+      ),
+      ...liveProvider
+    }
   }
 
   const raw = await readPermissionStatusFromHelperApp(helperAppPath)
@@ -56,7 +68,8 @@ async function getComputerUsePermissionStatusAsync(): Promise<ComputerUsePermiss
     permissions: [
       { id: 'accessibility', status: raw.accessibility ?? 'not-granted' },
       { id: 'screenshots', status: raw.screenshots ?? 'not-granted' }
-    ]
+    ],
+    ...liveProvider
   }
 }
 
