@@ -148,6 +148,20 @@ const CALLER_VERBS: Verb[] = [
   },
   { command: 'gate-list', flags: {}, callerFlag: 'from', method: 'gateList', callerParam: 'from' },
   {
+    command: 'lease acquire',
+    flags: { resource: 'sim:x' },
+    callerFlag: 'from',
+    method: 'leaseAcquire',
+    callerParam: 'from'
+  },
+  {
+    command: 'lease release',
+    flags: { resource: 'sim:x' },
+    callerFlag: 'from',
+    method: 'leaseRelease',
+    callerParam: 'from'
+  },
+  {
     command: 'task-create',
     flags: { spec: 's' },
     callerFlag: 'from',
@@ -192,7 +206,8 @@ const EVERY_REQUIRED_FLAG = {
   to: 'term_worker',
   status: 'completed',
   preamble: true,
-  request: 'req_1'
+  request: 'req_1',
+  resource: 'sim:x'
 } as const
 
 function flagMap(flags: Record<string, string | true>): Map<string, string | boolean> {
@@ -210,7 +225,7 @@ async function invoke(
     throw new Error(`no handler for ${command}`)
   }
   refuseConflictingSessionCallerFlags(
-    findCommandSpec(COMMAND_SPECS, ['orchestration', command]),
+    findCommandSpec(COMMAND_SPECS, ['orchestration', ...command.split(' ')]),
     flags
   )
   await handler({
@@ -586,7 +601,7 @@ describe('which flag names the caller, declared on every spec', () => {
   const callerFlagVerbs = ORCHESTRATION_SPECS.flatMap((spec) =>
     (['from', 'terminal'] as const)
       .filter((flag) => spec.identityFlagRoles?.[flag] === 'caller')
-      .map((flag) => ({ command: spec.path[1] ?? '', flag }))
+      .map((flag) => ({ command: spec.path.slice(1).join(' '), flag }))
   )
 
   it('covers the verbs whose requests name a caller', () => {
@@ -609,7 +624,7 @@ describe('which flag names the caller, declared on every spec', () => {
     ORCHESTRATION_SPECS.flatMap((spec) =>
       (['from', 'terminal'] as const)
         .filter((flag) => spec.identityFlagRoles?.[flag] === 'target')
-        .map((flag) => ({ command: spec.path[1] ?? '', flag }))
+        .map((flag) => ({ command: spec.path.slice(1).join(' '), flag }))
     )
   )('$command passes a --$flag target through unfenced', async ({ command, flag }) => {
     asSessionWithInheritedPane()
@@ -653,6 +668,8 @@ describe('every orchestration verb, enumerated', () => {
       'gate-create',
       'gate-list',
       'gate-resolve',
+      'lease acquire',
+      'lease release',
       'reply',
       'run-current',
       'send',
