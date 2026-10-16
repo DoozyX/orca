@@ -21,4 +21,5 @@ export const CURRENT_CONTRACT_VERSION = ORCHESTRATION_CONTRACT_VERSION
 // v42: structured-session Orca session id columns.
 // v43: stored `session:<id>` addresses respelled `orca_session_id:<id>`.
 // v44: deliveries.wake_types, so a typed wait builds a batch of only its types.
-export const SCHEMA_VERSION = 44
+// v45: worker_terminal_resources.takeover_source/takeover_at, the evidence behind user_takeover.
+export const SCHEMA_VERSION = 45

@@ -1,13 +1,12 @@
 import { OrchestrationError } from '../../../../orchestration/orchestration-error'
+import type { WorkerTerminalTakeoverSource } from '../../../../orchestration/worker-terminal-ownership'
 import { defineMethod } from '../../../core'
 import { releaseFederatedWorker } from '../federation/federated-worker-release'
 import { ORCHESTRATION_WORKER_LIST_METHOD } from './worker-list-method'
 import { resolvePinnedFederatedServer } from './worker-observation'
-import {
-  archiveSummary,
-  completeWorkerTerminalRelease,
-  type WorkerReleaseReceipt
-} from './worker-release-completion'
+import { archiveSummary, completeWorkerTerminalRelease } from './worker-release-completion'
+import type { WorkerReleaseReceipt } from './worker-release-receipt'
+import { takeoverReceiptField } from './worker-terminal-resource-presentation'
 import {
   WorkerDispatchParams,
   WorkerRetainParams
@@ -78,7 +77,8 @@ export const ORCHESTRATION_WORKER_RELEASE_METHODS = [
           state: 'retained',
           reason: requested.reason,
           processAction: 'none',
-          archive: archiveSummary(resource)
+          archive: archiveSummary(resource),
+          ...(resource ? takeoverReceiptField(resource) : {})
         }
       }
       return completeWorkerTerminalRelease({
@@ -153,8 +153,15 @@ export const ORCHESTRATION_WORKER_RELEASE_METHODS = [
         (params.sessionId
           ? runtime.getStructuredWorkerPaneKeyForSession(params.sessionId)
           : runtime.getTerminalPaneKey(params.terminal!))
+      // Same precedence as the pane key: desktop PTYs name the pane, structured sessions the
+      // session, and mobile the terminal handle.
+      const source: WorkerTerminalTakeoverSource = params.paneKey
+        ? 'desktop_terminal_input'
+        : params.sessionId
+          ? 'structured_session_input'
+          : 'remote_terminal_input'
       const changed = paneKey
-        ? runtime.getOrchestrationDb().markWorkerTerminalUserOwned(paneKey)
+        ? runtime.getOrchestrationDb().markWorkerTerminalUserOwned(paneKey, { source })
         : 0
       return { changed }
     }

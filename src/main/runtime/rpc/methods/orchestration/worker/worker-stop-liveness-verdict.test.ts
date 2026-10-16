@@ -216,9 +216,11 @@ describe('worker-stop against a terminal we lost contact with', () => {
     const dispatch = createWorker()
     expect(db.beginWorkerStop(dispatch.id, runtime.getRuntimeId()).disposition).toBe('stopping')
 
-    expect(db.markWorkerTerminalUserOwned('tab_worker:bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb')).toBe(
-      0
-    )
+    expect(
+      db.markWorkerTerminalUserOwned('tab_worker:bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', {
+        source: 'desktop_terminal_input'
+      })
+    ).toBe(0)
     expect(db.getWorkerTerminalResourceByOwner(dispatch.id)).toMatchObject({
       ownership_state: 'owned',
       release_state: 'not_requested'

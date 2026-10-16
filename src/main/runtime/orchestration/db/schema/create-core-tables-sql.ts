@@ -193,6 +193,8 @@ CREATE TABLE IF NOT EXISTS worker_terminal_resources (
   last_recovery_at         TEXT,
   archive_source           TEXT,
   archive_status           TEXT,
+  takeover_source          TEXT,
+  takeover_at              TEXT,
   created_at               TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at               TEXT NOT NULL DEFAULT (datetime('now'))
 );

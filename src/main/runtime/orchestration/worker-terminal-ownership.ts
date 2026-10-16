@@ -27,6 +27,18 @@ export type WorkerTerminalRetainedReason =
 
 export type WorkerTerminalArchiveStatus = 'captured' | 'empty' | 'unavailable'
 
+/** The input path whose real keystrokes took a worker terminal over. */
+export type WorkerTerminalTakeoverSource =
+  | 'desktop_terminal_input'
+  | 'structured_session_input'
+  | 'remote_terminal_input'
+
+/** `unrecorded` for a row taken over before v45 kept the evidence. */
+export type WorkerTerminalTakeoverEvidence = {
+  source: WorkerTerminalTakeoverSource | 'unrecorded'
+  at: string | null
+}
+
 export type WorkerTerminalResourceRow = {
   id: string
   origin_dispatch_id: string
@@ -49,6 +61,9 @@ export type WorkerTerminalResourceRow = {
   last_recovery_at: string | null
   archive_source: string | null
   archive_status: WorkerTerminalArchiveStatus | null
+  /** NULL for a row taken over before v45 recorded the evidence. */
+  takeover_source: WorkerTerminalTakeoverSource | null
+  takeover_at: string | null
   created_at: string
   updated_at: string
 }

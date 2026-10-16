@@ -1,4 +1,7 @@
-import type { WorkerTerminalResourceRow } from '../../../../orchestration/worker-terminal-ownership'
+import type {
+  WorkerTerminalResourceRow,
+  WorkerTerminalTakeoverEvidence
+} from '../../../../orchestration/worker-terminal-ownership'
 
 export function exposeWorkerTerminalResource(resource: WorkerTerminalResourceRow): {
   id: string
@@ -17,6 +20,7 @@ export function exposeWorkerTerminalResource(resource: WorkerTerminalResourceRow
   recoveryAttemptCount: number
   lastRecoveryAt: string | null
   archive: { source: string | null; status: string | null }
+  takeover: WorkerTerminalTakeoverEvidence | null
 } {
   return {
     id: resource.id,
@@ -34,8 +38,28 @@ export function exposeWorkerTerminalResource(resource: WorkerTerminalResourceRow
     releaseError: resource.release_error,
     recoveryAttemptCount: resource.recovery_attempt_count,
     lastRecoveryAt: resource.last_recovery_at,
-    archive: { source: resource.archive_source, status: resource.archive_status }
+    archive: { source: resource.archive_source, status: resource.archive_status },
+    takeover: workerTerminalTakeoverEvidence(resource)
   }
+}
+
+/** The signal behind a user takeover; null for a row retained for any other reason. */
+export function workerTerminalTakeoverEvidence(
+  resource: WorkerTerminalResourceRow
+): WorkerTerminalTakeoverEvidence | null {
+  if (resource.retained_reason !== 'user_takeover') {
+    return null
+  }
+  return resource.takeover_source
+    ? { source: resource.takeover_source, at: resource.takeover_at }
+    : { source: 'unrecorded', at: null }
+}
+
+export function takeoverReceiptField(resource: WorkerTerminalResourceRow): {
+  takeover?: WorkerTerminalTakeoverEvidence
+} {
+  const takeover = workerTerminalTakeoverEvidence(resource)
+  return takeover ? { takeover } : {}
 }
 
 export function archiveSummary(

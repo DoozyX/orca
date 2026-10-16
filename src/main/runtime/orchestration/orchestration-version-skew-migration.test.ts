@@ -581,4 +581,26 @@ describe('OrchestrationDb version-skew migration', () => {
       ).sql
     ).toContain("mailbox_handle != ''")
   })
+
+  it('gives a v44 database the takeover evidence columns and treats a v45 stamp without them as skew', () => {
+    tempDir = mkdtempSync(join(tmpdir(), 'orca-db-v44-takeover-'))
+    const dbPath = join(tempDir, 'orchestration.db')
+    db = new OrchestrationDb(dbPath)
+    db.close()
+    db = undefined
+
+    const raw = new Database(dbPath)
+    raw.exec(
+      'ALTER TABLE worker_terminal_resources DROP COLUMN takeover_source; ALTER TABLE worker_terminal_resources DROP COLUMN takeover_at;'
+    )
+    expect(resolveOrchestrationMigrationStartVersion(raw, 44, SCHEMA_VERSION)).toBe(44)
+    expect(resolveOrchestrationMigrationStartVersion(raw, 45, SCHEMA_VERSION)).toBe(6)
+    raw.pragma('user_version = 44')
+    raw.close()
+
+    db = new OrchestrationDb(dbPath)
+    expect(db.db.pragma('user_version', { simple: true })).toBe(SCHEMA_VERSION)
+    expect(db.hasColumn('worker_terminal_resources', 'takeover_source')).toBe(true)
+    expect(db.hasColumn('worker_terminal_resources', 'takeover_at')).toBe(true)
+  })
 })

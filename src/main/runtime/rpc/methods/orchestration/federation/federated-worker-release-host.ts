@@ -10,11 +10,8 @@ import {
 } from '../../../../orchestration/worker-output-archive'
 import type { WorkerTerminalReleaseRuntime } from '../../../../orchestration/worker-terminal-release-runtime'
 import { readArchivedWorkerOutput } from '../worker/worker-archive-read'
-import {
-  archiveSummary,
-  releaseUnknownRecovery,
-  type WorkerReleaseReceipt
-} from '../worker/worker-release-completion'
+import { archiveSummary, releaseUnknownRecovery } from '../worker/worker-release-completion'
+import type { WorkerReleaseReceipt } from '../worker/worker-release-receipt'
 import { orchestrationTimestampToMs } from '../worker/worker-output'
 import type { inspectRemoteAttachment } from './federation-attachment-observation'
 import {

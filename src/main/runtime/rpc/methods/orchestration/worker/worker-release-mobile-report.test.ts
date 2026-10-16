@@ -42,7 +42,11 @@ it.each(['local', 'ssh'])(
     ).resolves.toEqual({ changed: 0 })
     await expect(
       h.call('orchestration.workerRelease', { dispatch: worker.dispatchId })
-    ).resolves.toMatchObject({ state: 'retained', reason: 'user_takeover' })
+    ).resolves.toMatchObject({
+      state: 'retained',
+      reason: 'user_takeover',
+      takeover: { source: 'remote_terminal_input', at: expect.any(String) }
+    })
     expect(h.runtime.closeTerminal).not.toHaveBeenCalled()
   }
 )

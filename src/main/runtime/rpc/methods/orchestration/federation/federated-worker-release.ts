@@ -5,10 +5,8 @@ import { getOrchestrationPeerCapabilityCache } from '../../../../orchestration/o
 import { OrchestrationError } from '../../../../orchestration/orchestration-error'
 import type { FederatedDispatchRow } from '../../../../orchestration/types'
 import type { OrcaRuntimeService } from '../../../../orca-runtime'
-import {
-  releaseUnknownRecovery,
-  type WorkerReleaseReceipt
-} from '../worker/worker-release-completion'
+import { releaseUnknownRecovery } from '../worker/worker-release-completion'
+import type { WorkerReleaseReceipt } from '../worker/worker-release-receipt'
 import type { resolvePinnedFederatedServer } from '../worker/worker-observation'
 
 type RemoteReleaseReceipt = Omit<WorkerReleaseReceipt, 'archive'> & {
