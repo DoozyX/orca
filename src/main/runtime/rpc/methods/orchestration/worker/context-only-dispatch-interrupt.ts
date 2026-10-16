@@ -1,5 +1,6 @@
 import { computeAgentSessionPayloadFingerprint } from '../../../../../../shared/agent-session-mutation-envelope'
 import { getStructuredAgentSessionHost } from '../../../../../native-chat/agent-session-wire/structured-agent-session-registry'
+import type { StructuredAgentSessionHost } from '../../../../../native-chat/agent-session-wire/structured-agent-session-host'
 import type { OrcaRuntimeService } from '../../../../orca-runtime'
 import { structuredPointerCallerKey } from '../../../../orchestration/structured-mailbox-pointer-host'
 import { mintAgentSessionOperationId } from '../../../../orchestration/structured-pointer-operation-id'
@@ -15,8 +16,8 @@ export type StopInterrupt = {
 }
 
 /**
- * Cancels the running turn of a structured worker whose context-only Dispatch was just stopped, so
- * it stops acting on the fenced assignment. Undefined for any other assignee, chats included.
+ * Cancels the turn a structured worker was running when its context-only Dispatch stopped, so it
+ * stops acting on the fenced assignment. Undefined for any other assignee, chats included.
  */
 export async function interruptContextOnlyStructuredWorker(
   runtime: OrcaRuntimeService,
@@ -26,10 +27,55 @@ export async function interruptContextOnlyStructuredWorker(
   if (!handle || !isStructuredWorkerHandle(handle)) {
     return undefined
   }
-  // After a restart nothing has installed the host the interrupt goes through.
-  await runtime.ensureStructuredAgentSessionHost().catch((error: unknown) => {
-    console.warn('[orchestration] structured host install failed before interrupt', handle, error)
-  })
+  // Why read before any await: the stop just freed the worker, and once this yields a new Dispatch
+  // can take it over and open a turn this cancel must never reach.
+  const target = stoppedAssignmentTurn(runtime, handle)
+  if ('outcome' in target) {
+    return target
+  }
+  const { host, sessionId, turnId } = target
+  try {
+    const result = await host.cancel(
+      { callerKey: structuredPointerCallerKey(dispatch.id) },
+      {
+        turnId,
+        envelope: {
+          sessionId,
+          clientOperationId: mintAgentSessionOperationId(Date.now()),
+          expectedRuntimeFence: target.runtimeFence,
+          payloadFingerprint: computeAgentSessionPayloadFingerprint({
+            method: 'agentSession.cancel',
+            sessionId,
+            fields: { turnId }
+          })
+        }
+      }
+    )
+    if (!result.ok) {
+      return notInterrupted(result.refusal.message)
+    }
+    if (result.value.cancelled) {
+      return { outcome: 'cancelled' }
+    }
+    // Why re-read: the host also answers not-cancelled when it could not confirm the stop, and
+    // keeps that turn running; only its current work shows whether the named turn ended.
+    const work = host.currentWork(sessionId)
+    return work && work.activeTurnId() !== turnId
+      ? { outcome: 'no_running_turn' }
+      : notInterrupted(`The host did not confirm that turn ${turnId} ended.`)
+  } catch (error) {
+    // Why caught: the stop is already committed, and its receipt must still say what happened.
+    return notInterrupted(error instanceof Error ? error.message : String(error))
+  }
+}
+
+/** The turn the worker runs as its Dispatch stops, or the verdict when there is none to name. */
+function stoppedAssignmentTurn(
+  runtime: OrcaRuntimeService,
+  handle: string
+):
+  | StopInterrupt
+  | { host: StructuredAgentSessionHost; sessionId: string; turnId: string; runtimeFence: number } {
   const identity = resolveStructuredWorkerIdentity(handle, runtime.getOrchestrationDb())
   if (!identity) {
     return notInterrupted('This runtime has no record of the structured worker.')
@@ -45,30 +91,18 @@ export async function interruptContextOnlyStructuredWorker(
   if (!host) {
     return notInterrupted('The structured agent-session host is not installed in this runtime.')
   }
-  const { sessionId } = running
-  try {
-    const result = await host.cancel(
-      { callerKey: structuredPointerCallerKey(dispatch.id) },
-      {
-        envelope: {
-          sessionId,
-          clientOperationId: mintAgentSessionOperationId(Date.now()),
-          expectedRuntimeFence: running.record.lease.runtimeFence,
-          payloadFingerprint: computeAgentSessionPayloadFingerprint({
-            method: 'agentSession.cancel',
-            sessionId,
-            fields: {}
-          })
-        }
-      }
-    )
-    if (!result.ok) {
-      return notInterrupted(result.refusal.message)
-    }
-    return { outcome: result.value.cancelled ? 'cancelled' : 'no_running_turn' }
-  } catch (error) {
-    // Why caught: the stop is already committed, and its receipt must still say what happened.
-    return notInterrupted(error instanceof Error ? error.message : String(error))
+  const work = host.currentWork(running.sessionId)
+  const turnId = work ? work.activeTurnId() : null
+  if (turnId === null) {
+    return work !== null && work.working()
+      ? notInterrupted("The worker's next turn has not opened yet, so there was no turn to name.")
+      : { outcome: 'no_running_turn' }
+  }
+  return {
+    host,
+    sessionId: running.sessionId,
+    turnId,
+    runtimeFence: running.record.lease.runtimeFence
   }
 }
 

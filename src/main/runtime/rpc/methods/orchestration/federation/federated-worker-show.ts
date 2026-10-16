@@ -12,6 +12,7 @@ import {
   resolvePinnedFederatedServer
 } from '../worker/worker-observation'
 import { applyFederatedFleetObservations } from './federated-fleet-snapshot'
+import { parseRemoteWorkerTerminalResource } from './federated-terminal-custody-wire'
 
 /** Why worker-show cannot use the plain fleet projection: the push-fed agent-status snapshot
  *  only covers local panes, so a federated Dispatch got a fabricated `unverifiable` beside the
@@ -95,6 +96,9 @@ export async function showFederatedWorker(args: {
     )
   }
   const observation = exposeFederatedWorkerObservation(remote.observation, observationProjected)
+  const terminalResource = observationProjected
+    ? parseRemoteWorkerTerminalResource(remote.terminalResource)
+    : undefined
   return {
     dispatch: exposeDispatchContext(db.getDispatchContextById(dispatchId) ?? args.dispatch),
     worker: exposeWorker(worker),
@@ -110,7 +114,9 @@ export async function showFederatedWorker(args: {
       db.getFederatedDispatch(dispatchId)?.remote_runtime_epoch ??
       (observationProjected ? remote.runtimeEpoch : null),
     terminal: observationProjected ? remote.terminal : null,
-    observation
+    observation,
+    // Absent when the host predates it: unknown, not "no terminal resource".
+    ...(terminalResource ? { terminalResource } : {})
   }
 }
 

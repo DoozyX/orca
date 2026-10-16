@@ -137,6 +137,7 @@ export const SQLITE_DATABASE_RUNTIME_INCLUDE = [
   'src/main/runtime/rpc/methods/orchestration-worker-start-mode-selection.test.ts',
   'src/main/runtime/rpc/methods/orchestration/federation/federated-message-targeting.test.ts',
   'src/main/runtime/rpc/methods/orchestration/federation/federated-release-safety.test.ts',
+  'src/main/runtime/rpc/methods/orchestration/federation/federated-transport-safety.test.ts',
   'src/main/runtime/rpc/methods/orchestration/federation/federated-worker-start-receipt.test.ts',
   'src/main/runtime/rpc/methods/orchestration/federation/federation-agent-launch.test.ts',
   'src/main/runtime/rpc/methods/orchestration/federation/federation-control-mail.test.ts',

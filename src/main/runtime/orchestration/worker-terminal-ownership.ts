@@ -27,11 +27,14 @@ export type WorkerTerminalRetainedReason =
 
 export type WorkerTerminalArchiveStatus = 'captured' | 'empty' | 'unavailable'
 
+export const WORKER_TERMINAL_TAKEOVER_SOURCES = [
+  'desktop_terminal_input',
+  'structured_session_input',
+  'remote_terminal_input'
+] as const
+
 /** The input path whose real keystrokes took a worker terminal over. */
-export type WorkerTerminalTakeoverSource =
-  | 'desktop_terminal_input'
-  | 'structured_session_input'
-  | 'remote_terminal_input'
+export type WorkerTerminalTakeoverSource = (typeof WORKER_TERMINAL_TAKEOVER_SOURCES)[number]
 
 /** `unrecorded` for a row taken over before v45 kept the evidence. */
 export type WorkerTerminalTakeoverEvidence = {

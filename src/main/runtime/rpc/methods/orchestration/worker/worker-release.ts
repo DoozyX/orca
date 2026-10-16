@@ -5,7 +5,11 @@ import { releaseFederatedWorker } from '../federation/federated-worker-release'
 import { ORCHESTRATION_WORKER_LIST_METHOD } from './worker-list-method'
 import { resolvePinnedFederatedServer } from './worker-observation'
 import { archiveSummary, completeWorkerTerminalRelease } from './worker-release-completion'
-import { retainedReleaseGuidance, type WorkerReleaseReceipt } from './worker-release-receipt'
+import {
+  localReleaseCustody,
+  retainedReleaseGuidance,
+  type WorkerReleaseReceipt
+} from './worker-release-receipt'
 import {
   WorkerDispatchParams,
   WorkerRetainParams
@@ -85,8 +89,9 @@ export const ORCHESTRATION_WORKER_RELEASE_METHODS = [
           processAction: 'none',
           archive: archiveSummary(resource),
           ...resolved,
-          ...retainedReleaseGuidance(db, {
+          ...retainedReleaseGuidance(localReleaseCustody(db), {
             dispatchId: params.dispatch,
+            reason: requested.reason,
             resource,
             currentOwner: requested.currentOwner
           })

@@ -318,6 +318,8 @@ export async function callFederatedWorkerShow(
     /** Absent from servers that predate the field; absence is unknown, not "not waiting". */
     agentWait?: RuntimeTerminalInteractiveWait | null
   }
+  /** Unvalidated; absent from servers that predate it. */
+  terminalResource?: unknown
 }> {
   const server = resolvePinnedFederatedServer(runtime, federated)
   return (await runtime.callOrchestrationWorkerServer(
