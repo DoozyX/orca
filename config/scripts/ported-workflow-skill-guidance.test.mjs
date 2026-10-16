@@ -286,10 +286,20 @@ describe('quality-layer invariants', () => {
     }
     expect(guide).toContain('references/reuse.md')
     expect(guide).toContain('[Reuse]')
+    const reuseTrigger =
+      'when the diff adds a named unit (function, class, component, hook, module, file) or a dependency, or the commit subjects or Task spec call the change a fix'
     expect(squash(guide)).toContain(
-      'except a dependency addition or a fix, which always adds `reuse`'
+      `\`reuse\` is added to whatever layers the table selected, in any file type, ${reuseTrigger}`
     )
+    // Why: a reuse row overlapping the content-type rows let a config-only file addition match two routes.
+    const scopeRows = guide
+      .slice(guide.indexOf('## 2. Scope the layers'), guide.indexOf('## 3.'))
+      .split('\n')
+      .filter((line) => line.startsWith('|'))
+    expect(scopeRows.length).toBeGreaterThan(0)
+    expect(scopeRows.filter((row) => row.includes('reuse'))).toEqual([])
     const reuse = squash(readReference('review', 'reuse.md'))
+    expect(reuse).toContain(reuseTrigger)
     expect(reuse).toContain('names the existing `path:line` or API')
     expect(reuse).toContain('No reuse findings.')
   })

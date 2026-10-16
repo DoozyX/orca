@@ -1,15 +1,17 @@
 # Reuse layer
 
-Load this reference when the change adds a named unit or dependency, or is a fix.
+Load this reference when the diff adds a named unit or a dependency, or is called
+a fix.
 
 You are checking two things: does new code rebuild something that already exists,
 and does a fix leave the same defect somewhere else.
 
 ## When this layer runs
 
-When the diff adds a named unit (function, class, component, hook, module, file)
-or a dependency, or when the commit subjects or the Task spec call the change a
-fix. Skip it otherwise.
+Added to whatever layers the scope table selected, in any file type, when the
+diff adds a named unit (function, class, component, hook, module, file) or a
+dependency, or the commit subjects or Task spec call the change a fix. Skip it
+otherwise.
 
 ## Inputs
 

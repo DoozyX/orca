@@ -4,13 +4,14 @@ description: >-
   Multi-layer code review of a diff, a branch, or a pull request: an adversarial
   pass starved of the author's intent, a mechanical edge-case path trace, and a
   verification-gap check, plus a deletion check when code was removed and a
-  reuse check when code or a dependency was added or a fix was made, merged
-  into one deduplicated, severity-graded, triaged findings list ending in a
-  machine-readable verdict. Use when the user asks to review changes, wants a
-  second opinion before committing or merging, or when a dispatched reviewer is
-  told to run the shared review layers. This is not a debugging skill and not an
-  evidence gate: use `debug` when something is already misbehaving, `tdd` when
-  the gap is a missing test, and `verify` to back a completion claim.
+  reuse check when a named unit or a dependency was added or the change is
+  called a fix, merged into one deduplicated, severity-graded, triaged findings
+  list ending in a machine-readable verdict. Use when the user asks to review
+  changes, wants a second opinion before committing or merging, or when a
+  dispatched reviewer is told to run the shared review layers. This is not a
+  debugging skill and not an evidence gate: use `debug` when something is
+  already misbehaving, `tdd` when the gap is a missing test, and `verify` to
+  back a completion claim.
 ---
 
 # Orca Review

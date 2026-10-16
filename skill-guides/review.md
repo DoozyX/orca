@@ -4,13 +4,14 @@ description: >-
   Multi-layer code review of a diff, a branch, or a pull request: an adversarial
   pass starved of the author's intent, a mechanical edge-case path trace, and a
   verification-gap check, plus a deletion check when code was removed and a
-  reuse check when code or a dependency was added or a fix was made, merged
-  into one deduplicated, severity-graded, triaged findings list ending in a
-  machine-readable verdict. Use when the user asks to review changes, wants a
-  second opinion before committing or merging, or when a dispatched reviewer is
-  told to run the shared review layers. This is not a debugging skill and not an
-  evidence gate: use `debug` when something is already misbehaving, `tdd` when
-  the gap is a missing test, and `verify` to back a completion claim.
+  reuse check when a named unit or a dependency was added or the change is
+  called a fix, merged into one deduplicated, severity-graded, triaged findings
+  list ending in a machine-readable verdict. Use when the user asks to review
+  changes, wants a second opinion before committing or merging, or when a
+  dispatched reviewer is told to run the shared review layers. This is not a
+  debugging skill and not an evidence gate: use `debug` when something is
+  already misbehaving, `tdd` when the gap is a missing test, and `verify` to
+  back a completion claim.
 ---
 
 # Review
@@ -76,12 +77,16 @@ State the target you resolved, in one line, before dispatching anything.
 
 ## 2. Scope the layers
 
-| Diff contains                                                                                                                                                      | Layers                                                                |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------- |
-| Code                                                                                                                                                               | `adversarial` + `edge-cases` + `verification-gap`                     |
-| Code that also removes behavior (deleted functions, branches, guards, validation, cleanup, tests — not renames, moves, or formatting)                              | the three above plus `deletion-check`                                 |
-| Code or configuration that adds a named unit (function, class, component, hook, module, file) or a dependency, or whose commit subjects or Task spec call it a fix | the code layers plus `reuse`                                          |
-| Documentation or configuration only, except a dependency addition or a fix, which always adds `reuse`                                                              | `adversarial` alone, plus one line saying why the others were skipped |
+| Diff contains                                                                                                                         | Layers                                                                |
+| ------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| Code                                                                                                                                  | `adversarial` + `edge-cases` + `verification-gap`                     |
+| Code that also removes behavior (deleted functions, branches, guards, validation, cleanup, tests — not renames, moves, or formatting) | the three above plus `deletion-check`                                 |
+| Documentation or configuration only                                                                                                   | `adversarial` alone, plus one line saying why the others were skipped |
+
+`reuse` is added to whatever layers the table selected, in any file type, when
+the diff adds a named unit (function, class, component, hook, module, file) or a
+dependency, or the commit subjects or Task spec call the change a fix. A
+manifest-only dependency addition therefore runs `adversarial` + `reuse`.
 
 ## 3. Run the layers, preserving the asymmetry
 
@@ -171,14 +176,14 @@ and read only that document; `--references` lists the names. If the CLI rejects
 reference. If it rejects `--full` too, keep this kernel's safety floor and use
 that command's `--help`; never guess newer flags.
 
-| Action gate                                                                                             | Bundled reference                |
-| ------------------------------------------------------------------------------------------------------- | -------------------------------- |
-| Running the hostile, diff-only pass                                                                     | `references/adversarial.md`      |
-| Enumerating reachable states the change does not handle                                                 | `references/edge-cases.md`       |
-| Measuring whether the changed behavior is protected by a test                                           | `references/verification-gap.md` |
-| The change removes behavior and you need to know what was silently lost                                 | `references/deletion-check.md`   |
-| The change adds a named unit or dependency, or fixes a defect, and you need to know what already exists | `references/reuse.md`            |
-| Naming a design problem with the shared lenses, here or in `tdd`'s refactor step                        | `references/principles.md`       |
+| Action gate                                                                                              | Bundled reference                |
+| -------------------------------------------------------------------------------------------------------- | -------------------------------- |
+| Running the hostile, diff-only pass                                                                      | `references/adversarial.md`      |
+| Enumerating reachable states the change does not handle                                                  | `references/edge-cases.md`       |
+| Measuring whether the changed behavior is protected by a test                                            | `references/verification-gap.md` |
+| The change removes behavior and you need to know what was silently lost                                  | `references/deletion-check.md`   |
+| The diff adds a named unit or a dependency, or is called a fix, and you need to know what already exists | `references/reuse.md`            |
+| Naming a design problem with the shared lenses, here or in `tdd`'s refactor step                         | `references/principles.md`       |
 
 ## Hands off to
 
