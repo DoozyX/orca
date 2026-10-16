@@ -164,6 +164,28 @@ orca orchestration gate-create \
 orca orchestration gate-resolve --id <gateId> --resolution "yes" --json
 ```
 
+## Shared resource leases
+
+Runs that share a simulator, port, database or build directory take a lease on it before the first command that would conflict with another Run. One Run holds a resource at a time and the others queue in order, so `queued` means wait. Release it with the last job's exit evidence and the next Run in the queue takes it. A lease expires after `--ttl-ms` (30 minutes by default), and acquiring again as the holder renews it. `lease show` only reads: it reports an expired holder and the Run waiting next, and the next acquire or release hands the resource on.
+
+```bash
+# Run A takes the simulator.
+orca orchestration lease acquire --resource sim:iphone-17-pro --ttl-ms 600000
+Holding sim:iphone-17-pro until 2026-10-17T12:10:00.000Z.
+
+# Run B asks for it and waits.
+orca orchestration lease acquire --resource sim:iphone-17-pro
+Queued for sim:iphone-17-pro at position 1; held by run_a until 2026-10-17T12:10:00.000Z.
+
+orca orchestration lease show --resource sim:iphone-17-pro
+Held by run_a until 2026-10-17T12:10:00.000Z.
+Waiting 1: run_b for 1800000 ms.
+
+# Run A's last job has exited, so it hands the simulator on.
+orca orchestration lease release --resource sim:iphone-17-pro
+Released sim:iphone-17-pro; run_b holds it until 2026-10-17T12:35:00.000Z.
+```
+
 ## Recovery
 
 ```bash

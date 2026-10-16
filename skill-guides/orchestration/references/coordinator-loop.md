@@ -31,6 +31,9 @@ blocked arm. Already-authorized recovery does not need another confirmation.
 There is no universal waiver for budgets, authority, or custody.
 The coordinator queues checks that conflict over shared resources rather than
 launching duplicate suites or stopping another owner's process.
+Before the first command that would conflict with another Run, take
+`orca orchestration lease acquire --resource <key>`, treat `queued` as wait,
+and release it with the last job's exit evidence.
 
 Fleet waiting is a pending question or approval, separate from agent liveness.
 Read attention categories and available host-computed diagnostics: state age
