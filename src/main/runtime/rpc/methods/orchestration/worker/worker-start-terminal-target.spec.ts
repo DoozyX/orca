@@ -47,6 +47,45 @@ export function registerWorkerStartTerminalTargetTests(): void {
       const started = await harness.startWorker({ terminal: 'term_worker' })
       expect(started.dispatchId).toEqual(expect.any(String))
     })
+
+    // #20: a structured worker has no terminal to reuse, so the refusal names the route that exists.
+    it('refuses a live structured worker and names the supported reuse route', async () => {
+      const showWorkspaceTerminal = vi.mocked(harness.runtime.showTerminal).getMockImplementation()
+      if (!showWorkspaceTerminal) {
+        throw new Error('the harness mocks terminal.show')
+      }
+      vi.mocked(harness.runtime.showTerminal).mockImplementation(async (handle) => {
+        if (handle !== 'structworker_x') {
+          return showWorkspaceTerminal(handle)
+        }
+        // What `terminal.show` answers for a live structured worker's handle.
+        throw Object.assign(new Error('structworker_x is an agent session, not a terminal.'), {
+          code: 'terminal_unsupported_for_agent_session'
+        })
+      })
+      const task = harness.db.createTask({ spec: 'structured reuse', runId: harness.activeRunId })
+
+      const refusal = await harness
+        .call('orchestration.workerStart', {
+          task: task.id,
+          from: 'term_coord',
+          terminal: 'structworker_x'
+        })
+        .then(
+          () => null,
+          (error: unknown) => error
+        )
+
+      expect(refusal).toMatchObject({ code: 'terminal_unsupported_for_agent_session' })
+      const message = refusal instanceof Error ? refusal.message : ''
+      expect(message).toContain('orchestration dispatch --task <task_id> --to structworker_x')
+      expect(message).toContain('--return-preamble')
+      expect(message).toContain('unsupervised')
+      expect(message).toMatch(/worker-stop .*fences .*interrupts/)
+      expect(harness.runtime.showTerminal).toHaveBeenCalledWith('structworker_x')
+      expect(harness.db.getDispatchContext(task.id)).toBeUndefined()
+      expect(harness.runtime.createTerminal).not.toHaveBeenCalled()
+    })
   })
 
   // The other door into the same self-adoption: manual dispatch never compared `to` to the caller.
