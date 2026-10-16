@@ -12,6 +12,10 @@ import {
 import { isStructuredWorkerHandle } from '../../../../structured-worker-identity'
 import { WorkerDispatchParams } from '../../../../../../shared/rpc-contract/orchestration-worker-stop-params'
 import { assertWorkerDispatchInRun } from './worker-dispatch-run-guard'
+import {
+  contextOnlyStopWarning,
+  interruptContextOnlyStructuredWorker
+} from './context-only-dispatch-interrupt'
 
 export const ORCHESTRATION_WORKER_STOP_METHODS = [
   defineMethod({
@@ -112,12 +116,18 @@ export const ORCHESTRATION_WORKER_STOP_METHODS = [
           if (!begun.alreadySettled) {
             runtime.notifyMessageArrived(`dispatch:${params.dispatch}`, 'status')
           }
+          const dispatch = db.getDispatchContextById(params.dispatch)
+          const interrupt =
+            dispatch && !begun.alreadySettled
+              ? await interruptContextOnlyStructuredWorker(runtime, dispatch)
+              : undefined
           return {
             dispatchId: params.dispatch,
             state: begun.state,
             alreadySettled: begun.alreadySettled,
             processAction: 'none' as const,
-            warning: contextOnlyStopWarning(begun)
+            warning: contextOnlyStopWarning(begun, interrupt),
+            ...(interrupt ? { interrupt } : {})
           }
         }
         const handle = begun.worker.agent_terminal_handle
@@ -289,19 +299,6 @@ type RemoteStopReceipt = {
 
 function settledReceipt(dispatchId: string, state: string) {
   return { dispatchId, state, alreadySettled: true, processAction: 'none' }
-}
-
-function contextOnlyStopWarning(result: {
-  state: string
-  alreadySettled: boolean
-  releasedCurrentTask: boolean
-}): string {
-  if (result.alreadySettled) {
-    return `Dispatch was already ${result.state}; no terminal process changed.`
-  }
-  return result.releasedCurrentTask
-    ? 'The assignment was stopped without closing its unsupervised terminal process.'
-    : 'The superseded assignment was stopped without changing the current Task or terminal process.'
 }
 
 function unknownReceipt(

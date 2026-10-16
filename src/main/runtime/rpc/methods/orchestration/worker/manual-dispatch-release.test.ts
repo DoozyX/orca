@@ -6,11 +6,31 @@ import type { OrchestrationSessionCaller } from '../../../../orchestration/orche
 import { ORCHESTRATION_METHODS } from '../../orchestration'
 import { eraseRpcMethods, type RpcContext } from '../../../core'
 import { parseOrcaSessionAddress } from '../../../../../../shared/orca-session-address'
+import {
+  agentSessionLeaseFixture,
+  agentSessionRecordFixture
+} from '../../../../../../shared/agent-session-record.test-fixture'
+import {
+  mintStructuredWorkerHandle,
+  mintStructuredWorkerPaneKey,
+  structuredWorkerIdentities,
+  structuredWorkerProcessIncarnation
+} from '../../../../structured-worker-identity'
+
+const hostRef = vi.hoisted((): { current: unknown } => ({ current: null }))
+vi.mock(
+  '../../../../../native-chat/agent-session-wire/structured-agent-session-registry',
+  async (importOriginal) => ({
+    ...(await importOriginal<Record<string, unknown>>()),
+    getStructuredAgentSessionHost: () => hostRef.current
+  })
+)
 
 const COORDINATOR = 'term_coordinator'
 const TARGET = 'term_target'
 const OTHER = 'term_other'
 const SUPERVISED = 'term_supervised'
+const SESSION = 'a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d'
 
 describe('manual Dispatch release', () => {
   let db: OrchestrationDb
@@ -26,6 +46,9 @@ describe('manual Dispatch release', () => {
       (handle) => `${handle}:process`
     )
     vi.spyOn(runtime, 'closeTerminal').mockResolvedValue({ closed: true } as never)
+    vi.spyOn(runtime, 'ensureStructuredAgentSessionHost').mockResolvedValue(undefined)
+    structuredWorkerIdentities.clear()
+    hostRef.current = null
     runId = db.createRun({
       objective: 'Release manual Dispatches',
       coordinatorHandle: COORDINATOR,
@@ -70,6 +93,7 @@ describe('manual Dispatch release', () => {
     if (method === 'orchestration.workerAbandon') {
       expect(released.residualResources).toEqual([])
     }
+    expect(released).not.toHaveProperty('interrupt')
 
     expect(db.getDispatchContextById(targetDispatch)).toMatchObject({
       status: 'failed',
@@ -151,6 +175,66 @@ describe('manual Dispatch release', () => {
     ).resolves.toMatchObject({ state: 'stopped', alreadySettled: false })
   })
 
+  it.each([
+    [true, 'cancelled'],
+    [false, 'no_running_turn']
+  ] as const)(
+    'interrupts a structured worker whose context-only Dispatch is stopped (cancelled: %s)',
+    async (cancelled, outcome) => {
+      const cancel = vi.fn(async () => ({
+        ok: true,
+        replayed: false,
+        fence: 3,
+        value: { cancelled }
+      }))
+      installStructuredHost('local', cancel)
+      const dispatchId = await dispatchTask(createTask('structured stop'), structuredWorker())
+
+      await expect(
+        call('orchestration.workerStop', { dispatch: dispatchId })
+      ).resolves.toMatchObject({ state: 'stopped', processAction: 'none', interrupt: { outcome } })
+      expect(cancel).toHaveBeenCalledTimes(1)
+      expect(cancel).toHaveBeenCalledWith(
+        { callerKey: `trusted-local:orchestration:${dispatchId}` },
+        { envelope: expect.objectContaining({ sessionId: SESSION, expectedRuntimeFence: 3 }) }
+      )
+      await expect(
+        call('orchestration.workerStop', { dispatch: dispatchId })
+      ).resolves.not.toHaveProperty('interrupt')
+      expect(cancel).toHaveBeenCalledTimes(1)
+    }
+  )
+
+  it.each([
+    ['runs on another host', 'ssh-1', 'another host'],
+    ['refuses the cancel', 'local', 'The session fence moved.']
+  ])(
+    'says a structured worker may still be running when its session %s',
+    async (_case, executionHostId, reason) => {
+      const refuse = vi.fn(async () => ({
+        ok: false,
+        refusal: { code: 'stale_fence', message: 'The session fence moved.' }
+      }))
+      installStructuredHost('local', refuse)
+      const dispatchId = await dispatchTask(createTask('structured elsewhere'), structuredWorker())
+      installStructuredHost(executionHostId, refuse)
+
+      await expect(
+        call('orchestration.workerStop', { dispatch: dispatchId })
+      ).resolves.toMatchObject({
+        state: 'stopped',
+        processAction: 'none',
+        interrupt: { outcome: 'not_interrupted', reason: expect.stringContaining(reason) },
+        warning: expect.stringContaining('may still be running')
+      })
+      expect(refuse).toHaveBeenCalledTimes(executionHostId === 'local' ? 1 : 0)
+      expect(db.getDispatchContextById(dispatchId)).toMatchObject({
+        status: 'failed',
+        last_failure: 'stopped'
+      })
+    }
+  )
+
   it('keeps unknown Dispatch errors honest', async () => {
     await expect(
       call('orchestration.workerAbandon', { dispatch: 'ctx_missing' })
@@ -176,6 +260,38 @@ describe('manual Dispatch release', () => {
       to: handle
     })) as { dispatch: { id: string } }
     return result.dispatch.id
+  }
+
+  function structuredWorker(): string {
+    const handle = mintStructuredWorkerHandle()
+    structuredWorkerIdentities.register({
+      handle,
+      sessionId: SESSION,
+      agent: 'codex',
+      paneKey: mintStructuredWorkerPaneKey(SESSION),
+      processIncarnation: structuredWorkerProcessIncarnation(SESSION),
+      worktreeId: 'repo::worktree',
+      hostScope: { kind: 'local', hostId: 'local' }
+    })
+    return handle
+  }
+
+  function installStructuredHost(executionHostId: string, cancel: unknown): void {
+    const record = agentSessionRecordFixture(
+      agentSessionLeaseFixture({ sessionId: SESSION, runtimeFence: 3 })
+    )
+    const located = { ...record, location: { ...record.location, executionHostId } }
+    hostRef.current = {
+      deps: {
+        store: {
+          getRecord: (id: string) => (id === SESSION ? located : null),
+          listRecords: () => [located]
+        }
+      },
+      hasSession: () => true,
+      getPersistedVisibleSessionTabIndex: () => ({ present: true, sessionIds: [SESSION] }),
+      cancel
+    }
   }
 
   function createSupervisedWorker(): string {
