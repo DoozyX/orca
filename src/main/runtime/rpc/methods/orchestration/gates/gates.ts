@@ -127,7 +127,10 @@ export const ORCHESTRATION_GATE_METHODS = [
         question: params.question,
         options
       })
-      return { gate }
+      // Why: only a recording-only gate carries it, so a blocking gate's receipt is unchanged for older clients.
+      return gate.preserved_dispatch_id === null
+        ? { gate }
+        : { gate, preservedDispatchId: gate.preserved_dispatch_id }
     }
   }),
 

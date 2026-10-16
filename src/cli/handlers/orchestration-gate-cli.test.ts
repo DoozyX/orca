@@ -92,6 +92,35 @@ describe('orchestration gate commands carry caller identity', () => {
     )
   })
 
+  it('says a gate recorded under a live worker keeps it running and leaves the Task unblocked', async () => {
+    queueFixtures(
+      callMock,
+      okFixture('req_gate', {
+        gate: { id: 'gate_1', task_id: 'task_1', status: 'pending' },
+        preservedDispatchId: 'ctx_live'
+      })
+    )
+
+    await main(
+      [
+        'orchestration',
+        'gate-create',
+        '--task',
+        'task_1',
+        '--question',
+        'ship?',
+        '--from',
+        'term_coord'
+      ],
+      '/tmp/repo'
+    )
+
+    expect(process.exitCode).toBe(0)
+    expect(logSpy.mock.calls.map((call) => String(call[0])).join('\n')).toBe(
+      'Gate gate_1 created for task task_1 [pending]; worker Dispatch ctx_live keeps running and the Task is not blocked.'
+    )
+  })
+
   it('remints a stale environment handle before authorizing gateCreate', async () => {
     process.env.ORCA_TERMINAL_HANDLE = 'term_stale'
     process.env.ORCA_PANE_KEY = 'tab_coord:leaf_coord'

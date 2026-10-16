@@ -64,27 +64,24 @@ export function createGate(
          ORDER BY active.rowid DESC LIMIT 1`
       )
       .get(gate.taskId) as { id: string } | undefined
-    if (activeWorker) {
-      throw new OrchestrationError(
-        'task_not_startable',
-        `Task ${gate.taskId} cannot open a gate while supervised Dispatch ${activeWorker.id} is active; stop or settle its worker first.`,
-        { taskId: gate.taskId, dispatchId: activeWorker.id }
-      )
-    }
     const id = generateId('gate')
     const optionsJson = JSON.stringify(gate.options ?? [])
+    // Why: under a live supervised worker the gate only records the decision; settling or blocking would end that worker.
+    const preservedDispatchId = activeWorker ? activeWorker.id : null
     this.db
       .prepare(
-        'INSERT INTO decision_gates (id, run_id, task_id, question, options) VALUES (?, ?, ?, ?, ?)'
+        'INSERT INTO decision_gates (id, run_id, task_id, question, options, preserved_dispatch_id) VALUES (?, ?, ?, ?, ?, ?)'
       )
-      .run(id, runId, gate.taskId, gate.question, optionsJson)
-    this.completeActiveDispatchesForTask(gate.taskId)
-    transitionLifecycleWithDb(this.db, {
-      entity: 'task',
-      id: gate.taskId,
-      from: task.status,
-      to: 'blocked'
-    })
+      .run(id, runId, gate.taskId, gate.question, optionsJson, preservedDispatchId)
+    if (!activeWorker) {
+      this.completeActiveDispatchesForTask(gate.taskId)
+      transitionLifecycleWithDb(this.db, {
+        entity: 'task',
+        id: gate.taskId,
+        from: task.status,
+        to: 'blocked'
+      })
+    }
     const created = this.db.prepare('SELECT * FROM decision_gates WHERE id = ?').get(id) as
       | DecisionGateRow
       | undefined
@@ -116,7 +113,10 @@ export function resolveGate(
         "UPDATE decision_gates SET status = 'resolved', resolution = ?, resolved_at = datetime('now') WHERE id = ?"
       )
       .run(resolution, gateId)
-    this.updateTaskStatus(gate.task_id, 'ready')
+    // Why: a recording-only gate never blocked its Task, so resolving it must not reopen a Task that has moved on.
+    if (gate.preserved_dispatch_id === null) {
+      this.updateTaskStatus(gate.task_id, 'ready')
+    }
     const resolved = this.db.prepare('SELECT * FROM decision_gates WHERE id = ?').get(gateId) as
       | DecisionGateRow
       | undefined

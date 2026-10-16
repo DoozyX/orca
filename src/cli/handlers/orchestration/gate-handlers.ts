@@ -8,6 +8,7 @@ export const ORCHESTRATION_GATE_HANDLERS: Record<string, CommandHandler> = {
   'orchestration gate-create': async ({ flags, client, cwd, json }) => {
     const result = await callOrchestrationMutation<{
       gate: { id: string; task_id: string; status: string }
+      preservedDispatchId?: string
     }>(client, flags, 'orchestration.gateCreate', {
       task: getRequiredStringFlag(flags, 'task'),
       question: getRequiredStringFlag(flags, 'question'),
@@ -15,12 +16,12 @@ export const ORCHESTRATION_GATE_HANDLERS: Record<string, CommandHandler> = {
       // Why: gates are Run-scoped, so the coordinator handle is the authorized caller identity.
       from: await resolveCoordinatorTerminalHandle(flags, cwd, client)
     })
-    printResult(
-      result,
-      json,
-      (value) =>
-        `Gate ${value.gate.id} created for task ${value.gate.task_id} [${value.gate.status}]`
-    )
+    printResult(result, json, (value) => {
+      const created = `Gate ${value.gate.id} created for task ${value.gate.task_id} [${value.gate.status}]`
+      return value.preservedDispatchId === undefined
+        ? created
+        : `${created}; worker Dispatch ${value.preservedDispatchId} keeps running and the Task is not blocked.`
+    })
   },
 
   'orchestration gate-resolve': async ({ flags, client, cwd, json }) => {

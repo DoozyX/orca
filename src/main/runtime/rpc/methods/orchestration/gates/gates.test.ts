@@ -38,6 +38,40 @@ describe('orchestration RPC methods', () => {
 
       const updated = db.getTask(task.id)
       expect(updated?.status).toBe('blocked')
+      expect(result).not.toHaveProperty('preservedDispatchId')
+    })
+
+    it('records a gate under an active worker and names the preserved Dispatch', async () => {
+      setup()
+      const task = db.createTask({ spec: 'continue while running' })
+      const started = db.createStartingWorkerDispatch({
+        creator: { kind: 'system' },
+        maxDepth: Number.MAX_SAFE_INTEGER,
+        taskId: task.id,
+        startOptions: {}
+      })
+      db.prepareStartingWorkerAuthority({
+        dispatchId: started.dispatch.id,
+        handle: 'term_worker',
+        paneKey: 'tab_worker:aaaaaaaa-aaaa-4aaa-8aaa-000000000002',
+        processIncarnation: 'worker:1',
+        worktreeId: 'repo::worker',
+        effects: [],
+        setupState: 'not_applicable',
+        terminalOwnership: 'created'
+      })
+      db.markWorkerDispatchReady(started.dispatch.id)
+
+      const result = await call('orchestration.gateCreate', {
+        task: task.id,
+        question: 'Keep going with the narrower scope?'
+      })
+
+      expect(result).toMatchObject({
+        gate: { status: 'pending' },
+        preservedDispatchId: started.dispatch.id
+      })
+      expect(db.getTask(task.id)?.status).toBe('dispatched')
     })
 
     it('rejects invalid options JSON', async () => {

@@ -279,6 +279,10 @@ ORCA orchestration gate-create --task <task_id> --question "<decision>" --option
 ORCA orchestration gate-resolve --id <gate_id> --resolution "<choice>" --json
 ```
 
+A gate opened while the Task's supervised worker is still running only records
+the decision: the worker keeps running, the Task is not blocked, and you resolve
+it with the same `gate-resolve`.
+
 Pass `json_array` using the active shell's quoting rules; POSIX single quotes do
 not survive PowerShell or `cmd.exe`. Do not create a gate merely to answer a
 worker's `ask`.

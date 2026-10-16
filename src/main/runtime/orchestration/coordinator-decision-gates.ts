@@ -1,7 +1,7 @@
 /** Decision-gate handling: opening a gate from a worker message and keeping gated tasks blocked. */
 import type { OrchestrationDb } from './db'
 import { OrchestrationError } from './orchestration-error'
-import type { MessageRow } from './types'
+import type { DecisionGateRow, MessageRow } from './types'
 
 export function openDecisionGateFromMessage(
   db: OrchestrationDb,
@@ -24,8 +24,9 @@ export function openDecisionGateFromMessage(
     return
   }
 
+  let gate: DecisionGateRow
   try {
-    db.createGate({
+    gate = db.createGate({
       taskId: payload.taskId,
       question: payload.question,
       options: payload.options,
@@ -46,13 +47,20 @@ export function openDecisionGateFromMessage(
     throw error
   }
 
-  onLog(`Task ${payload.taskId} blocked on decision gate`)
+  onLog(
+    gate.preserved_dispatch_id === null
+      ? `Task ${payload.taskId} blocked on decision gate`
+      : `Decision gate recorded for Task ${payload.taskId}; supervised Dispatch ${gate.preserved_dispatch_id} keeps running`
+  )
 }
 
 export function reblockTasksWithPendingGates(db: OrchestrationDb): void {
   // Why: the coordinator never auto-resolves gates (humans do, via orchestration.gateResolve) — that would defeat them as approval checkpoints.
   const pendingGates = db.listGates({ status: 'pending' })
   for (const gate of pendingGates) {
+    if (gate.preserved_dispatch_id !== null) {
+      continue
+    }
     const task = db.getTask(gate.task_id)
     if (task && task.status !== 'blocked') {
       // Why: gate exists but task isn't blocked — re-block to restore the invariant.

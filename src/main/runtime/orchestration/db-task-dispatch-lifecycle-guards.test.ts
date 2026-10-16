@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import type Database from '../../sqlite/sync-database'
+import { reblockTasksWithPendingGates } from './coordinator-decision-gates'
 import { OrchestrationDb } from './db'
 import { createRootDispatch } from './db/root-dispatch-test-fixture'
 
@@ -632,7 +633,7 @@ describe('Task/Dispatch lifecycle guards', () => {
     }
   )
 
-  it('rejects gate creation while a supervised worker remains active', () => {
+  it('records a gate opened under an active supervised worker without settling or blocking', () => {
     const database = createDatabase()
     const task = database.createTask({
       runId: 'run_legacy_local',
@@ -640,16 +641,72 @@ describe('Task/Dispatch lifecycle guards', () => {
     })
     const worker = startWorker(database, task.id, 'gate')
 
-    expect(() => database.createGate({ taskId: task.id, question: 'Proceed?' })).toThrowError(
-      expect.objectContaining({
-        code: 'task_not_startable',
-        data: { taskId: task.id, dispatchId: worker.dispatchId }
-      })
-    )
-    expect(database.listGates({ taskId: task.id })).toHaveLength(0)
+    const gate = database.createGate({ taskId: task.id, question: 'Proceed?' })
+
+    expect(gate).toMatchObject({ status: 'pending', preserved_dispatch_id: worker.dispatchId })
     expect(database.getTask(task.id)?.status).toBe('dispatched')
     expect(database.getDispatchContextById(worker.dispatchId)?.status).toBe('dispatched')
     expect(database.getWorkerDispatch(worker.dispatchId)?.state).toBe('ready')
+  })
+
+  it('resolves a recording-only gate without changing its Task status', () => {
+    const database = createDatabase()
+    const task = database.createTask({ runId: 'run_legacy_local', spec: 'resolve marked gate' })
+    const worker = startWorker(database, task.id, 'resolver')
+    const gate = database.createGate({ taskId: task.id, question: 'Proceed?' })
+
+    expect(database.resolveGate(gate.id, 'yes')).toMatchObject({
+      status: 'resolved',
+      resolution: 'yes'
+    })
+    expect(database.getTask(task.id)?.status).toBe('dispatched')
+    expect(database.getDispatchContextById(worker.dispatchId)?.status).toBe('dispatched')
+    expect(database.getWorkerDispatch(worker.dispatchId)?.state).toBe('ready')
+  })
+
+  it('keeps blocking a gate opened with no active worker', () => {
+    const database = createDatabase()
+    const task = database.createTask({ runId: 'run_legacy_local', spec: 'blocking gate' })
+
+    const gate = database.createGate({ taskId: task.id, question: 'Proceed?' })
+
+    expect(gate.preserved_dispatch_id).toBeNull()
+    expect(database.getTask(task.id)?.status).toBe('blocked')
+    database.resolveGate(gate.id, 'yes')
+    expect(database.getTask(task.id)?.status).toBe('ready')
+  })
+
+  it('keeps a recording-only gate inert through worker settlement and a restart', () => {
+    const database = createDatabase()
+    const task = database.createTask({ runId: 'run_legacy_local', spec: 'gate outlives worker' })
+    const worker = startWorker(database, task.id, 'outlived')
+    const gate = database.createGate({ taskId: task.id, question: 'Proceed?' })
+    const expectSettled = (current: OrchestrationDb): void => {
+      expect(current.getTask(task.id)?.status).toBe('completed')
+      expect(current.getDispatchContextById(worker.dispatchId)?.status).toBe('completed')
+      expect(current.getWorkerDispatch(worker.dispatchId)?.state).toBe('succeeded')
+    }
+
+    expect(
+      database.settleWorkerReport({
+        taskId: task.id,
+        dispatchId: worker.dispatchId,
+        outcome: 'succeeded',
+        result: 'done while the gate was pending'
+      })
+    ).toEqual({ action: 'settled', outcome: 'succeeded', duplicate: false })
+    expectSettled(database)
+    database.close()
+    const reopened = new OrchestrationDb(join(dir!, 'orchestration.db'))
+    db = reopened
+    reblockTasksWithPendingGates(reopened)
+    expectSettled(reopened)
+
+    expect(reopened.resolveGate(gate.id, 'yes')).toMatchObject({
+      status: 'resolved',
+      preserved_dispatch_id: worker.dispatchId
+    })
+    expectSettled(reopened)
   })
 
   it('rolls back gate resolution when an active Dispatch blocks readiness', () => {

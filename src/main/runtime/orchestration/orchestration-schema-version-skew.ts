@@ -50,7 +50,8 @@ const VERSIONED_POST_V6_COLUMNS = [
   { version: 42, table: 'dispatch_contexts', column: 'creator_orca_session_id' },
   { version: 44, table: 'deliveries', column: 'wake_types' },
   { version: 45, table: 'worker_terminal_resources', column: 'takeover_source' },
-  { version: 45, table: 'worker_terminal_resources', column: 'takeover_at' }
+  { version: 45, table: 'worker_terminal_resources', column: 'takeover_at' },
+  { version: 46, table: 'decision_gates', column: 'preserved_dispatch_id' }
 ] as const
 
 // Why: v34 shipped without these two, so a v34 stamp proves nothing about them; v35 repairs both

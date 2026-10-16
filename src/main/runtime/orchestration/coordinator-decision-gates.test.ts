@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { openDecisionGateFromMessage } from './coordinator-decision-gates'
+import {
+  openDecisionGateFromMessage,
+  reblockTasksWithPendingGates
+} from './coordinator-decision-gates'
 import { OrchestrationDb } from './db'
 import { createRootDispatch } from './db/root-dispatch-test-fixture'
 
@@ -114,4 +117,87 @@ describe('coordinator decision-gate authority', () => {
     expect(db.getTask(task.id)?.status).toBe('blocked')
     expect(db.getDispatchContextById(dispatch.id)?.status).toBe('completed')
   })
+
+  it("records a supervised worker's own gate without blocking its Task", () => {
+    db = new OrchestrationDb(':memory:')
+    const task = db.createTask({ runId: 'run_legacy_local', spec: 'worker-raised gate' })
+    const dispatchId = startReadyWorker(db, task.id)
+    const logs: string[] = []
+
+    openDecisionGateFromMessage(
+      db,
+      db.insertMessage({
+        runId: 'run_legacy_local',
+        from: WORKER_HANDLE,
+        to: 'term_coordinator',
+        subject: 'Need a call',
+        type: 'decision_gate',
+        senderPaneKey: WORKER_PANE_KEY,
+        payload: JSON.stringify({ taskId: task.id, dispatchId, question: 'Narrow scope?' })
+      }),
+      (message) => logs.push(message)
+    )
+
+    expect(db.listGates({ taskId: task.id })).toMatchObject([
+      { status: 'pending', preserved_dispatch_id: dispatchId }
+    ])
+    expect(db.getTask(task.id)?.status).toBe('dispatched')
+    expect(logs.at(-1)).toBe(
+      `Decision gate recorded for Task ${task.id}; supervised Dispatch ${dispatchId} keeps running`
+    )
+  })
 })
+
+describe('startup re-block of pending gates', () => {
+  let db: OrchestrationDb
+
+  afterEach(() => {
+    db?.close()
+  })
+
+  it('leaves a Task with a pending recording-only gate unblocked', () => {
+    db = new OrchestrationDb(':memory:')
+    const task = db.createTask({ runId: 'run_legacy_local', spec: 'marked gate' })
+    startReadyWorker(db, task.id)
+    db.createGate({ taskId: task.id, question: 'Proceed?' })
+
+    reblockTasksWithPendingGates(db)
+
+    expect(db.getTask(task.id)?.status).toBe('dispatched')
+  })
+
+  it('re-blocks a Task whose pending blocking gate lost its blocked status', () => {
+    db = new OrchestrationDb(':memory:')
+    const task = db.createTask({ runId: 'run_legacy_local', spec: 'blocking gate' })
+    db.createGate({ taskId: task.id, question: 'Proceed?' })
+    db.db.prepare("UPDATE tasks SET status = 'ready' WHERE id = ?").run(task.id)
+
+    reblockTasksWithPendingGates(db)
+
+    expect(db.getTask(task.id)?.status).toBe('blocked')
+  })
+})
+
+const WORKER_HANDLE = 'term_marked'
+const WORKER_PANE_KEY = 'tab_marked:aaaaaaaa-aaaa-4aaa-8aaa-000000000001'
+
+function startReadyWorker(db: OrchestrationDb, taskId: string): string {
+  const started = db.createStartingWorkerDispatch({
+    creator: { kind: 'system' },
+    maxDepth: Number.MAX_SAFE_INTEGER,
+    taskId,
+    startOptions: {}
+  })
+  db.prepareStartingWorkerAuthority({
+    dispatchId: started.dispatch.id,
+    handle: WORKER_HANDLE,
+    paneKey: WORKER_PANE_KEY,
+    processIncarnation: 'marked:1',
+    worktreeId: 'repo::marked',
+    effects: [],
+    setupState: 'not_applicable',
+    terminalOwnership: 'created'
+  })
+  db.markWorkerDispatchReady(started.dispatch.id)
+  return started.dispatch.id
+}

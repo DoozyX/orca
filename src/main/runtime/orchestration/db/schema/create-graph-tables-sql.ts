@@ -195,7 +195,8 @@ CREATE TABLE IF NOT EXISTS decision_gates (
     CHECK(status IN ('pending', 'resolved', 'timeout')),
   resolution    TEXT,
   created_at    TEXT NOT NULL DEFAULT (datetime('now')),
-  resolved_at   TEXT
+  resolved_at   TEXT,
+  preserved_dispatch_id TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_gates_task ON decision_gates(task_id);
