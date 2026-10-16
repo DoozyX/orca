@@ -325,6 +325,64 @@ describe('AgentHookServer ingestTerminalStatus', () => {
     }
   })
 
+  it('keeps the agent clock when a repaint omits the assistant tail of a handled row', () => {
+    const t0 = 1_800_000_000_000
+    const doneAt = t0 + 1_000
+    const repaintAt = doneAt + 31 * 60_000
+    const working = { state: 'working' as const, prompt: 'long turn', agentType: 'codex' as const }
+    const done = { ...working, state: 'done' as const }
+    const osc = { paneKey: PANE, connectionId: 'conn-1', terminalHandle: 'term_live' }
+    vi.useFakeTimers()
+    vi.setSystemTime(t0)
+    try {
+      const server = new AgentHookServer()
+      server.ingestTerminalStatus({ ...osc, payload: working })
+      vi.setSystemTime(doneAt)
+      server.ingestRemote(
+        { paneKey: PANE, payload: { ...done, lastAssistantMessage: 'Finished.' } },
+        'conn-1'
+      )
+      expect(server.getStatusSnapshot()[0]).toMatchObject({
+        terminalHandle: 'term_live',
+        lastAssistantMessage: 'Finished.'
+      })
+
+      vi.setSystemTime(repaintAt)
+      server.ingestTerminalStatus({ ...osc, payload: done })
+      expect(server.getStatusSnapshot()[0]).toMatchObject({
+        evidenceObservedAt: repaintAt,
+        agentEvidenceObservedAt: doneAt
+      })
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('renews the agent clock when the same repaint comes from another owner', () => {
+    const t0 = 1_800_000_000_000
+    const movedAt = t0 + 31 * 60_000
+    const working = { state: 'working' as const, prompt: 'long turn', agentType: 'codex' as const }
+    vi.useFakeTimers()
+    vi.setSystemTime(t0)
+    try {
+      const server = new AgentHookServer()
+      server.ingestTerminalStatus({ paneKey: PANE, worktreeId: 'wt-1', payload: working })
+      vi.setSystemTime(movedAt)
+      server.ingestTerminalStatus({
+        paneKey: PANE,
+        worktreeId: 'wt-2',
+        terminalHandle: 'term_live',
+        payload: working
+      })
+      expect(server.getStatusSnapshot()[0]).toMatchObject({
+        worktreeId: 'wt-2',
+        agentEvidenceObservedAt: movedAt
+      })
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('keeps the agent clock when a relay replay without its own clock follows a repaint', () => {
     const t0 = 1_800_000_000_000
     const repaintAt = t0 + 31 * 60_000

@@ -123,20 +123,30 @@ export abstract class AgentHookServerIngestTerminal extends AgentHookServerInges
     const preserveActiveTurnStamp =
       previous?.payload.turnCompletedAt !== undefined &&
       previous.payload.turnCompletedAt === this.activeHookTurnCompletedAtByPaneKey.get(paneKey)
-    const restatesRow =
+    const sameOwner =
       previous?.connectionId === connectionId &&
       previous.tabId === tabId &&
-      previous.worktreeId === worktreeId &&
-      // Why in the unchanged gate: the handle is a join key readers match on, so a pane that
-      // only just acquired one (or moved to another) must still refresh the row it is stamped on.
-      previous.terminalHandle === (terminalHandle ?? previous.terminalHandle) &&
+      previous.worktreeId === worktreeId
+    // Why in the unchanged gate: the handle is a join key readers match on, so a pane that
+    // only just acquired one (or moved to another) must still refresh the row it is stamped on.
+    const sameHandle =
+      sameOwner && previous.terminalHandle === (terminalHandle ?? previous.terminalHandle)
+    if (
+      sameHandle &&
+      !previous.restoredUnconfirmed &&
       terminalStatusPayloadMatchesHook(previous.payload, event.payload, preserveActiveTurnStamp)
-    if (restatesRow && !previous.restoredUnconfirmed) {
+    ) {
       // A handle-authority transfer is a new pane observation even when its payload is a
       // duplicate; enriched subscribers must capture the replacement pane identity.
       this.refreshTerminalStatusEvidence(previous, mutationBefore, mutationBefore !== undefined)
       return
     }
+    // Why: a repaint of the row's agent fields is no word from the agent (#17), even when it first
+    // brings the runtime handle persistence strips, or lacks the hook-only fields OSC never carries.
+    const restatesRow =
+      sameOwner &&
+      (sameHandle || previous.terminalHandle === undefined) &&
+      terminalStatusPayloadMatchesHook(previous.payload, event.payload, true)
     // Why: the OSC 9999 wire payload has no providerSession field at all, so an OSC observation is
     // never evidence that the session ended — yet overwriting the row dropped the cached identity.
     // That erased it from persisted rows (lost across restart) and from headless `orca serve`, which
@@ -173,7 +183,6 @@ export abstract class AgentHookServerIngestTerminal extends AgentHookServerInges
         connectionId,
         ...(preservedProviderSession ? { providerSession: preservedProviderSession } : {}),
         ...(terminalHandle ? { terminalHandle } : {}),
-        // Why: confirming a restored row unchanged must not renew its agent evidence clock (#17).
         ...(restatesRow ? { restatesRow: true as const } : {}),
         payload: preservedMainAgent
           ? { ...event.payload, mainAgent: preservedMainAgent }

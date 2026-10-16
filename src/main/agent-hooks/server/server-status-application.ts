@@ -153,7 +153,7 @@ export abstract class AgentHookServerStatusApplication extends AgentHookServerSt
         : (observedAt ?? now)
     const turnStartedAt = resolveTurnStartedAt(previous, payload, observedAt ?? now)
     const evidenceObservedAt = observedAt ?? this.resolveEvidenceObservedAt(payload, previous, now)
-    // Why: a clockless replay or a confirmation of a restored row restates the agent's last word,
+    // Why: a clockless replay or an OSC repaint of the row restates the agent's last word,
     // while the row's own clock may be a repaint's (#17).
     const restated = restatesPrevious || (observedAt === undefined && payload.isReplay === true)
     // Why: `stateStartedAt` tracks the current state, while `receivedAt` tracks every arrival.

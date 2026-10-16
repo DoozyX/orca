@@ -4,6 +4,9 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { AgentHookServer, _internals } from './server'
 import { buildBody, postHookEvent, recentTs, PANE, GOOD_PANE } from './server.test-fixtures'
+import type { ParsedAgentStatusPayload } from '../../shared/agent-status-types'
+import { mintFleetAgentStatusEvidence } from '../../shared/orchestration-fleet-agent-status-evidence'
+import { projectOrchestrationFleet } from '../../shared/orchestration-fleet-projection'
 
 const { getCohortAtEmitMock, trackMock } = vi.hoisted(() => ({
   getCohortAtEmitMock: vi.fn(),
@@ -89,16 +92,31 @@ describe('Last-status persistence', () => {
   describe('the agent evidence clock across a restart', () => {
     const payload = { state: 'working' as const, prompt: 'long turn', agentType: 'claude' as const }
     const pane = { paneKey: PANE, tabId: 'tab-1', worktreeId: 'wt-1', connectionId: null }
+    const HANDLE = 'term_runtime'
 
     /** Persists one row whose agent last spoke at `spokeAt`, letting `rewrite` edit the file. */
     async function restartAfterRow(
       spokeAt: number,
-      rewrite?: (entry: Record<string, unknown>) => void
+      {
+        rewrite,
+        connectionId = null,
+        status = payload
+      }: {
+        rewrite?: (entry: Record<string, unknown>) => void
+        connectionId?: string | null
+        status?: ParsedAgentStatusPayload
+      } = {}
     ): Promise<AgentHookServer> {
       const firstServer = new AgentHookServer()
       await firstServer.start({ env: 'production', userDataPath })
       vi.spyOn(Date, 'now').mockReturnValue(spokeAt)
-      firstServer.ingestTerminalStatus({ ...pane, payload })
+      // The runtime handle is stamped here and stripped by persistence.
+      firstServer.ingestTerminalStatus({
+        ...pane,
+        connectionId,
+        terminalHandle: HANDLE,
+        payload: status
+      })
       firstServer.flushStatusPersistSync()
       firstServer.stop()
       vi.restoreAllMocks()
@@ -146,8 +164,10 @@ describe('Last-status persistence', () => {
       ['not a number', 'soon']
     ])('restores no clock from an %s value and invents none on confirmation', async (_l, value) => {
       const spokeAt = Date.now() - 40 * 60_000
-      const server = await restartAfterRow(spokeAt, (entry) => {
-        entry.agentEvidenceObservedAt = value
+      const server = await restartAfterRow(spokeAt, {
+        rewrite: (entry) => {
+          entry.agentEvidenceObservedAt = value
+        }
       })
       try {
         expect(server.getStatusSnapshot()[0]).not.toHaveProperty('agentEvidenceObservedAt')
@@ -156,6 +176,115 @@ describe('Last-status persistence', () => {
         server.ingestTerminalStatus({ ...pane, payload })
         // The fleet then reads `evidenceObservedAt`, as for a row from an older host.
         expect(server.getStatusSnapshot()[0]?.agentEvidenceObservedAt).toBeUndefined()
+      } finally {
+        server.stop()
+      }
+    })
+
+    function fleetLiveness(server: AgentHookServer, now: number) {
+      const [status] = server.getStatusSnapshot()
+      const binding = { paneKey: PANE, terminalHandle: HANDLE, processIncarnation: 'pty-1:inc-1' }
+      return status
+        ? projectOrchestrationFleet({
+            workers: [
+              {
+                dispatchId: 'dispatch-1',
+                taskId: 'task-1',
+                runId: 'run-1',
+                parentTaskId: null,
+                workerState: 'ready',
+                dispatchStatus: 'dispatched',
+                workerStage: 'prompt_delivered',
+                agentTerminalHandle: HANDLE,
+                paneKey: PANE,
+                worktreeId: 'wt-1',
+                terminalState: 'active',
+                resource: null
+              }
+            ],
+            statuses: [mintFleetAgentStatusEvidence(status, { kind: 'pane', ...binding })],
+            now
+          }).workers[0]?.liveness
+        : undefined
+    }
+
+    it.each([
+      ['local', null],
+      ['SSH', 'ssh-1']
+    ])(
+      'keeps the persisted clock when an unchanged %s OSC confirms the row with the runtime handle',
+      async (_host, connectionId) => {
+        const spokeAt = Date.now() - 40 * 60_000
+        const confirmAt = spokeAt + 31 * 60_000
+        const server = await restartAfterRow(spokeAt, { connectionId })
+        try {
+          expect(server.getStatusSnapshot()[0]).not.toHaveProperty('terminalHandle')
+
+          const clock = vi.spyOn(Date, 'now').mockReturnValue(confirmAt)
+          server.ingestTerminalStatus({ ...pane, connectionId, terminalHandle: HANDLE, payload })
+          const confirmed = server.getStatusSnapshot()[0]
+          expect(confirmed?.restoredUnconfirmed).toBeUndefined()
+          // The handle is still published and the repaint clock renewed; only the agent's is kept.
+          expect(confirmed).toMatchObject({
+            terminalHandle: HANDLE,
+            receivedAt: confirmAt,
+            evidenceObservedAt: confirmAt,
+            agentEvidenceObservedAt: spokeAt
+          })
+          expect(fleetLiveness(server, confirmAt)).toMatchObject({
+            verdict: 'unverifiable',
+            reason: 'stale_status'
+          })
+
+          clock.mockReturnValue(confirmAt + 1_000)
+          server.ingestTerminalStatus({
+            ...pane,
+            connectionId,
+            terminalHandle: HANDLE,
+            payload: { ...payload, state: 'done' }
+          })
+          expect(server.getStatusSnapshot()[0]?.agentEvidenceObservedAt).toBe(confirmAt + 1_000)
+          expect(fleetLiveness(server, confirmAt + 1_000)).toMatchObject({ verdict: 'live' })
+        } finally {
+          server.stop()
+        }
+      }
+    )
+
+    it('keeps the persisted clock when an unchanged OSC omits the hook-only fields of the row', async () => {
+      const spokeAt = Date.now() - 40 * 60_000
+      const confirmAt = spokeAt + 31 * 60_000
+      const done = { ...payload, state: 'done' as const }
+      const server = await restartAfterRow(spokeAt, {
+        status: { ...done, lastAssistantMessage: 'Finished.', turnCompletedAt: spokeAt }
+      })
+      try {
+        // OSC carries neither field, so after a restart their absence is not the agent's word.
+        vi.spyOn(Date, 'now').mockReturnValue(confirmAt)
+        server.ingestTerminalStatus({ ...pane, terminalHandle: HANDLE, payload: done })
+        expect(server.getStatusSnapshot()[0]?.agentEvidenceObservedAt).toBe(spokeAt)
+        expect(fleetLiveness(server, confirmAt)).toMatchObject({ reason: 'stale_status' })
+      } finally {
+        server.stop()
+      }
+    })
+
+    it('keeps the persisted clock when a relay replays the restored SSH row without its age', async () => {
+      const spokeAt = Date.now() - 40 * 60_000
+      const confirmAt = spokeAt + 31 * 60_000
+      const server = await restartAfterRow(spokeAt, { connectionId: 'ssh-1' })
+      try {
+        const clock = vi.spyOn(Date, 'now').mockReturnValue(confirmAt)
+        server.ingestRemote({ ...pane, isReplay: true, payload }, 'ssh-1')
+        expect(server.getStatusSnapshot()[0]?.restoredUnconfirmed).toBeUndefined()
+        expect(server.getStatusSnapshot()[0]?.agentEvidenceObservedAt).toBe(spokeAt)
+        expect(fleetLiveness(server, confirmAt)).toMatchObject({ reason: 'stale_status' })
+
+        // A live relay hook is the agent's own word.
+        clock.mockReturnValue(confirmAt + 1_000)
+        server.ingestRemote({ ...pane, payload: { ...payload, toolName: 'Edit' } }, 'ssh-1')
+        expect(server.getStatusSnapshot()[0]?.agentEvidenceObservedAt).toBe(confirmAt + 1_000)
+        expect(fleetLiveness(server, confirmAt + 1_000)).toMatchObject({ verdict: 'live' })
       } finally {
         server.stop()
       }
