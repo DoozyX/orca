@@ -188,6 +188,8 @@ export const SQLITE_TABLE_DISPOSITIONS: Record<string, WslMoveFieldDisposition> 
         'legacy_operation_receipts',
         'attempt_observation_facts',
         'structured_pointer_operations',
+        'resource_leases',
+        'resource_lease_waiters',
         'won'
       ],
       {
