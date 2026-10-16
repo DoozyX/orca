@@ -125,7 +125,9 @@ workers obey the depth limit, and a new Run does not reset the caller's depth.
 
 A consuming `check` names its caller with `--terminal <handle>`, never `--from`;
 omit it inside the coordinator's own Orca terminal. It returns the bound Run's
-oldest FIFO Delivery and replays that batch until acknowledged. Process every
+oldest FIFO Delivery and replays that batch until acknowledged; a
+`--wait --types` check instead builds a Delivery of only those types, unless
+your un-acked Delivery already holds one, which it replays whole. Process every
 message: reply to questions, validate each `worker_done` against the expected
 active Dispatch, and decide each settled terminal's next owner before the ack:
 

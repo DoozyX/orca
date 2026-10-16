@@ -256,6 +256,44 @@ describe('derived delivery migration', () => {
     )
   })
 
+  it('upgrades v43 to typed-wait deliveries keyed by wake types', () => {
+    const path = databasePath()
+    const original = open(path)
+    const run = original.createRun({
+      objective: 'typed waits',
+      coordinatorHandle: 'coord',
+      coordinatorPaneKey: 'tab:11111111-1111-4111-8111-111111111111'
+    })
+    const message = original.insertMessage({
+      runId: run.id,
+      from: 'worker',
+      to: `run:${run.id}`,
+      subject: 'one'
+    })
+    connections.pop()!.close()
+    const raw = new Database(path)
+    dropDerivedDeliverySchema(raw)
+    raw.exec('ALTER TABLE deliveries DROP COLUMN wake_types')
+    raw.pragma('user_version = 43')
+    raw.close()
+
+    const db = open(path)
+    expect(db.db.pragma('user_version', { simple: true })).toBe(SCHEMA_VERSION)
+    expect(db.hasColumn('deliveries', 'wake_types')).toBe(true)
+    const insert = db.db.prepare(`INSERT INTO deliveries
+      (id, run_id, mailbox_handle, consumer_generation, message_ids, wake_types)
+      VALUES (?, ?, ?, ?, ?, ?)`)
+    const values = [run.id, `run:${run.id}`, run.consumer_generation, JSON.stringify([message.id])]
+    insert.run('untyped', ...values, null)
+    expect(() => insert.run('typed', ...values, '["question"]')).not.toThrow()
+    expect(() => insert.run('typed_duplicate', ...values, '["question"]')).toThrow(
+      'Mailbox already has an outstanding delivery'
+    )
+    expect(() => insert.run('untyped_duplicate', ...values, null)).toThrow(
+      'Mailbox already has an outstanding delivery'
+    )
+  })
+
   it('recreates a missing derived view on reopen without changing batch records', () => {
     const path = databasePath()
     const db = open(path)

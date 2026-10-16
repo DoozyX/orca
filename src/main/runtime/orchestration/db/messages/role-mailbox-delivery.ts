@@ -24,6 +24,44 @@ export function getDeliveryMessages(this: OrchestrationDb, delivery: DeliveryRow
   )
 }
 
+function sqlPlaceholders(count: number): string {
+  return Array.from({ length: count }, () => '?').join(',')
+}
+
+// A typed wait replays only a batch holding an unread row of its types; an untyped check, any batch.
+function selectReplayableDelivery(
+  db: OrchestrationDb,
+  mailboxHandle: string,
+  wakeTypes: MessageType[] | undefined
+): DeliveryRow | undefined {
+  if (!wakeTypes) {
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: outstanding_deliveries is SELECT * over deliveries, so its rows are DeliveryRow; the adapter exposes unknown.
+    return db.db
+      .prepare(
+        `SELECT * FROM outstanding_deliveries WHERE mailbox_handle = ?
+         ORDER BY created_at, id LIMIT 1`
+      )
+      .get(mailboxHandle) as DeliveryRow | undefined
+  }
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: outstanding_deliveries is SELECT * over deliveries, so its rows are DeliveryRow; the adapter exposes unknown.
+  return db.db
+    .prepare(
+      `SELECT * FROM outstanding_deliveries AS delivery
+       WHERE delivery.mailbox_handle = ? AND EXISTS (
+         SELECT 1 FROM json_each(delivery.message_ids) AS member
+         JOIN messages ON messages.id = member.value
+         WHERE messages.read = 0 AND messages.type IN (${sqlPlaceholders(wakeTypes.length)})
+       )
+       ORDER BY delivery.created_at, delivery.id LIMIT 1`
+    )
+    .get(mailboxHandle, ...wakeTypes) as DeliveryRow | undefined
+}
+
+// Sorted and de-duplicated, because the stored form is the one-outstanding trigger's key.
+function typedWaitKey(wakeTypes: MessageType[] | undefined): MessageType[] | undefined {
+  return wakeTypes?.length ? [...new Set(wakeTypes)].sort() : undefined
+}
+
 export function getOrCreateMailboxDelivery(
   this: OrchestrationDb,
   params: {
@@ -39,12 +77,11 @@ export function getOrCreateMailboxDelivery(
     Math.max(params.limit ?? ORCHESTRATION_DELIVERY_BATCH_LIMIT, 1),
     ORCHESTRATION_DELIVERY_BATCH_LIMIT
   )
+  const wakeTypes = typedWaitKey(params.wakeTypes)
   this.db.exec('BEGIN IMMEDIATE')
   try {
     requireMailboxConsumer(this, params)
-    const existing = this.db
-      .prepare('SELECT * FROM outstanding_deliveries WHERE mailbox_handle = ?')
-      .get(params.mailboxHandle) as DeliveryRow | undefined
+    const existing = selectReplayableDelivery(this, params.mailboxHandle, wakeTypes)
     if (existing) {
       if (existing.consumer_generation !== params.consumerGeneration) {
         throw new OrchestrationError(
@@ -56,30 +93,17 @@ export function getOrCreateMailboxDelivery(
       this.db.exec('COMMIT')
       return { delivery: exposeDeliveryTimestamps(existing), messages, replayed: true }
     }
-    if (params.wakeTypes?.length) {
-      const placeholders = params.wakeTypes.map(() => '?').join(',')
-      const matching = this.db
-        .prepare(
-          `SELECT 1 FROM messages
-           WHERE run_id = ? AND to_handle = ? AND read = 0
-             AND delivery_contract = 'current_delivery'
-             AND type IN (${placeholders}) LIMIT 1`
-        )
-        .get(params.runId, params.mailboxHandle, ...params.wakeTypes)
-      if (!matching) {
-        this.db.exec('COMMIT')
-        return undefined
-      }
-    }
+    const typeClause = wakeTypes ? `AND type IN (${sqlPlaceholders(wakeTypes.length)})` : ''
     const messages = exposeMessageListTimestamps(
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: SELECT * FROM messages returns MessageRow columns; the adapter exposes unknown.
       this.db
         .prepare(
           `SELECT * FROM messages
            WHERE run_id = ? AND to_handle = ? AND read = 0
-             AND delivery_contract = 'current_delivery'
+             AND delivery_contract = 'current_delivery' ${typeClause}
            ORDER BY sequence ASC LIMIT ?`
         )
-        .all(params.runId, params.mailboxHandle, limit) as MessageRow[]
+        .all(params.runId, params.mailboxHandle, ...(wakeTypes ?? []), limit) as MessageRow[]
     )
     if (messages.length === 0) {
       this.db.exec('COMMIT')
@@ -89,15 +113,16 @@ export function getOrCreateMailboxDelivery(
     this.db
       .prepare(
         `INSERT INTO deliveries (
-           id, run_id, mailbox_handle, consumer_generation, message_ids
-         ) VALUES (?, ?, ?, ?, ?)`
+           id, run_id, mailbox_handle, consumer_generation, message_ids, wake_types
+         ) VALUES (?, ?, ?, ?, ?, ?)`
       )
       .run(
         deliveryId,
         params.runId,
         params.mailboxHandle,
         params.consumerGeneration,
-        JSON.stringify(messages.map((message) => message.id))
+        JSON.stringify(messages.map((message) => message.id)),
+        wakeTypes ? JSON.stringify(wakeTypes) : null
       )
     const delivery = this.getDeliveryRaw(deliveryId) as DeliveryRow
     this.db.exec('COMMIT')
@@ -173,10 +198,16 @@ export function acknowledgeMailboxDelivery(
   }
 }
 
+/** With `wakeTypes`, only a batch that typed wait would replay counts. */
 export function hasOutstandingMailboxDelivery(
   this: OrchestrationDb,
-  mailboxHandle: string
+  mailboxHandle: string,
+  wakeTypes?: MessageType[]
 ): boolean {
+  const typed = typedWaitKey(wakeTypes)
+  if (typed) {
+    return selectReplayableDelivery(this, mailboxHandle, typed) !== undefined
+  }
   return Boolean(
     this.db
       .prepare('SELECT 1 FROM outstanding_deliveries WHERE mailbox_handle = ? LIMIT 1')

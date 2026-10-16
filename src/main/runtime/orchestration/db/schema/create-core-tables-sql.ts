@@ -97,7 +97,9 @@ CREATE TABLE IF NOT EXISTS deliveries (
   status                TEXT NOT NULL DEFAULT 'outstanding'
     CHECK(status IN ('outstanding', 'acknowledged', 'fenced')),
   created_at            TEXT NOT NULL DEFAULT (datetime('now')),
-  acknowledged_at       TEXT
+  acknowledged_at       TEXT,
+  -- NULL for an untyped batch; else the sorted JSON array of the typed wait's types.
+  wake_types            TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_deliveries_run_created

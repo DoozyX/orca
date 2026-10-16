@@ -8,6 +8,7 @@ export const OUTSTANDING_MAILBOX_INDEX_SQL = `
     ON deliveries(mailbox_handle) WHERE status = 'outstanding' AND mailbox_handle != '';
 `
 
+// Why (v44): one outstanding batch per mailbox and wake-type set, so a typed wait leaves others be.
 export const DERIVED_DELIVERY_SCHEMA_SQL = `
   CREATE VIEW IF NOT EXISTS outstanding_deliveries AS
     SELECT * FROM deliveries
@@ -19,7 +20,10 @@ export const DERIVED_DELIVERY_SCHEMA_SQL = `
   CREATE TRIGGER IF NOT EXISTS trg_deliveries_one_outstanding
     AFTER INSERT ON deliveries
     WHEN NEW.mailbox_handle != '' AND EXISTS (
-      SELECT 1 FROM outstanding_deliveries WHERE mailbox_handle = NEW.mailbox_handle LIMIT 1 OFFSET 1
+      SELECT 1 FROM outstanding_deliveries
+      WHERE mailbox_handle = NEW.mailbox_handle
+        AND COALESCE(wake_types, '') = COALESCE(NEW.wake_types, '')
+      LIMIT 1 OFFSET 1
     )
     BEGIN
       SELECT RAISE(ABORT, 'Mailbox already has an outstanding delivery');

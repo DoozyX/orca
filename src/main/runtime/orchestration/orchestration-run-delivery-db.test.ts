@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { LEGACY_RUN_ID, OrchestrationDb } from './db'
+import type { MessageType } from './types'
 import { createRootDispatch } from './db/root-dispatch-test-fixture'
 
 describe('OrchestrationDb Run state', () => {
@@ -104,31 +105,108 @@ describe('OrchestrationDb Run state', () => {
       ).toEqual(['newer'])
     })
 
-    it('uses type filters only as wake predicates and returns the full oldest batch', () => {
-      const d = createDb()
-      const run = createBoundRun(d)
-      d.insertMessage({ from: 'a', to: `run:${run.id}`, subject: 'status', runId: run.id })
-      expect(
-        d.getOrCreateRunDelivery({
+    describe('typed waits', () => {
+      const WAKE_TYPES: MessageType[] = ['worker_done', 'escalation', 'question']
+
+      function insert(d: OrchestrationDb, runId: string, subject: string, type: MessageType) {
+        return d.insertMessage({ from: 'worker', to: `run:${runId}`, subject, type, runId })
+      }
+      function deliveryCount(d: OrchestrationDb): unknown {
+        return d.db.prepare('SELECT COUNT(*) AS count FROM deliveries').get()
+      }
+
+      it('builds a delivery of only matching rows and leaves heartbeats unread', () => {
+        const d = createDb()
+        const run = createBoundRun(d)
+        const heartbeats = Array.from({ length: 60 }, (_, index) =>
+          insert(d, run.id, `heartbeat ${index}`, 'heartbeat')
+        )
+        const done = insert(d, run.id, 'done', 'worker_done')
+
+        const delivery = d.getOrCreateRunDelivery({
           runId: run.id,
           consumerGeneration: run.consumer_generation,
-          wakeTypes: ['worker_done']
+          wakeTypes: WAKE_TYPES
         })
-      ).toBeUndefined()
-      d.insertMessage({
-        from: 'b',
-        to: `run:${run.id}`,
-        subject: 'done',
-        type: 'worker_done',
-        runId: run.id
+
+        expect(delivery?.messages.map((message) => message.id)).toEqual([done.id])
+        expect(delivery?.replayed).toBe(false)
+        expect(heartbeats.map((heartbeat) => d.getMessageById(heartbeat.id)?.read)).toEqual(
+          heartbeats.map(() => 0)
+        )
       })
 
-      const delivery = d.getOrCreateRunDelivery({
-        runId: run.id,
-        consumerGeneration: run.consumer_generation,
-        wakeTypes: ['worker_done']
+      it('leaves a nonmatching outstanding delivery alone and never returns it', () => {
+        const d = createDb()
+        const run = createBoundRun(d)
+        const params = { runId: run.id, consumerGeneration: run.consumer_generation }
+        const heartbeats = [0, 1, 2].map((index) =>
+          insert(d, run.id, `heartbeat ${index}`, 'heartbeat')
+        )
+        const d1 = d.getOrCreateRunDelivery(params)!
+        d.db
+          .prepare("UPDATE deliveries SET created_at = '2026-01-01 00:00:00' WHERE id = ?")
+          .run(d1.delivery.id)
+        expect(d.getOrCreateRunDelivery({ ...params, wakeTypes: ['question'] })).toBeUndefined()
+        const question = insert(d, run.id, 'decide', 'question')
+
+        const d2 = d.getOrCreateRunDelivery({ ...params, wakeTypes: ['question'] })
+
+        expect(d2?.delivery.id).not.toBe(d1.delivery.id)
+        expect(d2?.messages.map((message) => message.id)).toEqual([question.id])
+        expect(d2?.replayed).toBe(false)
+        expect(d.getDeliveryRaw(d1.delivery.id)?.status).toBe('outstanding')
+        expect(heartbeats.map((heartbeat) => d.getMessageById(heartbeat.id)?.read)).toEqual([
+          0, 0, 0
+        ])
+        // An untyped check keeps whole-FIFO replay: the oldest outstanding delivery first.
+        expect(d.getOrCreateRunDelivery(params)).toMatchObject({
+          delivery: { id: d1.delivery.id },
+          replayed: true
+        })
+        d.acknowledgeRunDelivery({ ...params, deliveryId: d1.delivery.id })
+        expect(d.getOrCreateRunDelivery(params)).toMatchObject({
+          delivery: { id: d2!.delivery.id },
+          replayed: true
+        })
+        d.acknowledgeRunDelivery({ ...params, deliveryId: d2!.delivery.id })
+        const status = insert(d, run.id, 'status', 'status')
+        const later = insert(d, run.id, 'later heartbeat', 'heartbeat')
+        expect(d.getOrCreateRunDelivery(params)?.messages.map((message) => message.id)).toEqual([
+          status.id,
+          later.id
+        ])
       })
-      expect(delivery?.messages.map((message) => message.subject)).toEqual(['status', 'done'])
+
+      it('replays its own un-acked matching delivery', () => {
+        const d = createDb()
+        const run = createBoundRun(d)
+        const params = { runId: run.id, consumerGeneration: run.consumer_generation }
+        insert(d, run.id, 'done', 'worker_done')
+        const first = d.getOrCreateRunDelivery({ ...params, wakeTypes: WAKE_TYPES })!
+
+        expect(d.getOrCreateRunDelivery({ ...params, wakeTypes: WAKE_TYPES })).toMatchObject({
+          delivery: { id: first.delivery.id },
+          replayed: true
+        })
+      })
+
+      it('replays a mixed untyped delivery whole when it holds a matching row', () => {
+        const d = createDb()
+        const run = createBoundRun(d)
+        const params = { runId: run.id, consumerGeneration: run.consumer_generation }
+        const heartbeat = insert(d, run.id, 'heartbeat', 'heartbeat')
+        const done = insert(d, run.id, 'done', 'worker_done')
+        const mixed = d.getOrCreateRunDelivery(params)!
+        const before = deliveryCount(d)
+
+        const replay = d.getOrCreateRunDelivery({ ...params, wakeTypes: ['worker_done'] })
+
+        expect(replay?.delivery.id).toBe(mixed.delivery.id)
+        expect(replay?.replayed).toBe(true)
+        expect(replay?.messages.map((message) => message.id)).toEqual([heartbeat.id, done.id])
+        expect(deliveryCount(d)).toEqual(before)
+      })
     })
 
     it('fences an outstanding batch when the Run consumer changes', () => {

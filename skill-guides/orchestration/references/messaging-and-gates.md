@@ -16,11 +16,14 @@ worker reading coordinator follow-ups.
 
 A consuming coordinator `check` returns the bound Run's oldest FIFO Delivery,
 up to 50 messages, and replays that exact batch until acknowledged. Process
-every row and required terminal ownership decision before `--ack`. Type filters
-decide when a waiter wakes; they do not authorize skipping older actionable
-mail. A Delivery therefore always carries the whole FIFO batch whatever its
-types, and a `check` without `--wait` hands that batch over unfiltered.
-`--peek` and `--all` are read-only inspection, not progress through the
+every row and required terminal ownership decision before `--ack`.
+
+`--types` with `--wait` is both the wake condition and the delivery filter: a
+newly built Delivery holds only rows of those types, and other unread rows stay
+unread for a check without `--types`. Exception: when your un-acked Delivery
+already holds a row of those types, the wait replays that Delivery whole, rows
+of other types included. Without `--wait`, `--types` has no effect on consuming
+checks. `--peek` and `--all` are read-only inspection, not progress through the
 coordinator inbox.
 
 An empty wait or timeout is a checkpoint. Continue rolling waits until every
