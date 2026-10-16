@@ -213,6 +213,39 @@ describe('delivery layers on orchestration rather than reimplementing it', () =>
     expect(reference).toContain('state why the target is exceeded')
   })
 
+  it('carries the Change clause on the Implement and Fix rows with Not checked evidence', () => {
+    const raw = readReference('delivery', 'stage-prompts.md')
+    const row = (stage) => squash(raw.split('\n').find((line) => line.startsWith(`| ${stage} `)))
+    const clause = squash(raw.split('\n').find((line) => line.startsWith('| Change ')))
+
+    for (const phrase of [
+      'Build the spec, no more',
+      "append to the task file's `## Record` every place the change must reach",
+      'Take the first option that fully works',
+      'never a new one for a few lines',
+      'anything you think is missing is one report line, not a commit',
+      'greps every caller and sibling copy and fixes the root cause once',
+      'Moved or merged code keeps its validation and error handling',
+      'Never cut trust-boundary validation, data-loss handling, security, or accessibility'
+    ]) {
+      expect(clause).toContain(phrase)
+    }
+
+    expect(row('Implement')).toContain('Execution, Change, Command, Report, Hygiene')
+    expect(row('Fix')).toContain('Execution, Change, Command, Report')
+    expect(row('Fix')).toContain('task-file path and its `## Record`')
+    for (const stage of ['Implement', 'Fix']) {
+      expect(row(stage)).toContain('`Not checked: <what and why>` or `Not checked: none`')
+    }
+    expect(row('Review full')).toContain(
+      'the latest implementer or fixer `Not checked:` line, given to the non-adversarial layers only'
+    )
+    expect(squash(raw)).toContain('append the reach list to `## Record`')
+    expect(squash(readReference('delivery', 'task-pipeline.md'))).toContain(
+      "append the reach list to the task file's `## Record`"
+    )
+  })
+
   it('keeps the deployed-verification outcomes terminal and exhaustive', () => {
     const reference = readReference('delivery', 'deployed-verification.md')
 

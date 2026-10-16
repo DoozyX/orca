@@ -125,7 +125,7 @@ explicit `--parent-worktree <selector>` rather than dropping the parent.
 
 The spec tells the implementer to work strictly in that worktree and, in order:
 install from the frozen lockfile; run the shared verification contract and record
-only task-specific baseline deltas _before_ touching anything; implement
+only task-specific baseline deltas _before_ touching anything; **append the reach list to the task file's `## Record`;** implement
 test-first; rerun the full suite plus the repository's lint, format, and build
 checks; verify end to end by driving the real surface where one exists; and
 commit without pushing.
