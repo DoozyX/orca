@@ -183,6 +183,40 @@ describe('resource lease store', () => {
         promoted: { runId: 'run_b', acquiredAt: 70_000, expiresAt: 130_000 }
       })
     })
+
+    it('a release by the head waiter after expiry frees the resource it was promoted to', () => {
+      expect(release('run_b', 70_000)).toEqual({ status: 'released', promoted: null })
+      expect(show(70_000)).toEqual({ resourceKey: KEY, holder: null, next: null, waiters: [] })
+      expect(tableRows()).toEqual({ leases: [], waiters: [] })
+    })
+
+    it('a release by the head waiter after expiry hands the lease on to the next waiter', () => {
+      acquire('run_c', 3_000, 30_000)
+
+      expect(release('run_b', 70_000)).toEqual({
+        status: 'released',
+        promoted: { runId: 'run_c', acquiredAt: 70_000, expiresAt: 100_000 }
+      })
+      expect(show(70_000)).toEqual({
+        resourceKey: KEY,
+        holder: { runId: 'run_c', acquiredAt: 70_000, expiresAt: 100_000, expired: false },
+        next: null,
+        waiters: []
+      })
+    })
+
+    it('rolls the whole release back when it fails after promoting the next waiter', () => {
+      acquire('run_c', 3_000, 30_000)
+      const before = tableRows()
+      db.db.exec(`
+        CREATE TEMP TRIGGER fail_lease_handoff BEFORE INSERT ON resource_leases
+        WHEN NEW.holder_run_id = 'run_c'
+        BEGIN SELECT RAISE(ABORT, 'injected handoff failure'); END;
+      `)
+
+      expect(() => release('run_b', 70_000)).toThrow('injected handoff failure')
+      expect(tableRows()).toEqual(before)
+    })
   })
 
   it('reports an expired holder with nobody next, then mints a new lease for its re-acquire', () => {

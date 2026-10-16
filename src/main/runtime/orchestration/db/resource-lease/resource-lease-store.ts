@@ -159,12 +159,14 @@ export function releaseResourceLease(
   const { resourceKey, runId, nowMs } = params
   assertResourceKey(resourceKey)
   return runLifecycleWriteTransaction(this.db, 'resource_lease_release', () => {
-    // The holder releases even past expiry, so its lease goes straight to the head waiter.
-    if (readLease(this, resourceKey)?.holder_run_id === runId) {
+    const lease = readLease(this, resourceKey)
+    // The holder releases even past expiry; settling another's expiry may promote the caller, which then releases too.
+    const holder =
+      lease?.holder_run_id === runId ? lease : settleExpiredHolder(this, resourceKey, nowMs)
+    if (holder?.holder_run_id === runId) {
       this.db.prepare('DELETE FROM resource_leases WHERE resource_key = ?').run(resourceKey)
       return { status: 'released', promoted: promoteHeadWaiter(this, resourceKey, nowMs) }
     }
-    settleExpiredHolder(this, resourceKey, nowMs)
     const waiting = readWaiters(this, resourceKey).find((waiter) => waiter.run_id === runId)
     if (!waiting) {
       return { status: 'not_held' }
