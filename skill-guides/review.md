@@ -76,12 +76,12 @@ State the target you resolved, in one line, before dispatching anything.
 
 ## 2. Scope the layers
 
-| Diff contains                                                                                                                                     | Layers                                                                |
-| ------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| Code                                                                                                                                              | `adversarial` + `edge-cases` + `verification-gap`                     |
-| Code that also removes behavior (deleted functions, branches, guards, validation, cleanup, tests — not renames, moves, or formatting)             | the three above plus `deletion-check`                                 |
-| Code that adds a named unit (function, class, component, hook, module, file) or a dependency, or whose commit subjects or Task spec call it a fix | the code layers plus `reuse`                                          |
-| Documentation or configuration only                                                                                                               | `adversarial` alone, plus one line saying why the others were skipped |
+| Diff contains                                                                                                                                                      | Layers                                                                |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------- |
+| Code                                                                                                                                                               | `adversarial` + `edge-cases` + `verification-gap`                     |
+| Code that also removes behavior (deleted functions, branches, guards, validation, cleanup, tests — not renames, moves, or formatting)                              | the three above plus `deletion-check`                                 |
+| Code or configuration that adds a named unit (function, class, component, hook, module, file) or a dependency, or whose commit subjects or Task spec call it a fix | the code layers plus `reuse`                                          |
+| Documentation or configuration only, except a dependency addition or a fix, which always adds `reuse`                                                              | `adversarial` alone, plus one line saying why the others were skipped |
 
 ## 3. Run the layers, preserving the asymmetry
 

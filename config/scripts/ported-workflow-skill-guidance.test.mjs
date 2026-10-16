@@ -286,6 +286,9 @@ describe('quality-layer invariants', () => {
     }
     expect(guide).toContain('references/reuse.md')
     expect(guide).toContain('[Reuse]')
+    expect(squash(guide)).toContain(
+      'except a dependency addition or a fix, which always adds `reuse`'
+    )
     const reuse = squash(readReference('review', 'reuse.md'))
     expect(reuse).toContain('names the existing `path:line` or API')
     expect(reuse).toContain('No reuse findings.')
