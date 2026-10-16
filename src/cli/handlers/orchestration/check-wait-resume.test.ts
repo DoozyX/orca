@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const printResultMock = vi.hoisted(() => vi.fn())
 vi.mock('../../format', () => ({ printResult: printResultMock }))
 
+import { ORCHESTRATION_MESSAGE_WAIT_DEFAULT_TIMEOUT_MS } from '../../../shared/orchestration-message-wait-timeout'
 import { RuntimeClientError } from '../../runtime-client'
 import type { RuntimeClient } from '../../runtime-client'
 import { CHECK_WAIT_PARENT_POLL_MS } from './check-wait-parent-watch'
@@ -19,12 +20,17 @@ const callMock = vi.fn()
 const client = { call: callMock } as unknown as RuntimeClient
 const ORIGINAL_PPID = Object.getOwnPropertyDescriptor(process, 'ppid')
 
-function waitFlags(extra: [string, string | boolean][] = []): Map<string, string | boolean> {
+const RETRY_REQUEST_ID = '0f1e2d3c-4b5a-4968-8776-655443322110'
+
+function waitFlags(
+  extra: [string, string | boolean][] = [],
+  timeout: string | null = '60000'
+): Map<string, string | boolean> {
   return new Map<string, string | boolean>([
     ['terminal', 'term_coord'],
     ['wait', true],
     ['types', 'worker_done'],
-    ['timeout-ms', '60000'],
+    ...(timeout === null ? [] : [['timeout-ms', timeout] as const]),
     ...extra
   ])
 }
@@ -76,12 +82,12 @@ const MESSAGE = {
 
 function respond(handlers: {
   check: (sent: SentCheck[]) => unknown
-  requestShow?: () => unknown
+  requestShow?: (params: unknown) => unknown
 }): SentCheck[] {
   const sent: SentCheck[] = []
   callMock.mockImplementation(async (method: string, params: unknown, options?: CallOptions) => {
     if (method === 'orchestration.requestShow') {
-      return handlers.requestShow?.()
+      return handlers.requestShow?.(params)
     }
     sent.push({
       params:
@@ -134,6 +140,71 @@ describe('check --wait resume after a dropped connection', () => {
     expect(sent[1].options?.orchestrationRequestId).not.toBe('req_1')
     expect(sent[1].params.ack).toBeUndefined()
     expect(sent[1].params.timeoutMs).toBeLessThanOrEqual(55_000)
+    expect(printedResult()).toMatchObject({ deliveryId: 'delivery_2', count: 1 })
+  })
+
+  it('spends the default wait budget across a resume when --timeout-ms is omitted', async () => {
+    vi.useFakeTimers({ now: 0 })
+    const sent = respond({
+      requestShow: requestShow('completed', LOST_RECEIPT),
+      check: (checks) => {
+        if (checks.length === 1) {
+          vi.setSystemTime(ORCHESTRATION_MESSAGE_WAIT_DEFAULT_TIMEOUT_MS - 1_000)
+          throw lostConnection('req_1')
+        }
+        return success({ runId: 'run_1', deliveryId: 'delivery_2', messages: [MESSAGE], count: 1 })
+      }
+    })
+
+    await invokeCheck(waitFlags([], null))
+
+    expect(sent).toHaveLength(2)
+    expect(sent[0].params.timeoutMs).toBeUndefined()
+    expect(sent[1].params.timeoutMs).toBe(1_000)
+    expect(printedResult()).toMatchObject({ deliveryId: 'delivery_2' })
+  })
+
+  it('prints the lost receipt once the default wait budget is spent', async () => {
+    vi.useFakeTimers({ now: 0 })
+    const sent = respond({
+      requestShow: requestShow('completed', LOST_RECEIPT),
+      check: () => {
+        vi.setSystemTime(ORCHESTRATION_MESSAGE_WAIT_DEFAULT_TIMEOUT_MS)
+        throw lostConnection('req_1')
+      }
+    })
+
+    await invokeCheck(waitFlags([], null))
+
+    expect(sent).toHaveLength(1)
+    expect(printedResult()).toMatchObject({ deliveryId: null, connectionLost: true, count: 0 })
+  })
+
+  it('resumes an explicit --retry-request wait under a fresh request id', async () => {
+    const shownRequests: unknown[] = []
+    const sent = respond({
+      requestShow: (params) => {
+        shownRequests.push(params)
+        return requestShow('completed', LOST_RECEIPT)()
+      },
+      check: (checks) => {
+        const requestId = checks.at(-1)?.options?.orchestrationRequestId
+        if (checks.length === 1) {
+          throw lostConnection(requestId ?? 'missing')
+        }
+        // The host replays a stored receipt for a reused id instead of waiting again.
+        return requestId === RETRY_REQUEST_ID
+          ? success({ ...LOST_RECEIPT, mutation: { requestId, replayed: true } })
+          : success({ runId: 'run_1', deliveryId: 'delivery_2', messages: [MESSAGE], count: 1 })
+      }
+    })
+
+    await invokeCheck(waitFlags([['retry-request', RETRY_REQUEST_ID]]))
+
+    expect(sent).toHaveLength(2)
+    expect(sent[0].options?.orchestrationRequestId).toBe(RETRY_REQUEST_ID)
+    expect(shownRequests).toEqual([{ request: RETRY_REQUEST_ID }])
+    expect(sent[1].options?.orchestrationRequestId).not.toBe(RETRY_REQUEST_ID)
     expect(printedResult()).toMatchObject({ deliveryId: 'delivery_2', count: 1 })
   })
 
