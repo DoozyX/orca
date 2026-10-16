@@ -150,6 +150,43 @@ describe('the check before a worker brief is written into the agent it launched'
     expect(runtime.readLaunchedAgentForeground).toHaveBeenCalledTimes(2)
   })
 
+  // A process sample can still name the exiting agent after its shell has printed a prompt.
+  it('writes nothing when a shell comes back to its prompt during the read that finds the agent', async () => {
+    const { runtime, guard, emit } = briefHarness([])
+    vi.mocked(runtime.readLaunchedAgentForeground)
+      .mockResolvedValueOnce('unknown')
+      .mockImplementationOnce(async () => {
+        emit('$ \x1b[?2004h')
+        return 'agent'
+      })
+    const writes: string[] = []
+
+    const pending = guard.beforeWrite('pty-1').then(() => writes.push('brief'))
+    const refused = expect(pending).rejects.toThrow(
+      /^agent_not_in_foreground: a shell came back to its prompt; last foreground sample was agent/
+    )
+    await vi.advanceTimersByTimeAsync(LAUNCHED_AGENT_FOREGROUND_SAMPLE_MS)
+
+    await refused
+    expect(writes).toEqual([])
+    expect(runtime.readLaunchedAgentForeground).toHaveBeenCalledTimes(2)
+  })
+
+  it('writes nothing on a host that cannot prove the agent once a shell came back to its prompt', async () => {
+    const { runtime, guard, emit } = briefHarness([])
+    runtime.launchedAgentHostProvesAgent = vi.fn(() => false)
+    vi.mocked(runtime.readLaunchedAgentForeground).mockImplementationOnce(async () => {
+      emit('\x1b]133;A\x07$ ')
+      return 'unknown'
+    })
+    const writes: string[] = []
+
+    await expect(guard.beforeWrite('pty-1').then(() => writes.push('brief'))).rejects.toThrow(
+      /^agent_not_in_foreground: a shell came back to its prompt/
+    )
+    expect(writes).toEqual([])
+  })
+
   it('refuses a shell still in front when the window ends, naming the last read', async () => {
     const { runtime, guard, unsubscribe } = briefHarness([])
     vi.mocked(runtime.readLaunchedAgentForeground).mockResolvedValue('shell')

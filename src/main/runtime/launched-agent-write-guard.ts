@@ -74,6 +74,13 @@ export function createLaunchedAgentWriteGuard(
       settleDeadlineMs === undefined
         ? startedAt
         : Math.min(startedAt + LAUNCHED_AGENT_FOREGROUND_SETTLE_MS, settleDeadlineMs)
+    const refusal = (foreground: LaunchedAgentForeground): AgentNotInForegroundError => {
+      watch.unsubscribe()
+      const shellReturned = watch.shellMayHaveReturned ? 'a shell came back to its prompt; ' : ''
+      return new AgentNotInForegroundError(
+        `${shellReturned}last foreground sample was ${foreground} after ${Date.now() - startedAt} ms`
+      )
+    }
     for (;;) {
       let foreground: LaunchedAgentForeground
       try {
@@ -81,6 +88,10 @@ export function createLaunchedAgentWriteGuard(
       } catch (error) {
         watch.unsubscribe()
         throw error
+      }
+      // While settling, a returned shell outranks the sample: a read can still name the exiting agent.
+      if (settleDeadlineMs !== undefined && watch.shellMayHaveReturned) {
+        throw refusal(foreground)
       }
       if (foreground === 'agent') {
         cleared = watch
@@ -97,11 +108,7 @@ export function createLaunchedAgentWriteGuard(
       const remainingMs = settleUntil - Date.now()
       // A shell back at its prompt is no wrapper about to exec the agent, so it ends the settle.
       if (watch.shellMayHaveReturned || remainingMs <= 0) {
-        watch.unsubscribe()
-        const shellReturned = watch.shellMayHaveReturned ? 'a shell came back to its prompt; ' : ''
-        throw new AgentNotInForegroundError(
-          `${shellReturned}last foreground sample was ${foreground} after ${Date.now() - startedAt} ms`
-        )
+        throw refusal(foreground)
       }
       await new Promise((resolve) =>
         setTimeout(resolve, Math.min(LAUNCHED_AGENT_FOREGROUND_SAMPLE_MS, remainingMs))
