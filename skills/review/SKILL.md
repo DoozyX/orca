@@ -3,7 +3,8 @@ name: review
 description: >-
   Multi-layer code review of a diff, a branch, or a pull request: an adversarial
   pass starved of the author's intent, a mechanical edge-case path trace, and a
-  verification-gap check, plus a deletion check when code was removed, merged
+  verification-gap check, plus a deletion check when code was removed and a
+  reuse check when code or a dependency was added or a fix was made, merged
   into one deduplicated, severity-graded, triaged findings list ending in a
   machine-readable verdict. Use when the user asks to review changes, wants a
   second opinion before committing or merging, or when a dispatched reviewer is

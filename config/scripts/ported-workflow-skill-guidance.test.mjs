@@ -48,6 +48,7 @@ const PORTED_SKILLS = {
       'deletion-check.md',
       'edge-cases.md',
       'principles.md',
+      'reuse.md',
       'verification-gap.md'
     ],
     safetyFloor: ['`unverifiable`', 'Folder workspaces are valid'],
@@ -246,6 +247,9 @@ describe('quality-layer invariants', () => {
 
     expect(guide).toContain('After the third failed fix attempt, stop. Do not attempt a fourth.')
     expect(guide).toContain('No fix without a root cause you can state first.')
+    expect(guide).toContain(
+      'grep every caller of the function you are about to change and every sibling copy of the broken logic'
+    )
   })
 
   it('keeps the tdd cycle red before green and the mock gate in place', () => {
@@ -273,12 +277,18 @@ describe('quality-layer invariants', () => {
       'adversarial.md',
       'edge-cases.md',
       'verification-gap.md',
-      'deletion-check.md'
+      'deletion-check.md',
+      'reuse.md'
     ]) {
       expect(squash(readReference('review', layer))).toMatch(
         /[Ss]everity ban|Severity is decided at merge/u
       )
     }
+    expect(guide).toContain('references/reuse.md')
+    expect(guide).toContain('[Reuse]')
+    const reuse = squash(readReference('review', 'reuse.md'))
+    expect(reuse).toContain('names the existing `path:line` or API')
+    expect(reuse).toContain('No reuse findings.')
   })
 })
 

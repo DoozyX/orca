@@ -3,7 +3,8 @@ name: review
 description: >-
   Multi-layer code review of a diff, a branch, or a pull request: an adversarial
   pass starved of the author's intent, a mechanical edge-case path trace, and a
-  verification-gap check, plus a deletion check when code was removed, merged
+  verification-gap check, plus a deletion check when code was removed and a
+  reuse check when code or a dependency was added or a fix was made, merged
   into one deduplicated, severity-graded, triaged findings list ending in a
   machine-readable verdict. Use when the user asks to review changes, wants a
   second opinion before committing or merging, or when a dispatched reviewer is
@@ -75,18 +76,19 @@ State the target you resolved, in one line, before dispatching anything.
 
 ## 2. Scope the layers
 
-| Diff contains                                                                                                                         | Layers                                                                |
-| ------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| Code                                                                                                                                  | `adversarial` + `edge-cases` + `verification-gap`                     |
-| Code that also removes behavior (deleted functions, branches, guards, validation, cleanup, tests — not renames, moves, or formatting) | the three above plus `deletion-check`                                 |
-| Documentation or configuration only                                                                                                   | `adversarial` alone, plus one line saying why the others were skipped |
+| Diff contains                                                                                                                                     | Layers                                                                |
+| ------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| Code                                                                                                                                              | `adversarial` + `edge-cases` + `verification-gap`                     |
+| Code that also removes behavior (deleted functions, branches, guards, validation, cleanup, tests — not renames, moves, or formatting)             | the three above plus `deletion-check`                                 |
+| Code that adds a named unit (function, class, component, hook, module, file) or a dependency, or whose commit subjects or Task spec call it a fix | the code layers plus `reuse`                                          |
+| Documentation or configuration only                                                                                                               | `adversarial` alone, plus one line saying why the others were skipped |
 
 ## 3. Run the layers, preserving the asymmetry
 
 Run each layer against the resolved target using its reference below. When the
 session can dispatch parallel subagents, give each one its own layer and its own
 inputs, all dispatched in one message so they run concurrently. Otherwise run
-them in order: adversarial, edge-cases, verification-gap, deletion-check.
+them in order: adversarial, edge-cases, verification-gap, deletion-check, reuse.
 
 | Layer              | Gets                                                                                          |
 | ------------------ | --------------------------------------------------------------------------------------------- |
@@ -94,6 +96,7 @@ them in order: adversarial, edge-cases, verification-gap, deletion-check.
 | `edge-cases`       | the diff, the full post-change content of touched files, and repository read access           |
 | `verification-gap` | the same                                                                                      |
 | `deletion-check`   | the same                                                                                      |
+| `reuse`            | the same                                                                                      |
 
 **The asymmetry is a rule, not a preference.** Denying the adversarial layer the
 author's intent is what kills anchoring bias; denying the tracing layers
@@ -108,7 +111,7 @@ dispatched reviewer's Task spec is the usual source — does not override this.
 
 Two findings merge when they are at the same location **and** describe the same
 underlying issue. Keep the more detailed description and union the provenance
-tags, spelled exactly `[Adversarial]`, `[Edge]`, `[V-Gap]`, `[Deletion]`.
+tags, spelled exactly `[Adversarial]`, `[Edge]`, `[V-Gap]`, `[Deletion]`, `[Reuse]`.
 Assign severity here and only here; the layers were forbidden to grade because
 each had partial information by design.
 
@@ -168,13 +171,14 @@ and read only that document; `--references` lists the names. If the CLI rejects
 reference. If it rejects `--full` too, keep this kernel's safety floor and use
 that command's `--help`; never guess newer flags.
 
-| Action gate                                                                      | Bundled reference                |
-| -------------------------------------------------------------------------------- | -------------------------------- |
-| Running the hostile, diff-only pass                                              | `references/adversarial.md`      |
-| Enumerating reachable states the change does not handle                          | `references/edge-cases.md`       |
-| Measuring whether the changed behavior is protected by a test                    | `references/verification-gap.md` |
-| The change removes behavior and you need to know what was silently lost          | `references/deletion-check.md`   |
-| Naming a design problem with the shared lenses, here or in `tdd`'s refactor step | `references/principles.md`       |
+| Action gate                                                                                             | Bundled reference                |
+| ------------------------------------------------------------------------------------------------------- | -------------------------------- |
+| Running the hostile, diff-only pass                                                                     | `references/adversarial.md`      |
+| Enumerating reachable states the change does not handle                                                 | `references/edge-cases.md`       |
+| Measuring whether the changed behavior is protected by a test                                           | `references/verification-gap.md` |
+| The change removes behavior and you need to know what was silently lost                                 | `references/deletion-check.md`   |
+| The change adds a named unit or dependency, or fixes a defect, and you need to know what already exists | `references/reuse.md`            |
+| Naming a design problem with the shared lenses, here or in `tdd`'s refactor step                        | `references/principles.md`       |
 
 ## Hands off to
 
