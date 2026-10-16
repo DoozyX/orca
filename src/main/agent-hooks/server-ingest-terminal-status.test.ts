@@ -296,6 +296,35 @@ describe('AgentHookServer ingestTerminalStatus', () => {
     }
   })
 
+  it('renews only the repaint clock when OSC repaints a hook row unchanged', () => {
+    const t0 = 1_800_000_000_000
+    const repaintAt = t0 + 31 * 60_000
+    const hookAt = repaintAt + 60_000
+    const working = { state: 'working' as const, prompt: 'long turn', agentType: 'codex' as const }
+    vi.useFakeTimers()
+    vi.setSystemTime(t0)
+    try {
+      const server = new AgentHookServer()
+      server.ingestRemote({ paneKey: PANE, payload: working }, 'conn-1')
+
+      vi.setSystemTime(repaintAt)
+      server.ingestTerminalStatus({ paneKey: PANE, connectionId: 'conn-1', payload: working })
+      expect(server.getStatusSnapshot()[0]).toMatchObject({
+        evidenceObservedAt: repaintAt,
+        agentEvidenceObservedAt: t0
+      })
+
+      vi.setSystemTime(hookAt)
+      server.ingestRemote({ paneKey: PANE, payload: { ...working, toolName: 'Edit' } }, 'conn-1')
+      expect(server.getStatusSnapshot()[0]).toMatchObject({
+        evidenceObservedAt: hookAt,
+        agentEvidenceObservedAt: hookAt
+      })
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('accepts a runtime-owned legacy pane without opening legacy relay ingress', () => {
     const server = new AgentHookServer()
     const event = {

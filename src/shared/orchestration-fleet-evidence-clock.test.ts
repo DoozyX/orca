@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { AgentStatusIpcPayload } from './agent-status-ipc-payload'
+import type { AgentStatusObservation, AgentStatusObservationKind } from './agent-status-observation'
 import { AGENT_STATUS_STALE_AFTER_MS } from './agent-status-types'
 import {
   mintFleetAgentStatusEvidence,
@@ -108,4 +109,47 @@ describe('fleet evidence clocks', () => {
     expect(selected?.deliveredAt).toBe(NOW)
     expect(selected?.activity.state).toBe('done')
   })
+
+  it('ages a repainted row on the agent evidence clock, not the repaint', () => {
+    const agentEvidenceObservedAt = NOW - 31 * 60_000
+    const repainted = mintFleetAgentStatusEvidence(
+      payload({
+        evidenceObservedAt: NOW,
+        agentEvidenceObservedAt,
+        observation: observation('snapshot')
+      }),
+      binding
+    )
+    const transition = mintFleetAgentStatusEvidence(
+      payload({
+        evidenceObservedAt: NOW,
+        agentEvidenceObservedAt,
+        observation: observation('transition')
+      }),
+      binding
+    )
+
+    expect(repainted.clock).toEqual({ kind: 'observed', at: agentEvidenceObservedAt })
+    expect(transition.clock).toEqual({ kind: 'observed', at: NOW })
+  })
+
+  it('keeps the observation clock for a repaint from a host without the agent evidence clock', () => {
+    const evidence = mintFleetAgentStatusEvidence(
+      payload({ evidenceObservedAt: NOW - 5, observation: observation('snapshot') }),
+      binding
+    )
+
+    expect(evidence.clock).toEqual({ kind: 'observed', at: NOW - 5 })
+  })
 })
+
+function observation(kind: AgentStatusObservationKind): AgentStatusObservation {
+  return {
+    origin: 'osc',
+    authorityId: 'main:clock',
+    incarnation: 0,
+    revision: 1,
+    observedAt: NOW,
+    kind
+  }
+}

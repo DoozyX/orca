@@ -59,6 +59,9 @@ export function toAgentStatusIpcPayload(
     ...(entry.evidenceObservedAt !== undefined
       ? { evidenceObservedAt: entry.evidenceObservedAt }
       : {}),
+    ...(entry.agentEvidenceObservedAt !== undefined
+      ? { agentEvidenceObservedAt: entry.agentEvidenceObservedAt }
+      : {}),
     stateStartedAt: entry.stateStartedAt,
     ...(entry.turnStartedAt !== undefined ? { turnStartedAt: entry.turnStartedAt } : {}),
     ...(entry.providerSession ? { providerSession: entry.providerSession } : {}),

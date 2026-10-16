@@ -79,6 +79,7 @@ export abstract class AgentHookServerStatusApplication extends AgentHookServerSt
       isReplay: _isReplay,
       ...payload
     } = previous
+    // Why: `payload` keeps `agentEvidenceObservedAt`; a repaint is not word from the agent (#17).
     const refreshed: EnrichedAgentHookEventPayload = {
       ...payload,
       receivedAt: now,
@@ -150,11 +151,13 @@ export abstract class AgentHookServerStatusApplication extends AgentHookServerSt
         ? previous.stateStartedAt
         : (observedAt ?? now)
     const turnStartedAt = resolveTurnStartedAt(previous, payload, observedAt ?? now)
+    const evidenceObservedAt = observedAt ?? this.resolveEvidenceObservedAt(payload, previous, now)
     // Why: `stateStartedAt` tracks the current state, while `receivedAt` tracks every arrival.
     return {
       ...payload,
       receivedAt: now,
-      evidenceObservedAt: observedAt ?? this.resolveEvidenceObservedAt(payload, previous, now),
+      evidenceObservedAt,
+      agentEvidenceObservedAt: evidenceObservedAt,
       stateStartedAt,
       // Always written here, so a producer can never declare it.
       turnStartedAt

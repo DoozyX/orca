@@ -18,6 +18,8 @@ export type EnrichedAgentHookEventPayload = AgentHookEventPayload & {
    *  only this clock can answer how old the evidence itself is. Persisted so it survives a
    *  main restart; absent means "never separately observed" and consumers use `receivedAt`. */
   evidenceObservedAt?: number
+  /** See AgentStatusIpcPayload.agentEvidenceObservedAt; an OSC repaint carries it forward unchanged. */
+  agentEvidenceObservedAt?: number
   stateStartedAt: number
   /** When the main agent's current turn began, on this server's clock. Stamped only here, from the
    *  main agent's own turn-opening event; absent when no such event was seen. */

@@ -53,6 +53,10 @@ export type AgentStatusIpcPayload = ParsedAgentStatusPayload & {
    *  monotonic past the transient-clear watermark — so only this clock can measure staleness.
    *  Optional: absent from old hosts, where consumers fall back to `receivedAt`. */
   evidenceObservedAt?: number
+  /** When the row's evidence last changed. An unchanged OSC repaint advances `evidenceObservedAt`
+   *  but carries this forward, so a connected PTY alone cannot keep a worker looking active.
+   *  Optional: absent from old hosts, where `evidenceObservedAt` is used. */
+  agentEvidenceObservedAt?: number
   /** Timestamp (ms) when the current state first appeared for this pane. */
   stateStartedAt: number
   /** When the main agent's current turn began, stamped by the hook server from the main agent's

@@ -101,11 +101,16 @@ export function mintFleetAgentStatusEvidence(
   status: AgentStatusIpcPayload,
   binding: FleetEvidenceBinding
 ): FleetAgentStatusEvidence {
+  // Why: a repaint renews `evidenceObservedAt` with no word from the agent, so it must not keep a worker live (#17).
+  const observedAt =
+    status.observation?.kind === 'snapshot' && status.agentEvidenceObservedAt !== undefined
+      ? status.agentEvidenceObservedAt
+      : status.evidenceObservedAt
   return {
     binding,
     clock:
-      status.evidenceObservedAt !== undefined
-        ? { kind: 'observed', at: status.evidenceObservedAt }
+      observedAt !== undefined
+        ? { kind: 'observed', at: observedAt }
         : { kind: 'delivery', at: status.receivedAt },
     deliveredAt: status.receivedAt,
     activity: {

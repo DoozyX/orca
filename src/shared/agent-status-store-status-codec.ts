@@ -160,7 +160,8 @@ export function parseAgentStatusIpcPayloadCopy(value: unknown): AgentStatusIpcPa
     (copied.connectionId !== null && !isBoundedString(copied.connectionId)) ||
     !isTimestamp(copied.receivedAt) ||
     !isTimestamp(copied.stateStartedAt) ||
-    (copied.evidenceObservedAt !== undefined && !isTimestamp(copied.evidenceObservedAt))
+    (copied.evidenceObservedAt !== undefined && !isTimestamp(copied.evidenceObservedAt)) ||
+    (copied.agentEvidenceObservedAt !== undefined && !isTimestamp(copied.agentEvidenceObservedAt))
   ) {
     return null
   }
@@ -203,6 +204,9 @@ export function parseAgentStatusIpcPayloadCopy(value: unknown): AgentStatusIpcPa
   }
   if (isTimestamp(copied.evidenceObservedAt)) {
     parsed.evidenceObservedAt = copied.evidenceObservedAt
+  }
+  if (isTimestamp(copied.agentEvidenceObservedAt)) {
+    parsed.agentEvidenceObservedAt = copied.agentEvidenceObservedAt
   }
   if (copied.providerSession !== undefined) {
     const providerSession = normalizeAgentProviderSession(copied.providerSession)

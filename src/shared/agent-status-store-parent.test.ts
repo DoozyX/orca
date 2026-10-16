@@ -24,3 +24,29 @@ describe('canonical PTY attachment without a status claim', () => {
     ).toBeNull()
   })
 })
+
+describe('agent evidence clock on a parent status', () => {
+  const status = {
+    paneKey: TMUX_TEST_PANE,
+    connectionId: null,
+    worktreeId: 'workspace',
+    state: 'working',
+    prompt: '',
+    receivedAt: 20,
+    evidenceObservedAt: 20,
+    stateStartedAt: 10
+  }
+
+  it('keeps the time agent evidence last renewed the row', () => {
+    expect(
+      parseAgentStatusParentInput({ subject, status: { ...status, agentEvidenceObservedAt: 12 } })
+        ?.status?.agentEvidenceObservedAt
+    ).toBe(12)
+  })
+
+  it('refuses a malformed agent evidence clock', () => {
+    expect(
+      parseAgentStatusParentInput({ subject, status: { ...status, agentEvidenceObservedAt: -1 } })
+    ).toBeNull()
+  })
+})

@@ -406,6 +406,38 @@ describe('fleet liveness and attention after a host verdict', () => {
     expect(replayed.workers[0]?.attention.categories).toContain('stale')
   })
 
+  it('does not keep a repainted working row live past the agent evidence window', () => {
+    const now = 10 * AGENT_STATUS_STALE_AFTER_MS
+    const agentEvidenceObservedAt = now - 31 * 60_000
+    const projected = projectOrchestrationFleet({
+      workers: [worker('repaint')],
+      // A matching OSC repaint renews the row's evidence clock; the agent last reported 31 min ago.
+      statuses: [
+        status('repaint', now, {
+          evidenceObservedAt: now,
+          agentEvidenceObservedAt,
+          observation: {
+            origin: 'osc',
+            authorityId: 'main:repaint',
+            incarnation: 0,
+            revision: 2,
+            observedAt: now,
+            kind: 'snapshot'
+          }
+        })
+      ],
+      now
+    }).workers[0]
+
+    expect(projected?.liveness).toEqual({
+      verdict: 'unverifiable',
+      reason: 'stale_status',
+      observedAt: agentEvidenceObservedAt
+    })
+    expect(projected?.stage.activity).toBe('unknown')
+    expect(projected?.evidence.liveStatus).toBe('stale')
+  })
+
   it('keeps an unproven outcome unverifiable after the host reports live', () => {
     const now = 10_000
     const projected = projectOrchestrationFleet({

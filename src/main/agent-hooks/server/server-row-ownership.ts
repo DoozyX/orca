@@ -27,6 +27,7 @@ function semanticRow(row: EnrichedAgentHookEventPayload): Record<string, unknown
   const {
     receivedAt: _receivedAt,
     evidenceObservedAt: _evidenceObservedAt,
+    agentEvidenceObservedAt: _agentEvidenceObservedAt,
     observation: _observation,
     launchToken: _launchToken,
     promptInteractionKey: _promptInteractionKey,
