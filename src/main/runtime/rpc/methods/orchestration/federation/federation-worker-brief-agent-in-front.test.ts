@@ -4,6 +4,7 @@ import { OrchestrationDb } from '../../../../orchestration/db'
 import type { LaunchedAgentForeground } from '../../../../launched-agent-foreground'
 import { ORCHESTRATION_METHODS } from '../../orchestration'
 import { configureFederationWorkerRuntime } from './federation-runtime.test-support'
+import { LAUNCHED_AGENT_FOREGROUND_SETTLE_MS } from '../../../../../../shared/orchestration-timing-budgets'
 
 const PTY_ID = 'pty_worker'
 
@@ -17,6 +18,7 @@ describe('a paired-server worker start writes its brief only into the agent it l
       db.close()
     }
     vi.restoreAllMocks()
+    vi.useRealTimers()
   })
 
   function workerHost(foreground: LaunchedAgentForeground, provesAgent = true) {
@@ -68,13 +70,21 @@ describe('a paired-server worker start writes its brief only into the agent it l
     )
   }
 
+  // A refusing foreground is sampled for the settle window first: a launch can still be execing.
+  async function attachSettled(runtime: OrcaRuntimeService): Promise<unknown> {
+    vi.useFakeTimers()
+    const pending = attach(runtime)
+    await vi.advanceTimersByTimeAsync(LAUNCHED_AGENT_FOREGROUND_SETTLE_MS)
+    return await pending
+  }
+
   it('types nothing when the agent exited and its shell is in front', async () => {
     const host = workerHost('shell')
 
-    await expect(attach(host.runtime)).resolves.toMatchObject({
+    await expect(attachSettled(host.runtime)).resolves.toMatchObject({
       state: 'failed',
       failedStage: 'dispatch_input',
-      lastError: 'agent_not_in_foreground'
+      lastError: `agent_not_in_foreground: last foreground sample was shell after ${LAUNCHED_AGENT_FOREGROUND_SETTLE_MS} ms`
     })
     expect(host.writes).toEqual([])
   })
@@ -82,7 +92,7 @@ describe('a paired-server worker start writes its brief only into the agent it l
   it('types nothing where the host cannot tell what is in front', async () => {
     const host = workerHost('unknown')
 
-    await expect(attach(host.runtime)).resolves.toMatchObject({ state: 'failed' })
+    await expect(attachSettled(host.runtime)).resolves.toMatchObject({ state: 'failed' })
     expect(host.writes).toEqual([])
   })
 
@@ -99,7 +109,7 @@ describe('a paired-server worker start writes its brief only into the agent it l
     expect(unknown.writes).toHaveLength(1)
 
     const shell = workerHost('shell', false)
-    await expect(attach(shell.runtime)).resolves.toMatchObject({ state: 'failed' })
+    await expect(attachSettled(shell.runtime)).resolves.toMatchObject({ state: 'failed' })
     expect(shell.writes).toEqual([])
   })
 })
