@@ -41,6 +41,8 @@ export async function deliverAndSettleWorkerStartReadiness(args: {
   launchReceipt: OrchestrationWorkerLaunchReceipt
   mode: WorkerStartModeReceipt
   timeoutMs: number
+  /** When the readiness budget ends; a launched agent's brief settles its foreground until then. */
+  readinessDeadlineMs: number
   effects: WorkerEffect[]
   terminalRevealWarning: string | undefined
   /** Keeps the caller's failure receipt naming the stage that actually failed. */
@@ -62,7 +64,8 @@ export async function deliverAndSettleWorkerStartReadiness(args: {
     coordinatorHandle: args.coordinatorHandle,
     devMode: args.devMode,
     requestId: args.requestId,
-    launchedAgent: args.launchedAgent
+    launchedAgent: args.launchedAgent,
+    readinessDeadlineMs: args.readinessDeadlineMs
   })
   effects.push({
     kind: 'dispatch_input',

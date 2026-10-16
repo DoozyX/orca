@@ -205,6 +205,29 @@ export function registerWorkerStartTerminalTargetTests(): void {
       expect(writes).toHaveLength(1)
     })
 
+    // #18/#19: the read right after readiness can still find the launcher in front.
+    it('waits out a first read that cannot tell, then writes into the agent', async () => {
+      const writes = launchedPane('agent')
+      vi.mocked(h.runtime.readLaunchedAgentForeground)
+        .mockResolvedValueOnce('unknown')
+        .mockResolvedValueOnce('agent')
+      const task = h.db.createTask({ spec: 'settling foreground', runId: h.activeRunId })
+
+      const result = await h.call('orchestration.workerStart', {
+        task: task.id,
+        from: 'term_coord',
+        agent: 'claude'
+      })
+
+      expect(result).toMatchObject({
+        state: 'ready',
+        stage: 'input_accepted',
+        residualResources: []
+      })
+      expect(h.runtime.readLaunchedAgentForeground).toHaveBeenCalledTimes(2)
+      expect(writes).toHaveLength(1)
+    })
+
     it('leaves a terminal the caller supplied to its own idle wait', async () => {
       const writes = launchedPane('shell')
 

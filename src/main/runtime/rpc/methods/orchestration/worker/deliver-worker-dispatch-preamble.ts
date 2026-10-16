@@ -46,6 +46,7 @@ export async function deliverWorkerDispatchPreamble(args: {
   requestId: string
   /** The agent this worker start launched into `terminalHandle`; absent for a caller's terminal. */
   launchedAgent?: string | null
+  readinessDeadlineMs: number
 }): Promise<{
   prompt?: RuntimeTerminalSend['prompt']
   structuredTurnStart?: WorkerTurnStartObservation
@@ -102,7 +103,12 @@ export async function deliverWorkerDispatchPreamble(args: {
     }
   }
   // A shell back at its prompt also reads as ready, so the brief needs the agent found in front.
-  const briefGuard = createWorkerBriefWriteGuard(runtime, args.launchedAgent, !!args.launchedAgent)
+  const briefGuard = createWorkerBriefWriteGuard(
+    runtime,
+    args.launchedAgent,
+    !!args.launchedAgent,
+    args.readinessDeadlineMs
+  )
   try {
     const sent = await sendAgentTurn({
       kind: 'terminal',

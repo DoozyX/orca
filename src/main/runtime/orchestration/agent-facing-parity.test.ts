@@ -111,7 +111,8 @@ async function renderPreamble(worker: 'chat' | 'terminal'): Promise<string> {
     taskSpec: 'do it',
     coordinatorHandle: 'term_coord',
     devMode: false,
-    requestId: 'req_1'
+    requestId: 'req_1',
+    readinessDeadlineMs: Date.now()
   })
   return worker === 'chat' ? sent.preambles[0]! : prompts[0]!
 }

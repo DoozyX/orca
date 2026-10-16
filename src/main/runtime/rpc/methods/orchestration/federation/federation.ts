@@ -164,6 +164,7 @@ export const ORCHESTRATION_FEDERATION_ATTACH_METHODS = [
         }
         persistFederatedReadinessStage(setupStage)
         failedStage = 'agent_readiness'
+        const readinessDeadlineMs = Date.now() + readinessTimeoutMs
         const wait = await waitForWorkerAgentReady(runtime, terminalHandle, {
           agent,
           reusesTerminal: Boolean(params.terminal),
@@ -192,7 +193,12 @@ export const ORCHESTRATION_FEDERATION_ATTACH_METHODS = [
         })
         failedStage = 'dispatch_input'
         // A shell back at its prompt also reads as ready, so the brief needs the agent found in front.
-        const briefGuard = createWorkerBriefWriteGuard(runtime, agent, !params.terminal)
+        const briefGuard = createWorkerBriefWriteGuard(
+          runtime,
+          agent,
+          !params.terminal,
+          readinessDeadlineMs
+        )
         const prompt = await sendAgentTurn({
           kind: 'terminal',
           runtime,
