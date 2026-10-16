@@ -182,23 +182,32 @@ describe('manual Dispatch release', () => {
   })
 
   it.each([
-    [true, 'cancelled'],
-    [false, 'no_running_turn']
+    ['cancelled it', true, null, { outcome: 'cancelled' }],
+    ['found it ended', false, null, { outcome: 'no_running_turn' }],
+    [
+      'could not confirm it stopped',
+      false,
+      'turn-1',
+      { outcome: 'not_interrupted', reason: expect.stringContaining('did not confirm') }
+    ]
   ] as const)(
-    'interrupts the turn a stopped context-only Dispatch was running (cancelled: %s)',
-    async (cancelled, outcome) => {
-      const cancel = vi.fn(async () => ({
-        ok: true,
-        replayed: false,
-        fence: 3,
-        value: { cancelled }
-      }))
+    'reports the turn a stopped context-only Dispatch was running when the host %s',
+    async (_case, cancelled, turnAfterCancel, interrupt) => {
+      const cancel = vi.fn(async () => {
+        activeTurn = turnAfterCancel
+        return { ok: true, replayed: false, fence: 3, value: { cancelled } }
+      })
       installStructuredHost('local', cancel)
       const dispatchId = await dispatchTask(createTask('structured stop'), structuredWorker())
 
-      await expect(
-        call('orchestration.workerStop', { dispatch: dispatchId })
-      ).resolves.toMatchObject({ state: 'stopped', processAction: 'none', interrupt: { outcome } })
+      const stopped = await call('orchestration.workerStop', { dispatch: dispatchId })
+      expect(stopped).toMatchObject({ state: 'stopped', processAction: 'none', interrupt })
+      expect(stopped).toHaveProperty(
+        'warning',
+        turnAfterCancel === null
+          ? expect.not.stringContaining('may still be running')
+          : expect.stringContaining('may still be running')
+      )
       expect(cancel).toHaveBeenCalledTimes(1)
       expect(cancel).toHaveBeenCalledWith(
         { callerKey: `trusted-local:orchestration:${dispatchId}` },

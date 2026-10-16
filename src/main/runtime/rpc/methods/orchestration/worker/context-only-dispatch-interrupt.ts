@@ -54,8 +54,15 @@ export async function interruptContextOnlyStructuredWorker(
     if (!result.ok) {
       return notInterrupted(result.refusal.message)
     }
-    // Not cancelled: the named turn ended before the host reached it.
-    return { outcome: result.value.cancelled ? 'cancelled' : 'no_running_turn' }
+    if (result.value.cancelled) {
+      return { outcome: 'cancelled' }
+    }
+    // Why re-read: the host also answers not-cancelled when it could not confirm the stop, and
+    // keeps that turn running; only its current work shows whether the named turn ended.
+    const work = host.currentWork(sessionId)
+    return work && work.activeTurnId() !== turnId
+      ? { outcome: 'no_running_turn' }
+      : notInterrupted(`The host did not confirm that turn ${turnId} ended.`)
   } catch (error) {
     // Why caught: the stop is already committed, and its receipt must still say what happened.
     return notInterrupted(error instanceof Error ? error.message : String(error))
