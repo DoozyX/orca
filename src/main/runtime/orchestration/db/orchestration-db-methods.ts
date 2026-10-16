@@ -65,6 +65,7 @@ import type { WorkerTerminalReleaseMethods } from './worker-terminal/worker-term
 import type { StructuredPointerOperationStoreMethods } from './messages/structured-pointer-operation-store'
 import type { WorkerTerminalResourceStoreMethods } from './worker-terminal/worker-terminal-resource-store'
 import type { WorkerTerminalTransferMethods } from './worker-terminal/worker-terminal-transfer'
+import type { WorkerTerminalHandleRebindMethods } from './worker-terminal/worker-terminal-handle-rebind'
 
 export type OrchestrationDbMethods = AttemptObservationStoreMethods &
   CreateTablesMethods &
@@ -122,6 +123,7 @@ export type OrchestrationDbMethods = AttemptObservationStoreMethods &
   StructuredPointerOperationStoreMethods &
   WorkerTerminalResourceStoreMethods &
   WorkerTerminalTransferMethods &
+  WorkerTerminalHandleRebindMethods &
   WorkerTerminalReleaseMethods &
   WorkerTerminalArchiveMethods &
   WorkerTerminalListingMethods &

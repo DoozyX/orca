@@ -1,6 +1,6 @@
 import { probeWorkerOpenCodeModelLaunchSupport } from './worker-opencode-model-preflight'
 import { resolveWorkerConfiguredAgentParams } from './worker-configured-agent-preflight'
-import { waitForWorkerAgentReady } from '../../../../launched-agent-composer-readiness'
+import { waitForWorkerStartAgentReady } from './worker-start-agent-readiness'
 import type { OrcaRuntimeService } from '../../../../orca-runtime'
 import { describeTerminalWaitBlockedReason } from '../../../../../../shared/terminal-wait-blocked-reason-legacy-alias'
 import type { OrchestrationDb } from '../../../../orchestration/db'
@@ -233,11 +233,12 @@ export async function startLocalWorker(args: {
       : chat
         ? // A chat takes its task as a queued send whatever it is doing, so nothing is waited on.
           null
-        : await waitForWorkerAgentReady(runtime, terminalHandle, {
+        : await waitForWorkerStartAgentReady(runtime, setupStage, {
             agent,
             reusesTerminal: Boolean(params.terminal),
             timeoutMs: params.timeoutMs ?? 60_000
           })
+    terminalHandle = setupStage.terminalHandle
     if (wait) {
       persistWorkerSetupWaitOutcome({ ...setupStage, wait })
       if (!wait.satisfied) {

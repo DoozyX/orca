@@ -237,6 +237,125 @@ export function registerWorkerStartTerminalTargetTests(): void {
     })
   })
 
+  // #29: a session-graph reload remints a live pane's handle while worker-start waits on it.
+  describe('a worker start whose pane is reminted while it waits for the agent', () => {
+    const h = createOrchestrationWorkerReleaseHarness()
+    afterEach(() => h.cleanup())
+    const WORKER_INCARNATION = 'runtime_test:term_worker:1'
+
+    function remintDuringReadiness(pane: { handle: string | null; incarnation: string | null }) {
+      h.setup()
+      vi.spyOn(h.runtime, 'getTerminalHandleForPaneKey').mockImplementation((paneKey) =>
+        paneKey === h.workerPaneKey ? pane.handle : null
+      )
+      vi.mocked(h.runtime.getTerminalProcessIncarnation).mockImplementation((handle) =>
+        handle === 'term_worker'
+          ? WORKER_INCARNATION
+          : handle === pane.handle
+            ? pane.incarnation
+            : null
+      )
+      vi.mocked(h.runtime.waitForTerminal)
+        .mockRejectedValueOnce(new Error('terminal_handle_stale'))
+        .mockResolvedValueOnce({
+          handle: 'term_reminted',
+          condition: 'tui-idle',
+          satisfied: true,
+          status: 'running',
+          exitCode: null
+        })
+    }
+
+    async function start(): Promise<{ dispatchId: string } & Record<string, unknown>> {
+      const task = h.db.createTask({ spec: 'reminted pane', runId: h.activeRunId })
+      const result = await h.call('orchestration.workerStart', {
+        task: task.id,
+        from: 'term_coord',
+        agent: 'codex'
+      })
+      expect(result).toMatchObject({ dispatchId: expect.any(String) })
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: asserted to carry a dispatchId just above.
+      return result as { dispatchId: string } & Record<string, unknown>
+    }
+
+    it('waits once more on the same process under its new handle and binds the worker to it', async () => {
+      remintDuringReadiness({ handle: 'term_reminted', incarnation: WORKER_INCARNATION })
+
+      const result = await start()
+
+      expect(result).toMatchObject({ state: 'ready', residualResources: [] })
+      expect(h.runtime.waitForTerminal).toHaveBeenCalledTimes(2)
+      expect(h.runtime.waitForTerminal).toHaveBeenLastCalledWith(
+        'term_reminted',
+        expect.objectContaining({ condition: 'tui-idle' })
+      )
+      expect(h.db.getWorkerTerminalResourceByOwner(result.dispatchId)?.terminal_handle).toBe(
+        'term_reminted'
+      )
+      expect(h.db.getWorkerDispatch(result.dispatchId)?.agent_terminal_handle).toBe('term_reminted')
+      expect(h.db.getDispatchContextById(result.dispatchId)?.assignee_handle).toBe('term_reminted')
+    })
+
+    it.each([
+      ['another process', { handle: 'term_reminted', incarnation: 'runtime_test:term_worker:2' }],
+      ['no terminal', { handle: null, incarnation: null }]
+    ])('fails at agent readiness as before when the pane now holds %s', async (_label, pane) => {
+      remintDuringReadiness(pane)
+
+      const result = await start()
+
+      expect(result).toMatchObject({
+        state: 'failed',
+        failedStage: 'agent_readiness',
+        lastError: 'terminal_handle_stale'
+      })
+      expect(h.runtime.waitForTerminal).toHaveBeenCalledTimes(1)
+      expect(h.db.getWorkerTerminalResourceByOwner(result.dispatchId)?.terminal_handle).toBe(
+        'term_worker'
+      )
+    })
+
+    it('moves a custody row only for its own Dispatch, old handle and process', async () => {
+      h.setup()
+      const { dispatchId } = await h.startWorker({ agent: 'codex' })
+      const rebind = (
+        params: Partial<Parameters<typeof h.db.rebindWorkerTerminalResourceHandle>[0]>
+      ) =>
+        h.db.rebindWorkerTerminalResourceHandle({
+          dispatchId,
+          fromHandle: 'term_worker',
+          toHandle: 'term_reminted',
+          processIncarnation: WORKER_INCARNATION,
+          ...params
+        })
+
+      expect(rebind({ dispatchId: 'ctx_other' })).toBe(false)
+      expect(rebind({ fromHandle: 'term_other' })).toBe(false)
+      expect(rebind({ processIncarnation: 'runtime_test:term_worker:2' })).toBe(false)
+      expect(h.db.getWorkerTerminalResourceByOwner(dispatchId)?.terminal_handle).toBe('term_worker')
+      expect(rebind({})).toBe(true)
+      expect(h.db.getWorkerTerminalResourceByOwner(dispatchId)?.terminal_handle).toBe(
+        'term_reminted'
+      )
+    })
+
+    it('fails when the new handle goes stale too, without a third wait', async () => {
+      remintDuringReadiness({ handle: 'term_reminted', incarnation: WORKER_INCARNATION })
+      vi.mocked(h.runtime.waitForTerminal)
+        .mockReset()
+        .mockRejectedValue(new Error('terminal_handle_stale'))
+
+      const result = await start()
+
+      expect(result).toMatchObject({
+        state: 'failed',
+        failedStage: 'agent_readiness',
+        lastError: 'terminal_handle_stale'
+      })
+      expect(h.runtime.waitForTerminal).toHaveBeenCalledTimes(2)
+    })
+  })
+
   describe('composer-marker first dispatch readiness', () => {
     const h = createOrchestrationWorkerReleaseHarness()
     afterEach(() => h.cleanup())

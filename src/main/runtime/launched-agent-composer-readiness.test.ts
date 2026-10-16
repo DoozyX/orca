@@ -19,9 +19,11 @@ import {
 import {
   getLaunchedAgentReadinessLane,
   waitForLaunchedAgentComposer,
+  waitForWorkerAgentReadyRebinding,
   workerStartReadsComposerMarker,
   type LaunchedAgentReadinessLane,
-  type LaunchedAgentReadinessRuntime
+  type LaunchedAgentReadinessRuntime,
+  type WorkerAgentReadinessRebindRuntime
 } from './launched-agent-composer-readiness'
 import { waitForWorktreeStartupDraft } from './runtime-worktree-startup-readiness'
 
@@ -345,5 +347,98 @@ describe('launched composer readiness for agents the idle evidence can also read
     h.settleIdle(READY)
 
     await expect(ready).resolves.toEqual(READY)
+  })
+})
+
+// #29: a graph reload can remint a live pane's handle while worker-start waits on it.
+describe('the worker readiness wait across a reminted handle', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  const READY: RuntimeTerminalWait = {
+    handle: 'term_reminted',
+    condition: 'tui-idle',
+    satisfied: true,
+    status: 'running',
+    exitCode: null
+  }
+
+  function rebindRuntime(options: { remintedTo: string | null; incarnation: string | null }) {
+    const runtime: WorkerAgentReadinessRebindRuntime = {
+      waitForTerminal: vi.fn(),
+      waitForFreshWorkerComposer: vi.fn(),
+      getTerminalHandleForPaneKey: vi.fn((paneKey: string) =>
+        paneKey === 'pane_worker' ? options.remintedTo : null
+      ),
+      getTerminalProcessIncarnation: vi.fn((handle: string) =>
+        handle === options.remintedTo ? options.incarnation : null
+      )
+    }
+    return runtime
+  }
+
+  const args = {
+    agent: 'codex',
+    reusesTerminal: false,
+    timeoutMs: 60_000,
+    paneKey: 'pane_worker',
+    processIncarnation: 'inc_1'
+  } as const
+
+  it('waits once more on the same process under its new handle, for what is left', async () => {
+    vi.useFakeTimers()
+    const runtime = rebindRuntime({ remintedTo: 'term_reminted', incarnation: 'inc_1' })
+    vi.mocked(runtime.waitForTerminal)
+      .mockImplementationOnce(
+        () =>
+          new Promise((_resolve, reject) =>
+            setTimeout(() => reject(new Error('terminal_handle_stale')), 1_500)
+          )
+      )
+      .mockResolvedValueOnce(READY)
+
+    const pending = waitForWorkerAgentReadyRebinding(runtime, 'term_worker', args)
+    await vi.advanceTimersByTimeAsync(1_500)
+
+    await expect(pending).resolves.toEqual({ wait: READY, handle: 'term_reminted' })
+    expect(runtime.waitForTerminal).toHaveBeenCalledTimes(2)
+    expect(runtime.waitForTerminal).toHaveBeenLastCalledWith(
+      'term_reminted',
+      expect.objectContaining({ condition: 'tui-idle', timeoutMs: 58_500 })
+    )
+  })
+
+  it.each([
+    ['another process', { remintedTo: 'term_reminted', incarnation: 'inc_2' }],
+    ['no handle', { remintedTo: null, incarnation: null }]
+  ] as const)('fails as before when the pane now holds %s', async (_label, pane) => {
+    const runtime = rebindRuntime(pane)
+    vi.mocked(runtime.waitForTerminal).mockRejectedValue(new Error('terminal_handle_stale'))
+
+    await expect(waitForWorkerAgentReadyRebinding(runtime, 'term_worker', args)).rejects.toThrow(
+      'terminal_handle_stale'
+    )
+    expect(runtime.waitForTerminal).toHaveBeenCalledTimes(1)
+  })
+
+  it('re-resolves at most once', async () => {
+    const runtime = rebindRuntime({ remintedTo: 'term_reminted', incarnation: 'inc_1' })
+    vi.mocked(runtime.waitForTerminal).mockRejectedValue(new Error('terminal_handle_stale'))
+
+    await expect(waitForWorkerAgentReadyRebinding(runtime, 'term_worker', args)).rejects.toThrow(
+      'terminal_handle_stale'
+    )
+    expect(runtime.waitForTerminal).toHaveBeenCalledTimes(2)
+  })
+
+  it('never re-resolves a wait that failed for another reason', async () => {
+    const runtime = rebindRuntime({ remintedTo: 'term_reminted', incarnation: 'inc_1' })
+    vi.mocked(runtime.waitForTerminal).mockRejectedValue(new Error('timeout'))
+
+    await expect(waitForWorkerAgentReadyRebinding(runtime, 'term_worker', args)).rejects.toThrow(
+      'timeout'
+    )
+    expect(runtime.getTerminalHandleForPaneKey).not.toHaveBeenCalled()
   })
 })
