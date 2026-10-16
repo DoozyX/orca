@@ -8,6 +8,7 @@ vi.mock('./use-status-bar-controller', () => ({
     anyVisible: true,
     isEmptyUsageState: false,
     rosterProviders: [],
+    usageEntries: [],
     collapsedUsageProviders: [],
     statusBarUsageMode: 'compact',
     usagePercentageDisplay: 'used',

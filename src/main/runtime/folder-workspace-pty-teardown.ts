@@ -34,3 +34,23 @@ export async function teardownFolderWorkspacePtys(
     console.warn(`[worktree-teardown] failed for ${worktreeId}:`, error)
   })
 }
+
+/** The sweep over a runtime that is itself the teardown host. */
+export function teardownRuntimeFolderWorkspacePtys(
+  runtime: WorktreeTeardownRuntime &
+    Pick<FolderWorkspacePtyTeardownDeps, 'onPtyStopped'> & {
+      getLocalProvider: FolderWorkspacePtyTeardownDeps['getLocalProvider']
+    },
+  worktreeId: string,
+  connectionId: string | null
+): Promise<void> {
+  return teardownFolderWorkspacePtys(
+    {
+      runtime,
+      getLocalProvider: () => runtime.getLocalProvider(),
+      onPtyStopped: runtime.onPtyStopped
+    },
+    worktreeId,
+    connectionId
+  )
+}

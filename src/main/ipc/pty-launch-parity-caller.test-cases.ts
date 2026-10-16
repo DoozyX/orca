@@ -28,7 +28,7 @@ const rpc = (
   params: Record<string, unknown>
 ): HostLaunchCall => ({ kind: 'rpc', method, params })
 const POSIX_CLAUDE = "claude '--dangerously-skip-permissions'"
-const CODEX = "codex '--dangerously-bypass-approvals-and-sandbox'"
+const CODEX = "codex --no-daemon '--dangerously-bypass-approvals-and-sandbox'"
 
 // Row 7: the terminal.createAgentSession params a paired desktop's new tab sends a current host.
 // main today: command, env, launchConfig and startupCommandDelivery never reach the host; agentArgs

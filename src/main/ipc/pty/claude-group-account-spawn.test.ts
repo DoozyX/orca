@@ -94,6 +94,8 @@ async function spawnOptions(
         provenance: 'personal'
       },
     assertFolderWorkspacePtyPathUsable: () => undefined,
+    assertWorkspaceAcceptsNewPty: () => undefined,
+    adoptStablePane: async () => null,
     resolvePtySpawnStartupCwd: (_id: unknown, cwd: string | undefined) => cwd,
     transitionSpawnHiddenRendererPtyDeliveryState: () => {},
     prepareCodexResumeHome: () => null,

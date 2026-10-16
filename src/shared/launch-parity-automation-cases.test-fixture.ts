@@ -30,7 +30,7 @@ const SKIP = '--dangerously-skip-permissions'
 const POSIX_CLAUDE = `claude '${SKIP}'`
 const posix = { command: `${POSIX_CLAUDE} 'don'"'"'t stop'`, agentCommand: POSIX_CLAUDE }
 const powershell = { command: `${POSIX_CLAUDE} 'don''t stop'`, agentCommand: POSIX_CLAUDE }
-const CODEX = "codex '--dangerously-bypass-approvals-and-sandbox'"
+const CODEX = "codex --no-daemon '--dangerously-bypass-approvals-and-sandbox'"
 const AGENT_COMMAND = {
   codex: { command: `${CODEX} 'don'"'"'t stop'`, agentCommand: CODEX },
   aider: { command: "aider '--yes-always'", agentCommand: "aider '--yes-always'" }

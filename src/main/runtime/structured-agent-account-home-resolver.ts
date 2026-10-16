@@ -1,10 +1,8 @@
 import type { AgentSessionExecutionLocation } from '../../shared/agent-session-record'
 import type { AgentSessionAccountHome } from '../../shared/agent-session-account-home'
 import type { StructuredAgentId } from '../../shared/agent-session-provider-handle'
-import {
-  structuredAgentRuntimeRegistration,
-  type StructuredAgentAccountHomeServices
-} from './structured-agent-runtime-registrations'
+import { structuredAgentRuntimeMetadata } from './structured-agent-runtime-metadata'
+import type { StructuredAgentAccountHomeServices } from './structured-agent-runtime-registration-types'
 
 /** Where a launch of `agent` finds its account, resolved on this host by the agent's own
  *  registration; null for an agent this runtime does not register, whose create is refused. */
@@ -20,7 +18,7 @@ export function structuredAgentAccountHomeResolver(input: {
       location: AgentSessionExecutionLocation | null
     }) => Promise<AgentSessionAccountHome>)
   | null {
-  const registration = structuredAgentRuntimeRegistration(input.agent)
+  const registration = structuredAgentRuntimeMetadata(input.agent)
   if (!registration) {
     return null
   }
