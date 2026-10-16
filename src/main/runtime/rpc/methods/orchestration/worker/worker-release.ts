@@ -5,8 +5,7 @@ import { releaseFederatedWorker } from '../federation/federated-worker-release'
 import { ORCHESTRATION_WORKER_LIST_METHOD } from './worker-list-method'
 import { resolvePinnedFederatedServer } from './worker-observation'
 import { archiveSummary, completeWorkerTerminalRelease } from './worker-release-completion'
-import type { WorkerReleaseReceipt } from './worker-release-receipt'
-import { takeoverReceiptField } from './worker-terminal-resource-presentation'
+import { retainedReleaseGuidance, type WorkerReleaseReceipt } from './worker-release-receipt'
 import {
   WorkerDispatchParams,
   WorkerRetainParams
@@ -39,12 +38,18 @@ export const ORCHESTRATION_WORKER_RELEASE_METHODS = [
         })
       }
       const requested = db.requestWorkerTerminalRelease(params.dispatch)
+      // A former owner's release acts through the Dispatch that owns the terminal now.
+      const actingDispatchId = requested.resolvedDispatchId ?? params.dispatch
+      const resolved = requested.resolvedDispatchId
+        ? { resolvedDispatchId: requested.resolvedDispatchId }
+        : {}
       if (requested.disposition === 'already_released') {
         return {
           dispatchId: params.dispatch,
           state: 'already_released',
           processAction: 'none',
-          archive: archiveSummary(requested.resource)
+          archive: archiveSummary(requested.resource),
+          ...resolved
         }
       }
       if (requested.disposition === 'retained') {
@@ -58,17 +63,18 @@ export const ORCHESTRATION_WORKER_RELEASE_METHODS = [
           )) === 'exited'
         ) {
           const reconciled = db.settleDeadWorkerTerminalRelease({
-            requestingDispatchId: params.dispatch,
+            requestingDispatchId: actingDispatchId,
             resourceId: resource.id,
             processIncarnation
           })
           if (reconciled.disposition === 'released') {
-            runtime.notifyMessageArrived(`dispatch:${params.dispatch}`, 'status')
+            runtime.notifyMessageArrived(`dispatch:${actingDispatchId}`, 'status')
             return {
               dispatchId: params.dispatch,
               state: 'released',
               processAction: 'none',
-              archive: archiveSummary(reconciled.resource)
+              archive: archiveSummary(reconciled.resource),
+              ...resolved
             }
           }
         }
@@ -78,15 +84,21 @@ export const ORCHESTRATION_WORKER_RELEASE_METHODS = [
           reason: requested.reason,
           processAction: 'none',
           archive: archiveSummary(resource),
-          ...(resource ? takeoverReceiptField(resource) : {})
+          ...resolved,
+          ...retainedReleaseGuidance(db, {
+            dispatchId: params.dispatch,
+            resource,
+            currentOwner: requested.currentOwner
+          })
         }
       }
-      return completeWorkerTerminalRelease({
+      const receipt = await completeWorkerTerminalRelease({
         runtime,
         db,
-        dispatchId: params.dispatch,
+        dispatchId: actingDispatchId,
         resource: requested.resource
       })
+      return { ...receipt, dispatchId: params.dispatch, ...resolved }
     }
   }),
   defineMethod({

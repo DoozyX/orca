@@ -33,9 +33,18 @@ export function registerWorkerReleaseInventoryTests(): void {
       expect(newRelease.state).toBe('released')
       expect(h.runtime.closeTerminal).toHaveBeenCalledTimes(1)
       expect(h.runtime.closeTerminal).toHaveBeenCalledWith('term_reminted')
+
+      await expect(
+        h.call('orchestration.workerRelease', { dispatch: first.dispatchId })
+      ).resolves.toMatchObject({
+        state: 'already_released',
+        processAction: 'none',
+        resolvedDispatchId: second.dispatchId
+      })
+      expect(h.runtime.closeTerminal).toHaveBeenCalledTimes(1)
     })
 
-    it('refuses to settle dead transferred ownership with no durable archive', async () => {
+    it('settles dead transferred ownership through its settled owner with an archive', async () => {
       h.setup()
       const first = await h.startSettledWorker('succeeded')
       const second = await h.startWorker({ terminal: 'term_reminted' })
@@ -45,18 +54,37 @@ export function registerWorkerReleaseInventoryTests(): void {
       await expect(
         h.call('orchestration.workerRelease', { dispatch: first.dispatchId })
       ).resolves.toMatchObject({
-        state: 'retained',
-        reason: 'ownership_transferred',
-        processAction: 'none'
+        dispatchId: first.dispatchId,
+        state: 'released',
+        resolvedDispatchId: second.dispatchId,
+        archive: { status: 'captured' }
       })
-      expect(h.inspectProcessLiveness).toHaveBeenCalledWith(
-        'runtime_test:term_worker:1',
-        JSON.stringify({ kind: 'local', hostId: 'local' })
+      expect(h.db.getWorkerTerminalResourceByOwner(second.dispatchId)).toMatchObject({
+        release_state: 'released',
+        archive_status: 'captured'
+      })
+    })
+
+    it('names the user takeover that keeps an external reuse from releasing', async () => {
+      h.setup()
+      const first = await h.startSettledWorker('succeeded')
+      await h.call('orchestration.workerTerminalUserInput', { paneKey: h.workerPaneKey })
+      const second = await h.startSettledWorker('succeeded', { terminal: 'term_worker' })
+      expect(h.db.getWorkerTerminalResourceByOwner(second.dispatchId)?.ownership_state).toBe(
+        'external'
       )
+
+      await expect(
+        h.call('orchestration.workerRelease', { dispatch: second.dispatchId })
+      ).resolves.toMatchObject({
+        state: 'retained',
+        reason: 'external_terminal',
+        processAction: 'none',
+        currentOwnerDispatchId: first.dispatchId,
+        takeover: { source: 'desktop_terminal_input', at: expect.any(String) },
+        recovery: expect.stringContaining(`worker-show --dispatch ${first.dispatchId}`)
+      })
       expect(h.runtime.closeTerminal).not.toHaveBeenCalled()
-      expect(h.db.getWorkerTerminalResourceByOwner(second.dispatchId)?.release_state).not.toBe(
-        'released'
-      )
     })
 
     it('rejects exact reuse after release intent instead of closing the new worker', async () => {

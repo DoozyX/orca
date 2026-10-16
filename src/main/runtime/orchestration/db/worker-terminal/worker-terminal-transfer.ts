@@ -61,22 +61,43 @@ export function workerTerminalResourceHasIdentityConflict(
   if (!resource?.pane_key || !resource.process_incarnation) {
     return true
   }
-  const candidates = this.db
+  return workerTerminalIdentityPeers(this, resource).length > 0
+}
+
+/** Who holds the terminal an external row only reused: a user takeover first, else an Orca owner. */
+export function findWorkerTerminalCustodian(
+  this: OrchestrationDb,
+  resource: WorkerTerminalResourceRow
+): WorkerTerminalResourceRow | undefined {
+  const peers = workerTerminalIdentityPeers(this, resource)
+  return (
+    peers.find((peer) => peer.ownership_state === 'user_owned') ??
+    peers.find((peer) => peer.ownership_state === 'owned')
+  )
+}
+
+/** Other unreleased rows for the same pane and process; none for a row without that identity. */
+function workerTerminalIdentityPeers(
+  db: OrchestrationDb,
+  resource: WorkerTerminalResourceRow
+): WorkerTerminalResourceRow[] {
+  const { pane_key: paneKey, process_incarnation: processIncarnation } = resource
+  if (!paneKey || !processIncarnation) {
+    return []
+  }
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: SELECT * over this table is exactly its row shape.
+  const candidates = db.db
     .prepare(
       `SELECT * FROM worker_terminal_resources
         WHERE process_incarnation = ? AND host_scope IS ?
           AND id != ? AND ownership_state != 'released'`
     )
-    .all(
-      resource.process_incarnation,
-      resource.host_scope,
-      resource.id
-    ) as WorkerTerminalResourceRow[]
-  return candidates.some(
+    .all(processIncarnation, resource.host_scope, resource.id) as WorkerTerminalResourceRow[]
+  return candidates.filter(
     (candidate) =>
       candidate.pane_key &&
-      isEquivalentPaneKey(candidate.pane_key, resource.pane_key as string) &&
-      candidate.process_incarnation === resource.process_incarnation &&
+      isEquivalentPaneKey(candidate.pane_key, paneKey) &&
+      candidate.process_incarnation === processIncarnation &&
       candidate.host_scope === resource.host_scope
   )
 }
@@ -98,6 +119,7 @@ export function listWorkerTerminalResourcesByIncarnationPrefix(
 export type WorkerTerminalTransferMethods = {
   findTransferableWorkerTerminalResource: typeof findTransferableWorkerTerminalResource
   workerTerminalResourceHasIdentityConflict: typeof workerTerminalResourceHasIdentityConflict
+  findWorkerTerminalCustodian: typeof findWorkerTerminalCustodian
   listWorkerTerminalResourcesByIncarnationPrefix: typeof listWorkerTerminalResourcesByIncarnationPrefix
 }
 
@@ -105,6 +127,7 @@ export function attachWorkerTerminalTransfer(ctor: { prototype: object }): void 
   Object.assign(ctor.prototype, {
     findTransferableWorkerTerminalResource,
     workerTerminalResourceHasIdentityConflict,
+    findWorkerTerminalCustodian,
     listWorkerTerminalResourcesByIncarnationPrefix
   })
 }

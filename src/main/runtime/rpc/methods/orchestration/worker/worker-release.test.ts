@@ -105,6 +105,74 @@ describe('orchestration worker release', () => {
     expect(h.runtime.closeTerminal).not.toHaveBeenCalled()
   })
 
+  it('releases a former owner through the Dispatch that now owns its terminal', async () => {
+    h.setup()
+    const first = await h.startSettledWorker('succeeded')
+    const second = await h.startWorker({ terminal: 'term_reminted' })
+    h.settle(second.taskId, second.dispatchId, 'succeeded')
+
+    await expect(
+      h.call('orchestration.workerRelease', { dispatch: first.dispatchId })
+    ).resolves.toMatchObject({
+      dispatchId: first.dispatchId,
+      state: 'released',
+      processAction: 'closed_agent_terminal',
+      resolvedDispatchId: second.dispatchId
+    })
+    expect(h.runtime.closeTerminal).toHaveBeenCalledTimes(1)
+    expect(h.runtime.closeTerminal).toHaveBeenCalledWith('term_reminted')
+    await expect(
+      h.call('orchestration.workerRelease', { dispatch: second.dispatchId })
+    ).resolves.toMatchObject({ state: 'already_released', processAction: 'none' })
+    expect(h.runtime.closeTerminal).toHaveBeenCalledTimes(1)
+  })
+
+  it('names the still-active Dispatch that now owns a former owner terminal', async () => {
+    h.setup()
+    const first = await h.startSettledWorker('succeeded')
+    const second = await h.startWorker({ terminal: 'term_reminted' })
+
+    await expect(
+      h.call('orchestration.workerRelease', { dispatch: first.dispatchId })
+    ).resolves.toMatchObject({
+      state: 'retained',
+      reason: 'ownership_transferred',
+      processAction: 'none',
+      currentOwnerDispatchId: second.dispatchId,
+      recovery: expect.stringContaining(`worker-release --dispatch ${second.dispatchId}`)
+    })
+    expect(h.runtime.closeTerminal).not.toHaveBeenCalled()
+  })
+
+  it('does not follow terminal ownership into another Run', async () => {
+    h.setup()
+    const first = await h.startSettledWorker('succeeded')
+    const second = await h.startWorker({ terminal: 'term_reminted' })
+    h.settle(second.taskId, second.dispatchId, 'succeeded')
+    const otherRun = h.db.createRun({
+      objective: 'Other Run',
+      coordinatorHandle: 'term_other_coord',
+      coordinatorPaneKey: 'tab_other:aaaaaaaa-aaaa-4aaa-8aaa-00000000000f'
+    }).id
+    h.db.db
+      .prepare('UPDATE dispatch_contexts SET run_id = ? WHERE id = ?')
+      .run(otherRun, second.dispatchId)
+    h.db.db.prepare('UPDATE tasks SET run_id = ? WHERE id = ?').run(otherRun, second.taskId)
+
+    await expect(
+      h.call('orchestration.workerRelease', { dispatch: first.dispatchId })
+    ).resolves.toMatchObject({
+      state: 'retained',
+      reason: 'ownership_transferred',
+      currentOwnerDispatchId: second.dispatchId,
+      recovery: expect.stringContaining(`--dispatch ${second.dispatchId} --run ${otherRun}`)
+    })
+    expect(h.runtime.closeTerminal).not.toHaveBeenCalled()
+    expect(h.db.getWorkerTerminalResourceByOwner(second.dispatchId)?.release_state).toBe(
+      'not_requested'
+    )
+  })
+
   it('retains a dead external terminal the orchestration never owned', async () => {
     h.setup()
     const { dispatchId } = await h.startSettledWorker('succeeded', { terminal: 'term_worker' })
