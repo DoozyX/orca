@@ -19,7 +19,7 @@ export async function resolveOrchestrationTerminalHandle(
   cwd: string,
   client: RuntimeClient,
   flagName: 'from' | 'terminal',
-  options: { validateEnvHandle?: boolean } = {}
+  options: { validateEnvHandle?: boolean; refuseGuess?: boolean } = {}
 ): Promise<string | undefined> {
   // A caller flag naming anyone else was already refused at the CLI entry, from the command's spec.
   const explicit = getOptionalStringFlag(flags, flagName)
@@ -54,6 +54,9 @@ export async function resolveOrchestrationTerminalHandle(
     throw structuredSessionRefusal(flagName)
   }
   if (flagName === 'from') {
+    if (options.refuseGuess) {
+      throwNoActiveSenderTerminal()
+    }
     return await resolveImplicitOrchestrationSender(flags, cwd, client)
   }
   return await getTerminalHandle(flags, cwd, client)
@@ -187,13 +190,20 @@ export function runScopedSessionCaller(flags: Map<string, string | boolean>): st
   return declared && sessionId ? sessionAddressForHost(declared, sessionId) : undefined
 }
 
+/**
+ * `refuseGuess` is for verbs that bind a Run or bake the coordinator into a worker preamble: the cwd
+ * guess sees only the worktree's pane leaves, so it can bind an idle shell in place of a live
+ * coordinator it cannot see (#30). Read-only and host-fenced verbs keep the guess.
+ */
 export async function resolveCoordinatorTerminalHandle(
   flags: Map<string, string | boolean>,
   cwd: string,
-  client: RuntimeClient
+  client: RuntimeClient,
+  options: { refuseGuess?: boolean } = {}
 ): Promise<string | undefined> {
   return await resolveOrchestrationTerminalHandle(flags, cwd, client, 'from', {
-    validateEnvHandle: true
+    validateEnvHandle: true,
+    ...options
   })
 }
 

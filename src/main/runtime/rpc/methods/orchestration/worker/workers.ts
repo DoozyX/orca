@@ -13,7 +13,11 @@ import {
   resolveWorkerStartReadinessTimeoutMs
 } from '../../../../../../shared/orchestration-timing-budgets'
 import { assertWorkerStartTaskSpecWithinPromptBudget } from './worker-start-prompt-budget'
-import { ORCA_SESSION_ADDRESS_PREFIX } from '../../../../../../shared/orca-session-address'
+import {
+  ORCA_SESSION_ADDRESS_PREFIX,
+  formatOrcaSessionAddress
+} from '../../../../../../shared/orca-session-address'
+import type { OrchestrationDb } from '../../../../orchestration/db'
 import { ORCHESTRATION_SESSION_CALLER_ERROR_CODES as SESSION_CODES } from '../../../../../../shared/orchestration-session-caller-codes'
 
 export const ORCHESTRATION_WORKER_START_METHODS = [
@@ -40,10 +44,7 @@ export const ORCHESTRATION_WORKER_START_METHODS = [
       })
       const run = coordinator ? db.getCurrentRunForCoordinator(coordinator) : undefined
       if (!run || (params.run && params.run !== run.id)) {
-        throw new OrchestrationError(
-          'consumer_fenced',
-          'worker-start requires the coordinator terminal currently bound to the Task Run.'
-        )
+        throw new OrchestrationError('consumer_fenced', unboundCallerRefusal(db, params))
       }
       const existingTask = params.task ? db.getTask(params.task) : undefined
       if (params.task && (!existingTask || existingTask.run_id !== run.id)) {
@@ -93,3 +94,26 @@ export const ORCHESTRATION_WORKER_START_METHODS = [
     }
   })
 ]
+
+/** Names who holds the Task Run and how its coordinator takes it back (#30). */
+function unboundCallerRefusal(
+  db: OrchestrationDb,
+  params: { run?: string; task?: string; from?: string }
+): string {
+  const refusal = 'worker-start requires the coordinator terminal currently bound to the Task Run.'
+  const runId = params.run ?? (params.task ? db.getTask(params.task)?.run_id : undefined)
+  const target = runId ? db.getRun(runId) : undefined
+  if (!target) {
+    return refusal
+  }
+  const bound =
+    target.coordinator_handle ??
+    (target.coordinator_orca_session_id
+      ? formatOrcaSessionAddress(target.coordinator_orca_session_id)
+      : null)
+  return (
+    `${refusal} Run ${target.id} is ${bound ? `bound to ${bound}` : 'bound to no coordinator'}. ` +
+    `If you are its coordinator, bind it to you with: orca orchestration run-use --id ${target.id}` +
+    `${params.from ? ` --from ${params.from}` : ''}`
+  )
+}

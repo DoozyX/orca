@@ -10,7 +10,7 @@ import { injectedSessionAddress } from '../../../shared/agent-session-caller-env
 
 export const ORCHESTRATION_DISPATCH_HANDLER: Record<string, CommandHandler> = {
   'orchestration dispatch': async ({ flags, client, cwd, json }) => {
-    const from = await resolveCoordinatorTerminalHandle(flags, cwd, client)
+    const from = await resolveCoordinatorTerminalHandle(flags, cwd, client, { refuseGuess: true })
     const dryRun = flags.has('dry-run') ? true : undefined
     const returnPreamble = flags.has('return-preamble') ? true : undefined
     // Why: --to is only required for non-dry-run; the RPC handler re-enforces.

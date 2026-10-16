@@ -102,6 +102,40 @@ describe('orchestration RPC methods', () => {
       expect(db.getDispatchContext(task.id)).toBeUndefined()
     })
 
+    // #30: an idle shell bound in place of the live coordinator learned nothing from this refusal.
+    it('names the Task Run, its bound coordinator and the rebind command when the caller is not bound', async () => {
+      setup()
+      mockCurrentWorkerStart()
+      const task = db.createTask({ spec: 'idle shell caller' })
+
+      const refusal = call('orchestration.workerStart', {
+        task: task.id,
+        from: 'term_idle_shell',
+        agent: 'codex'
+      })
+
+      await expect(refusal).rejects.toMatchObject({
+        code: 'consumer_fenced',
+        message: expect.stringContaining(`Run ${task.run_id} is bound to term_coord`)
+      })
+      await expect(refusal).rejects.toThrow(
+        `orca orchestration run-use --id ${task.run_id} --from term_idle_shell`
+      )
+      expect(db.getDispatchContext(task.id)).toBeUndefined()
+    })
+
+    it('keeps the plain refusal when no Task Run is named', async () => {
+      setup()
+      mockCurrentWorkerStart()
+
+      await expect(
+        call('orchestration.workerStart', { spec: 'new work', from: 'term_idle_shell' })
+      ).rejects.toMatchObject({
+        code: 'consumer_fenced',
+        message: 'worker-start requires the coordinator terminal currently bound to the Task Run.'
+      })
+    })
+
     it('deliberately permits present but unverifiable restored-terminal evidence', async () => {
       setup()
       mockCurrentWorkerStart()

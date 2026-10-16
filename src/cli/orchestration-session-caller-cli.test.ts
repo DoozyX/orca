@@ -643,26 +643,23 @@ describe('every orchestration verb, enumerated', () => {
   it('guesses a terminal for no verb when the session id is present', async () => {
     // Positive control first: with no identity at all the same harness sees the guess, so an empty
     // result below is about the id, not a harness that cannot observe a guess.
+    // dispatch, run-create, run-use and worker-start bind a coordinator, so they refuse instead (#30).
     setEnv({})
     const population = await verbsThatGuess()
     expect(population).toEqual([
       'ask',
       'check',
-      'dispatch',
       'dispatch-show',
       'gate-create',
       'gate-list',
       'gate-resolve',
       'reply',
-      'run-create',
       'run-current',
-      'run-use',
       'send',
       'task-create',
       'task-list',
       'task-update',
-      'worker-list',
-      'worker-start'
+      'worker-list'
     ])
 
     asSessionWithInheritedPane()
