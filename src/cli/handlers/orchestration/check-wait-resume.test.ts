@@ -19,6 +19,7 @@ const callMock = vi.fn()
 // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the check handler only uses client.call.
 const client = { call: callMock } as unknown as RuntimeClient
 const ORIGINAL_PPID = Object.getOwnPropertyDescriptor(process, 'ppid')
+const ORIGINAL_PLATFORM = Object.getOwnPropertyDescriptor(process, 'platform')
 
 const RETRY_REQUEST_ID = '0f1e2d3c-4b5a-4968-8776-655443322110'
 
@@ -304,9 +305,17 @@ describe('check --wait parent exit', () => {
     if (ORIGINAL_PPID) {
       Object.defineProperty(process, 'ppid', ORIGINAL_PPID)
     }
+    if (ORIGINAL_PLATFORM) {
+      Object.defineProperty(process, 'platform', ORIGINAL_PLATFORM)
+    }
   })
 
-  it('exits an orphaned wait so its socket closes, without resuming', async () => {
+  function runOn(platform: NodeJS.Platform): void {
+    Object.defineProperty(process, 'platform', { configurable: true, value: platform })
+  }
+
+  it('exits an orphaned POSIX wait so its socket closes, without resuming', async () => {
+    runOn('linux')
     const exit = vi.spyOn(process, 'exit').mockImplementation(() => {
       throw new ProcessExitCalled()
     })
@@ -329,6 +338,25 @@ describe('check --wait parent exit', () => {
     expect(callMock).toHaveBeenCalledWith('orchestration.check', expect.anything())
     expect(printResultMock).not.toHaveBeenCalled()
     expect(stdout).not.toHaveBeenCalled()
+  })
+
+  it('starts no parent watch and never exits a Windows wait', async () => {
+    runOn('win32')
+    const exit = vi.spyOn(process, 'exit').mockImplementation(() => {
+      throw new ProcessExitCalled()
+    })
+    const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
+    callMock.mockImplementation(() => new Promise(() => {}))
+
+    void invokeCheck(waitFlags())
+    await vi.waitFor(() => expect(callMock).toHaveBeenCalledTimes(1))
+    parentPid = 1
+    vi.advanceTimersByTime(CHECK_WAIT_PARENT_POLL_MS * 3)
+
+    expect(readParentPid).not.toHaveBeenCalled()
+    expect(exit).not.toHaveBeenCalled()
+    expect(stderr.mock.calls.some(([line]) => String(line).includes('parent_exited'))).toBe(false)
+    expect(callMock).toHaveBeenCalledTimes(1)
   })
 
   it('starts no watch for a check without --wait', async () => {
