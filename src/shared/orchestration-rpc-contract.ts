@@ -34,6 +34,8 @@ const ORCHESTRATION_MUTATION_METHODS = new Set([
   'orchestration.ask',
   'orchestration.gateCreate',
   'orchestration.gateResolve',
+  'orchestration.leaseAcquire',
+  'orchestration.leaseRelease',
   'orchestration.reset',
   'orchestration.federationAttachStart',
   'orchestration.federationAck',

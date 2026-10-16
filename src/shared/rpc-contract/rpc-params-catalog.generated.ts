@@ -412,6 +412,11 @@ import {
   RunStopParams
 } from './orchestration-gates-params'
 import {
+  LeaseAcquireParams,
+  LeaseReleaseParams,
+  LeaseShowParams
+} from './orchestration-lease-params'
+import {
   AskParams,
   CheckParams,
   DispatchParams,
@@ -1124,6 +1129,9 @@ export const RPC_PARAMS_BY_METHOD = {
   'orchestration.gateList': GateListParams,
   'orchestration.gateResolve': GateResolveParams,
   'orchestration.inbox': InboxParams,
+  'orchestration.leaseAcquire': LeaseAcquireParams,
+  'orchestration.leaseRelease': LeaseReleaseParams,
+  'orchestration.leaseShow': LeaseShowParams,
   'orchestration.partyLocation': PartyLocationParams,
   'orchestration.reply': ReplyParams,
   'orchestration.requestShow': RequestShowParams,

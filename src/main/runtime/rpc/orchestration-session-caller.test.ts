@@ -70,6 +70,9 @@ const MINIMAL_PARAMS: Readonly<Record<string, Record<string, unknown>>> = {
   'orchestration.gateCreate': { task: 'task_missing', question: 'q' },
   'orchestration.gateResolve': { id: 'gate_missing', resolution: 'r' },
   'orchestration.gateList': {},
+  'orchestration.leaseAcquire': { resource: 'sim:iphone-17-pro' },
+  'orchestration.leaseRelease': { resource: 'sim:iphone-17-pro' },
+  'orchestration.leaseShow': { resource: 'sim:iphone-17-pro' },
   'orchestration.taskCreate': { spec: 's' },
   'orchestration.taskList': {},
   'orchestration.taskUpdate': { id: 'task_missing', status: 'completed' },
@@ -101,9 +104,9 @@ describe('orchestration session callers at the dispatch entry', () => {
       })
       .sort()
 
-    // The population: 44 registered methods carrying 28 party-naming fields.
-    expect(registry.size).toBe(44)
-    expect(partyNaming).toHaveLength(28)
+    // The population: 47 registered methods carrying 31 party-naming fields.
+    expect(registry.size).toBe(47)
+    expect(partyNaming).toHaveLength(31)
     expect(partyNaming).toEqual(
       [
         ...Object.entries(ORCHESTRATION_CALLER_PARAM).map(
@@ -118,6 +121,14 @@ describe('orchestration session callers at the dispatch entry', () => {
     expect(Object.keys(MINIMAL_PARAMS).sort()).toEqual(
       Object.keys(ORCHESTRATION_CALLER_PARAM).sort()
     )
+  })
+
+  it('names the caller of every lease verb in from', () => {
+    expect(ORCHESTRATION_CALLER_PARAM).toMatchObject({
+      'orchestration.leaseAcquire': 'from',
+      'orchestration.leaseRelease': 'from',
+      'orchestration.leaseShow': 'from'
+    })
   })
 
   it.each(Object.keys(ORCHESTRATION_CALLER_PARAM))(
