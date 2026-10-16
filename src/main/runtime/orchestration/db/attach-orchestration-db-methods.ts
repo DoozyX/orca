@@ -38,6 +38,7 @@ import { attachMutationReceiptStore } from './mutation-receipts/mutation-receipt
 import { attachLifecycleTransition } from './lifecycle-transition'
 import { attachQuestionThreads } from './questions/question-threads'
 import { attachOrchestrationReset } from './reset/orchestration-reset'
+import { attachResourceLeaseStore } from './resource-lease/resource-lease-store'
 import { attachRunBinding } from './runs/run-binding'
 import { attachRunCoordinatorMailRouting } from './runs/run-coordinator-mail-routing'
 import { attachRunCreate } from './runs/run-create'
@@ -123,6 +124,7 @@ export function attachOrchestrationDbMethods(ctor: { prototype: object }): void 
   attachRemoteQuestionStore(ctor)
   attachFederationRelayItem(ctor)
   attachWorkerTerminalResourceStore(ctor)
+  attachResourceLeaseStore(ctor)
   attachWorkerTerminalTransfer(ctor)
   attachWorkerTerminalHandleRebind(ctor)
   attachWorkerTerminalRelease(ctor)

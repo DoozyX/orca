@@ -23,4 +23,5 @@ export const CURRENT_CONTRACT_VERSION = ORCHESTRATION_CONTRACT_VERSION
 // v44: deliveries.wake_types, so a typed wait builds a batch of only its types.
 // v45: worker_terminal_resources.takeover_source/takeover_at, the evidence behind user_takeover.
 // v46: decision_gates.preserved_dispatch_id, marking a recording-only gate.
-export const SCHEMA_VERSION = 46
+// v47: resource_leases and resource_lease_waiters, the shared resource lease and its queue.
+export const SCHEMA_VERSION = 47

@@ -1,5 +1,24 @@
 import { LEGACY_RUN_ID } from '../contract-constants'
 
+// v47. A waiter keeps the TTL it asked for, so its lease can be minted when it is promoted.
+export const RESOURCE_LEASE_TABLES_SQL = `
+CREATE TABLE IF NOT EXISTS resource_leases (
+  resource_key   TEXT PRIMARY KEY,
+  holder_run_id  TEXT NOT NULL,
+  acquired_at    INTEGER NOT NULL,
+  expires_at     INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS resource_lease_waiters (
+  resource_key  TEXT NOT NULL,
+  run_id        TEXT NOT NULL,
+  position      INTEGER NOT NULL,
+  ttl_ms        INTEGER NOT NULL,
+  enqueued_at   INTEGER NOT NULL,
+  PRIMARY KEY (resource_key, run_id)
+);
+`
+
 export function createCoreTablesSql(): string {
   return `
 CREATE TABLE IF NOT EXISTS runs (
@@ -228,6 +247,6 @@ CREATE TABLE IF NOT EXISTS worker_terminal_archives (
   content       TEXT NOT NULL,
   created_at    TEXT NOT NULL DEFAULT (datetime('now'))
 );
-
+${RESOURCE_LEASE_TABLES_SQL}
   `
 }

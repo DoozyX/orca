@@ -37,6 +37,7 @@ import type { MutationReceiptStoreMethods } from './mutation-receipts/mutation-r
 import type { LifecycleTransitionMethods } from './lifecycle-transition'
 import type { QuestionThreadsMethods } from './questions/question-threads'
 import type { OrchestrationResetMethods } from './reset/orchestration-reset'
+import type { ResourceLeaseStoreMethods } from './resource-lease/resource-lease-store'
 import type { RunBindingMethods } from './runs/run-binding'
 import type { RunCoordinatorMailRoutingMethods } from './runs/run-coordinator-mail-routing'
 import type { RunCreateMethods } from './runs/run-create'
@@ -122,6 +123,7 @@ export type OrchestrationDbMethods = AttemptObservationStoreMethods &
   FederationRelayItemMethods &
   StructuredPointerOperationStoreMethods &
   WorkerTerminalResourceStoreMethods &
+  ResourceLeaseStoreMethods &
   WorkerTerminalTransferMethods &
   WorkerTerminalHandleRebindMethods &
   WorkerTerminalReleaseMethods &
