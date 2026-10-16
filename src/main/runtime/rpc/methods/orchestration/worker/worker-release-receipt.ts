@@ -1,4 +1,5 @@
 import type { OrchestrationDb } from '../../../../orchestration/db'
+import type { WorkerDispatchState } from '../../../../orchestration/types'
 import {
   WORKER_SETTLED_STATES,
   type WorkerTerminalResourceRow,
@@ -23,11 +24,33 @@ export type WorkerReleaseReceipt = {
   takeover?: WorkerTerminalTakeoverEvidence
 }
 
+/** Where this runtime records a Dispatch's Run and how its worker stands. */
+export type ReleaseCustody = {
+  runOf: (dispatchId: string) => string | undefined
+  stateOf: (dispatchId: string) => WorkerDispatchState | undefined
+}
+
+export function localReleaseCustody(db: OrchestrationDb): ReleaseCustody {
+  return {
+    runOf: (dispatchId) => db.getDispatchContextById(dispatchId)?.run_id,
+    stateOf: (dispatchId) => db.getWorkerDispatch(dispatchId)?.state
+  }
+}
+
+/** An execution host's attachments carry the home's Run, which the home's CLI names. */
+export function remoteAttachmentReleaseCustody(db: OrchestrationDb): ReleaseCustody {
+  return {
+    runOf: (dispatchId) => db.getRemoteDispatchAttachment(dispatchId)?.home_run_id,
+    stateOf: (dispatchId) => db.getRemoteDispatchAttachment(dispatchId)?.state
+  }
+}
+
 /** Who holds a retained terminal, the takeover behind it, and what the coordinator can do next. */
 export function retainedReleaseGuidance(
-  db: OrchestrationDb,
+  custody: ReleaseCustody,
   retained: {
     dispatchId: string
+    reason: WorkerTerminalRetainedReason
     resource: WorkerTerminalResourceRow | null
     currentOwner?: WorkerTerminalResourceRow
   }
@@ -47,7 +70,13 @@ export function retainedReleaseGuidance(
   if (currentOwner && currentOwner.owner_dispatch_id !== dispatchId) {
     return {
       ...named,
-      recovery: releaseThroughOwner(db, dispatchId, currentOwner.owner_dispatch_id)
+      recovery: releaseThroughOwner(custody, dispatchId, currentOwner.owner_dispatch_id)
+    }
+  }
+  if (retained.reason === 'ownership_transferred') {
+    return {
+      recovery:
+        'A Dispatch this Orca cannot act through now holds this terminal, so release leaves it open; close it where it was started once it is no longer needed.'
     }
   }
   if (resource?.ownership_state === 'external') {
@@ -59,10 +88,10 @@ export function retainedReleaseGuidance(
   return {}
 }
 
-function releaseThroughOwner(db: OrchestrationDb, dispatchId: string, ownerId: string): string {
-  const ownerRun = db.getDispatchContextById(ownerId)?.run_id
-  const otherRun = ownerRun && ownerRun !== db.getDispatchContextById(dispatchId)?.run_id
-  const ownerState = db.getWorkerDispatch(ownerId)?.state
+function releaseThroughOwner(custody: ReleaseCustody, dispatchId: string, ownerId: string): string {
+  const ownerRun = custody.runOf(ownerId)
+  const otherRun = ownerRun && ownerRun !== custody.runOf(dispatchId)
+  const ownerState = custody.stateOf(ownerId)
   const pending =
     ownerState && !WORKER_SETTLED_STATES.includes(ownerState)
       ? ` once it settles (it is ${ownerState})`

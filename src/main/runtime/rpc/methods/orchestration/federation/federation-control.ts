@@ -3,12 +3,11 @@ import type { RemoteDispatchAttachmentRow } from '../../../../orchestration/type
 import { defineMethod } from '../../../core'
 import { mapWithConcurrency } from '../../../../../../shared/map-with-concurrency'
 import { readExactWorkerOutput } from '../worker/worker-output'
+import { exposeWorkerTerminalResource } from '../worker/worker-terminal-resource-presentation'
 import { describeUnconfirmedAgentStop } from '../../../../../../shared/pty-liveness-verdict'
 import { inspectRemoteAttachment, requireHomeAttachment } from './federation-attachment-observation'
-import {
-  readRemoteAttachmentArchive,
-  releaseRemoteAttachment
-} from './federated-worker-release-host'
+import { releaseRemoteAttachment } from './federated-worker-release-host'
+import { readRemoteAttachmentArchive } from './remote-attachment-archive-read'
 import {
   FederationDispatchParams,
   FederationFleetSnapshotParams,
@@ -65,6 +64,9 @@ export const ORCHESTRATION_FEDERATION_CONTROL_METHODS = [
         authenticatedCallerFingerprint
       )
       const observation = await inspectRemoteAttachment(runtime, params.dispatchId)
+      const resource = runtime
+        .getOrchestrationDb()
+        .getWorkerTerminalResourceByOwner(params.dispatchId)
       return {
         dispatchId: params.dispatchId,
         runtimeEpoch: runtime.getRuntimeId(),
@@ -75,7 +77,8 @@ export const ORCHESTRATION_FEDERATION_CONTROL_METHODS = [
           exactWorker: observation.exact,
           ...(observation.reason ? { reason: observation.reason } : {}),
           ...(observation.agentWait !== undefined ? { agentWait: observation.agentWait } : {})
-        }
+        },
+        terminalResource: resource ? exposeWorkerTerminalResource(resource) : null
       }
     }
   }),

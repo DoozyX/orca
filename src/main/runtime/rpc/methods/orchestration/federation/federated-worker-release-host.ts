@@ -9,45 +9,22 @@ import {
   summarizeWorkerOutputArchive
 } from '../../../../orchestration/worker-output-archive'
 import type { WorkerTerminalReleaseRuntime } from '../../../../orchestration/worker-terminal-release-runtime'
-import { readArchivedWorkerOutput } from '../worker/worker-archive-read'
 import { archiveSummary, releaseUnknownRecovery } from '../worker/worker-release-completion'
-import type { WorkerReleaseReceipt } from '../worker/worker-release-receipt'
+import { OrchestrationError } from '../../../../orchestration/orchestration-error'
+import {
+  remoteAttachmentReleaseCustody,
+  retainedReleaseGuidance,
+  type WorkerReleaseReceipt
+} from '../worker/worker-release-receipt'
+import { takeoverReceiptField } from '../worker/worker-terminal-resource-presentation'
 import { orchestrationTimestampToMs } from '../worker/worker-output'
-import type { inspectRemoteAttachment } from './federation-attachment-observation'
+import { inspectRemoteAttachment } from './federation-attachment-observation'
+import { readRemoteAttachmentArchive } from './remote-attachment-archive-read'
+import { remoteAttachmentLeaseIsCurrent } from './remote-attachment-release-lease'
 import {
   classifyWorkerTerminalCloseError,
   TRANSIENT_WORKER_RELEASE_RECOVERY
 } from '../worker/worker-release-close-error'
-
-export async function readRemoteAttachmentArchive(args: {
-  runtime: WorkerTerminalReleaseRuntime
-  attachment: RemoteDispatchAttachmentRow
-  source?: 'auto' | 'transcript' | 'terminal'
-  cursor?: string | number
-  limit?: number
-  liveness?: 'live' | 'unverifiable' | 'exited'
-}) {
-  const archive = args.runtime
-    .getOrchestrationDb()
-    .getWorkerTerminalArchive(args.attachment.dispatch_id)
-  if (!archive || !args.attachment.terminal_handle) {
-    return null
-  }
-  return readArchivedWorkerOutput({
-    db: args.runtime.getOrchestrationDb(),
-    dispatchId: args.attachment.dispatch_id,
-    workerState: args.attachment.state,
-    resource: {
-      id: `remote-attachment:${args.attachment.dispatch_id}`,
-      terminal_handle: args.attachment.terminal_handle,
-      release_state: args.attachment.stage === 'released' ? 'released' : 'releasing'
-    },
-    source: args.source,
-    cursor: args.cursor,
-    limit: args.limit,
-    liveness: args.liveness
-  })
-}
 
 export async function releaseRemoteAttachment(args: {
   runtime: WorkerTerminalReleaseRuntime
@@ -84,12 +61,16 @@ export async function releaseRemoteAttachment(args: {
     }
   }
   const requested = db.requestRemoteAttachmentTerminalRelease(attachment.dispatch_id)
+  const resolved = requested.resolvedDispatchId
+    ? { resolvedDispatchId: requested.resolvedDispatchId }
+    : {}
   if (requested.disposition === 'already_released') {
     return {
       dispatchId: attachment.dispatch_id,
       state: 'already_released',
       processAction: 'none',
-      archive: archiveSummary(requested.resource)
+      archive: archiveSummary(requested.resource),
+      ...resolved
     }
   }
   if (requested.disposition === 'retained') {
@@ -98,8 +79,18 @@ export async function releaseRemoteAttachment(args: {
       state: 'retained',
       reason: requested.reason,
       processAction: 'none',
-      archive: archiveSummary(requested.resource)
+      archive: archiveSummary(requested.resource),
+      ...resolved,
+      ...retainedReleaseGuidance(remoteAttachmentReleaseCustody(db), {
+        dispatchId: attachment.dispatch_id,
+        reason: requested.reason,
+        resource: requested.resource,
+        currentOwner: requested.currentOwner
+      })
     }
+  }
+  if (requested.resolvedDispatchId) {
+    return releaseThroughCurrentOwner(args, requested.resolvedDispatchId)
   }
   const resource = requested.resource
   if (!observation.exact || !observation.terminal) {
@@ -190,7 +181,8 @@ export async function releaseRemoteAttachment(args: {
       reason: retainedReason(releasing),
       processAction: 'none',
       archive: archiveSummary(releasing),
-      output
+      output,
+      ...takeoverReceiptField(releasing)
     }
   }
   if (!remoteAttachmentLeaseIsCurrent(runtime, attachment, observation, releasing)) {
@@ -263,26 +255,30 @@ export async function releaseRemoteAttachment(args: {
   }
 }
 
-function remoteAttachmentLeaseIsCurrent(
-  runtime: WorkerTerminalReleaseRuntime,
-  attachment: RemoteDispatchAttachmentRow,
-  observation: Awaited<ReturnType<typeof inspectRemoteAttachment>>,
-  resource: WorkerTerminalResourceRow
-): boolean {
-  const db = runtime.getOrchestrationDb()
-  return Boolean(
-    observation.exact &&
-    observation.terminal?.handle === resource.terminal_handle &&
-    attachment.terminal_handle === resource.terminal_handle &&
-    resource.owner_dispatch_id === attachment.dispatch_id &&
-    resource.ownership_state === 'owned' &&
-    db.isRemoteAttachmentProcessCurrent({
-      dispatchId: attachment.dispatch_id,
-      paneKey: runtime.getTerminalPaneKey(resource.terminal_handle),
-      processIncarnation: runtime.getTerminalProcessIncarnation(resource.terminal_handle)
-    }) &&
-    !db.workerTerminalResourceHasIdentityConflict(resource.id)
-  )
+/** A former owner's release, run as the release of the settled Dispatch that holds the terminal now. */
+async function releaseThroughCurrentOwner(
+  args: Parameters<typeof releaseRemoteAttachment>[0],
+  ownerDispatchId: string
+): Promise<WorkerReleaseReceipt & { output?: unknown }> {
+  const owner = args.runtime.getOrchestrationDb().getRemoteDispatchAttachment(ownerDispatchId)
+  if (!owner) {
+    throw new OrchestrationError(
+      'dispatch_not_found',
+      `Remote Dispatch ${ownerDispatchId} was not found.`
+    )
+  }
+  // Why its own pass: the archive, lease and close all belong to the Dispatch holding the terminal.
+  const receipt = await releaseRemoteAttachment({
+    runtime: args.runtime,
+    attachment: owner,
+    observation: await inspectRemoteAttachment(args.runtime, ownerDispatchId),
+    mode: args.mode
+  })
+  return {
+    ...receipt,
+    dispatchId: args.attachment.dispatch_id,
+    resolvedDispatchId: ownerDispatchId
+  }
 }
 
 function retainedReason(resource: WorkerTerminalResourceRow): WorkerTerminalRetainedReason {
