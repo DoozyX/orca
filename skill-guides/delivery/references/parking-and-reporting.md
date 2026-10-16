@@ -77,15 +77,15 @@ report ships, a **fresh read-only worker** — never your own reading — runs t
 checks against `worktrees.md` and writes `orchestrate/teardown.md`, each command
 with its output, ending in `VERDICT: clean` or `VERDICT: residue`:
 
-| Surface          | Command                                                                                        | Residue when                                                                               |
-| ---------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| Git worktrees    | `git -C <root> worktree list --porcelain`                                                      | A run worktree marked `removed`, or one nested under the run that the table never recorded |
-| Orca worktrees   | `ORCA worktree list --repo id:<repoId> --json`                                                 | A row for a `removed` worktree, or an unrecorded child of the coordinator's worktree       |
-| Branches         | `git -C <root> branch --list <branch>` per recorded branch                                     | A `removed` unit's branch still exists                                                     |
-| Worker terminals | `ORCA orchestration worker-list --run <run_id> --terminal-state reclaimable --json`            | Any row                                                                                    |
-| Other terminals  | `ORCA terminal list --worktree id:<repoId>::<path> --json` per recorded worktree still present | A terminal in a worktree the run no longer owns                                            |
-| Scratch          | The run's scratch and build-cache roots                                                        | A directory for a released unit                                                            |
-| Primary checkout | The last `primary-<label>.after` against a fresh snapshot                                      | Any difference                                                                             |
+| Surface          | Command                                                                                        | Residue when                                                                                                  |
+| ---------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Git worktrees    | `git -C <root> worktree list --porcelain`                                                      | A run worktree marked `removed`, or one nested under the run that the table never recorded                    |
+| Orca worktrees   | `ORCA worktree list --repo id:<repoId> --json`                                                 | A row for a `removed` worktree, or an unrecorded child of the coordinator's worktree                          |
+| Branches         | `git -C <root> branch --list <branch>` per recorded branch                                     | A `removed` unit's branch still exists                                                                        |
+| Worker terminals | `ORCA orchestration worker-list --run <run_id> --terminal-state reclaimable --json`            | Any row, or a `counts.release_unknown`/`release_pending` row the report does not name as unresolved ownership |
+| Other terminals  | `ORCA terminal list --worktree id:<repoId>::<path> --json` per recorded worktree still present | A terminal in a worktree the run no longer owns                                                               |
+| Scratch          | The run's scratch and build-cache roots                                                        | A directory for a released unit                                                                               |
+| Primary checkout | The last `primary-<label>.after` against a fresh snapshot                                      | Any difference                                                                                                |
 
 On residue, give the list to a cleanup worker as exact targets, then run the
 check again with a fresh worker. Whatever remains after that stays in place:

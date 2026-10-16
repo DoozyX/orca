@@ -191,7 +191,11 @@ follow its exact recovery receipt and never substitute `terminal close`.
 A valid `worker_done` settles the Task and Dispatch automatically; do not follow
 it with `task-update --status completed`. Enumerate the terminals still owing a
 decision with `worker-list --run <run_id> --terminal-state reclaimable --json`,
-and do not end the coordinator turn until it returns none.
+and do not end the coordinator turn until it returns none and you have reported
+its `counts.release_unknown` and `counts.release_pending`. For a
+`release_unknown` row, run one `worker-show`; run `worker-release` again only if
+it shows the terminal resolving, otherwise record it as unresolved ownership in
+the final report. Absence is not exit.
 
 ## Conditional references
 

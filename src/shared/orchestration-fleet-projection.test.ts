@@ -72,6 +72,7 @@ describe('orchestration fleet projection', () => {
             hostScope: JSON.stringify({ kind: 'wsl', hostId: 'local', distro: 'Ubuntu' }),
             ownershipState: 'owned',
             releaseState: 'not_requested',
+            retainedReason: null,
             updatedAt: ''
           }
         })
@@ -97,6 +98,7 @@ describe('orchestration fleet projection', () => {
             hostScope: '{"kind":"local","hostId":"local"}',
             ownershipState: 'owned',
             releaseState: 'not_requested',
+            retainedReason: null,
             updatedAt: '2026-01-01T00:00:00Z'
           }
         })
@@ -153,6 +155,7 @@ describe('orchestration fleet projection', () => {
             hostScope: null,
             ownershipState: 'owned',
             releaseState: 'not_requested',
+            retainedReason: null,
             updatedAt: '2026-01-01T00:00:00Z'
           }
         })
@@ -229,19 +232,77 @@ describe('orchestration fleet projection', () => {
     expect(second.workers.at(-1)?.id).toBe('dispatch-109')
   })
 
-  // Cleanup still earns a command when liveness is unverifiable.
-  it('suggests release only for reclaimable ownership', () => {
-    const result = projectOrchestrationFleet({
-      workers: [worker('done', { terminalState: 'reclaimable' })],
-      statuses: [],
-      now: 1
-    })
+  // Cleanup still earns a command when liveness is unverifiable: accepted settlement proves it.
+  it.each(['live', 'unverifiable'] as const)(
+    'suggests release for a reclaimable owned terminal under %s liveness',
+    (verdict) => {
+      const now = 10_000
+      const result = projectOrchestrationFleet({
+        workers: [
+          worker('done', {
+            workerState: 'succeeded',
+            terminalState: 'reclaimable',
+            resource: ownedResource('done')
+          })
+        ],
+        statuses: verdict === 'live' ? [status('done', now - 1)] : [],
+        now
+      })
 
-    expect(result.workers[0]?.liveness.verdict).toBe('unverifiable')
-    expect(result.workers[0]?.nextAction).toEqual({
-      kind: 'release',
-      argv: ['orchestration', 'worker-release', '--dispatch', 'done']
+      expect(result.workers[0]?.liveness.verdict).toBe(verdict)
+      expect(result.workers[0]?.nextAction).toEqual({
+        kind: 'release',
+        argv: ['orchestration', 'worker-release', '--dispatch', 'done']
+      })
+    }
+  )
+
+  // #32: a user-retained row offered `release` while `--terminal-state reclaimable` was empty.
+  it.each(['live', 'unverifiable'] as const)(
+    'asks nothing of a user-retained terminal under %s liveness',
+    (verdict) => {
+      const now = 10_000
+      const result = projectOrchestrationFleet({
+        workers: [
+          worker('kept', {
+            workerState: 'succeeded',
+            terminalState: 'retained',
+            resource: ownedResource('kept', {
+              releaseState: 'retained',
+              retainedReason: 'user_requested'
+            })
+          })
+        ],
+        statuses: verdict === 'live' ? [status('kept', now - 1)] : [],
+        now
+      })
+
+      expect(result.workers[0]?.liveness.verdict).toBe(verdict)
+      expect(result.workers[0]?.nextAction).toEqual({
+        kind: 'none',
+        argv: [],
+        reason: 'user_retained'
+      })
+    }
+  )
+
+  // #16: worker-release answers release_unknown again while the terminal does not resolve.
+  it('reports an unresolved release instead of advising another release', () => {
+    const result = projectOrchestrationFleet({
+      workers: [
+        worker('lost', {
+          workerState: 'succeeded',
+          terminalState: 'release_unknown',
+          resource: ownedResource('lost', { releaseState: 'unknown' })
+        })
+      ],
+      statuses: [],
+      now: 10_000
     })
+    const row = result.workers[0]!
+
+    expect(row.nextAction).toEqual({ kind: 'none', argv: [], reason: 'release_unknown' })
+    expect(row.attention.categories).toContain('unverifiable')
   })
 
   it('does not join a status carrying another Dispatch onto a reused pane', () => {
@@ -279,6 +340,7 @@ describe('orchestration fleet projection', () => {
         hostScope: '{"kind":"local","hostId":"local"}',
         ownershipState: 'owned',
         releaseState: 'not_requested',
+        retainedReason: null,
         updatedAt: '2026-01-01T00:00:00Z'
       }
     })
@@ -338,6 +400,7 @@ describe('orchestration fleet projection', () => {
             hostScope: '{"kind":"local","hostId":"local"}',
             ownershipState: 'owned',
             releaseState: 'not_requested',
+            retainedReason: null,
             updatedAt: '2026-01-01T00:00:00Z'
           }
         })
@@ -373,6 +436,7 @@ describe('orchestration fleet projection', () => {
             hostScope: '{"kind":"federated","targetId":"host-unknown"}',
             ownershipState: 'owned',
             releaseState: 'not_requested',
+            retainedReason: null,
             updatedAt: '2026-01-01T00:00:00Z'
           }
         })
@@ -610,6 +674,7 @@ describe('fleet liveness and attention after a host verdict', () => {
 
   // The live worker-list row from a stopped worker: the same receipt proved the exit,
   // called it absence, and pointed back at the command that reported the settlement.
+  // worker-release always refuses a stopped worker `identity_unproven`, so `release` looped.
   it('never contradicts a proven exit on a stopped worker still owning its terminal', () => {
     const projected = projectOrchestrationFleet({
       workers: [
@@ -619,16 +684,7 @@ describe('fleet liveness and attention after a host verdict', () => {
           workerStage: 'process_stopped',
           outcome: 'outcome_unknown',
           terminalState: 'retained',
-          resource: {
-            id: 'resource-1',
-            ownerDispatchId: '1',
-            worktreeId: 'workspace-1',
-            paneKey: 'tab-1:leaf-1',
-            hostScope: null,
-            ownershipState: 'owned',
-            releaseState: 'active',
-            updatedAt: '2026-09-04T00:00:00.000Z'
-          }
+          resource: ownedResource('1')
         })
       ],
       statuses: [],
@@ -639,13 +695,10 @@ describe('fleet liveness and attention after a host verdict', () => {
     expect(row.liveness.verdict).toBe('exited')
     expect(row.attention.categories).not.toContain('unverifiable')
     expect(row.attention.requiresAction).toBe(false)
-    expect(row.nextAction).toEqual({
-      kind: 'release',
-      argv: ['orchestration', 'worker-release', '--dispatch', '1']
-    })
+    expect(row.nextAction).toEqual({ kind: 'none', argv: [], reason: 'identity_unproven' })
   })
 
-  it('asks nothing more of a settled worker whose terminal is already released', () => {
+  it('asks nothing more of a settled worker whose terminal the user took over', () => {
     const projected = projectOrchestrationFleet({
       workers: [
         worker('1', {
@@ -653,25 +706,38 @@ describe('fleet liveness and attention after a host verdict', () => {
           dispatchStatus: 'completed',
           outcome: 'outcome_unknown',
           terminalState: 'retained',
-          resource: {
-            id: 'resource-1',
-            ownerDispatchId: '1',
-            worktreeId: 'workspace-1',
-            paneKey: 'tab-1:leaf-1',
-            hostScope: null,
-            ownershipState: 'user_owned',
-            releaseState: 'active',
-            updatedAt: '2026-09-04T00:00:00.000Z'
-          }
+          resource: ownedResource('1', { ownershipState: 'user_owned' })
         })
       ],
       statuses: [],
       now: 10_000
     })
 
-    expect(projected.workers[0]!.nextAction).toEqual({ kind: 'none', argv: [] })
+    expect(projected.workers[0]!.nextAction).toEqual({
+      kind: 'none',
+      argv: [],
+      reason: 'not_owned'
+    })
   })
 })
+
+function ownedResource(
+  id: string,
+  overrides: Partial<NonNullable<FleetDurableWorker['resource']>> = {}
+): NonNullable<FleetDurableWorker['resource']> {
+  return {
+    id: `resource-${id}`,
+    ownerDispatchId: id,
+    worktreeId: `workspace-${id}`,
+    paneKey: `tab-${id}:leaf-${id}`,
+    hostScope: null,
+    ownershipState: 'owned',
+    releaseState: 'active',
+    retainedReason: null,
+    updatedAt: '2026-09-04T00:00:00.000Z',
+    ...overrides
+  }
+}
 
 describe('fleet waiting and checkpoint diagnostics', () => {
   it.each([{ pendingInput: true }, { pendingApproval: true }])(
@@ -726,6 +792,7 @@ describe('fleet waiting and checkpoint diagnostics', () => {
             hostScope: '{"kind":"ssh","targetId":"offline"}',
             ownershipState: 'owned',
             releaseState: 'active',
+            retainedReason: null,
             updatedAt: '2026-10-06T00:00:00Z'
           }
         })

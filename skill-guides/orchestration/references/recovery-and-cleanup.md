@@ -3,15 +3,15 @@
 Load this reference only after a failed/stopped/unknown attempt, explicit retry
 decision, stop/abandon request, retention request, or uncertain release.
 
-| Proven state            | Safe action                                                        |
-| ----------------------- | ------------------------------------------------------------------ |
-| `ready` or active       | Keep waiting; optionally read bounded output                       |
-| `failed` or `stopped`   | Start a replacement with `--retry-of`; repeat placement explicitly |
-| `outcome_unknown`       | Inspect, then choose `worker-stop` or explicit `worker-abandon`    |
-| Accepted `worker_done`  | Reuse, retain, or release                                          |
-| Remote contact lost     | Preserve `unverifiable`; do not stop or retry from absence alone   |
-| `unverifiable` liveness | Keep waiting or inspect; never stop, abandon, retry, or release    |
-| Proven `exited` agent   | Enumerate with `worker-list`; follow its `nextAction`              |
+| Proven state            | Safe action                                                                                                                                            |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `ready` or active       | Keep waiting; optionally read bounded output                                                                                                           |
+| `failed` or `stopped`   | Start a replacement with `--retry-of`; repeat placement explicitly                                                                                     |
+| `outcome_unknown`       | Inspect, then choose `worker-stop` or explicit `worker-abandon`                                                                                        |
+| Accepted `worker_done`  | Reuse, retain, or release                                                                                                                              |
+| Remote contact lost     | Preserve `unverifiable`; do not stop or retry from absence alone                                                                                       |
+| `unverifiable` liveness | Keep waiting or inspect; alone it never earns stop, abandon, or retry. A `reclaimable` row's `release` argv comes from accepted settlement and is safe |
+| Proven `exited` agent   | Enumerate with `worker-list`; follow its `nextAction`                                                                                                  |
 
 ## Inspect before acting
 
@@ -25,9 +25,11 @@ ORCA orchestration worker-read --dispatch <dispatch_id> --limit 50 --json
 `worker-list` is the enumerating command and the authority on agent liveness:
 each row carries `projection.liveness`, `projection.attention.categories`,
 `projection.attention.requiresAction`, and a literal `projection.nextAction`
-argv to run. Always scope it with `--run <run_id>`; an unscoped list reports
-every Dispatch this runtime has ever recorded and buries the live ones.
-`worker-show`'s `observation.status` is PTY liveness only, so a `live` terminal
+argv to run. A `none` `nextAction` with a `reason` (`user_retained`,
+`identity_unproven`, `release_unknown`, `release_pending`, or `not_owned`) names
+a terminal no release can settle: report it, never act on it. Always scope it
+with `--run <run_id>`; an unscoped list reports every Dispatch this runtime has
+ever recorded and buries the live ones. `worker-show`'s `observation.status` is PTY liveness only, so a `live` terminal
 whose agent died at a trust prompt still reads `live` there.
 
 When the two disagree, the fleet verdict decides — unless the fleet row is
@@ -62,9 +64,11 @@ choose `worker-abandon` or a retry explicitly; nothing is closed for you.
 `unverifiable` is always absence — `missing_status`, `stale_status`,
 `restored_unconfirmed`, or a remote worker with no connection — and a null
 `agentWait` or an unchanged `worker-read` tail is that same absence seen again.
-Absence never authorizes stop, abandon, retry, or release: keep waiting, or
-inspect until you hold one of the positive signals above. A `nextAction` that
-names an inspecting command is asking for evidence, not for cleanup.
+Absence never authorizes stop, abandon, or retry: keep waiting, or inspect until
+you hold one of the positive signals above. A `release` argv on a `reclaimable`
+row is authorized by the accepted settlement, not by liveness, so it stands
+under `unverifiable`. A `nextAction` that names an inspecting command is asking
+for evidence, not for cleanup.
 
 `worker-read --source auto` uses a proven provider transcript when available and
 otherwise returns bounded terminal output with a typed `fallbackReason`.
@@ -173,9 +177,11 @@ A `--retry-of` replacement for a `failed` worker releases the terminal that
 worker still owns the same way.
 
 Never release because of timeout, TUI idle, heartbeat, status, question,
-escalation, or stale/rejected completion. If the receipt says `release_pending`
-or `release_unknown`, follow its exact recovery action. Never substitute
-`terminal close`.
+escalation, or stale/rejected completion. If the receipt says `release_pending`,
+follow its exact recovery action. For `release_unknown`, run one `worker-show`;
+run `worker-release` again only if its `observation.status` shows the terminal
+resolving (`live` or `exited`), otherwise record the row as unresolved ownership
+in the final report. Never substitute `terminal close`.
 
 `orchestration reset` is destructive recovery. Do not run it during active
 coordination unless the user explicitly abandons that state.

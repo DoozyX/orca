@@ -6,8 +6,10 @@ import {
   resolveFleetWorkerOutcome
 } from './orchestration-fleet-outcome-resolution'
 import { readWorkerTerminalHostScope } from './worker-terminal-host-scope'
+import { isWorkerTerminalReclaimable } from './worker-terminal-reclaimable'
 import type {
   FleetDurableWorker,
+  FleetHeldTerminalReason,
   FleetLiveness,
   FleetNextAction,
   FleetResourceProjection,
@@ -126,7 +128,14 @@ export function projectFleetNextAction(
   if (worker.workerStage === 'released') {
     return { kind: 'none', argv: [] }
   }
-  if (worker.terminalState === 'reclaimable') {
+  if (
+    worker.resource &&
+    isWorkerTerminalReclaimable({
+      workerState: worker.workerState,
+      ownershipState: worker.resource.ownershipState,
+      releaseState: worker.resource.releaseState
+    })
+  ) {
     return {
       kind: 'release',
       argv: ['orchestration', 'worker-release', '--dispatch', worker.dispatchId]
@@ -141,15 +150,11 @@ export function projectFleetNextAction(
   ) {
     return { kind: 'none', argv: [] }
   }
-  // A settled worker still owning its terminal owes the release decision. Pointing it at
-  // worker-show was a self-loop: the command that reported the settlement.
+  // A settled worker's terminal the predicate refused: worker-show reported the settlement and
+  // worker-release would only restate the refusal, so name why instead of looping on either.
   if (SETTLED_WORKER_STATES.has(worker.workerState) && worker.resource) {
-    return worker.resource.ownershipState === 'owned' && worker.resource.releaseState !== 'released'
-      ? {
-          kind: 'release',
-          argv: ['orchestration', 'worker-release', '--dispatch', worker.dispatchId]
-        }
-      : { kind: 'none', argv: [] }
+    const reason = heldTerminalReason(worker.resource)
+    return reason ? { kind: 'none', argv: [], reason } : { kind: 'none', argv: [] }
   }
   // A proven exit under a worker that never settled is a stall; worker-show would
   // only restate it. Read the transcript, then stop or abandon. `unverifiable` is
@@ -184,6 +189,28 @@ export function projectFleetNextAction(
     kind: 'inspect',
     argv: ['orchestration', 'worker-show', '--dispatch', worker.dispatchId]
   }
+}
+
+function heldTerminalReason(
+  resource: NonNullable<FleetDurableWorker['resource']>
+): FleetHeldTerminalReason | null {
+  if (resource.releaseState === 'released' || resource.ownershipState === 'released') {
+    return null
+  }
+  if (resource.ownershipState !== 'owned') {
+    return 'not_owned'
+  }
+  if (resource.releaseState === 'unknown') {
+    return 'release_unknown'
+  }
+  if (resource.releaseState === 'requested' || resource.releaseState === 'releasing') {
+    return 'release_pending'
+  }
+  if (resource.releaseState === 'retained' && resource.retainedReason === 'user_requested') {
+    return 'user_retained'
+  }
+  // Retained `identity_unproven`, or a stopped/abandoned worker that release always refuses so.
+  return 'identity_unproven'
 }
 
 function projectHost(

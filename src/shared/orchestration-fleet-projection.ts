@@ -47,6 +47,7 @@ export type FleetDurableWorker = {
     hostScope: string | null
     ownershipState: string
     releaseState: string
+    retainedReason: string | null
     updatedAt: string
   } | null
 }
@@ -89,7 +90,16 @@ export type FleetNextAction = {
   /** `recover` = proven exit with no worker outcome; read the transcript, then stop or abandon. */
   kind: 'inspect' | 'release' | 'recover' | 'none'
   argv: string[]
+  /** Why a settled worker's held terminal earns no release; report it, never act on it. */
+  reason?: FleetHeldTerminalReason
 }
+
+export type FleetHeldTerminalReason =
+  | 'user_retained'
+  | 'identity_unproven'
+  | 'release_unknown'
+  | 'release_pending'
+  | 'not_owned'
 
 export type OrchestrationFleetWorker = {
   id: string

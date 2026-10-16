@@ -54,6 +54,7 @@ export function projectWorkerFleet(args: {
             hostScope: row.resource.host_scope,
             ownershipState: row.resource.ownership_state,
             releaseState: row.resource.release_state,
+            retainedReason: row.resource.retained_reason,
             updatedAt: row.resource.updated_at
           }
         : null

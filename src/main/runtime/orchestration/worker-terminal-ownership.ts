@@ -1,3 +1,4 @@
+import { isWorkerTerminalReclaimable } from '../../../shared/worker-terminal-reclaimable'
 import type { WorkerDispatchState } from './types'
 
 export type WorkerTerminalOwnershipState =
@@ -106,8 +107,6 @@ export const WORKER_SETTLED_STATES: readonly WorkerDispatchState[] = [
   'abandoned'
 ]
 
-export const WORKER_RELEASABLE_STATES: readonly WorkerDispatchState[] = ['succeeded', 'failed']
-
 // Process accounting for worker-list; deliberately independent of Task/Dispatch outcome.
 export function deriveWorkerTerminalListState(params: {
   workerState: WorkerDispatchListState
@@ -131,8 +130,11 @@ export function deriveWorkerTerminalListState(params: {
     return 'retained'
   }
   if (
-    params.workerState !== 'unsupervised' &&
-    WORKER_RELEASABLE_STATES.includes(params.workerState)
+    isWorkerTerminalReclaimable({
+      workerState: params.workerState,
+      ownershipState: resource.ownership_state,
+      releaseState: resource.release_state
+    })
   ) {
     return 'reclaimable'
   }
