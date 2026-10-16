@@ -362,8 +362,20 @@ describe('unknown command surfaces a suggestion', () => {
       })
     )
 
+    // worker-start refuses to guess its coordinator (#30), so name one to reach the selector error.
     await main(
-      ['orchestration', 'worker-start', '--task', 't1', '--worktree', 'repo-1', '--agent', 'codex'],
+      [
+        'orchestration',
+        'worker-start',
+        '--task',
+        't1',
+        '--worktree',
+        'repo-1',
+        '--agent',
+        'codex',
+        '--from',
+        'term_coord'
+      ],
       '/tmp/repo'
     )
 
