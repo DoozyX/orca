@@ -44,6 +44,8 @@ beforeEach(async () => {
   await mkdir(repoPath, { recursive: true })
   await mkdir(join(workspaceRoot, 'repo'), { recursive: true })
   await git(['init', '-q'], repoPath)
+  // Why pinned: `init -b` needs Git 2.28, and branch cleanup measures against the local `main`.
+  await git(['symbolic-ref', 'HEAD', 'refs/heads/main'], repoPath)
   await git(['config', 'user.email', 'removal@example.invalid'], repoPath)
   await git(['config', 'user.name', 'Worktree Removal'], repoPath)
   // Why: a commit's detached auto-maintenance can still be writing packs when teardown deletes the repo.
@@ -155,6 +157,104 @@ describe('worktree removal against the real Git binary', () => {
 
     expect(existsSync(stalePath)).toBe(false)
     expect(existsSync(worktreePath)).toBe(true)
+  })
+})
+
+// #15: `worktree rm` deleted a branch local main did not contain because another ref did.
+describe('branch cleanup measured against the local default branch', () => {
+  async function commitOnFeature(): Promise<string> {
+    await writeFile(join(worktreePath, 'feature.txt'), 'feature work\n')
+    await git(['add', 'feature.txt'], worktreePath)
+    await git(['commit', '-qm', 'feature work'], worktreePath)
+    return (await git(['rev-parse', 'HEAD'], worktreePath)).trim()
+  }
+
+  async function mergeFeatureInto(branch: string): Promise<void> {
+    await git(['checkout', '-q', '-b', branch], repoPath)
+    await git(['merge', '-q', '--no-ff', '-m', `merge feature into ${branch}`, 'feature'], repoPath)
+  }
+
+  async function featureRef(): Promise<string> {
+    return (
+      await git(['for-each-ref', '--format=%(objectname)', 'refs/heads/feature'], repoPath)
+    ).trim()
+  }
+
+  it.each([
+    [
+      'the primary checkout sits on a branch that contains it',
+      async () => {
+        await mergeFeatureInto('consolidation')
+      }
+    ],
+    [
+      'its saved base contains it',
+      async () => {
+        await mergeFeatureInto('consolidation')
+        await git(['checkout', '-q', 'main'], repoPath)
+        await git(['config', 'branch.feature.base', 'consolidation'], repoPath)
+      }
+    ],
+    [
+      'its upstream contains it',
+      async () => {
+        await mergeFeatureInto('consolidation')
+        await git(['checkout', '-q', 'main'], repoPath)
+        await git(['branch', '-q', '--set-upstream-to=consolidation', 'feature'], repoPath)
+      }
+    ]
+  ])('keeps a branch local main lacks when %s', async (_label, arrange) => {
+    const head = await commitOnFeature()
+    await arrange()
+
+    const result = await removeWorktree(repoPath, worktreePath, false)
+
+    expect(result).toEqual({
+      preservedBranch: { branchName: 'feature', head, reason: 'not_merged_into_default' }
+    })
+    expect(await featureRef()).toBe(head)
+  })
+
+  it('deletes a branch merged into local main', async () => {
+    await commitOnFeature()
+    await git(['merge', '-q', '--no-ff', '-m', 'merge feature', 'feature'], repoPath)
+
+    await expect(removeWorktree(repoPath, worktreePath, false)).resolves.toEqual({})
+    expect(await featureRef()).toBe('')
+  })
+
+  it('deletes a branch squash-merged into local main', async () => {
+    await commitOnFeature()
+    await git(['merge', '-q', '--squash', 'feature'], repoPath)
+    await git(['commit', '-qm', 'squash feature'], repoPath)
+
+    await expect(removeWorktree(repoPath, worktreePath, false)).resolves.toEqual({})
+    expect(await featureRef()).toBe('')
+  })
+
+  it('keeps a branch only the remote-tracking main contains', async () => {
+    const head = await commitOnFeature()
+    await mergeFeatureInto('integrated')
+    await git(['update-ref', 'refs/remotes/origin/main', 'integrated'], repoPath)
+    await git(['symbolic-ref', 'refs/remotes/origin/HEAD', 'refs/remotes/origin/main'], repoPath)
+    await git(['checkout', '-q', 'main'], repoPath)
+    await git(['branch', '-q', '-D', 'integrated'], repoPath)
+
+    const result = await removeWorktree(repoPath, worktreePath, false)
+
+    expect(result).toEqual({
+      preservedBranch: { branchName: 'feature', head, reason: 'not_merged_into_default' }
+    })
+    expect(await featureRef()).toBe(head)
+  })
+
+  it('deletes an unmerged branch when the caller forces the branch delete', async () => {
+    await commitOnFeature()
+
+    await expect(
+      removeWorktree(repoPath, worktreePath, false, { forceBranchDelete: true })
+    ).resolves.toEqual({})
+    expect(await featureRef()).toBe('')
   })
 })
 

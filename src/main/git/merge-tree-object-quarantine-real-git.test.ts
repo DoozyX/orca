@@ -117,7 +117,13 @@ describe('merge-tree runs against a scratch object store (real Git)', () => {
 
     expect(fixture.looseObjectCount()).toBe(before)
     expect(fixture.scratchDirectories()).toEqual([])
-    expect(extra).toEqual({ preservedBranch: { branchName: 'feature-extra', head: extraHead } })
+    expect(extra).toEqual({
+      preservedBranch: {
+        branchName: 'feature-extra',
+        head: extraHead,
+        reason: 'not_merged_into_default'
+      }
+    })
     expect(squashed).toEqual({})
     // Same verdicts as an unquarantined merge-tree, which does write objects.
     const mainTree = fixture.git(cwd, 'rev-parse', 'main^{tree}').trim()
@@ -292,7 +298,11 @@ describe('merge-tree quarantine keeps the object stores Git would otherwise see 
 
     expect(summary?.files).toEqual(['shared.txt'])
     expect(extra).toEqual({
-      preservedBranch: { branchName: 'feature-extra', head: fixtureHead('feature-extra') }
+      preservedBranch: {
+        branchName: 'feature-extra',
+        head: fixtureHead('feature-extra'),
+        reason: 'not_merged_into_default'
+      }
     })
     expect(squashed).toEqual({})
     expect(fixture.git(repo, 'branch', '--list', 'feature-squashed')).toBe('')

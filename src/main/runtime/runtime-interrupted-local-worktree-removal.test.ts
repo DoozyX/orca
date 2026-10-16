@@ -366,7 +366,7 @@ describe('finishing an interrupted worktree removal after a restart', () => {
     expect(remember).toHaveBeenCalledWith(
       `repo-1::${worktreePath}`,
       undefined,
-      { preservedBranch: { branchName: 'feature', head } },
+      { preservedBranch: { branchName: 'feature', head, reason: 'not_merged_into_default' } },
       head,
       undefined
     )

@@ -41,6 +41,7 @@ vi.mock('fs/promises', async () => {
 import {
   createGitCallReader,
   createGitCommandMocker,
+  DEFAULT_BRANCH_PROBE,
   expectGitCallOrder,
   resetWorktreeGitMocks,
   resetWorktreeRemovalState
@@ -49,6 +50,7 @@ import {
 import { forceDeleteLocalBranch, removeWorktree } from './worktree'
 
 const mockGitCommands = createGitCommandMocker(gitExecFileAsyncMock)
+const NOT_IN_LOCAL_MAIN = 'git merge-base --is-ancestor refs/heads/feature/test refs/heads/main'
 const getGitCalls = createGitCallReader(gitExecFileAsyncMock)
 
 // Why: removal argv carries core.longpaths on Windows; pin a non-Windows default for exact argv.
@@ -101,11 +103,11 @@ branch refs/heads/main
     })
 
     await expect(removeWorktree('/repo', '/repo-feature')).resolves.toEqual({
-      preservedBranch: { branchName: 'feature/test', head: 'def456' }
+      preservedBranch: { branchName: 'feature/test', head: 'def456', reason: 'delete_failed' }
     })
 
     expect(warnSpy).toHaveBeenCalledWith(
-      '[git] Preserved local branch "feature/test" after removing worktree (not fully merged)',
+      '[git] Preserved local branch "feature/test" after removing worktree (delete_failed)',
       expect.any(Error)
     )
 
@@ -142,17 +144,8 @@ HEAD abc123
 branch refs/heads/main
 `
       },
-      'git branch -d -- feature/test': {
-        error: new Error('branch delete failed'),
-        stderr: 'error: the branch feature/test is not fully merged'
-      },
-      'git config --get branch.feature/test.base': {
-        stdout: 'refs/remotes/origin/main\n'
-      },
-      'git rev-parse --verify --quiet refs/remotes/origin/main^{commit}': {
-        stdout: 'base123\n'
-      },
-      'git rev-parse --verify --quiet HEAD^{commit}': {
+      [NOT_IN_LOCAL_MAIN]: { error: new Error('not an ancestor') },
+      'git rev-parse --verify --quiet refs/heads/main^{commit}': {
         stdout: 'base123\n'
       },
       'git merge-tree --write-tree base123 refs/heads/feature/test': {
@@ -166,7 +159,8 @@ branch refs/heads/main
     await expect(removeWorktree('/repo', '/repo-feature')).resolves.toEqual({})
 
     const calls = getGitCalls()
-    expect(calls).toContain('git branch -d -- feature/test')
+    // `-d` would also trust an upstream or the primary's HEAD, so it never runs outside local main.
+    expect(calls).not.toContain('git branch -d -- feature/test')
     expect(calls).toContain('git merge-tree --write-tree base123 refs/heads/feature/test')
     expect(calls).toContain('git update-ref -d refs/heads/feature/test def456')
     expect(calls).toContain('git config --remove-section branch.feature/test')
@@ -197,14 +191,8 @@ HEAD abc123
 branch refs/heads/main
 `
       },
-      'git branch -d -- feature/test': {
-        error: new Error('branch delete failed'),
-        stderr: 'error: the branch feature/test is not fully merged'
-      },
-      'git config --get branch.feature/test.base': {
-        stdout: 'refs/remotes/origin/main\n'
-      },
-      'git rev-parse --verify --quiet refs/remotes/origin/main^{commit}': {
+      [NOT_IN_LOCAL_MAIN]: { error: new Error('not an ancestor') },
+      'git rev-parse --verify --quiet refs/heads/main^{commit}': {
         stdout: 'target123\n'
       },
       'git merge-tree --write-tree target123 refs/heads/feature/test': {
@@ -257,7 +245,8 @@ branch refs/heads/main
     ])
   })
 
-  it('refreshes the saved remote base before deleting a safe-delete-rejected branch', async () => {
+  // #15: only local main proves a merge; a saved remote base that contains the branch does not.
+  it('preserves a branch only its saved remote base contains', async () => {
     mockGitCommands({
       'git worktree list --porcelain -z': {
         stdout: `worktree /repo
@@ -275,30 +264,11 @@ HEAD abc123
 branch refs/heads/main
 `
       },
-      'git worktree list --porcelain': {
-        stdout: `worktree /repo
-HEAD abc123
-branch refs/heads/main
-`
-      },
-      'git worktree list --porcelain#2': {
-        stdout: `worktree /repo
-HEAD abc123
-branch refs/heads/main
-`
-      },
-      'git branch -d -- feature/test': {
-        error: new Error('branch delete failed'),
-        stderr: 'error: the branch feature/test is not fully merged'
-      },
       'git config --get branch.feature/test.base': {
         stdout: 'refs/remotes/origin/main\n'
       },
       'git remote': {
         stdout: 'origin\n'
-      },
-      'git fetch --prune origin': {
-        stdout: ''
       },
       'git rev-parse --verify --quiet refs/remotes/origin/main^{commit}': {
         stdout: 'base123\n'
@@ -308,26 +278,92 @@ branch refs/heads/main
       },
       'git rev-parse --verify --quiet base123^{tree}': {
         stdout: 'tree123\n'
+      },
+      [NOT_IN_LOCAL_MAIN]: { error: new Error('not an ancestor') },
+      'git rev-parse --verify --quiet refs/heads/main^{commit}': {
+        stdout: 'main123\n'
+      },
+      'git merge-tree --write-tree main123 refs/heads/feature/test': {
+        stdout: 'feature-tree\n'
+      },
+      'git rev-parse --verify --quiet main123^{tree}': {
+        stdout: 'main-tree\n'
+      },
+      'git rev-list --right-only --merges --count main123...refs/heads/feature/test': {
+        stdout: '0\n'
+      },
+      'git cherry -v main123 refs/heads/feature/test': {
+        stdout: '+ def456 feature work\n'
       }
+    })
+
+    await expect(removeWorktree('/repo', '/repo-feature')).resolves.toEqual({
+      preservedBranch: {
+        branchName: 'feature/test',
+        head: 'def456',
+        reason: 'not_merged_into_default'
+      }
+    })
+
+    const calls = getGitCalls()
+    expect(calls).not.toContain('git update-ref -d refs/heads/feature/test def456')
+    expect(calls).not.toContain('git branch -d -- feature/test')
+    expect(calls).not.toContain('git fetch --prune origin')
+  })
+
+  it('deletes the branch once local main contains it', async () => {
+    mockGitCommands({
+      'git worktree list --porcelain -z': {
+        stdout: `worktree /repo
+HEAD abc123
+branch refs/heads/main
+
+worktree /repo-feature
+HEAD def456
+branch refs/heads/feature/test
+`
+      },
+      [NOT_IN_LOCAL_MAIN]: { stdout: '' }
     })
 
     await expect(removeWorktree('/repo', '/repo-feature')).resolves.toEqual({})
 
+    expectGitCallOrder(getGitCalls(), NOT_IN_LOCAL_MAIN, 'git branch -d -- feature/test')
+  })
+
+  it.each([
+    ['only the remote-tracking main exists', 'refs/remotes/origin/main\0\n'],
+    ['no default branch resolves', '']
+  ])('preserves the branch when %s', async (_label, probe) => {
+    mockGitCommands({
+      'git worktree list --porcelain -z': {
+        stdout: `worktree /repo
+HEAD abc123
+branch refs/heads/develop
+
+worktree /repo-feature
+HEAD def456
+branch refs/heads/feature/test
+`
+      },
+      [DEFAULT_BRANCH_PROBE]: { stdout: probe },
+      [NOT_IN_LOCAL_MAIN]: { error: new Error('fatal: Not a valid object name refs/heads/main') },
+      'git rev-parse --verify --quiet refs/heads/main^{commit}': {
+        error: new Error('missing ref')
+      }
+    })
+
+    await expect(removeWorktree('/repo', '/repo-feature')).resolves.toEqual({
+      preservedBranch: {
+        branchName: 'feature/test',
+        head: 'def456',
+        reason: 'not_merged_into_default'
+      }
+    })
+
     const calls = getGitCalls()
-    const mergeTreeCall = 'git merge-tree --write-tree base123 refs/heads/feature/test'
-    const mergeTreeIndexes = calls.flatMap((call, index) => (call === mergeTreeCall ? [index] : []))
-    const fetchIndex = calls.indexOf('git fetch --prune origin')
-    const updateRefIndex = calls.indexOf('git update-ref -d refs/heads/feature/test def456')
-    expect(calls).toContain('git fetch --prune origin')
-    expect(calls).toContain('git update-ref -d refs/heads/feature/test def456')
-    expect(mergeTreeIndexes).toHaveLength(1)
-    expect(fetchIndex).toBeLessThan(mergeTreeIndexes[0])
-    expect(mergeTreeIndexes[0]).toBeLessThan(updateRefIndex)
-    expectGitCallOrder(
-      calls,
-      'git fetch --prune origin',
-      'git update-ref -d refs/heads/feature/test def456'
-    )
+    expect(calls).not.toContain('git branch -d -- feature/test')
+    expect(calls).not.toContain('git update-ref -d refs/heads/feature/test def456')
   })
 
   it('preserves an already-merged branch when cleanup races after worktree removal', async () => {
@@ -355,14 +391,8 @@ HEAD abc123
 branch refs/heads/main
 `
       },
-      'git branch -d -- feature/test': {
-        error: new Error('branch delete failed'),
-        stderr: 'error: the branch feature/test is not fully merged'
-      },
-      'git config --get branch.feature/test.base': {
-        stdout: 'refs/remotes/origin/main\n'
-      },
-      'git rev-parse --verify --quiet refs/remotes/origin/main^{commit}': {
+      [NOT_IN_LOCAL_MAIN]: { error: new Error('not an ancestor') },
+      'git rev-parse --verify --quiet refs/heads/main^{commit}': {
         stdout: 'base123\n'
       },
       'git rev-list --right-only --merges --count base123...refs/heads/feature/test': {
@@ -377,7 +407,7 @@ branch refs/heads/main
     })
 
     await expect(removeWorktree('/repo', '/repo-feature')).resolves.toEqual({
-      preservedBranch: { branchName: 'feature/test', head: 'def456' }
+      preservedBranch: { branchName: 'feature/test', head: 'def456', reason: 'delete_failed' }
     })
 
     expect(warnSpy).toHaveBeenCalledWith(
@@ -385,8 +415,7 @@ branch refs/heads/main
       expect.any(Error)
     )
     expect(warnSpy).toHaveBeenCalledWith(
-      '[git] Preserved local branch "feature/test" after removing worktree (not fully merged)',
-      expect.any(Error)
+      '[git] Preserved local branch "feature/test" after removing worktree (delete_failed)'
     )
     warnSpy.mockRestore()
   })
@@ -467,7 +496,8 @@ branch refs/heads/feature/test
       if (args.join(' ') === 'branch -d -- feature/a') {
         await firstBranchDelete
       }
-      return { stdout: '', stderr: '' }
+      const localMain = `git ${args.join(' ')}` === DEFAULT_BRANCH_PROBE
+      return { stdout: localMain ? 'refs/heads/main\0\n' : '', stderr: '' }
     })
 
     const first = removeWorktree('/repo', '/repo-a', false, {

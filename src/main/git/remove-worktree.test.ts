@@ -40,6 +40,7 @@ vi.mock('fs/promises', async () => {
 import {
   createGitCallReader,
   createGitCommandMocker,
+  DEFAULT_BRANCH_PROBE,
   expectGitCallOrder,
   resetWorktreeGitMocks,
   resetWorktreeRemovalState
@@ -221,6 +222,8 @@ branch refs/heads/main
     expect(calls).toEqual([
       'git worktree list --porcelain -z',
       'git worktree remove /repo-feature',
+      DEFAULT_BRANCH_PROBE,
+      'git merge-base --is-ancestor refs/heads/feature/test refs/heads/main',
       'git branch -d -- feature/test',
       'git worktree prune',
       'git branch -d -- feature/test'

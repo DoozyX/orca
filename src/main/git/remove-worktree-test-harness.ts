@@ -20,6 +20,21 @@ function enoent(): Error {
   return Object.assign(new Error('ENOENT'), { code: 'ENOENT' })
 }
 
+/** Branch cleanup's default-branch probe; answered with local `main` unless a test overrides it. */
+export const DEFAULT_BRANCH_PROBE_ARGS = [
+  'for-each-ref',
+  '--format=%(refname)%00%(symref)',
+  'refs/remotes/origin/HEA[D]',
+  'refs/remotes/origin/mai[n]',
+  'refs/remotes/origin/maste[r]',
+  'refs/heads/mai[n]',
+  'refs/heads/maste[r]'
+]
+export const DEFAULT_BRANCH_PROBE = `git ${DEFAULT_BRANCH_PROBE_ARGS.join(' ')}`
+
+// Why: every fixture's primary checkout is on `main`, the local default branch cleanup measures against.
+const LOCAL_MAIN_DEFAULT_BRANCH: MockResult = { stdout: 'refs/heads/main\0\n' }
+
 /** Routes git calls to canned results keyed by `git <args>`, with `#n` selecting the nth call. */
 export function createGitCommandMocker(
   gitExecFileAsyncMock: Mock
@@ -38,6 +53,7 @@ export function createGitCommandMocker(
         (lineListKey
           ? (results[`${lineListKey}#${callCount}`] ?? results[lineListKey])
           : undefined) ??
+        (key === DEFAULT_BRANCH_PROBE ? LOCAL_MAIN_DEFAULT_BRANCH : undefined) ??
         {}
 
       if (result.error) {

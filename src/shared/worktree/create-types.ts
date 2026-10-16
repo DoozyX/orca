@@ -225,6 +225,8 @@ export type WorktreeCreateBaseFallback = {
 export type PreservedWorktreeBranch = {
   branchName: string
   head?: string
+  /** Why the branch stayed; additive, older hosts omit it. */
+  reason?: 'not_merged_into_default' | 'delete_failed'
 }
 
 export type RemoveWorktreeResult = {
