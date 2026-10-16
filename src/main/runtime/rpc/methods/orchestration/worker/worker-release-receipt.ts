@@ -115,7 +115,7 @@ function inspectHolder(custody: ReleaseCustody, holderId: string): string {
   const show = `orca orchestration worker-show --dispatch ${holderId}`
   return holder.readerCanAct
     ? ` Inspect with: ${show} --json`
-    : ` Dispatch ${holderId} ${RUN_BY_ANOTHER_ORCA}; inspect it from that Orca: ${show} --run ${holder.runId} --json`
+    : ` Dispatch ${holderId} ${RUN_BY_ANOTHER_ORCA} (its Run ${holder.runId}); inspect it from that Orca: ${show} --json`
 }
 
 function releaseThroughOwner(custody: ReleaseCustody, dispatchId: string, ownerId: string): string {

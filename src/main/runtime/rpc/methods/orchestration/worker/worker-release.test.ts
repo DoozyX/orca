@@ -1,9 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ORCHESTRATION_CONTRACT_VERSION } from '../../../../../../shared/protocol-version'
+import { parseArgs, validateCommandAndFlags } from '../../../../../../cli/args'
+import { ORCHESTRATION_WORKER_COMMAND_SPECS } from '../../../../../../cli/specs/orchestration-worker-specs'
 import type { OrcaRuntimeService } from '../../../../orca-runtime'
 import { createOrchestrationWorkerReleaseHarness } from './worker-release.test-support'
 
 const SQLITE_UTC = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/
+
+/** A fixture this file builds did not hold the shape its test relies on. */
+class ReleaseFixtureError extends Error {}
 
 describe('orchestration worker release', () => {
   const h = createOrchestrationWorkerReleaseHarness()
@@ -206,24 +211,45 @@ describe('orchestration worker release', () => {
     const owner = attachRemoteOwner(first.dispatchId, true)
     await h.call('orchestration.workerTerminalUserInput', { paneKey: h.workerPaneKey })
 
-    await expect(
-      h.call('orchestration.workerRelease', { dispatch: first.dispatchId })
-    ).resolves.toMatchObject({
+    const receipt = await h.call('orchestration.workerRelease', { dispatch: first.dispatchId })
+    const recovery = recoveryOf(receipt)
+    const marker = 'inspect it from that Orca: '
+    const step = recovery.slice(recovery.indexOf(marker) + marker.length)
+    // The step is run as printed, so the real CLI parser has to accept it.
+    expect(() =>
+      validateCommandAndFlags(
+        ORCHESTRATION_WORKER_COMMAND_SPECS,
+        parseArgs(step.split(' ').slice(1))
+      )
+    ).not.toThrow()
+    expect(receipt).toMatchObject({
       state: 'retained',
       currentOwnerDispatchId: owner,
       takeover: { source: 'desktop_terminal_input' },
       recovery: expect.stringContaining(
-        `another Orca runs on this host; inspect it from that Orca: orca orchestration worker-show --dispatch ${owner} --run run_on_other_home --json`
+        `another Orca runs on this host (its Run run_on_other_home); ${marker}orca orchestration worker-show --dispatch ${owner} --json`
       )
     })
     expect(h.runtime.closeTerminal).not.toHaveBeenCalled()
   })
 
+  function recoveryOf(receipt: unknown): string {
+    if (
+      typeof receipt !== 'object' ||
+      receipt === null ||
+      !('recovery' in receipt) ||
+      typeof receipt.recovery !== 'string'
+    ) {
+      throw new ReleaseFixtureError('Expected the release receipt to carry a recovery step')
+    }
+    return receipt.recovery
+  }
+
   /** A remote worker another Orca starts on this host, reusing the settled local worker's terminal. */
   function attachRemoteOwner(formerOwnerId: string, settled: boolean): string {
     const resource = h.db.getWorkerTerminalResourceByOwner(formerOwnerId)
     if (!resource?.pane_key || !resource.process_incarnation) {
-      throw new Error('Expected the local worker to own an identified terminal')
+      throw new ReleaseFixtureError('Expected the local worker to own an identified terminal')
     }
     const dispatchId = 'ctx_remote_owner'
     h.db.createRemoteDispatchAttachment({
