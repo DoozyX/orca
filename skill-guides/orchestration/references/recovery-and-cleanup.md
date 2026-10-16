@@ -114,7 +114,7 @@ with `--task`, since `--spec` creates a new one. Placement is never silently
 inherited:
 
 ```text
-ORCA orchestration worker-start --task <task_id> --retry-of <dispatch_id> --worktree <explicit_placement> --agent <agent> --json
+ORCA orchestration worker-start --task <task_id> --retry-of <dispatch_id> --worktree <explicit_placement> --agent <agent> --from <coordinator_handle> --json
 ```
 
 After three consecutive failures for one Task, its dispatch context

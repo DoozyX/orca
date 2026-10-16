@@ -63,8 +63,8 @@ otherwise omit it so the worker inherits the user's configured agent default.
 Add `--effort` only when that model supports it:
 
 ```text
-ORCA orchestration worker-start --task <task_id> --worktree current --agent claude --model opus --effort high --json
-ORCA orchestration worker-start --task <task_id> --worktree current --agent muse --model muse-spark-1.3 --json
+ORCA orchestration worker-start --task <task_id> --worktree current --agent claude --model opus --effort high --from <coordinator_handle> --json
+ORCA orchestration worker-start --task <task_id> --worktree current --agent muse --model muse-spark-1.3 --from <coordinator_handle> --json
 ```
 
 OpenCode also accepts `--model` in an existing worktree when the execution host
@@ -172,8 +172,23 @@ transfer cleanup ownership to the new Dispatch:
 
 ```text
 ORCA orchestration worker-show --dispatch <dispatch_id> --json
-ORCA orchestration worker-start --task <next_task_id> --terminal <agent_terminal_handle> --json
+ORCA orchestration worker-start --task <next_task_id> --terminal <agent_terminal_handle> --from <coordinator_handle> --json
 ```
+
+A structured worker (a `structworker_` handle) has no terminal, so
+`worker-start --terminal` refuses it with `terminal_unsupported_for_agent_session`.
+To give that session the next Task, create a context-only Dispatch and send its
+preamble yourself:
+
+```text
+ORCA orchestration dispatch --task <next_task_id> --to <structworker_handle> --from <coordinator_handle> --return-preamble --json
+ORCA orchestration send --to <structworker_handle> --from <coordinator_handle> --subject "<task title>" --body "<preamble>" --json
+```
+
+That reuse is unsupervised: no readiness wait, input receipt, or turn
+observation backs it, so start a fresh worker when supervision matters.
+`worker-stop --dispatch <dispatch_id>` on that Dispatch fences it and interrupts
+the session's running turn; its `interrupt` field says whether it did.
 
 Otherwise explicitly retain or release the settled worker. Do not leave it live
 only to inspect output; archived output remains available through `worker-read`.

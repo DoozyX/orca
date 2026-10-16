@@ -129,6 +129,13 @@ runtime, orchestration, terminals and agent hooks, or a bundled skill guide. An
 entry about the target repository, its CI, or an agent CLI Orca cannot work
 around stays in the retrospective only.
 
+A structured retrospective worker cannot be reused with `worker-start --terminal`.
+Either hand it the filing Task with `orchestration dispatch --task <task_id> --to
+<structworker_handle> --from <coordinator_handle> --return-preamble --json` and
+`orchestration send` of the returned preamble — unsupervised reuse, whose
+`worker-stop` fences the Dispatch and interrupts the session's running turn — or
+file with a fresh worker given the retrospective's path.
+
 Per entry, search first, then file or comment, never both:
 
 ```text

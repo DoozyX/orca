@@ -17,13 +17,13 @@ belongs to no run — and for remote placement, where `new-child` is invalid.
 
 ```text
 # Current workspace; setup is not rerun.
-ORCA orchestration worker-start --task <task_id> --worktree current --agent codex --json
+ORCA orchestration worker-start --task <task_id> --worktree current --agent codex --from <coordinator_handle> --json
 
 # New worktree for a local worker: nested under the coordinator.
-ORCA orchestration worker-start --task <task_id> --worktree new-child --name <name> --agent codex --setup run --json
+ORCA orchestration worker-start --task <task_id> --worktree new-child --name <name> --agent codex --setup run --from <coordinator_handle> --json
 
 # Independent top-level worktree; unrelated work, or remote placement.
-ORCA orchestration worker-start --task <task_id> --worktree new-top-level --name <name> --agent codex --setup run --json
+ORCA orchestration worker-start --task <task_id> --worktree new-top-level --name <name> --agent codex --setup run --from <coordinator_handle> --json
 ```
 
 Current and exact existing workspaces create a fresh terminal unless
@@ -54,7 +54,7 @@ The Run and Tasks remain authoritative on the current server. `--on` selects
 only the worker's execution server and appears only on `worker-start`:
 
 ```text
-ORCA orchestration worker-start --task <task_id> --on <environment> --worktree new-top-level --repo <exact_remote_repo_selector> --name <name> --agent codex --setup run --json
+ORCA orchestration worker-start --task <task_id> --on <environment> --worktree new-top-level --repo <exact_remote_repo_selector> --name <name> --agent codex --setup run --from <coordinator_handle> --json
 ```
 
 Remote `current` and `new-child` are invalid because they are ambiguous across

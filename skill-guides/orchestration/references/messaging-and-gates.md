@@ -37,10 +37,18 @@ Use a stable Dispatch address for attempt-specific coordinator guidance:
 ORCA orchestration send --to dispatch:<dispatch_id> --subject "Follow-up" --body "<guidance>" --json
 ```
 
-Do not substitute a remote terminal handle. Omit `--from` for ordinary
-coordinator calls; a dispatched worker instead copies the exact `--from` and
-other arguments in its preamble. `check` is the exception: it identifies
-its caller with `--terminal`, never `--from`.
+Do not substitute a remote terminal handle. Inside the coordinator's own Orca
+terminal `--from` may be omitted, because `ORCA_TERMINAL_HANDLE` names it; a
+dispatched worker instead copies the exact `--from` and other arguments in its
+preamble. `check` is the exception: it identifies its caller with `--terminal`,
+never `--from`.
+
+`run-create` binds the terminal named by `--from` or `ORCA_TERMINAL_HANDLE`; it
+never guesses. `run-use`, `dispatch` and `worker-start` resolve their caller the
+same way; when neither names one they refuse with `no_active_sender_terminal`,
+so pass `--from <coordinator_handle>`. When `worker-start` refuses with
+`consumer_fenced`, the message names the Task Run's bound coordinator and the
+`run-use --id <run_id> --from <coordinator_handle>` that rebinds it to you.
 
 Group addresses include `@all`, `@idle`, `@claude`, `@codex`, `@opencode`,
 `@gemini`, `@droid`, `@grok`, `@cursor`, and `@worktree:<id>`. Every group but

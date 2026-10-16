@@ -108,9 +108,9 @@ waiting. `worker-start --spec` creates the Task and its attempt in one call:
 
 ```text
 ORCA status --json
-ORCA orchestration run-create --objective "<objective>" --json
-ORCA orchestration worker-start --spec "<worker A task>" --worktree current --agent codex --json
-ORCA orchestration worker-start --spec "<worker B task>" --worktree current --agent claude --json
+ORCA orchestration run-create --objective "<objective>" --from <coordinator_handle> --json
+ORCA orchestration worker-start --spec "<worker A task>" --worktree current --agent codex --from <coordinator_handle> --json
+ORCA orchestration worker-start --spec "<worker B task>" --worktree current --agent claude --from <coordinator_handle> --json
 ORCA orchestration check --wait --types "worker_done,escalation,question" --timeout-ms 900000 --json
 ```
 
@@ -123,9 +123,10 @@ dependencies or a retry of a known Task. Use dependencies only for real ordering
 and prefer parallel waves over chains deeper than three or four steps; nested
 workers obey the depth limit, and a new Run does not reset the caller's depth.
 
-A consuming `check` names its caller with `--terminal <handle>`, never `--from`;
-omit it inside the coordinator's own Orca terminal. It returns the bound Run's
-oldest FIFO Delivery and replays that batch until acknowledged; a
+A consuming `check` names its caller with `--terminal <handle>`, never `--from`,
+while every other coordinator verb names it with `--from <coordinator_handle>`;
+omit `--terminal` inside the coordinator's own Orca terminal. It returns the
+bound Run's oldest FIFO Delivery and replays that batch until acknowledged; a
 `--wait --types` check instead builds a Delivery of only those types, unless
 your un-acked Delivery already holds one, which it replays whole. Process every
 message: reply to questions, validate each `worker_done` against the expected

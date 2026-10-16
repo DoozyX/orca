@@ -114,7 +114,7 @@ work around.
 
 ```text
 ORCA worktree create --name <task-slug> --parent-worktree active --base-branch <base> --json
-ORCA orchestration worker-start --spec "<task spec>" --worktree id:<repoId>::<worktreePath> --agent <selected> --json
+ORCA orchestration worker-start --spec "<task spec>" --worktree id:<repoId>::<worktreePath> --agent <selected> --from <coordinator_handle> --json
 ```
 
 Lineage and Git base are separate decisions: `--parent-worktree active` nests the
