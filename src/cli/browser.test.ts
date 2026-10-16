@@ -36,6 +36,7 @@ vi.mock('./runtime-client', () => {
 
 import { main } from './index'
 import { RuntimeClientError } from './runtime-client'
+import { RuntimeConnectionClosedError } from './runtime/transport'
 import { buildWorktree, okFixture, queueFixtures, worktreeListFixture } from './test-fixtures'
 
 describe('orca cli browser page targeting', () => {
@@ -769,5 +770,101 @@ describe('orca cli browser waits and viewport flags', () => {
       mobile: true,
       worktree: undefined
     })
+  })
+})
+
+// #28: a hung page stalls a bridge call until the socket closes; the runtime itself is fine.
+describe('orca cli browser commands interrupted by a closed connection', () => {
+  const statusFixture = okFixture('req_status', { runtimeId: 'runtime-1' })
+  const snapshotFixture = okFixture('req_snapshot', {
+    browserPageId: 'page-1',
+    snapshot: 'tree',
+    refs: [],
+    url: 'https://example.com',
+    title: 'Example'
+  })
+
+  beforeEach(() => {
+    callMock.mockReset()
+    process.exitCode = undefined
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    process.exitCode = undefined
+  })
+
+  function jsonError(logSpy: { mock: { calls: unknown[][] } }): { code: string; message: string } {
+    const printed: unknown = JSON.parse(String(logSpy.mock.calls.at(-1)?.[0]))
+    if (!printed || typeof printed !== 'object' || !('error' in printed)) {
+      throw new TypeError('expected a JSON error envelope')
+    }
+    const { error } = printed
+    if (!error || typeof error !== 'object' || !('code' in error) || !('message' in error)) {
+      throw new TypeError('expected an error code and message')
+    }
+    return { code: String(error.code), message: String(error.message) }
+  }
+
+  it('retries a snapshot once after a close while the runtime still answers', async () => {
+    callMock
+      .mockRejectedValueOnce(new RuntimeConnectionClosedError())
+      .mockResolvedValueOnce(statusFixture)
+      .mockResolvedValueOnce(snapshotFixture)
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+
+    await main(['snapshot', '--page', 'page-1', '--json'], '/tmp/not-an-orca-worktree')
+
+    expect(callMock.mock.calls.map((call) => call[0])).toEqual([
+      'browser.snapshot',
+      'status.get',
+      'browser.snapshot'
+    ])
+    expect(process.exitCode).toBeUndefined()
+  })
+
+  it('fails browser_command_interrupted after a second close', async () => {
+    callMock
+      .mockRejectedValueOnce(new RuntimeConnectionClosedError())
+      .mockResolvedValueOnce(statusFixture)
+      .mockRejectedValueOnce(new RuntimeConnectionClosedError())
+      .mockResolvedValueOnce(statusFixture)
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+    await main(['snapshot', '--page', 'page-1', '--json'], '/tmp/not-an-orca-worktree')
+
+    expect(callMock.mock.calls.filter((call) => call[0] === 'browser.snapshot')).toHaveLength(2)
+    const error = jsonError(logSpy)
+    expect(error.code).toBe('browser_command_interrupted')
+    expect(error.message).toContain('page page-1')
+    expect(error.message).toContain('runtime is reachable')
+    expect(process.exitCode).toBe(1)
+  })
+
+  it.each([
+    ['goto', ['goto', '--url', 'https://example.com'], 'browser.goto'],
+    ['viewport', ['viewport', '--width', '375', '--height', '812'], 'browser.viewport']
+  ])('never retries %s', async (_label, argv, method) => {
+    callMock
+      .mockRejectedValueOnce(new RuntimeConnectionClosedError())
+      .mockResolvedValueOnce(statusFixture)
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+    await main([...argv, '--page', 'page-1', '--json'], '/tmp/not-an-orca-worktree')
+
+    expect(callMock.mock.calls.map((call) => call[0])).toEqual([method, 'status.get'])
+    expect(jsonError(logSpy).code).toBe('browser_command_interrupted')
+  })
+
+  it('stays runtime_unavailable when the status probe also fails', async () => {
+    callMock
+      .mockRejectedValueOnce(new RuntimeConnectionClosedError())
+      .mockRejectedValueOnce(new RuntimeConnectionClosedError())
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+    await main(['snapshot', '--page', 'page-1', '--json'], '/tmp/not-an-orca-worktree')
+
+    expect(callMock.mock.calls.map((call) => call[0])).toEqual(['browser.snapshot', 'status.get'])
+    expect(jsonError(logSpy).code).toBe('runtime_unavailable')
   })
 })

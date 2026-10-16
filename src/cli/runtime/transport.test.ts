@@ -5,7 +5,7 @@ import { createServer, type Socket } from 'node:net'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { RuntimeMetadata } from '../../shared/runtime-bootstrap'
 import { MAX_TIMER_DELAY_MS } from '../../shared/timer-delay'
-import { sendRequest } from './transport'
+import { RuntimeConnectionClosedError, sendRequest } from './transport'
 
 const servers = new Set<ReturnType<typeof createServer>>()
 const sockets = new Set<Socket>()
@@ -137,5 +137,38 @@ describe.skipIf(process.platform === 'win32')('runtime transport', () => {
         'The Orca runtime closed the connection before responding. Restart Orca and try again.'
     })
     expect(Date.now() - start).toBeLessThan(5000)
+  })
+
+  // #28: the browser retry tells this close apart from a refused connection.
+  it('types a close before a browser.snapshot response, but not a refused connection', async () => {
+    const userDataPath = mkdtempSync(join(tmpdir(), 'orca-runtime-transport-'))
+    const endpoint = join(userDataPath, 'runtime.sock')
+    const server = createServer((socket) => {
+      sockets.add(socket)
+      socket.once('close', () => sockets.delete(socket))
+      socket.once('data', () => socket.destroy())
+    })
+    servers.add(server)
+    await new Promise<void>((resolve) => server.listen(endpoint, resolve))
+    const metadata = (socketPath: string): RuntimeMetadata => ({
+      runtimeId: 'runtime-1',
+      pid: 123,
+      transports: [{ kind: 'unix', endpoint: socketPath }],
+      authToken: 'token',
+      startedAt: 1
+    })
+
+    const closed = sendRequest(metadata(endpoint), 'browser.snapshot', { page: 'page-1' }, 60000)
+    await expect(closed).rejects.toBeInstanceOf(RuntimeConnectionClosedError)
+    await expect(closed).rejects.toMatchObject({ code: 'runtime_unavailable' })
+
+    const refused = sendRequest(
+      metadata(join(userDataPath, 'missing.sock')),
+      'browser.snapshot',
+      { page: 'page-1' },
+      60000
+    )
+    await expect(refused).rejects.toMatchObject({ code: 'runtime_unavailable' })
+    await expect(refused).rejects.not.toBeInstanceOf(RuntimeConnectionClosedError)
   })
 })

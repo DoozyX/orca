@@ -9,6 +9,7 @@ import {
   getRequiredStringFlagAllowingEmpty
 } from '../flags'
 import { RuntimeClientError } from '../runtime-client'
+import { withBrowserInterruptRecovery } from '../runtime/browser-interrupted-retry'
 import { getBrowserCommandTarget } from '../selectors'
 
 export const BROWSER_ENV_HANDLERS: Record<string, CommandHandler> = {
@@ -27,8 +28,13 @@ export const BROWSER_ENV_HANDLERS: Record<string, CommandHandler> = {
     if (flags.has('mobile')) {
       params.mobile = true
     }
-    Object.assign(params, await getBrowserCommandTarget(flags, cwd, client))
-    const result = await client.call<BrowserViewportResult>('browser.viewport', params)
+    const target = await getBrowserCommandTarget(flags, cwd, client)
+    Object.assign(params, target)
+    const result = await withBrowserInterruptRecovery(
+      client,
+      { method: 'browser.viewport', page: target.page, readOnly: false },
+      () => client.call<BrowserViewportResult>('browser.viewport', params)
+    )
     printResult(
       result,
       json,

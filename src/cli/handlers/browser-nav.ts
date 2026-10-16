@@ -17,6 +17,7 @@ import {
   getRequiredStringFlag
 } from '../flags'
 import { RuntimeClientError } from '../runtime-client'
+import { withBrowserInterruptRecovery } from '../runtime/browser-interrupted-retry'
 import { getBrowserCommandTarget } from '../selectors'
 
 // Why: selector/text/url waits can legitimately take longer than a normal RPC
@@ -28,7 +29,11 @@ const DEFAULT_BROWSER_WAIT_RPC_TIMEOUT_MS = 60_000
 export const BROWSER_NAV_HANDLERS: Record<string, CommandHandler> = {
   snapshot: async ({ flags, client, cwd, json }) => {
     const target = await getBrowserCommandTarget(flags, cwd, client)
-    const result = await client.call<BrowserSnapshotResult>('browser.snapshot', target)
+    const result = await withBrowserInterruptRecovery(
+      client,
+      { method: 'browser.snapshot', page: target.page, readOnly: true },
+      () => client.call<BrowserSnapshotResult>('browser.snapshot', target)
+    )
     printResult(result, json, formatSnapshot)
   },
   screenshot: async ({ flags, client, cwd, json }) => {
@@ -44,10 +49,11 @@ export const BROWSER_NAV_HANDLERS: Record<string, CommandHandler> = {
     const url = getRequiredStringFlag(flags, 'url')
     const target = await getBrowserCommandTarget(flags, cwd, client)
     // Why: navigation waits for network idle which can exceed the default 15s RPC timeout
-    const result = await client.call<BrowserGotoResult>(
-      'browser.goto',
-      { url, ...target },
-      { timeoutMs: 60_000 }
+    const result = await withBrowserInterruptRecovery(
+      client,
+      { method: 'browser.goto', page: target.page, readOnly: false },
+      () =>
+        client.call<BrowserGotoResult>('browser.goto', { url, ...target }, { timeoutMs: 60_000 })
     )
     printResult(result, json, (v) => `Navigated to ${v.url} — ${v.title}`)
   },
@@ -100,21 +106,15 @@ export const BROWSER_NAV_HANDLERS: Record<string, CommandHandler> = {
     const fn = getOptionalStringFlag(flags, 'fn')
     const state = getOptionalStringFlag(flags, 'state')
     const target = await getBrowserCommandTarget(flags, cwd, client)
-    const result = await client.call<BrowserWaitResult>(
-      'browser.wait',
-      {
-        selector,
-        timeout,
-        text,
-        url,
-        load,
-        fn,
-        state,
-        ...target
-      },
-      {
-        timeoutMs: timeout ? timeout + 5000 : DEFAULT_BROWSER_WAIT_RPC_TIMEOUT_MS
-      }
+    const result = await withBrowserInterruptRecovery(
+      client,
+      { method: 'browser.wait', page: target.page, readOnly: true },
+      () =>
+        client.call<BrowserWaitResult>(
+          'browser.wait',
+          { selector, timeout, text, url, load, fn, state, ...target },
+          { timeoutMs: timeout ? timeout + 5000 : DEFAULT_BROWSER_WAIT_RPC_TIMEOUT_MS }
+        )
     )
     printResult(result, json, (v) => JSON.stringify(v, null, 2))
   },

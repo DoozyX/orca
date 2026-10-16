@@ -19,6 +19,15 @@ export const SPECIALIZED_LONG_POLL_SHARE = 0.75
 // Why: 'ask' is metered separately from 'wait' — same keepalive/abort wiring, its own sub-cap.
 export type RuntimeLongPollClass = 'ask' | 'browser-host' | 'wait'
 
+// Why (#28): bridge commands queue per page and may run to the 90 s exec timeout, so a hung page
+// pushes later calls past the 30 s socket idle timer, which the CLI reads as a dead runtime.
+const BROWSER_BRIDGE_WAIT_METHODS = new Set([
+  'browser.snapshot',
+  'browser.wait',
+  'browser.goto',
+  'browser.viewport'
+])
+
 // Why: single classifier for long-poll requests (handlers that block on an external event), shared by counter/abort/keepalive. See §3.1.
 export function classifyRuntimeLongPoll(request: RpcRequest): RuntimeLongPollClass | null {
   // Worker start waits for readiness and then verifies the submitted prompt;
@@ -58,6 +67,9 @@ export function classifyRuntimeLongPoll(request: RpcRequest): RuntimeLongPollCla
   }
   if (request.method === 'browser.clientHost.attach') {
     return 'browser-host'
+  }
+  if (BROWSER_BRIDGE_WAIT_METHODS.has(request.method)) {
+    return 'wait'
   }
   if (request.method === 'terminal.wait') {
     return 'wait'
