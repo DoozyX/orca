@@ -629,6 +629,22 @@ describe('OrcaRuntimeService', () => {
     await expect(first).resolves.toBe('cancelled')
   })
 
+  it('frees the exclusive mailbox waiter when its request signal aborts', async () => {
+    const runtime = new OrcaRuntimeService(store)
+    const controller = new AbortController()
+    const first = runtime.waitForMessage('run:run_1', {
+      timeoutMs: 5000,
+      exclusive: true,
+      signal: controller.signal
+    })
+
+    controller.abort()
+    await expect(first).resolves.toBe('cancelled')
+    const next = runtime.waitForMessage('run:run_1', { timeoutMs: 5000, exclusive: true })
+    runtime.cancelMessageWaiters('run:run_1')
+    await expect(next).resolves.toBe('cancelled')
+  })
+
   it('rejects leaf PTY waits when the request signal aborts', async () => {
     vi.useFakeTimers()
     try {

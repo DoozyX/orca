@@ -10,6 +10,7 @@ import {
   type OrchestrationMessageSummary as MessageSummary
 } from '../../../shared/orchestration-check-output'
 import { startCheckKeepalive } from './check-keepalive'
+import { startCheckWaitParentWatch } from './check-wait-parent-watch'
 import { callCheckWaitWithResume, type OrchestrationCheckParams } from './check-wait-resume'
 import { callOrchestrationMutation } from './mutation-request'
 import { getOptionalPositiveIntegerValueFlag } from './numeric-flags'
@@ -63,6 +64,9 @@ export const ORCHESTRATION_CHECK_HANDLER: Record<string, CommandHandler> = {
       timeoutMs
     }
     const stopKeepalive = wait ? startCheckKeepalive(timeoutMs) : null
+    const stopParentWatch = wait
+      ? startCheckWaitParentWatch({ onOrphaned: exitOrphanedWait })
+      : null
     let result: Awaited<ReturnType<typeof client.call<CheckResult>>>
     try {
       result = wait
@@ -70,6 +74,7 @@ export const ORCHESTRATION_CHECK_HANDLER: Record<string, CommandHandler> = {
         : await callOrchestrationMutation<CheckResult>(client, flags, 'orchestration.check', params)
     } finally {
       stopKeepalive?.()
+      stopParentWatch?.()
     }
     if (peek) {
       result = filterLegacyPeekResult(result, wait)
@@ -94,6 +99,13 @@ export const ORCHESTRATION_CHECK_HANDLER: Record<string, CommandHandler> = {
       })
     }
   }
+}
+
+// Why: exiting closes the socket, which is what frees the Run's exclusive waiter on the host.
+function exitOrphanedWait(): void {
+  const message = 'The process that started this check --wait exited; stopping the orphaned wait.'
+  process.stderr.write(`${JSON.stringify({ error: { code: 'parent_exited', message } })}\n`)
+  process.exit(1)
 }
 
 function filterLegacyPeekResult(

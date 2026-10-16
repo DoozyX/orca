@@ -5,15 +5,19 @@ vi.mock('../../format', () => ({ printResult: printResultMock }))
 
 import { RuntimeClientError } from '../../runtime-client'
 import type { RuntimeClient } from '../../runtime-client'
+import { CHECK_WAIT_PARENT_POLL_MS } from './check-wait-parent-watch'
 import { CHECK_WAIT_RESUME_LIMIT } from './check-wait-resume'
 import { ORCHESTRATION_CHECK_HANDLER } from './message-check-handler'
 
 type CallOptions = { orchestrationRequestId?: string }
 type SentCheck = { params: Record<string, unknown>; options?: CallOptions }
 
+class ProcessExitCalled extends Error {}
+
 const callMock = vi.fn()
 // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the check handler only uses client.call.
 const client = { call: callMock } as unknown as RuntimeClient
+const ORIGINAL_PPID = Object.getOwnPropertyDescriptor(process, 'ppid')
 
 function waitFlags(extra: [string, string | boolean][] = []): Map<string, string | boolean> {
   return new Map<string, string | boolean>([
@@ -208,5 +212,61 @@ describe('check --wait resume after a dropped connection', () => {
     ).rejects.toMatchObject({ data: { recovery: { disposition: 'outcome_unknown' } } })
     expect(sent).toHaveLength(1)
     expect(requestShowSpy).not.toHaveBeenCalled()
+  })
+})
+
+describe('check --wait parent exit', () => {
+  let parentPid = 4242
+  const readParentPid = vi.fn(() => parentPid)
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+    callMock.mockReset()
+    printResultMock.mockReset()
+    readParentPid.mockClear()
+    parentPid = 4242
+    Object.defineProperty(process, 'ppid', { configurable: true, get: readParentPid })
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+    if (ORIGINAL_PPID) {
+      Object.defineProperty(process, 'ppid', ORIGINAL_PPID)
+    }
+  })
+
+  it('exits an orphaned wait so its socket closes, without resuming', async () => {
+    const exit = vi.spyOn(process, 'exit').mockImplementation(() => {
+      throw new ProcessExitCalled()
+    })
+    const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
+    const stdout = vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
+    callMock.mockImplementation(() => new Promise(() => {}))
+
+    void invokeCheck(waitFlags())
+    await vi.waitFor(() => expect(callMock).toHaveBeenCalledTimes(1))
+    expect(readParentPid).toHaveBeenCalled()
+    parentPid = 1
+
+    expect(() => vi.advanceTimersByTime(CHECK_WAIT_PARENT_POLL_MS)).toThrow(ProcessExitCalled)
+    expect(exit).toHaveBeenCalledTimes(1)
+    expect(exit).toHaveBeenCalledWith(1)
+    const orphanLines = stderr.mock.calls.filter(([line]) => String(line).includes('parent_exited'))
+    expect(orphanLines).toHaveLength(1)
+    expect(stderr.mock.invocationCallOrder.at(-1)).toBeLessThan(exit.mock.invocationCallOrder[0])
+    expect(callMock).toHaveBeenCalledTimes(1)
+    expect(callMock).toHaveBeenCalledWith('orchestration.check', expect.anything())
+    expect(printResultMock).not.toHaveBeenCalled()
+    expect(stdout).not.toHaveBeenCalled()
+  })
+
+  it('starts no watch for a check without --wait', async () => {
+    callMock.mockImplementation(() => new Promise(() => {}))
+
+    void invokeCheck(new Map<string, string | boolean>([['terminal', 'term_coord']]))
+    await vi.waitFor(() => expect(callMock).toHaveBeenCalledTimes(1))
+
+    expect(vi.getTimerCount()).toBe(0)
+    expect(readParentPid).not.toHaveBeenCalled()
   })
 })
