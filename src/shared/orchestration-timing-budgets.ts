@@ -9,6 +9,8 @@ export const ORCHESTRATION_WORKER_START_CLIENT_GRACE_MS = AGENT_PROMPT_EFFECT_TI
 /** How long a worker brief keeps sampling for its launched agent to lead the foreground. */
 export const LAUNCHED_AGENT_FOREGROUND_SETTLE_MS = 10_000
 export const LAUNCHED_AGENT_FOREGROUND_SAMPLE_MS = 250
+/** How long a send to a structured worker waits for its pointer lane's answer for the message. */
+export const ORCHESTRATION_SEND_DELIVERY_OBSERVE_MS = 3_000
 
 export function resolveWorkerStartReadinessTimeoutMs(timeoutMs: number | undefined): number {
   return typeof timeoutMs === 'number' && Number.isFinite(timeoutMs) && timeoutMs > 0

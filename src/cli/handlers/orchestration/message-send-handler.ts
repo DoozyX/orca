@@ -30,9 +30,11 @@ type SendRecipientWarning = {
 
 type OrchestrationSendResult =
   | {
-      message: { id: string; run_id?: string }
+      message: { id: string; run_id?: string; to_handle: string }
       lifecycle?: LifecycleSendResult
       warnings?: SendRecipientWarning[]
+      /** The structured worker's answer: `queued` holds the pointer until its current turn ends. */
+      delivery?: 'queued' | 'injected'
     }
   | {
       messages: { id: string }[]
@@ -127,7 +129,11 @@ export const ORCHESTRATION_SEND_HANDLER: Record<string, CommandHandler> = {
           ? [line, ...warnings.map((warning) => `Warning: ${warning.message}`)].join('\n')
           : line
       if ('message' in value) {
-        return withWarnings(`Sent ${value.message.id}`)
+        return withWarnings(
+          value.delivery === 'queued'
+            ? `Sent ${value.message.id}\nQueued: ${value.message.to_handle} is mid-turn; its chat holds the pointer and sends it when the current turn ends.`
+            : `Sent ${value.message.id}`
+        )
       }
       if ('relay' in value) {
         if (value.relay.destination === 'worker') {

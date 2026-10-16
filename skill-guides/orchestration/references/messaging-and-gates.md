@@ -50,6 +50,12 @@ so pass `--from <coordinator_handle>`. When `worker-start` refuses with
 `consumer_fenced`, the message names the Task Run's bound coordinator and the
 `run-use --id <run_id> --from <coordinator_handle>` that rebinds it to you.
 
+A send to a structured worker can report `delivery`: `injected` means the
+pointer started a turn, and `queued` means the worker's chat holds the pointer
+and sends it when the current turn ends, so the running turn does not see it.
+Put a scope change for a running worker in a new Task or a stop-and-relaunch
+instead. A send without `delivery` claims nothing about when the worker sees it.
+
 Group addresses include `@all`, `@idle`, `@claude`, `@codex`, `@opencode`,
 `@gemini`, `@droid`, `@grok`, `@cursor`, and `@worktree:<id>`. Every group but
 `@worktree:<id>` means the live Dispatches of the sender's own Run. Mail goes

@@ -1,4 +1,5 @@
 import { OrchestrationStructuredMailboxPointerDelivery } from '../orchestration/structured-mailbox-pointer-delivery'
+import { StructuredPointerOutcomeWatch } from '../orchestration/structured-pointer-outcome-watch'
 
 import { createStructuredMailboxPointerHost } from '../orchestration/structured-mailbox-pointer-host'
 import { localOrchestrationCliCommand } from '../orchestration/cli-command'
@@ -252,6 +253,11 @@ export abstract class OrcaRuntimeWithStopRequestedPtyIds extends OrcaRuntimeWith
     writePty: (ptyId, data) => this.writeOrchestrationPointerPty(ptyId, data)
   })
 
+  /** The structured lane's answer for one sent message; public for the send receipt. */
+  readonly structuredSendDeliveryWatch = new StructuredPointerOutcomeWatch({
+    isStructuredMailbox: (handle) => this.resolveStructuredMailboxTarget(handle) !== null
+  })
+
   protected readonly orchestrationStructuredMailboxPointerDelivery =
     new OrchestrationStructuredMailboxPointerDelivery<RuntimeMessageWaiter>({
       getDb: () => this._orchestrationDb,
@@ -261,7 +267,8 @@ export abstract class OrcaRuntimeWithStopRequestedPtyIds extends OrcaRuntimeWith
       getCliCommand: localOrchestrationCliCommand,
       senderName: (party, reportedDispatchId) =>
         this.orchestrationSenderNames.nameOf(party, reportedDispatchId),
-      host: createStructuredMailboxPointerHost()
+      host: createStructuredMailboxPointerHost(),
+      onAttemptSettled: (input) => this.structuredSendDeliveryWatch.settle(input)
     })
 
   /** What Orca calls an agent that sends through it; public for every such send site. */

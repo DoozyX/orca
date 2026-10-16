@@ -7,7 +7,7 @@ vi.mock('../selectors', () => ({ getTerminalHandle: vi.fn() }))
 import { printResult } from '../format'
 import { ORCHESTRATION_HANDLERS } from './orchestration'
 
-async function formatSend(result: unknown): Promise<string> {
+async function formatSend(result: unknown, json = false): Promise<string> {
   callMock.mockReset().mockResolvedValueOnce({ result })
   await ORCHESTRATION_HANDLERS['orchestration send']({
     flags: new Map([
@@ -15,10 +15,11 @@ async function formatSend(result: unknown): Promise<string> {
       ['to', 'term_recipient'],
       ['subject', 'ping']
     ]),
-    client: { call: callMock },
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the send handler reads only `call`; a real RuntimeClient would open a socket.
+    client: { call: callMock } as never,
     cwd: '/workspace',
-    json: false
-  } as never)
+    json
+  })
   const printCall = vi.mocked(printResult).mock.calls.at(-1)
   const formatter = printCall?.[2] as (value: unknown) => string
   return formatter(result)
@@ -84,4 +85,28 @@ it('prints delivery limitations on relayed receipts', async () => {
 
 it('leaves a canonical receipt unchanged', async () => {
   await expect(formatSend({ message: { id: 'msg_1' } })).resolves.toBe('Sent msg_1')
+})
+
+it('says a structured worker`s chat holds a queued pointer until its turn ends', async () => {
+  await expect(
+    formatSend({ message: { id: 'msg_1', to_handle: 'dispatch:ctx_1' }, delivery: 'queued' })
+  ).resolves.toBe(
+    'Sent msg_1\nQueued: dispatch:ctx_1 is mid-turn; its chat holds the pointer and sends it when the current turn ends.'
+  )
+})
+
+it('leaves an injected receipt unchanged', async () => {
+  await expect(
+    formatSend({ message: { id: 'msg_1', to_handle: 'dispatch:ctx_1' }, delivery: 'injected' })
+  ).resolves.toBe('Sent msg_1')
+})
+
+it('passes delivery through to JSON output', async () => {
+  await formatSend(
+    { message: { id: 'msg_1', to_handle: 'dispatch:ctx_1' }, delivery: 'queued' },
+    true
+  )
+  expect(vi.mocked(printResult).mock.calls.at(-1)?.[0]).toMatchObject({
+    result: { delivery: 'queued' }
+  })
 })

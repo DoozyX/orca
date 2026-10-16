@@ -8,6 +8,7 @@ import { OrchestrationError } from '../orchestration/orchestration-error'
 import type { RpcRequest } from './core'
 import {
   attachMutationReceipt,
+  durableMutationReceipt,
   EFFECT_FREE_WORKER_DONE_CHECKPOINT,
   getPendingWorkerStartRecovery,
   hashCanonical,
@@ -241,7 +242,10 @@ export class OrchestrationMutationExecutor {
     try {
       const result = await active
       const receipted = attachMutationReceipt(result, requestId, resumedPendingMutation)
-      db.completeMutationReceipt({ ...identity, receipt: JSON.stringify(receipted) })
+      db.completeMutationReceipt({
+        ...identity,
+        receipt: JSON.stringify(durableMutationReceipt(request.method, receipted))
+      })
       return receipted
     } catch (error) {
       if (
