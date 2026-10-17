@@ -1,4 +1,4 @@
-import { toHostScopedKey } from '../grouping/cross-host-project-group-merge'
+import { toHostScopedKey } from '../../../../../../shared/sidebar-list/cross-host-project-group-merge'
 import { describe, expect, it } from 'vitest'
 import type { FolderWorkspace } from '../../../../../../shared/folder-workspace-types'
 import type { ProjectGroup } from '../../../../../../shared/project-group-types'
@@ -9,7 +9,7 @@ import {
   getKnownSidebarWorktreeById,
   sidebarWorkspaceStillExists
 } from './folder-reveal'
-import { getProjectGroupHeaderKey } from '../grouping/group-keys'
+import { getProjectGroupHeaderKey } from '../../../../../../shared/sidebar-list/group-keys'
 
 function makeFolderWorkspace(overrides: Partial<FolderWorkspace> = {}): FolderWorkspace {
   return {

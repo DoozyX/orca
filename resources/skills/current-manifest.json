@@ -212,16 +212,16 @@
     {
       "name": "review",
       "sourcePath": "skills/review",
-      "packageDigest": "1b6fa40de5b476784591cdeae06b5b64ae0b7c4f15f1f84e1978d8874c92fd78",
+      "packageDigest": "093ffd5d35449e535a61b17f4a0d110bfd864e3119f37e988aeb0aa4bddca4e0",
       "files": [
         {
           "path": "SKILL.md",
-          "size": 3738,
+          "size": 3834,
           "executable": false,
           "classification": "text",
-          "exactSha256": "8c0724d06fea3ab7a1ed7d16620b38a7da9b8dfabe6566b628cd9a8fd5238544",
-          "textNormalizedSha256": "8c0724d06fea3ab7a1ed7d16620b38a7da9b8dfabe6566b628cd9a8fd5238544",
-          "identitySha256": "8c0724d06fea3ab7a1ed7d16620b38a7da9b8dfabe6566b628cd9a8fd5238544"
+          "exactSha256": "dd9ba24065bf3ed95255b5c9831b46fb7ced4edc6a466c7e67337acfeaa0d68f",
+          "textNormalizedSha256": "dd9ba24065bf3ed95255b5c9831b46fb7ced4edc6a466c7e67337acfeaa0d68f",
+          "identitySha256": "dd9ba24065bf3ed95255b5c9831b46fb7ced4edc6a466c7e67337acfeaa0d68f"
         }
       ]
     },

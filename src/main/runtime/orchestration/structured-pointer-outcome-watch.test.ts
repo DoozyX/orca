@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ORCHESTRATION_SEND_DELIVERY_OBSERVE_MS } from '../../../shared/orchestration-timing-budgets'
 import { OrchestrationDb } from './db'
-import {
-  OrchestrationStructuredMailboxPointerDelivery,
-  type StructuredMailboxPointerHost,
-  type StructuredPointerSendOutcome
-} from './structured-mailbox-pointer-delivery'
+import { OrchestrationStructuredMailboxPointerDelivery } from './structured-mailbox-pointer-delivery'
+import type {
+  StructuredMailboxPointerHost,
+  StructuredPointerSendOutcome
+} from './structured-mailbox-pointer-host-contract'
 import {
   structuredPointerBatchFingerprint,
   type StructuredPointerSubmission
@@ -114,6 +114,7 @@ describe('structured pointer lane answers through the watch', () => {
       host: {
         readSessionFacts: async () =>
           options.attached === false ? null : { submissions: options.submissions ?? [] },
+        hasActionablePromptNow: () => false,
         currentFence: () => 1,
         currentContextClearOperationId: () => undefined,
         send

@@ -40,8 +40,9 @@ export async function deliverAndSettleWorkerStartReadiness(args: {
   setupReceipt: WorkerSetupReceipt
   launchReceipt: OrchestrationWorkerLaunchReceipt
   mode: WorkerStartModeReceipt
+  /** The caller's timeout, as the receipt reports it. */
   timeoutMs: number
-  /** When the readiness budget ends; a launched agent's brief settles its foreground until then. */
+  /** When the readiness budget ends; a structured preamble waits on its agent, and a launched agent's brief settles its foreground, until then. */
   readinessDeadlineMs: number
   effects: WorkerEffect[]
   terminalRevealWarning: string | undefined

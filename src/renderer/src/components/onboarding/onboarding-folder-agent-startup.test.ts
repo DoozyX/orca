@@ -7,9 +7,13 @@ import {
   shouldSeedFolderAgentAfterDismissedOnboarding
 } from '@/lib/onboarding-folder-agent-startup'
 
+const HOST = { platform: 'linux', shell: undefined, isRemote: false } as const
+const buildStartup = (settings: Parameters<typeof buildOnboardingFolderAgentStartup>[0]) =>
+  buildOnboardingFolderAgentStartup(settings, HOST)
+
 describe('buildOnboardingFolderAgentStartup', () => {
   it('queues the persisted default agent with onboarding telemetry', () => {
-    const startup = buildOnboardingFolderAgentStartup({
+    const startup = buildStartup({
       ...getDefaultSettings('/tmp/orca-workspaces'),
       defaultTuiAgent: 'codex'
     })
@@ -32,7 +36,7 @@ describe('buildOnboardingFolderAgentStartup', () => {
   })
 
   it('respects the blank terminal preference', () => {
-    const startup = buildOnboardingFolderAgentStartup({
+    const startup = buildStartup({
       ...getDefaultSettings('/tmp/orca-workspaces'),
       defaultTuiAgent: 'blank'
     })
@@ -43,7 +47,7 @@ describe('buildOnboardingFolderAgentStartup', () => {
   it.each([false, true])(
     'keeps Chat UI model preferences out of the terminal folder launch (Chat UI %s)',
     (experimentalNativeChat) => {
-      const startup = buildOnboardingFolderAgentStartup({
+      const startup = buildStartup({
         ...getDefaultSettings('/tmp/orca-workspaces'),
         defaultTuiAgent: 'codex',
         experimentalNativeChat,
@@ -62,7 +66,7 @@ describe('buildOnboardingFolderAgentStartup', () => {
   )
 
   it('does not infer an agent from auto mode', () => {
-    const startup = buildOnboardingFolderAgentStartup({
+    const startup = buildStartup({
       ...getDefaultSettings('/tmp/orca-workspaces'),
       defaultTuiAgent: null
     })
@@ -116,7 +120,8 @@ describe('buildOnboardingFolderAgentStartup', () => {
           agentCmdOverrides: { codex: 'echo onboarding-folder-agent' }
         },
         { ...getDefaultOnboardingState(), outcome: 'dismissed' },
-        false
+        false,
+        HOST
       )
     ).toEqual({
       command: "echo onboarding-folder-agent '--dangerously-bypass-approvals-and-sandbox'",

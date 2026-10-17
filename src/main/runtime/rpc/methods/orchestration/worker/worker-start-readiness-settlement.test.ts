@@ -49,6 +49,7 @@ function settle(delivered: 'accepted' | undefined) {
     launchReceipt: {},
     mode: {},
     timeoutMs: 60_000,
+    readinessDeadlineMs: Date.now() + 60_000,
     effects: [],
     terminalRevealWarning: undefined,
     onStage: () => {}

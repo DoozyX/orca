@@ -1,0 +1,78 @@
+name: Fork Linux .deb
+
+# Builds the x64 .deb of every DoozyX/orca main push so the headless uc-vm host can run the same commit as the macOS machines.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fork-linux-deb
+  cancel-in-progress: true
+
+jobs:
+  deb:
+    if: github.repository == 'DoozyX/orca'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/setup@v2
+        with:
+          install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: package.json
+          cache: pnpm
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            mobile/pnpm-lock.yaml
+
+      - name: Use external node-gyp to avoid pnpm's bundled copy
+        run: |
+          npm install -g node-gyp@11.5.0
+          echo "npm_config_node_gyp=$(npm root -g)/node-gyp/bin/node-gyp.js" >> "$GITHUB_ENV"
+
+      - name: Install dependencies
+        uses: nick-fields/retry@v4
+        with:
+          timeout_minutes: 10
+          max_attempts: 3
+          retry_wait_seconds: 30
+          command: pnpm install --frozen-lockfile
+
+      - uses: ./.github/actions/install-mobile-dependencies
+
+      - name: Install Linux build dependencies
+        run: sudo apt-get update && sudo apt-get install -y python3-gi gir1.2-atspi-2.0 at-spi2-core xclip xdotool rpm
+
+      - name: Build
+        run: pnpm build:release
+
+      - name: Package .deb
+        env:
+          ORCA_BACKGROUND_LAUNCH: '1'
+        run: |
+          base=$(node -p "require('./package.json').version")
+          node config/scripts/ensure-native-runtime.mjs --runtime=electron
+          pnpm exec electron-builder --config config/electron-builder.config.cjs --linux deb --x64 --publish never \
+            -c.extraMetadata.version="${base}-fork.${GITHUB_SHA::12}"
+          ls -l dist/*.deb
+
+      - name: Publish release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="linux-deb-${GITHUB_SHA::12}"
+          gh release create "$tag" dist/orca-ide_*.deb --target "$GITHUB_SHA" \
+            --title "Linux .deb ${GITHUB_SHA::12}" --notes "Fork main ${GITHUB_SHA}"
+          gh release list --limit 50 --json tagName,createdAt \
+            --jq '[.[] | select(.tagName | startswith("linux-deb-"))] | sort_by(.createdAt) | reverse | .[5:] | .[].tagName' |
+            xargs -r -n1 gh release delete --cleanup-tag --yes

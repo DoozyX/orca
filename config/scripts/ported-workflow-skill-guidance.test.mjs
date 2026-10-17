@@ -48,6 +48,7 @@ const PORTED_SKILLS = {
       'deletion-check.md',
       'edge-cases.md',
       'principles.md',
+      'reuse.md',
       'verification-gap.md'
     ],
     safetyFloor: ['`unverifiable`', 'Folder workspaces are valid'],
@@ -212,6 +213,39 @@ describe('delivery layers on orchestration rather than reimplementing it', () =>
     expect(reference).toContain('state why the target is exceeded')
   })
 
+  it('carries the Change clause on the Implement and Fix rows with Not checked evidence', () => {
+    const raw = readReference('delivery', 'stage-prompts.md')
+    const row = (stage) => squash(raw.split('\n').find((line) => line.startsWith(`| ${stage} `)))
+    const clause = squash(raw.split('\n').find((line) => line.startsWith('| Change ')))
+
+    for (const phrase of [
+      'Build the spec, no more',
+      "append to the task file's `## Record` every place the change must reach",
+      'Take the first option that fully works',
+      'never a new one for a few lines',
+      'anything you think is missing is one report line, not a commit',
+      'greps every caller and sibling copy and fixes the root cause once',
+      'Moved or merged code keeps its validation and error handling',
+      'Never cut trust-boundary validation, data-loss handling, security, or accessibility'
+    ]) {
+      expect(clause).toContain(phrase)
+    }
+
+    expect(row('Implement')).toContain('Execution, Change, Command, Report, Hygiene')
+    expect(row('Fix')).toContain('Execution, Change, Command, Report')
+    expect(row('Fix')).toContain('task-file path and its `## Record`')
+    for (const stage of ['Implement', 'Fix']) {
+      expect(row(stage)).toContain('`Not checked: <what and why>` or `Not checked: none`')
+    }
+    expect(row('Review full')).toContain(
+      'the latest implementer or fixer `Not checked:` line, given to the non-adversarial layers only'
+    )
+    expect(squash(raw)).toContain('append the reach list to `## Record`')
+    expect(squash(readReference('delivery', 'task-pipeline.md'))).toContain(
+      "append the reach list to the task file's `## Record`"
+    )
+  })
+
   it('keeps the deployed-verification outcomes terminal and exhaustive', () => {
     const reference = readReference('delivery', 'deployed-verification.md')
 
@@ -246,6 +280,9 @@ describe('quality-layer invariants', () => {
 
     expect(guide).toContain('After the third failed fix attempt, stop. Do not attempt a fourth.')
     expect(guide).toContain('No fix without a root cause you can state first.')
+    expect(guide).toContain(
+      'grep every caller of the function you are about to change and every sibling copy of the broken logic'
+    )
   })
 
   it('keeps the tdd cycle red before green and the mock gate in place', () => {
@@ -273,12 +310,31 @@ describe('quality-layer invariants', () => {
       'adversarial.md',
       'edge-cases.md',
       'verification-gap.md',
-      'deletion-check.md'
+      'deletion-check.md',
+      'reuse.md'
     ]) {
       expect(squash(readReference('review', layer))).toMatch(
         /[Ss]everity ban|Severity is decided at merge/u
       )
     }
+    expect(guide).toContain('references/reuse.md')
+    expect(guide).toContain('[Reuse]')
+    const reuseTrigger =
+      'when the diff adds a named unit (function, class, component, hook, module, file) or a dependency, or the commit subjects or Task spec call the change a fix'
+    expect(squash(guide)).toContain(
+      `\`reuse\` is added to whatever layers the table selected, in any file type, ${reuseTrigger}`
+    )
+    // Why: a reuse row overlapping the content-type rows let a config-only file addition match two routes.
+    const scopeRows = guide
+      .slice(guide.indexOf('## 2. Scope the layers'), guide.indexOf('## 3.'))
+      .split('\n')
+      .filter((line) => line.startsWith('|'))
+    expect(scopeRows.length).toBeGreaterThan(0)
+    expect(scopeRows.filter((row) => row.includes('reuse'))).toEqual([])
+    const reuse = squash(readReference('review', 'reuse.md'))
+    expect(reuse).toContain(reuseTrigger)
+    expect(reuse).toContain('names the existing `path:line` or API')
+    expect(reuse).toContain('No reuse findings.')
   })
 })
 

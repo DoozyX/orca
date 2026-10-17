@@ -13,6 +13,34 @@ import {
   update
 } from './MobileNativeChatView.harness.test-fixture'
 
+vi.mock('react-native', async () => {
+  const { reactNativeStub } = await import('./MobileNativeChatView.render-stubs.test-fixture')
+  return reactNativeStub()
+})
+vi.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 })
+}))
+vi.mock('react-native-gesture-handler', async () => {
+  const { gestureHandlerStub } = await import('./MobileNativeChatView.render-stubs.test-fixture')
+  return gestureHandlerStub()
+})
+vi.mock('lucide-react-native', () => ({
+  ArrowDown: 'ArrowDown',
+  ChevronsDownUp: 'ChevronsDownUp',
+  ChevronsUpDown: 'ChevronsUpDown',
+  Square: 'Square'
+}))
+vi.mock('./MobileNativeChatMessage', () => ({ MobileNativeChatMessage: 'ChatMessage' }))
+vi.mock('./MobileNativeChatLiveLine', () => ({ MobileNativeChatLiveLine: 'LiveStatus' }))
+vi.mock('./MobileNativeChatAsk', () => ({ MobileNativeChatAsk: 'ChatAsk' }))
+vi.mock('./MobileNativeChatPermission', () => ({ MobileNativeChatPermission: 'ChatPermission' }))
+vi.mock('./MobileNativeChatQuestion', () => ({ MobileNativeChatQuestion: 'ChatQuestion' }))
+vi.mock('../components/ActionSheetModal', () => ({ ActionSheetModal: 'ActionSheetModal' }))
+vi.mock('./MobileNativeChatComposer', async () => {
+  const { composerStub } = await import('./MobileNativeChatView.render-stubs.test-fixture')
+  return composerStub()
+})
+
 describe('MobileNativeChatView: tail-follow', () => {
   installChatViewHooks()
 
@@ -283,21 +311,28 @@ describe('MobileNativeChatView: tail-follow', () => {
 
   // The view stays mounted across chat tabs, so the reader's place in one must not carry over.
   it('opens another chat at its newest message, following, keeping the Tools toggle', async () => {
-    await render({ folded: [assistantTurn('a1', 'Chat A')] })
+    // The Tools pill only shows for a chat with tool runs.
+    const toolTurn = (id: string): ReturnType<typeof assistantTurn> => ({
+      ...assistantTurn(id, ''),
+      blocks: [{ type: 'tool-call', name: 'Bash', callId: id, input: { command: 'ls' } }]
+    })
+    await render({ folded: [assistantTurn('a1', 'Chat A'), toolTurn('a2')] })
     await scrollAwayFromTail()
-    const label = (text: string) => root().findAllByProps({ children: text })
-    const jumpControls = () => root().findAllByProps({ accessibilityLabel: 'Scroll to latest' })
-    act(() => label('Tools')[0].parent!.props.onPress())
-    expect(jumpControls()).toHaveLength(1)
+    const control = (label: string) => root().findAllByProps({ accessibilityLabel: label })
+    act(() => control('Expand tool runs')[0].props.onPress())
+    expect(control('Scroll to latest')).toHaveLength(1)
     scrollToEnd.mockClear()
 
-    await update({ folded: [assistantTurn('b1', 'Chat B')], sendSurfaceId: 'tab-b' })
+    await update({
+      folded: [assistantTurn('b1', 'Chat B'), toolTurn('b2')],
+      sendSurfaceId: 'tab-b'
+    })
 
     expect(scrollToEnd).toHaveBeenCalledWith({ animated: false })
-    expect(jumpControls()).toHaveLength(0)
+    expect(control('Scroll to latest')).toHaveLength(0)
     act(() => list().props.onContentSizeChange(320, 900))
     expect(scrollToOffset).toHaveBeenLastCalledWith({ animated: false, offset: 900 })
-    expect(label('Collapse')).toHaveLength(1)
+    expect(control('Collapse tool runs')).toHaveLength(1)
   })
 
   it('repins after a keyboard-driven viewport layout only while following', async () => {

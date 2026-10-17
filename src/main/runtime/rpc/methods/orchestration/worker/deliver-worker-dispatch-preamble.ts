@@ -46,6 +46,7 @@ export async function deliverWorkerDispatchPreamble(args: {
   requestId: string
   /** The agent this worker start launched into `terminalHandle`; absent for a caller's terminal. */
   launchedAgent?: string | null
+  /** When the readiness budget ends; a structured worker's start and a launched agent's brief both count against it. */
   readinessDeadlineMs: number
 }): Promise<{
   prompt?: RuntimeTerminalSend['prompt']
@@ -87,7 +88,8 @@ export async function deliverWorkerDispatchPreamble(args: {
       sessionId: structuredSession.identity.sessionId,
       dispatchId: args.dispatchId,
       preamble,
-      from: workerTaskSource(args)
+      from: workerTaskSource(args),
+      budgetMs: Math.max(0, args.readinessDeadlineMs - Date.now())
     })
     return {
       structuredTurnStart:

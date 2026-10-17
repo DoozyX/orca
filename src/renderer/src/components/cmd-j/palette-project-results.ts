@@ -1,5 +1,5 @@
 import { isCmdJPaletteQueryTooLarge } from './palette-results'
-import { buildMergedProjectGroupIndex } from '../sidebar/worktree-list/grouping/cross-host-project-group-merge'
+import { buildMergedProjectGroupIndex } from '../../../../shared/sidebar-list/cross-host-project-group-merge'
 import {
   cmdJPaletteTokenScore,
   isCmdJPaletteQueryOverTokenLimit,
@@ -12,7 +12,7 @@ import type { ProjectGroup } from '../../../../shared/project-group-types'
 import type { Project, ProjectHostSetup } from '../../../../shared/project-types'
 import type { Repo } from '../../../../shared/repo-types'
 import { translate } from '@/i18n/i18n'
-import { getProjectGroupHeaderKey } from '../sidebar/worktree-list/grouping/group-keys'
+import { getProjectGroupHeaderKey } from '../../../../shared/sidebar-list/group-keys'
 import { getProjectHeaderRevealTarget } from '../../../../shared/project-section-grouping'
 import type { ProjectGroupingModel } from '../../../../shared/project-section-grouping'
 

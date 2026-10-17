@@ -12,17 +12,41 @@ type Watcher = {
   onSnapshot: (snapshot: ProviderAccountsSnapshot) => void
   onError: (error: unknown) => void
 }
+type Subscription = { target: { kind: string; environmentId?: string }; handlers: Watcher }
 const bridge = vi.hoisted(() => {
-  const watchers: Watcher[] = []
+  const watchers: Subscription[] = []
   return { watchers, localReads: 0 }
 })
+// The roster and the owner-usage hook each watch the owner, so a snapshot reaches every stream.
+function emit(environmentId: string, snapshot: ProviderAccountsSnapshot): void {
+  for (const watcher of bridge.watchers) {
+    if (watcher.target.environmentId === environmentId) {
+      watcher.handlers.onSnapshot(snapshot)
+    }
+  }
+}
+function fail(environmentId: string, error: Error): void {
+  for (const watcher of bridge.watchers) {
+    if (watcher.target.environmentId === environmentId) {
+      watcher.handlers.onError(error)
+    }
+  }
+}
 vi.mock('@/runtime/runtime-provider-accounts-client', () => ({
   emptyClaudeAccountsState: () => ({ accounts: [], activeAccountId: null }),
   emptyCodexAccountsState: () => ({ accounts: [], activeAccountId: null }),
-  watchProviderAccounts: (_settings: unknown, handlers: (typeof bridge.watchers)[number]) => {
-    bridge.watchers.push(handlers)
+  watchProviderAccounts: (target: Subscription['target'], handlers: Watcher) => {
+    bridge.watchers.push({ target, handlers })
     return { close: () => {} }
   }
+}))
+vi.mock('@/runtime/use-worktree-runtime-target', () => ({
+  useActiveAccountOwner: () => ({
+    target: app.settings.activeRuntimeEnvironmentId
+      ? { kind: 'environment', environmentId: app.settings.activeRuntimeEnvironmentId }
+      : { kind: 'local' },
+    wslHostDistro: null
+  })
 }))
 vi.mock('@/hooks/useShortcutLabel', () => ({ useShortcutLabel: () => '' }))
 vi.mock('../../store/selectors', () => ({ selectFloatingWorkspaceHasUnread: () => false }))
@@ -49,6 +73,7 @@ const settings: Pick<
 }
 const app = {
   settings,
+  runtimeEnvironments: [],
   rateLimits: createEmptyRateLimitState(),
   statusBarVisible: true,
   statusBarItems: ['claude', 'codex'],
@@ -146,7 +171,7 @@ describe('status bar account ownership', () => {
       root?.render(<Probe />)
     })
     await act(async () => {
-      bridge.watchers[0]?.onSnapshot(remoteSnapshot('remote-a@example.test'))
+      emit('remote-a', remoteSnapshot('remote-a@example.test'))
     })
     expect(container.textContent).toContain('remote-a@example.test')
     expect(container.textContent).toContain('usageEntries')
@@ -164,20 +189,20 @@ describe('status bar account ownership', () => {
         cursor: extra,
         omp: extra ? { ...extra, provider: 'omp', daily: extra.session } : null
       })
-      bridge.watchers.at(-1)?.onSnapshot(snapshot)
-      bridge.watchers[0]?.onSnapshot(remoteSnapshot('late-a@example.test'))
+      emit('remote-b', snapshot)
+      emit('remote-a', remoteSnapshot('late-a@example.test'))
     })
     expect(container.textContent).toContain('remote-b@example.test')
     expect(container.textContent).not.toContain('late-a@example.test')
     await act(async () => {
-      bridge.watchers.at(-1)?.onError(new Error('Disconnected'))
+      fail('remote-b', new Error('Disconnected'))
     })
     expect(container.textContent).toContain('remote-b@example.test')
     expect(container.textContent).toContain('"status":"error"')
     expect(container.textContent).toContain('"provider":"cursor"')
     expect(container.textContent).toContain('"provider":"omp"')
     expect(
-      (container.textContent?.match(/Remote usage connection unavailable/g) ?? []).length
+      (container.textContent?.match(/cannot reach Remote server/g) ?? []).length
     ).toBeGreaterThanOrEqual(3)
     expect(bridge.localReads).toBe(0)
     app.statusBarItems = ['claude', 'codex']
@@ -192,7 +217,7 @@ describe('status bar account ownership', () => {
     const snapshot = remoteSnapshot('pending@example.test')
     snapshot.rateLimits = createEmptyRateLimitState()
     await act(async () => {
-      bridge.watchers[0]?.onSnapshot(snapshot)
+      emit('remote-pending', snapshot)
     })
     expect(container.textContent).toContain('pending@example.test')
     expect(container.textContent).not.toContain('usedPercent')
@@ -245,7 +270,7 @@ describe('status bar account ownership', () => {
       gemini: usage ? { ...usage, provider: 'gemini' } : null
     })
     await act(async () => {
-      bridge.watchers.at(-1)?.onSnapshot(snapshot)
+      emit('gemini-owner', snapshot)
     })
     expect(container.textContent).toContain('"provider":"gemini"')
     expect(container.textContent).toContain('"usedPercent":42')

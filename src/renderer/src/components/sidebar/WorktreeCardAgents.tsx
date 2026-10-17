@@ -30,7 +30,7 @@ import {
 } from './worktree-card-agents-expansion-state'
 import { translate } from '@/i18n/i18n'
 import { activateStructuredAgentSessionTab } from '@/lib/structured-agent-session-tab-activation'
-import { selectAcknowledgedAgentTimes } from './worktree-card-agent-ack-inputs'
+import { selectAgentRowsUnread } from './worktree-card-agent-ack-inputs'
 import { dispatchSuppressScrollAdjustment } from './worktree-card-agent-scroll-suppression'
 import { revealCompactAgentCard } from './worktree-card-agent-reveal'
 
@@ -104,17 +104,14 @@ const WorktreeCardAgentsBody = React.memo(function WorktreeCardAgentsBody({
 
   // Why: acknowledgement writes are app-global; project only this card's rows
   // so unrelated worktree activity does not rerender every agent body.
-  const acknowledgedAgentTimes = useAppStore(
-    useShallow((s) => selectAcknowledgedAgentTimes(s, agents))
-  )
+  const agentRowsUnread = useAppStore(useShallow((s) => selectAgentRowsUnread(s, agents)))
   const unvisitedByPaneKey = useMemo(() => {
     const out: Record<string, boolean> = {}
     for (const [index, agent] of agents.entries()) {
-      const ackAt = acknowledgedAgentTimes[index] ?? 0
-      out[agent.paneKey] = ackAt < agent.entry.stateStartedAt
+      out[agent.paneKey] = agentRowsUnread[index] ?? false
     }
     return out
-  }, [agents, acknowledgedAgentTimes])
+  }, [agents, agentRowsUnread])
 
   const handleDismissAgent = useCallback(
     (paneKey: string) => {

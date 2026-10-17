@@ -36,7 +36,7 @@ know why" is a checkpoint, not a result.
 ## Iron law
 
 **No fix without a root cause you can state first.** A fix applied before you
-can say *why* the bug happens is a guess, and a guess that makes the symptom
+can say _why_ the bug happens is a guess, and a guess that makes the symptom
 disappear is the expensive kind — it survives review, ships, and comes back.
 
 ## 1. Investigate
@@ -81,6 +81,10 @@ made twice.
 
 ## 4. Fix, test first
 
+Before the fix, grep every caller of the function you are about to change and
+every sibling copy of the broken logic, and fix the root cause once, in the
+shared code, rather than in the one caller that showed the symptom.
+
 Write the failing test that reproduces the bug **before** the fix, apply the
 fix, watch the test go green, then run the full suite against the baseline you
 recorded. Load the `tdd` skill for the red/green cycle, and the `verify` skill
@@ -111,14 +115,14 @@ is not process death, and it is not a diagnosis either.
 
 ## Red flags
 
-| Thought                                          | Reality                                                                         |
-| -------------------------------------------------- | --------------------------------------------------------------------------------- |
-| "Let me just try changing this"                  | That is a guess, not a hypothesis. Name what you expect and why first.           |
-| "It's probably a race, let me add a sleep"       | A sleep hides the race. Find the actual ordering dependency.                     |
-| "I'll add a null check and move on"              | The null should not be there. A guard moves the symptom downstream.              |
-| "It works now, I don't know why"                 | Unexplained fixes regress. No stated cause means no root cause.                  |
-| "The test is flaky, let me retry it"             | Flaky is a bug report. Retrying discards the evidence.                           |
-| "Let me rewrite this function"                   | A rewrite without a diagnosed cause relocates the bug.                           |
+| Thought                                    | Reality                                                                |
+| ------------------------------------------ | ---------------------------------------------------------------------- |
+| "Let me just try changing this"            | That is a guess, not a hypothesis. Name what you expect and why first. |
+| "It's probably a race, let me add a sleep" | A sleep hides the race. Find the actual ordering dependency.           |
+| "I'll add a null check and move on"        | The null should not be there. A guard moves the symptom downstream.    |
+| "It works now, I don't know why"           | Unexplained fixes regress. No stated cause means no root cause.        |
+| "The test is flaky, let me retry it"       | Flaky is a bug report. Retrying discards the evidence.                 |
+| "Let me rewrite this function"             | A rewrite without a diagnosed cause relocates the bug.                 |
 
 ## Hands off to
 

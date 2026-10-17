@@ -39,6 +39,7 @@ const GUIDE_REFERENCES = {
     'deletion-check.md',
     'edge-cases.md',
     'principles.md',
+    'reuse.md',
     'verification-gap.md'
   ],
   orchestration: [

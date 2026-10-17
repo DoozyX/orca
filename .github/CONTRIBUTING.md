@@ -26,6 +26,17 @@ pnpm install
 pnpm dev
 ```
 
+To reduce main-process rebuild CPU and memory when you do not need its source maps,
+set `ORCA_DEV_MAIN_SOURCEMAPS=0` before `pnpm dev`. In Bash/zsh:
+
+```bash
+ORCA_DEV_MAIN_SOURCEMAPS=0 pnpm dev
+```
+
+In PowerShell, use `$env:ORCA_DEV_MAIN_SOURCEMAPS='0'` before `pnpm dev`.
+Remove the variable when debugging the main process with source maps. Renderer and
+preload settings are unaffected; production builds always keep their hidden main maps.
+
 Ordinary installs include native optional dependencies for the current OS and CPU only.
 Before a cross-architecture build (including `pnpm build:mac`, which produces both x64 and
 arm64 artifacts by default), run `pnpm install:release` to add the other CPU's variants.
@@ -129,7 +140,7 @@ All stable kinds (`patch`, `minor`, `major`) are computed off the latest _stable
 - If the latest RC tag exists but is still draft-only or missing its GitHub Release, the workflow resumes that tag only when it was built from the current release ref. Otherwise the next RC number is cut.
 - RC numbering also considers release commits on `main`, so deleting a stale tag does not let a later cut reuse the same RC number.
 - Off-main releases (when `ref` is not the tip of `main`) only push the tag. `main` is never mutated from a non-main ref, so you can safely release an older commit without polluting history.
-- When `ref` is the tip of `main`, the version-bump commit is fast-forwarded onto `main` so local `package.json` stays in sync with what's shipped.
+- When `ref` is the tip of `main`, the workflow tries to fast-forward the version-bump commit onto `main`. If main requires pull requests, it leaves main unchanged and pushes only the release tag. Other push errors still stop the cut.
 
 **Common scenarios:**
 

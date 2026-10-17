@@ -53,6 +53,7 @@ export function registerPtyConnectionColdRestoreAgentResumeTests(): void {
       await restoreTerminalTestGlobals()
     })
     it('resumes the provider agent session when daemon reattach cold-restores a fresh shell', async () => {
+      vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] })
       const { connectPanePty } = await import('./pty-connection')
       const transport = createMockTransport('fresh-pty')
       transport.connect.mockImplementation(async ({ sessionId }: { sessionId?: string }) => {
@@ -102,7 +103,7 @@ export function registerPtyConnectionColdRestoreAgentResumeTests(): void {
 
       connectPanePty(pane as never, manager as never, deps as never)
       await flushAsyncTicks(20)
-      await new Promise((resolve) => setTimeout(resolve, 70))
+      await vi.advanceTimersByTimeAsync(70)
 
       expect(pane.terminal.write).toHaveBeenCalledWith(
         `${RESET_GRAPHIC_RENDITION}cold-payload`,
@@ -116,8 +117,7 @@ export function registerPtyConnectionColdRestoreAgentResumeTests(): void {
       expect(transport.connect).toHaveBeenCalledWith(
         expect.objectContaining({
           sessionId: 'lost-pty',
-          command:
-            "codex --no-daemon '--dangerously-bypass-approvals-and-sandbox' 'resume' 'codex-session-1'",
+          command: "codex --no-daemon 'resume' 'codex-session-1'",
           resumeProviderSession: {
             key: 'session_id',
             id: 'codex-session-1',
@@ -135,6 +135,7 @@ export function registerPtyConnectionColdRestoreAgentResumeTests(): void {
     })
 
     it('uses WSL quoting for cold-restored agent resume in Windows-path WSL projects', async () => {
+      vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] })
       const { connectPanePty } = await import('./pty-connection')
       const transport = createMockTransport('fresh-pty')
       transport.connect.mockImplementation(async ({ sessionId }: { sessionId?: string }) => {
@@ -197,7 +198,7 @@ export function registerPtyConnectionColdRestoreAgentResumeTests(): void {
 
       connectPanePty(pane as never, manager as never, deps as never)
       await flushAsyncTicks(20)
-      await new Promise((resolve) => setTimeout(resolve, 70))
+      await vi.advanceTimersByTimeAsync(70)
 
       expect(pane.terminal.write).toHaveBeenCalledWith(
         `${RESET_GRAPHIC_RENDITION}cold-payload`,
@@ -207,7 +208,7 @@ export function registerPtyConnectionColdRestoreAgentResumeTests(): void {
       expect(transport.connect).toHaveBeenCalledWith(
         expect.objectContaining({
           sessionId: 'lost-pty',
-          command: `codex --no-daemon '--dangerously-bypass-approvals-and-sandbox' 'resume' 'codex-session-1'"'"'s'`,
+          command: `codex --no-daemon 'resume' 'codex-session-1'"'"'s'`,
           env: expect.objectContaining({
             ORCA_PANE_KEY: paneKey,
             ORCA_TAB_ID: 'tab-1',
@@ -220,6 +221,7 @@ export function registerPtyConnectionColdRestoreAgentResumeTests(): void {
     })
 
     it('resumes from the quit-captured sleeping record when cold-restoring after an app restart', async () => {
+      vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] })
       const { connectPanePty } = await import('./pty-connection')
       const transport = createMockTransport('fresh-pty')
       transport.connect.mockImplementation(async ({ sessionId }: { sessionId?: string }) => {
@@ -274,7 +276,7 @@ export function registerPtyConnectionColdRestoreAgentResumeTests(): void {
 
       connectPanePty(pane as never, manager as never, deps as never)
       await flushAsyncTicks(20)
-      await new Promise((resolve) => setTimeout(resolve, 70))
+      await vi.advanceTimersByTimeAsync(70)
 
       expect(pane.terminal.write).toHaveBeenCalledWith(
         `${RESET_GRAPHIC_RENDITION}cold-payload`,
@@ -292,8 +294,7 @@ export function registerPtyConnectionColdRestoreAgentResumeTests(): void {
       expect(transport.connect).toHaveBeenCalledWith(
         expect.objectContaining({
           sessionId: 'lost-pty',
-          command:
-            "codex --no-daemon '--dangerously-bypass-approvals-and-sandbox' 'resume' 'codex-session-1'",
+          command: "codex --no-daemon 'resume' 'codex-session-1'",
           resumeProviderSession: {
             key: 'session_id',
             id: 'codex-session-1',
@@ -313,6 +314,7 @@ export function registerPtyConnectionColdRestoreAgentResumeTests(): void {
     })
 
     it('marks the pane as freshly started when main declined an unverifiable resume', async () => {
+      vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] })
       const { connectPanePty } = await import('./pty-connection')
       const transport = createMockTransport('fresh-pty')
       transport.connect.mockImplementation(async ({ sessionId }: { sessionId?: string }) => {
@@ -363,13 +365,14 @@ export function registerPtyConnectionColdRestoreAgentResumeTests(): void {
 
       connectPanePty(pane as never, manager as never, deps as never)
       await flushAsyncTicks(20)
-      await new Promise((resolve) => setTimeout(resolve, 70))
+      await vi.advanceTimersByTimeAsync(70)
 
       expect(deps.onShowSessionRestoredBanner).toHaveBeenCalledTimes(1)
       expect(deps.onShowSessionRestoredBanner).toHaveBeenCalledWith(1, 'resume-unavailable')
     })
 
     it('resumes from an unambiguous legacy sleeping record when cold-restoring a preserved pane', async () => {
+      vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] })
       const { connectPanePty } = await import('./pty-connection')
       const transport = createMockTransport('fresh-pty')
       transport.connect.mockImplementation(async ({ sessionId }: { sessionId?: string }) => {
@@ -429,7 +432,7 @@ export function registerPtyConnectionColdRestoreAgentResumeTests(): void {
 
       connectPanePty(pane as never, manager as never, deps as never)
       await flushAsyncTicks(20)
-      await new Promise((resolve) => setTimeout(resolve, 70))
+      await vi.advanceTimersByTimeAsync(70)
 
       expect(pane.terminal.write).toHaveBeenCalledWith(
         `${RESET_GRAPHIC_RENDITION}cold-payload`,
@@ -440,8 +443,7 @@ export function registerPtyConnectionColdRestoreAgentResumeTests(): void {
       expect(transport.connect).toHaveBeenCalledWith(
         expect.objectContaining({
           sessionId: 'lost-pty',
-          command:
-            "codex --no-daemon '--dangerously-bypass-approvals-and-sandbox' 'resume' 'codex-session-1'"
+          command: "codex --no-daemon 'resume' 'codex-session-1'"
         })
       )
       expect(mockStoreState.clearSleepingAgentSession).toHaveBeenCalledWith(legacyPaneKey)
@@ -451,6 +453,7 @@ export function registerPtyConnectionColdRestoreAgentResumeTests(): void {
     })
 
     it('does not choose a non-exact legacy record when same-tab provider sessions differ', async () => {
+      vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] })
       const { connectPanePty } = await import('./pty-connection')
       const transport = createMockTransport('fresh-pty')
       transport.connect.mockImplementation(async ({ sessionId }: { sessionId?: string }) => {
@@ -510,7 +513,7 @@ export function registerPtyConnectionColdRestoreAgentResumeTests(): void {
 
       connectPanePty(pane as never, manager as never, deps as never)
       await flushAsyncTicks(20)
-      await new Promise((resolve) => setTimeout(resolve, 70))
+      await vi.advanceTimersByTimeAsync(70)
 
       expect(pane.terminal.write).toHaveBeenCalledWith(
         `${RESET_GRAPHIC_RENDITION}cold-payload`,
