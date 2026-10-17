@@ -115,6 +115,14 @@ own endgame — and the target branch by name. The summary is input to the
 question, not its answer. Record one line per repository in the manifest; a
 per-task deviation is a recorded coordinator decision, never an improvisation.
 
+**CI baseline, once per repository, before the first branch is cut.** Have a
+cheap worker record in the manifest, for each required check on the target
+branch, the latest completed run: `ci-baseline <check> run=<id> sha=<sha>
+conclusion=<c>`. With no comparable run, it records `ci-baseline=none <reason>`.
+Under `none`, a red required check on the unit's PR that has no baseline goes to
+a decision gate and is never classified as pre-existing. The green-check gate is
+unchanged.
+
 ## Evidence retention
 
 Carry these rules into implementation, verification, and cleanup Task specs.
@@ -192,8 +200,9 @@ surface it; dispatch nothing downstream on that body.
    landing policy: a PR/MR, a direct merge, or the repository's own endgame.
 5. **Green CI.** Watch the checks. A mechanical fix pushes directly; a fix that
    touches logic takes one more review round on the new commits. A task is `done`
-   only when the verdict is clean, the PR exists or the endgame has landed, and
-   all checks are green.
+   only when the verdict is clean, or fix-needed with only recorded last-round
+   `minor` deferrals, the PR exists or the endgame has landed, and all checks
+   are green (see the manifest's CI baseline).
 
 Load `references/task-pipeline.md` for the mechanics of each stage.
 
@@ -215,7 +224,8 @@ defect: stop and record it.
 | unit | kind | review# | fix# | base-sha | head-sha | result-sha | dispatch | outcome | reason |
 ```
 
-`kind` is `review-full`, `review-round`, `review-integration`, or `fix`.
+`kind` is `review-full`, `review-round`, `review-integration`, `fix`,
+`fix-override`, or `review-override`.
 `outcome` is `reserved`, `clean`, `fix-needed`, `invalid`, `startup-failed`, or
 `quota@<reset>`. Only `clean` and `fix-needed` count. Before each dispatch, read
 `head-sha` from the worktree itself, then refuse unless the row passes:
@@ -239,8 +249,17 @@ verdict line's counts differ from the merged list, or no
 `invalid` review is not counted; re-dispatch it once on the same HEAD, and a
 second `invalid` makes the unit `needs-attention`.
 
-Budget exhaustion with blocking findings, or with a user decision still open,
-makes the unit `needs-attention` with no PR.
+A blocking finding is any `major` item or any `decision-needed` item. Budget
+exhaustion with blocking findings, or with a user decision still open, makes the
+unit `needs-attention` with no PR.
+
+When the budget is spent and every remaining item is a `minor` `patch`, record
+each as `defer` with a one-line reason in the ledger `reason` cell and in the
+closing report; the unit lands at that head. Any other continuation takes a
+decision gate (`gate-create`/`gate-resolve`) and a ledger row of kind
+`fix-override` or `review-override`, for example
+`| u1 | fix-override | - | 3 | <base> | <head> | <result> | <dispatch> | reserved | gate <id>: user approved a third fix |`.
+Such a row never counts toward, or resets, the budget.
 
 ### Pre-review rework
 

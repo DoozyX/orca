@@ -83,11 +83,11 @@ and mention it in the next status message. A `quota@<earliest reset>` parks only
 that unit while other units continue; all `no-quota-data` or `unavailable`
 candidates yield `needs-attention` with their reasons.
 
-| Tier     | Dispatches                                                                                                                                                                                                |
-| -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Cheap    | Inspection only: a red CI log, an issue-body classification, check status after a push, the landing-policy summary, extracting a verdict line                                                             |
-| Standard | Implementer or fixer with a clear spec or a plan task tagged `standard`; default reviewer                                                                                                                 |
-| Strong   | Planner, plan reviewer, merge-conflict and integration check, freeform implementer, reviewer of freeform or design-heavy work, the review that spends the last counted round or is the integration review |
+| Tier     | Dispatches                                                                                                                                                                                                                 |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Cheap    | Inspection only: a red CI log, an issue-body classification, check status after a push, the landing-policy summary, extracting a verdict line                                                                              |
+| Standard | Implementer or fixer with a clear spec or a plan task tagged `standard`; default reviewer                                                                                                                                  |
+| Strong   | Planner, plan reviewer, merge-conflict and integration check, freeform implementer, reviewer of freeform or design-heavy work, review #3, the integration review, and every review after a reviewer-oscillation escalation |
 
 Cheap never implements or reviews. It is for bounded extraction whose result you
 can check at a glance — work you would otherwise read yourself at a higher rate.
@@ -98,9 +98,11 @@ Escalations are one-way for the rest of the unit:
 | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
 | Reviewer oscillation: new findings in code an earlier round passed | Every later review of the unit runs strong                                                                                            |
 | An implementer below strong still draws `fix-needed` at review #2  | Fix #2 goes to a fresh strong worker in the same worktree, told to read `git log` and the branch diff first, not to the same terminal |
+| An implementer already at strong draws `fix-needed` at review #2   | Fix #2 stays on that implementer's terminal; no fresh worker                                                                          |
 
 With no concrete strong model mapped, the fresh session is the escalation;
-record `tier=strong model=default`.
+record `tier=strong model=default`. A `clean` verdict from a standard-tier round
+is terminal like any other and is never re-reviewed at strong.
 
 ## 1. Implement
 
@@ -213,9 +215,17 @@ Branch on the verdict directly.
   goes into the closing report.
 - Reuse the settled implementer's terminal for the fix round, except under a
   tier escalation below, rather than dispatching a new one: it holds why the code took its shape, and a fresh session
-  re-reads the branch before it can start. If that terminal is gone, record the
-  deviation and dispatch a replacement into the same worktree with an instruction
-  to read the log and branch diff first.
+  re-reads the branch before it can start.
+
+  ```text
+  ORCA orchestration worker-start --spec "<fix spec>" --terminal <implementer_handle> --worktree id:<repoId>::<worktreePath> --from <coordinator_handle> --json
+  ```
+
+  `--agent`, `--model` and `--effort` cannot combine with `--terminal`; the
+  reused terminal keeps its agent and model. If that terminal is gone, record the
+  deviation and run `worker-start --worktree` without `--terminal` into the same
+  worktree, with an instruction to read the log and branch diff first.
+
 - A repeated in-scope defect across rounds is reviewer oscillation: escalate the
   reviewer rather than the round count. Adjacent or preventive scope is never
   smuggled into the branch because a late round mentioned it; each such finding
@@ -280,5 +290,7 @@ count as done. When a sibling PR from
 this run merges, rerun stage 4's sync for every still-open PR: the base just moved
 under them.
 
-A task is **done** only when the review verdict is clean, the PR exists or the
-prescribed endgame has landed, and all checks are green.
+A task is **done** only when the review verdict is clean, or fix-needed with only
+recorded last-round `minor` deferrals, the PR exists or the
+prescribed endgame has landed, and all checks are green. A required check with
+no baseline in the manifest's `ci-baseline` line goes to a decision gate.
