@@ -108,7 +108,8 @@ export const BROWSER_NAV_HANDLERS: Record<string, CommandHandler> = {
     const target = await getBrowserCommandTarget(flags, cwd, client)
     const result = await withBrowserInterruptRecovery(
       client,
-      { method: 'browser.wait', page: target.page, readOnly: true },
+      // Why: --fn runs arbitrary page JavaScript, so a resend could repeat its side effects.
+      { method: 'browser.wait', page: target.page, readOnly: fn === undefined },
       () =>
         client.call<BrowserWaitResult>(
           'browser.wait',

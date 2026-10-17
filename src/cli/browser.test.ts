@@ -841,9 +841,31 @@ describe('orca cli browser commands interrupted by a closed connection', () => {
     expect(process.exitCode).toBe(1)
   })
 
+  it('retries a selector wait once after a close while the runtime still answers', async () => {
+    callMock
+      .mockRejectedValueOnce(new RuntimeConnectionClosedError())
+      .mockResolvedValueOnce(statusFixture)
+      .mockResolvedValueOnce(okFixture('req_wait', { matched: true }))
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+
+    await main(
+      ['wait', '--selector', '#ready', '--page', 'page-1', '--json'],
+      '/tmp/not-an-orca-worktree'
+    )
+
+    expect(callMock.mock.calls.map((call) => call[0])).toEqual([
+      'browser.wait',
+      'status.get',
+      'browser.wait'
+    ])
+    expect(process.exitCode).toBeUndefined()
+  })
+
   it.each([
     ['goto', ['goto', '--url', 'https://example.com'], 'browser.goto'],
-    ['viewport', ['viewport', '--width', '375', '--height', '812'], 'browser.viewport']
+    ['viewport', ['viewport', '--width', '375', '--height', '812'], 'browser.viewport'],
+    // A --fn expression is arbitrary page JavaScript: running it twice can repeat its side effects.
+    ['wait --fn', ['wait', '--fn', '(++globalThis.effects, true)'], 'browser.wait']
   ])('never retries %s', async (_label, argv, method) => {
     callMock
       .mockRejectedValueOnce(new RuntimeConnectionClosedError())
