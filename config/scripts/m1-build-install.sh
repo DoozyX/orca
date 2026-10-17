@@ -11,7 +11,7 @@ cd "$WT"
 [ "$(git rev-parse --show-toplevel)" = "$WT" ] || { echo "wrong checkout" >&2; exit 1; }
 [ "$(git symbolic-ref --short HEAD)" = DoozyX/m1-daily-upstream-sync ] || { echo "wrong branch" >&2; exit 1; }
 git fetch -q fork main
-git merge --ff-only fork/main
+git merge-base --is-ancestor fork/main HEAD || git merge --ff-only fork/main
 [ -z "$(git status --porcelain)" ] || { echo "dirty checkout" >&2; git status --short >&2; exit 1; }
 
 export PATH=$PNPM12:/opt/homebrew/opt/node@24/bin:$PATH
@@ -38,3 +38,20 @@ d = json.load(open('/Applications/Orca.app/Contents/Resources/orca-local-build.j
 assert sys.argv[1].startswith(d['commit']), (d['commit'], sys.argv[1])
 print('installed', d['version'], d['commit'])
 PY
+
+# Restart the headless runtime onto the new build once no agent is working (up to 4h); detached so it outlives this shell.
+nohup bash -c '
+  export PATH=/opt/homebrew/bin:/usr/local/bin:$PATH
+  log=$HOME/Library/Logs/orca-m1-restart.log
+  for _ in $(seq 1 480); do
+    busy=$(orca worktree ps --json 2>/dev/null | python3 -c "import json,sys; print(sum(1 for w in json.load(sys.stdin)[\"result\"][\"worktrees\"] for a in w.get(\"agents\",[]) if a[\"state\"]==\"working\"))" 2>/dev/null) || busy=error
+    if [ "$busy" = 0 ]; then
+      launchctl kickstart -k gui/$(id -u)/dev.onorca.serve && echo "$(date +%F\ %T) restarted dev.onorca.serve" >>"$log"
+      exit 0
+    fi
+    sleep 30
+  done
+  echo "$(date +%F\ %T) restart skipped: agents still working after 4h" >>"$log"
+' >/dev/null 2>&1 &
+disown
+echo "restart waiter started"
