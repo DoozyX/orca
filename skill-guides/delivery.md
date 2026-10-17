@@ -28,7 +28,8 @@ the stub; substitute it before running and do not create a shell variable.
 **Result:** every in-scope task ends as `done`, `needs-attention`, or — for a
 verification entrance — exactly one of `pass`, `defect`, `inconclusive`. **Next
 consumer:** the user who asked for the delivery. **Done:** each done task has a
-clean full-branch review verdict, a landed PR or the repository's prescribed
+clean full-branch review verdict, or a fix-needed verdict with only recorded
+last-round `minor` deferrals, a landed PR or the repository's prescribed
 endgame, and green checks; each parked task has its worker terminal, worktree,
 branch, and findings preserved; the run's retrospective is written and every
 Orca issue in it is filed upstream; and the closing report names, per task, its

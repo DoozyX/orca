@@ -352,6 +352,11 @@ describe('delivery investigation repairs', () => {
       'review #3, the integration review, and every review after a reviewer-oscillation escalation'
     )
     expect(pipeline).toContain('is never re-reviewed at strong')
+    expect(delivery).toContain(
+      'clean full-branch review verdict, or a fix-needed verdict with only recorded last-round `minor` deferrals'
+    )
+    expect(pipeline).toContain('A red required check with no baseline')
+    expect(pipeline).not.toContain('A required check with no baseline')
     expect(delivery).toContain('CI baseline, once per repository, before the first branch is cut')
     expect(delivery).toContain('ci-baseline=none <reason>')
     expect(prompts).toContain('rerun once alone')

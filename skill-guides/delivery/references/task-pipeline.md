@@ -292,5 +292,5 @@ under them.
 
 A task is **done** only when the review verdict is clean, or fix-needed with only
 recorded last-round `minor` deferrals, the PR exists or the
-prescribed endgame has landed, and all checks are green. A required check with
+prescribed endgame has landed, and all checks are green. A red required check with
 no baseline in the manifest's `ci-baseline` line goes to a decision gate.
