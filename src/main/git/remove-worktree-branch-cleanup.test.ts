@@ -50,7 +50,9 @@ import {
 import { forceDeleteLocalBranch, removeWorktree } from './worktree'
 
 const mockGitCommands = createGitCommandMocker(gitExecFileAsyncMock)
-const NOT_IN_LOCAL_MAIN = 'git merge-base --is-ancestor refs/heads/feature/test refs/heads/main'
+// The proof names the removed worktree's head, so a branch moved afterwards is never deleted on it.
+const NOT_IN_LOCAL_MAIN = 'git merge-base --is-ancestor def456 refs/heads/main'
+const DELETE_AT_HEAD = 'git update-ref -d refs/heads/feature/test def456'
 const getGitCalls = createGitCallReader(gitExecFileAsyncMock)
 
 // Why: removal argv carries core.longpaths on Windows; pin a non-Windows default for exact argv.
@@ -80,7 +82,7 @@ describe('removeWorktree', () => {
   it('keeps removal successful when branch cleanup fails', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
     mockGitCommands({
-      'git worktree list --porcelain': {
+      'git worktree list --porcelain -z': {
         stdout: `worktree /repo
 HEAD abc123
 branch refs/heads/main
@@ -90,13 +92,13 @@ HEAD def456
 branch refs/heads/feature/test
 `
       },
-      'git worktree list --porcelain#2': {
+      'git worktree list --porcelain': {
         stdout: `worktree /repo
 HEAD abc123
 branch refs/heads/main
 `
       },
-      'git branch -d -- feature/test': {
+      [DELETE_AT_HEAD]: {
         error: new Error('branch delete failed'),
         stderr: 'branch delete failed'
       }
@@ -162,7 +164,7 @@ branch refs/heads/main
     // `-d` would also trust an upstream or the primary's HEAD, so it never runs outside local main.
     expect(calls).not.toContain('git branch -d -- feature/test')
     expect(calls).toContain('git merge-tree --write-tree base123 refs/heads/feature/test')
-    expect(calls).toContain('git update-ref -d refs/heads/feature/test def456')
+    expect(calls).toContain(DELETE_AT_HEAD)
     expect(calls).toContain('git config --remove-section branch.feature/test')
     expect(calls).not.toContain('git remote')
   })
@@ -233,7 +235,7 @@ branch refs/heads/main
     await expect(removeWorktree('/repo', '/repo-feature')).resolves.toEqual({})
 
     const calls = getGitCalls()
-    expect(calls).toContain('git update-ref -d refs/heads/feature/test def456')
+    expect(calls).toContain(DELETE_AT_HEAD)
     expect(calls).toContain('git config --remove-section branch.feature/test')
     expect(gitExecFileAsyncMock.mock.calls).toContainEqual([
       ['patch-id', '--stable'],
@@ -306,7 +308,7 @@ branch refs/heads/main
     })
 
     const calls = getGitCalls()
-    expect(calls).not.toContain('git update-ref -d refs/heads/feature/test def456')
+    expect(calls).not.toContain(DELETE_AT_HEAD)
     expect(calls).not.toContain('git branch -d -- feature/test')
     expect(calls).not.toContain('git fetch --prune origin')
   })
@@ -328,7 +330,8 @@ branch refs/heads/feature/test
 
     await expect(removeWorktree('/repo', '/repo-feature')).resolves.toEqual({})
 
-    expectGitCallOrder(getGitCalls(), NOT_IN_LOCAL_MAIN, 'git branch -d -- feature/test')
+    expectGitCallOrder(getGitCalls(), NOT_IN_LOCAL_MAIN, DELETE_AT_HEAD)
+    expect(getGitCalls()).not.toContain('git branch -d -- feature/test')
   })
 
   it.each([
@@ -363,7 +366,7 @@ branch refs/heads/feature/test
 
     const calls = getGitCalls()
     expect(calls).not.toContain('git branch -d -- feature/test')
-    expect(calls).not.toContain('git update-ref -d refs/heads/feature/test def456')
+    expect(calls).not.toContain(DELETE_AT_HEAD)
   })
 
   it('preserves an already-merged branch when cleanup races after worktree removal', async () => {
@@ -427,7 +430,7 @@ branch refs/heads/main
 
     const calls = getGitCalls()
     expect(calls).toContain('git worktree list --porcelain')
-    expect(calls).toContain('git update-ref -d refs/heads/feature/test def456')
+    expect(calls).toContain(DELETE_AT_HEAD)
     expect(calls).toContain('git config --remove-section branch.feature/test')
   })
 
@@ -493,7 +496,7 @@ branch refs/heads/feature/test
       releaseFirstBranchDelete = resolve
     })
     gitExecFileAsyncMock.mockImplementation(async (args: string[]) => {
-      if (args.join(' ') === 'branch -d -- feature/a') {
+      if (args.join(' ') === 'update-ref -d refs/heads/feature/a aaa') {
         await firstBranchDelete
       }
       const localMain = `git ${args.join(' ')}` === DEFAULT_BRANCH_PROBE
@@ -503,16 +506,18 @@ branch refs/heads/feature/test
     const first = removeWorktree('/repo', '/repo-a', false, {
       knownRemovedWorktree: { branch: 'refs/heads/feature/a', head: 'aaa', locked: false }
     })
-    await vi.waitFor(() => expect(getGitCalls()).toContain('git branch -d -- feature/a'))
+    await vi.waitFor(() =>
+      expect(getGitCalls()).toContain('git update-ref -d refs/heads/feature/a aaa')
+    )
     const second = removeWorktree('/repo', '/repo-b', false, {
       knownRemovedWorktree: { branch: 'refs/heads/feature/b', head: 'bbb', locked: false }
     })
     await vi.waitFor(() => expect(getGitCalls()).toContain('git worktree remove /repo-b'))
     await new Promise((resolve) => setTimeout(resolve, 20))
-    expect(getGitCalls()).not.toContain('git branch -d -- feature/b')
+    expect(getGitCalls()).not.toContain('git update-ref -d refs/heads/feature/b bbb')
 
     releaseFirstBranchDelete()
     await Promise.all([first, second])
-    expect(getGitCalls()).toContain('git branch -d -- feature/b')
+    expect(getGitCalls()).toContain('git update-ref -d refs/heads/feature/b bbb')
   })
 })

@@ -27,23 +27,34 @@ export async function deleteBranchAfterWorktreeRemoval(
   // Why: forceBranchDelete opts into `-D` for failed-creation rollback (a fresh branch, no user work).
   if (options.forceBranchDelete === true) {
     try {
-      await deleteLocalBranchAfterWorktreeRemoval(repoPath, branchName, true, options)
+      await deleteLocalBranchAfterWorktreeRemoval(repoPath, branchName, options, () =>
+        gitExecFileAsync(['branch', '-D', '--', branchName], gitExecOptions(repoPath, options))
+      )
       return {}
     } catch (error) {
       return preserveBranch(branchName, branchHead, 'delete_failed', error)
     }
   }
   const runGit = createBranchCleanupGit(repoPath, options)
-  // Why (#15): only the host's local default proves a merge. `branch -d` also trusts an upstream or
-  // the primary checkout's HEAD, so it runs only once local default contains the branch.
+  // Why (#15): only the host's local default proves a merge; `branch -d` would also trust an
+  // upstream or the primary checkout's HEAD.
   const defaultRef = await resolveLocalDefaultBranchRef(runGit)
   if (!defaultRef) {
     return preserveBranch(branchName, branchHead, 'not_merged_into_default')
   }
   let safeDeleteError: unknown
-  if (await isBranchMergedInto(runGit, branchName, defaultRef)) {
+  // Why the captured head: proof and delete name one commit, so a branch moved in between stays.
+  if (branchHead && (await isCommitMergedInto(runGit, branchHead, defaultRef))) {
     try {
-      await deleteLocalBranchAfterWorktreeRemoval(repoPath, branchName, false, options)
+      await deleteLocalBranchAfterWorktreeRemoval(repoPath, branchName, options, () =>
+        forceDeleteLocalBranch(
+          repoPath,
+          branchName,
+          branchHead,
+          (args, cwd) => gitExecFileAsync(args, gitExecOptions(cwd, options)),
+          options
+        )
+      )
       return {}
     } catch (error) {
       safeDeleteError = error
@@ -95,13 +106,13 @@ function createBranchCleanupGit(
   }
 }
 
-async function isBranchMergedInto(
+async function isCommitMergedInto(
   runGit: GitBranchCleanupExec,
-  branchName: string,
+  commit: string,
   targetRef: string
 ): Promise<boolean> {
   try {
-    await runGit(['merge-base', '--is-ancestor', `refs/heads/${branchName}`, targetRef])
+    await runGit(['merge-base', '--is-ancestor', commit, targetRef])
     return true
   } catch {
     // Exit 1 is "not an ancestor"; any other failure (a missing ref) proves nothing either.
@@ -112,18 +123,14 @@ async function isBranchMergedInto(
 async function deleteLocalBranchAfterWorktreeRemoval(
   repoPath: string,
   branchName: string,
-  forceBranchDelete: boolean,
-  options: GitWorktreeExecOptions = {}
+  options: GitWorktreeExecOptions,
+  deleteBranch: () => Promise<unknown>
 ): Promise<'deleted' | 'checked-out'> {
-  const deleteFlag = forceBranchDelete ? '-D' : '-d'
   try {
-    await gitExecFileAsync(
-      ['branch', deleteFlag, '--', branchName],
-      gitExecOptions(repoPath, options)
-    )
+    await deleteBranch()
     return 'deleted'
   } catch (error) {
-    if (!isBranchCheckedOutInWorktreeError(error)) {
+    if (!isBlockedByWorktree(error)) {
       throw error
     }
   }
@@ -137,16 +144,25 @@ async function deleteLocalBranchAfterWorktreeRemoval(
   }
 
   try {
-    await gitExecFileAsync(
-      ['branch', deleteFlag, '--', branchName],
-      gitExecOptions(repoPath, options)
-    )
+    await deleteBranch()
     return 'deleted'
   } catch (error) {
-    if (isBranchCheckedOutInWorktreeError(error)) {
+    if (isBlockedByWorktree(error)) {
       return 'checked-out'
     }
     throw error
+  }
+}
+
+function isBlockedByWorktree(error: unknown): boolean {
+  return error instanceof LocalBranchCheckedOutError || isBranchCheckedOutInWorktreeError(error)
+}
+
+/** The branch is checked out or reserved by a worktree, so `forceDeleteLocalBranch` left it. */
+class LocalBranchCheckedOutError extends Error {
+  constructor(branchName: string) {
+    super(`Local branch "${branchName}" is checked out in another worktree.`)
+    this.name = 'LocalBranchCheckedOutError'
   }
 }
 
@@ -209,7 +225,7 @@ export async function forceDeleteLocalBranch(
     )
   }
   if (await isLocalBranchCheckedOut(repoPath, branchName, runGit, options)) {
-    throw new Error(`Local branch "${branchName}" is checked out in another worktree.`)
+    throw new LocalBranchCheckedOutError(branchName)
   }
   // Why: stale toast actions must not delete a branch that moved; `update-ref -d` deletes only if the ref still == expectedHead.
   try {
@@ -225,7 +241,7 @@ export async function forceDeleteLocalBranch(
   }
   try {
     if (await isLocalBranchCheckedOut(repoPath, branchName, runGit, options)) {
-      throw new Error(`Local branch "${branchName}" is checked out in another worktree.`)
+      throw new LocalBranchCheckedOutError(branchName)
     }
   } catch (error) {
     try {

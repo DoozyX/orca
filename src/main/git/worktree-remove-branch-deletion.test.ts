@@ -25,12 +25,10 @@ describe('removeWorktree', () => {
   const beforeRemoval =
     'worktree /repo\nHEAD abc123\nbranch refs/heads/main\n\nworktree /repo-feature\nHEAD def456\nbranch refs/heads/feature/test\n'
 
-  const isAncestorOfMain = [
-    'merge-base',
-    '--is-ancestor',
-    'refs/heads/feature/test',
-    'refs/heads/main'
-  ]
+  // Why the head and not the branch name: a branch that moves after the proof must not be deleted.
+  const isAncestorOfMain = ['merge-base', '--is-ancestor', 'def456', 'refs/heads/main']
+  const deleteAtHead = ['update-ref', '-d', 'refs/heads/feature/test', 'def456']
+  const listWorktrees = ['worktree', 'list', '--porcelain']
   const mockLocalMainDefault = () =>
     gitExecFileAsyncMock.mockResolvedValueOnce({ stdout: 'refs/heads/main\0\n' })
 
@@ -66,35 +64,33 @@ describe('removeWorktree', () => {
 
     const calls = gitExecFileAsyncMock.mock.calls.map((call) => call[0])
     expect(calls).toContainEqual(isAncestorOfMain)
-    expect(calls).not.toContainEqual(['branch', '-d', '--', 'feature/test'])
+    expect(calls).not.toContainEqual(deleteAtHead)
     expect(calls).not.toContainEqual(['branch', '-D', '--', 'feature/test'])
   })
 
-  it('preserves a contained branch when `branch -d` still refuses it', async () => {
+  it('preserves a contained branch when its head moved before the delete', async () => {
     gitExecFileAsyncMock.mockResolvedValueOnce({ stdout: beforeRemoval }) // list before
     gitExecFileAsyncMock.mockResolvedValueOnce({ stdout: '' }) // worktree remove
     mockLocalMainDefault()
     gitExecFileAsyncMock.mockResolvedValueOnce({ stdout: '' }) // merge-base --is-ancestor
-    gitExecFileAsyncMock.mockRejectedValueOnce(new Error('not fully merged')) // branch -d
+    gitExecFileAsyncMock.mockResolvedValueOnce({ stdout: '' }) // worktree list: not checked out
+    gitExecFileAsyncMock.mockRejectedValueOnce(new Error('cannot lock ref')) // update-ref -d
     gitExecFileAsyncMock.mockResolvedValue({ stdout: '' }) // squash proof finds no target tree
 
     await expect(removeWorktree('/repo', '/repo-feature', false)).resolves.toEqual({
       preservedBranch: { branchName: 'feature/test', head: 'def456', reason: 'delete_failed' }
     })
-    expect(gitExecFileAsyncMock.mock.calls.map((call) => call[0])).not.toContainEqual([
-      'branch',
-      '-D',
-      '--',
-      'feature/test'
-    ])
+    const calls = gitExecFileAsyncMock.mock.calls.map((call) => call[0])
+    expect(calls).toContainEqual(deleteAtHead)
+    expect(calls).not.toContainEqual(['branch', '-d', '--', 'feature/test'])
+    expect(calls).not.toContainEqual(['branch', '-D', '--', 'feature/test'])
   })
 
-  it('deletes the branch with `branch -d` once local main contains it', async () => {
+  it('deletes the branch at its removed head once local main contains it', async () => {
     gitExecFileAsyncMock.mockResolvedValueOnce({ stdout: beforeRemoval }) // list before
     gitExecFileAsyncMock.mockResolvedValueOnce({ stdout: '' }) // worktree remove
     mockLocalMainDefault()
-    gitExecFileAsyncMock.mockResolvedValueOnce({ stdout: '' }) // merge-base --is-ancestor
-    gitExecFileAsyncMock.mockResolvedValueOnce({ stdout: '' }) // branch -d succeeds
+    gitExecFileAsyncMock.mockResolvedValue({ stdout: '' }) // proof, delete and its checks succeed
 
     await expect(removeWorktree('/repo', '/repo-feature', false)).resolves.toEqual({})
 
@@ -103,15 +99,17 @@ describe('removeWorktree', () => {
       ['worktree', 'remove', '/repo-feature'],
       DEFAULT_BRANCH_PROBE_ARGS,
       isAncestorOfMain,
-      ['branch', '-d', '--', 'feature/test']
+      listWorktrees,
+      deleteAtHead,
+      listWorktrees,
+      ['config', '--remove-section', 'branch.feature/test']
     ])
   })
 
   it('reuses known removed worktree metadata instead of relisting before removal', async () => {
     gitExecFileAsyncMock.mockResolvedValueOnce({ stdout: '' }) // worktree remove
     mockLocalMainDefault()
-    gitExecFileAsyncMock.mockResolvedValueOnce({ stdout: '' }) // merge-base --is-ancestor
-    gitExecFileAsyncMock.mockResolvedValueOnce({ stdout: '' }) // branch -d succeeds
+    gitExecFileAsyncMock.mockResolvedValue({ stdout: '' }) // proof, delete and its checks succeed
 
     await removeWorktree('/repo', '/repo-feature', false, {
       knownRemovedWorktree: {
@@ -124,20 +122,23 @@ describe('removeWorktree', () => {
       ['worktree', 'remove', '/repo-feature'],
       DEFAULT_BRANCH_PROBE_ARGS,
       isAncestorOfMain,
-      ['branch', '-d', '--', 'feature/test']
+      listWorktrees,
+      deleteAtHead,
+      listWorktrees,
+      ['config', '--remove-section', 'branch.feature/test']
     ])
   })
 
-  it('prunes and retries branch deletion only when Git reports a checked-out branch', async () => {
+  it('prunes and retries branch deletion only when a worktree record holds the branch', async () => {
     gitExecFileAsyncMock.mockResolvedValueOnce({ stdout: beforeRemoval }) // list before
     gitExecFileAsyncMock.mockResolvedValueOnce({ stdout: '' }) // worktree remove
     mockLocalMainDefault()
     gitExecFileAsyncMock.mockResolvedValueOnce({ stdout: '' }) // merge-base --is-ancestor
-    gitExecFileAsyncMock.mockRejectedValueOnce(
-      new Error("error: cannot delete branch 'feature/test' used by worktree at '/repo-stale'")
-    ) // branch -d hits stale worktree metadata
-    gitExecFileAsyncMock.mockResolvedValueOnce({ stdout: '' }) // worktree prune
-    gitExecFileAsyncMock.mockResolvedValueOnce({ stdout: '' }) // branch -d retry succeeds
+    gitExecFileAsyncMock.mockResolvedValueOnce({
+      stdout:
+        'worktree /repo\nHEAD abc123\nbranch refs/heads/main\n\nworktree /repo-stale\nHEAD def456\nbranch refs/heads/feature/test\nprunable gitdir file points to non-existent location\n'
+    }) // a stale record still holds the branch
+    gitExecFileAsyncMock.mockResolvedValue({ stdout: '' }) // prune, then the retry succeeds
 
     await expect(removeWorktree('/repo', '/repo-feature', false)).resolves.toEqual({})
 
@@ -146,9 +147,12 @@ describe('removeWorktree', () => {
       ['worktree', 'remove', '/repo-feature'],
       DEFAULT_BRANCH_PROBE_ARGS,
       isAncestorOfMain,
-      ['branch', '-d', '--', 'feature/test'],
+      listWorktrees,
       ['worktree', 'prune'],
-      ['branch', '-d', '--', 'feature/test']
+      listWorktrees,
+      deleteAtHead,
+      listWorktrees,
+      ['config', '--remove-section', 'branch.feature/test']
     ])
   })
 })
