@@ -1,4 +1,5 @@
 import { resolveStructuredCodexAccountKind } from '../structured-agent-account-home'
+import { getStructuredAgentSessionHost } from '../../native-chat/agent-session-wire/structured-agent-session-registry'
 import { collectRuntimeWorktreeAgentSources } from '../runtime-worktree-agent-sources'
 import { OrcaRuntimeWithWorktreePsDependencies } from './workspace-process-listing-dependencies'
 import { DEFAULT_WORKTREE_PS_LIMIT } from '../orca-runtime-postlude'
@@ -41,10 +42,8 @@ import {
   structuredWorkerOpenTaskTitle,
   structuredWorkerOwesWork
 } from '../structured-worker-custody'
-import {
-  resolvedTuiAgentArgsBypassPermissions,
-  resolveTuiAgentLaunchEnv
-} from '../../../shared/tui-agent-launch-defaults'
+import { resolveTuiAgentLaunchEnv } from '../../../shared/tui-agent-launch-defaults'
+import { preModeChatGetsFullAccess } from '../../../shared/agent-chat-permission-mode'
 import { isTuiAgent } from '../../../shared/tui-agent-config'
 import { nativeChatShellEnvironmentPolicy } from '../../../shared/native-chat-shell-environment'
 import { resolveClaudeHomeBindingForSession } from '../../claude/claude-structured-account-home'
@@ -54,7 +53,7 @@ import { structuredAgentConfiguredArgs } from '../../native-chat/structured-agen
 import { claudeCliFlagSupport } from '../../claude/claude-cli-flag-support'
 import {
   runtimeHiddenHostIds,
-  runtimeHiddenRepoIds,
+  runtimeHiddenRepos,
   runtimeVisibleRepos,
   withoutHiddenHosts
 } from '../runtime-visible-catalog'
@@ -75,10 +74,10 @@ export abstract class OrcaRuntimeWithGetWorktreePs extends OrcaRuntimeWithWorktr
       sourceDefaultsSupported,
       visibilitySettings
     )
-    const hiddenRepoIds = runtimeHiddenRepoIds(this.store)
+    const hiddenRepos = runtimeHiddenRepos(this.store)
     const resolvedWorktrees = resolvedWorktreeSnapshot.worktrees.filter(
       (worktree) =>
-        !hiddenRepoIds.has(worktree.repoId) &&
+        !hiddenRepos.hasWorktree(worktree) &&
         this.isRuntimeWorktreeVisible(
           worktree,
           visibilitySourceMatchersByRepoId.get(worktree.repoId),
@@ -138,7 +137,8 @@ export abstract class OrcaRuntimeWithGetWorktreePs extends OrcaRuntimeWithWorktr
         mirroredWorktreeIdByTabId,
         connectedPtyEvidence,
         // Structured sessions are in here too: the host publishes them into the same store.
-        hookSnapshots: this.getAgentStatusSnapshotFn?.() ?? []
+        hookSnapshots: this.getAgentStatusSnapshotFn?.() ?? [],
+        readStructuredSummary: getStructuredAgentSessionHost()?.readStatusSummary
       }),
       orchestrationByPaneKey: this.agentOrchestrationProjection.buildByPaneKey(),
       getSummary
@@ -251,11 +251,7 @@ export abstract class OrcaRuntimeWithGetWorktreePs extends OrcaRuntimeWithWorktr
         claudeStructuredAuthPolicyForSettings(this.requireStore().getSettings()),
       resolveAgentFullAccess: (agent) =>
         isTuiAgent(agent) &&
-        resolvedTuiAgentArgsBypassPermissions(
-          agent,
-          this.requireStore().getSettings(),
-          process.platform
-        ),
+        preModeChatGetsFullAccess(agent, this.requireStore().getSettings(), process.platform),
       resolveAgentLaunchEnv: (agent) =>
         isTuiAgent(agent)
           ? this.structuredAgentLaunchEnv(agent, this.requireStore().getSettings())

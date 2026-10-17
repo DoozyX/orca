@@ -278,12 +278,12 @@ export function registerPtyConnectionRemoteRuntimeAttachTests(): void {
       expect(transport.connect).toHaveBeenCalledTimes(1)
       expect(transport.connect).toHaveBeenCalledWith(
         expect.objectContaining({
-          command:
-            "codex --no-daemon '--dangerously-bypass-approvals-and-sandbox' 'resume' 'codex-session-1'",
+          // No recorded recipe, so no permission bypass is added to the resumed session.
+          command: "codex --no-daemon 'resume' 'codex-session-1'",
           launchAgent: 'codex',
           launchConfig: {
-            agentCommand: "codex --no-daemon '--dangerously-bypass-approvals-and-sandbox'",
-            agentArgs: '--dangerously-bypass-approvals-and-sandbox',
+            agentCommand: 'codex --no-daemon',
+            agentArgs: '',
             agentEnv: {}
           },
           launchToken: expect.stringMatching(new RegExp(`^${UUID_RE}$`)),

@@ -18,6 +18,7 @@ import {
   describeClaudeProfile,
   type ClaudeProfileDescriptor,
   readUserClaudeConfigDir,
+  readUserClaudeConfigDirAsSet,
   resolveClaudeDefaultHome
 } from './claude-profile-paths'
 import type { ClaudeProfileSetupReport } from './claude-profile-setup'
@@ -40,8 +41,6 @@ import {
 } from './claude-account-folder'
 import { resolveLoginShellEnvironment } from '../startup/login-shell-environment'
 import type { ClaudeBoundHomeOverride, ClaudeLaunchScope } from './claude-bound-home-route'
-
-const REFRESH_WAIT_MS = 5_000
 
 export type ClaudeProfileRouterSettings = Pick<
   GlobalSettings,
@@ -211,7 +210,7 @@ export class ClaudeProfileRouter {
     const refresh = this.setUp(profile).catch((error: unknown) => {
       console.warn('[claude-profile] Account refresh failed:', error)
     })
-    const waitMs = this.args.refreshWaitMs ?? REFRESH_WAIT_MS
+    const waitMs = this.args.refreshWaitMs ?? 5_000
     await Promise.race([refresh, new Promise((resolve) => setTimeout(resolve, waitMs).unref())])
     return this.preparation()
   }
@@ -242,7 +241,7 @@ export class ClaudeProfileRouter {
     return existsSync(join(this.args.dataRoot, 'claude-runtime-auth', 'system-default-auth.json'))
   }
 
-  /** The user's own CLAUDE_CONFIG_DIR, which wins over the selection in their terminals. */
+  /** The user's own CLAUDE_CONFIG_DIR: System default's folder. */
   userConfigDir(): string | undefined {
     return readUserClaudeConfigDir(this.env)
   }
@@ -299,10 +298,17 @@ export class ClaudeProfileRouter {
     if (target?.runtime === 'wsl') {
       return { [CLAUDE_PROFILE_POINTER_ENV]: `~/${wslClaudeProfilePointer(this.args.dataRoot)}` }
     }
+    // Why the user's own value in every host pane: the claude function follows the selection over
+    // it (an rc export, or the inherited value) and restores it on System default.
+    const userConfigDir = readUserClaudeConfigDirAsSet(this.env)
+    const base: ClaudeEnvPatch = {
+      [CLAUDE_PROFILE_POINTER_ENV]: this.pointerPath,
+      ...(userConfigDir ? { [CLAUDE_USER_CONFIG_DIR_ENV]: userConfigDir } : {})
+    }
     // Why only the pointer before the login shell's env: which home runs depends on its
     // CLAUDE_CONFIG_DIR, and the pane's `claude` reads the pointer rewritten once it arrives.
     if (!this.envResolved) {
-      return { [CLAUDE_PROFILE_POINTER_ENV]: this.pointerPath }
+      return base
     }
     try {
       this.writePointer()
@@ -311,14 +317,9 @@ export class ClaudeProfileRouter {
       if (profile) {
         this.setUpInBackground(profile)
       }
-      const env = this.launchEnv()
-      const userConfigDir = this.userConfigDir()
-      // Why: the injected value replaces the user's own; the claude function restores it on System default.
-      return env.CLAUDE_CONFIG_DIR && userConfigDir
-        ? { ...env, [CLAUDE_USER_CONFIG_DIR_ENV]: userConfigDir }
-        : env
+      return { ...base, ...this.launchEnv() }
     } catch {
-      return { [CLAUDE_PROFILE_POINTER_ENV]: this.pointerPath }
+      return base
     }
   }
 

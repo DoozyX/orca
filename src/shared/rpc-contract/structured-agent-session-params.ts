@@ -22,6 +22,7 @@ export {
   SessionId
 } from './structured-agent-session-identifiers'
 import { z } from 'zod'
+import { AccountHomeBinding } from './structured-agent-session-account-home-binding'
 import { isAgentSessionSurfaceTabId } from '../agent-session-surface-tab-id'
 import { isAgentSessionOptions } from '../agent-session-record'
 import { isStructuredAgentId } from '../agent-session-provider-handle-encoding'
@@ -94,12 +95,7 @@ export const AccountHome = z
   .object({
     variable: z.enum(['CLAUDE_CONFIG_DIR', 'CODEX_HOME']),
     path: z.string().min(1).max(4096),
-    /** Host-set marker naming the project group whose binding chose this home. Optional, so an
-     *  older peer that never sends or reads it stays wire-compatible. */
-    binding: z
-      .object({ kind: z.literal('project-group'), groupId: Identifier('Invalid project group id') })
-      .strict()
-      .optional()
+    binding: AccountHomeBinding.optional()
   })
   .strict()
 
@@ -122,7 +118,14 @@ export const AttachParams = z
  *  the provider child launches against; both are derived host-side from this id instead. */
 export const ResumeSource = z
   .object({
-    providerSessionId: Identifier('Invalid provider session id')
+    providerSessionId: Identifier('Invalid provider session id'),
+    cliSource: z
+      .object({
+        workspaceId: Identifier('Invalid workspace id'),
+        paneKey: Identifier('Invalid pane key')
+      })
+      .strict()
+      .optional()
   })
   .strict()
 

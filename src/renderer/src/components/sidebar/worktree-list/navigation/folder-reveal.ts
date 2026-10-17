@@ -13,22 +13,22 @@ import {
   composeWorktreeHostIdentity,
   getExecutionHostIdFromWorktreeHostIdentity
 } from '../../../../../../shared/worktree/host-qualified-identity'
-import { getProjectGroupHeaderKey } from '../grouping/group-keys'
+import { getProjectGroupHeaderKey } from '../../../../../../shared/sidebar-list/group-keys'
 import {
   buildMergedProjectGroupIndex,
   buildProjectGroupHostIndex,
   findProjectGroupByHost,
   resolveMergedProjectGroupId
-} from '../grouping/cross-host-project-group-merge'
+} from '../../../../../../shared/sidebar-list/cross-host-project-group-merge'
 import { getProjectGroupHostId } from '../../../../store/slices/project-group-owner-routing'
 import type { ExecutionHostId } from '../../../../../../shared/execution-host'
-import { getFolderWorkspaceLaneKey } from '../grouping/folder-workspace-lanes'
-import type { WorktreeGroupBy } from '../grouping/row-types'
+import { getFolderWorkspaceLaneKey } from '../../../../../../shared/sidebar-list/folder-workspace-lanes'
+import type { WorktreeGroupBy } from '../../../../../../shared/sidebar-list/row-types'
 import {
   getFolderWorkspaceHostId,
   getFolderWorkspaceProjectGroupHostId
-} from '../../folder-workspace-host-id'
-import { getHostSectionCollapseKey } from '../../host-section-collapse'
+} from '../../../../../../shared/sidebar-list/folder-workspace-host-id'
+import { getHostSectionCollapseKey } from '../../../../../../shared/sidebar-list/host-section-collapse'
 
 function findFolderWorkspaceByKey(
   worktreeId: string,

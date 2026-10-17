@@ -16,6 +16,7 @@ import { registerPtyHandlers } from '../ipc/pty/register-handlers'
 import type {
   CodexHomePtySpawnedLifecycleArgs,
   GetSelectedCodexHomePath,
+  PrepareClaudeAuth,
   PrepareCodexSessionResume
 } from '../ipc/pty/host-env/types'
 import { registerDaemonManagementHandlers } from '../ipc/pty-management'
@@ -28,7 +29,6 @@ import { scheduleHistoryGc } from '../terminal-history-gc'
 import { openCodeHookService, openCode2HookService } from '../opencode/hook-service'
 import { listLiveDaemonPtyIds } from '../daemon/daemon-provider-state'
 import { hydrateLocalPtyRegistryAtBoot } from '../memory/hydrate-local-pty-registry'
-import type { PrepareClaudeAuth } from '../ipc/pty/host-env/types'
 import { getKnownWorktreeIdsForHistoryGc } from './history-gc-worktree-ids'
 import {
   scheduleWorktreeBaseDirectoryWatcherSync,

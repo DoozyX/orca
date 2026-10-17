@@ -11,6 +11,7 @@ import {
 } from '../native-chat/structured-agent-cli-conversations'
 
 const CLAUDE_TRANSCRIPT_IMPORT = directoryTranscriptImport({
+  conversationStore: ({ accountHomePath }) => join(accountHomePath, 'projects'),
   // A bound group offers its own home alone: the shared `~/.claude` is another organisation's
   // account, and a miss must refuse rather than commit the session there.
   accountHomeCandidates: ({ selectedAccountHomePath, selectedAccountHomeBound }) =>
@@ -21,10 +22,8 @@ const CLAUDE_TRANSCRIPT_IMPORT = directoryTranscriptImport({
           join(homedir(), '.claude'),
           ...(getClaudeProfileRouter()?.accountHomes() ?? [])
         ],
-  findTranscript: ({ providerSessionId, accountHomePath }) =>
-    resolveSessionFilePath('claude', providerSessionId, {
-      claudeProjectsDir: join(accountHomePath, 'projects')
-    })
+  findTranscript: ({ providerSessionId, store, strictErrors }) =>
+    resolveSessionFilePath('claude', providerSessionId, { claudeProjectsDir: store, strictErrors })
 })
 
 const CLAUDE_SESSION_HISTORY: StructuredAgentSessionHistory = {

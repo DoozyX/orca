@@ -108,8 +108,8 @@ export function registerPtyConnectionSleepingResumeBannerTests(): void {
       expect(transport.connect).toHaveBeenCalledTimes(1)
       expect(transport.connect).toHaveBeenCalledWith(
         expect.objectContaining({
-          command:
-            "codex --no-daemon '--dangerously-bypass-approvals-and-sandbox' 'resume' 'codex-session-1'",
+          // The record holds no launch recipe, so the resume adds no permission bypass.
+          command: "codex --no-daemon 'resume' 'codex-session-1'",
           launchAgent: 'codex',
           env: expect.objectContaining({
             ORCA_PANE_KEY: paneKey,
@@ -126,8 +126,8 @@ export function registerPtyConnectionSleepingResumeBannerTests(): void {
       expect(mockStoreState.registerAgentLaunchConfig).toHaveBeenCalledWith(
         paneKey,
         {
-          agentCommand: "codex --no-daemon '--dangerously-bypass-approvals-and-sandbox'",
-          agentArgs: '--dangerously-bypass-approvals-and-sandbox',
+          agentCommand: 'codex --no-daemon',
+          agentArgs: '',
           agentEnv: {}
         },
         {

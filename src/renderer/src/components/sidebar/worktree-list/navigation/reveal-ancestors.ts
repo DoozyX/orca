@@ -1,13 +1,13 @@
 import type { ProjectGroup } from '../../../../../../shared/project-group-types'
 import type { Repo } from '../../../../../../shared/repo-types'
-import { getProjectGroupHeaderKey } from '../grouping/group-keys'
+import { getProjectGroupHeaderKey } from '../../../../../../shared/sidebar-list/group-keys'
 import {
   buildMergedProjectGroupIndex,
   buildProjectGroupHostIndex,
   findMergedProjectGroupByRowId,
   findProjectGroupByHost,
   resolveMergedProjectGroupId
-} from '../grouping/cross-host-project-group-merge'
+} from '../../../../../../shared/sidebar-list/cross-host-project-group-merge'
 import { getProjectGroupHostId } from '../../../../store/slices/project-group-owner-routing'
 import {
   getRepoExecutionHostId,

@@ -1,7 +1,7 @@
 import type { RuntimeLinearCommandSurface } from './runtime-linear-command-surface'
 import { installRuntimeLinearCommandSurface } from './runtime-linear-command-surface'
 import { publishWorkspaceViewChanges } from './runtime-workspace-view-change-events'
-import { OrcaRuntimeWithMigrationCatalog } from './orca-runtime-migration-catalog'
+import { OrcaRuntimeWithWorkspaceReviewFacts } from './sidebar-inputs/orca-runtime-workspace-review-facts'
 import type { RuntimeCommandSurfaceHost } from './orca-runtime-core'
 import type {
   AgentLaunchTabPublished,
@@ -28,11 +28,24 @@ import { createReferenceAgentIndex, referenceConnectionHosts } from './runtime-r
 import type { RuntimeReferenceFindParams } from '../../shared/runtime-reference-contracts'
 import { getRepoExecutionHostId } from '../../shared/execution-host'
 import type { LayoutApplyReply } from '../../shared/workspace-layout/workspace-layout-command-types'
+import { rekeyMovedPaneOwners } from './moved-pane-owner-rekey'
 import { applyWindowLayoutCommand, type WindowLayoutCommand } from './runtime-layout-apply'
 import type { TerminalCreateOptions } from './runtime-terminal-contracts'
+import { PairedServerRowsProducer } from './sidebar-inputs/paired-server-rows-producer'
+import { HEADLESS_RUNTIME_WINDOW_ID } from '../../shared/runtime-session-contracts'
+import { getHostDisplayLabelOverrides } from '../../shared/host-setting-overrides'
 
 // oxlint-disable-next-line typescript/no-unsafe-declaration-merging -- SAFETY: The existing Linear installer supplies the canonical prototype surface.
-class OrcaRuntimeService extends OrcaRuntimeWithMigrationCatalog {
+class OrcaRuntimeService extends OrcaRuntimeWithWorkspaceReviewFacts {
+  // Idle until relay hosts attach. The fallback refresh runs while a window shows the sidebar.
+  readonly pairedServerRows = new PairedServerRowsProducer({
+    hasDemand: () =>
+      this.authoritativeWindowId !== null &&
+      this.authoritativeWindowId !== HEADLESS_RUNTIME_WINDOW_ID &&
+      this.store?.getUI?.().sidebarOpen !== false,
+    hostLabelOverrides: () => getHostDisplayLabelOverrides(this.getClientSettings())
+  })
+
   private async selectReferenceCatalogWorkspace(selector: string, cwd?: string) {
     const catalog = listReferenceWorkspaces(
       this.requireStore(),
@@ -86,7 +99,7 @@ class OrcaRuntimeService extends OrcaRuntimeWithMigrationCatalog {
     })
   }
 
-  constructor(...args: ConstructorParameters<typeof OrcaRuntimeWithMigrationCatalog>) {
+  constructor(...args: ConstructorParameters<typeof OrcaRuntimeWithWorkspaceReviewFacts>) {
     super(...args)
     // Why: the runtime listing re-runs a scan the worktree-change generation overtook and re-lists
     // through this runtime's scan cache, so a worktree change must reach both. The desktop IPC
@@ -170,12 +183,21 @@ class OrcaRuntimeService extends OrcaRuntimeWithMigrationCatalog {
   }
 
   /** A window's layout command (`layout.apply`), applied to the partitions that hold its tab. */
-  applyLayoutCommand(command: WindowLayoutCommand): Promise<LayoutApplyReply> {
-    return applyWindowLayoutCommand(
+  async applyLayoutCommand(command: WindowLayoutCommand): Promise<LayoutApplyReply> {
+    const reply = await applyWindowLayoutCommand(
       this.requireStore(),
-      (worktreeId, tabId) => this.getWorkspaceSessionHostIdsForTab(worktreeId, tabId),
-      command
+      (worktreeId, tabId) => {
+        if (tabId !== null) {
+          return this.getWorkspaceSessionHostIdsForTab(worktreeId, tabId)
+        }
+        const routed = this.tryGetWorkspaceSessionHostIdForWorktree(worktreeId)
+        return routed ? [routed] : []
+      },
+      command,
+      (move) => rekeyMovedPaneOwners(this, move)
     )
+    // Sent before the reply, so the window can wait for the frame that shows the change.
+    return { ...reply, frameSeq: this.workspaceLayoutStream.settledSeq() }
   }
 
   /** This desktop's display-only copy of each paired server's layout (`layout.getRemoteSnapshots`). */

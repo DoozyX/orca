@@ -6,67 +6,28 @@ import {
   watchProviderAccounts,
   type ProviderAccountsSnapshot
 } from '@/runtime/runtime-provider-accounts-client'
-import { callRuntimeRpc } from '@/runtime/runtime-rpc-client'
 import {
   runtimeTargetEnvironmentId,
   runtimeTargetForOwnerEnvironment
 } from '@/runtime/runtime-client-target'
-import { defaultScopeHost } from '@/lib/default-creation-host'
-import type { ProviderRateLimits, RateLimitState } from '../../../../shared/rate-limit-types'
-import { createEmptyRateLimitState } from '../../../../shared/rate-limit-state-factory'
+import { useActiveAccountOwner } from '@/runtime/use-worktree-runtime-target'
+import type { RuntimeClientTarget } from '../../../../shared/runtime-client-target'
 import { resolveClaudeStatusAccountState } from './status-bar-claude-accounts'
 import { resolveCodexStatusAccountState } from './status-bar-codex-accounts'
 import { getClaudeAccountSyncKey, getCodexAccountSyncKey } from './provider-account-sync-key'
-import { translate } from '@/i18n/i18n'
+import { useOwnerUsageRateLimits } from './use-owner-usage-rate-limits'
 
-const EMPTY_LIMITS = createEmptyRateLimitState()
+const LOCAL_TARGET: RuntimeClientTarget = { kind: 'local' }
 const EMPTY_ACCOUNTS: ProviderAccountsSnapshot = {
   claude: emptyClaudeAccountsState(),
   codex: emptyCodexAccountsState(),
   rateLimits: null
 }
 
-function disconnectedUsage(state: RateLimitState): RateLimitState {
-  const stale = (limits: ProviderRateLimits | null): ProviderRateLimits | null =>
-    limits
-      ? {
-          ...limits,
-          status: 'error',
-          error: translate(
-            'auto.components.status.bar.UsageRosterPanel.remoteUsageConnectionUnavailable',
-            'Remote usage connection unavailable'
-          )
-        }
-      : null
-  return {
-    ...state,
-    claude: stale(state.claude),
-    codex: stale(state.codex),
-    gemini: stale(state.gemini),
-    opencodeGo: stale(state.opencodeGo),
-    kimi: stale(state.kimi),
-    minimax: stale(state.minimax),
-    grok: stale(state.grok),
-    antigravity: stale(state.antigravity),
-    cursor: stale(state.cursor),
-    omp: stale(state.omp ?? null),
-    zcode: stale(state.zcode),
-    inactiveClaudeAccounts: state.inactiveClaudeAccounts.map((entry) => ({
-      ...entry,
-      isFetching: false,
-      rateLimits: stale(entry.rateLimits)
-    })),
-    inactiveCodexAccounts: state.inactiveCodexAccounts.map((entry) => ({
-      ...entry,
-      isFetching: false,
-      rateLimits: stale(entry.rateLimits)
-    }))
-  }
-}
-
 export function useAccountUsageRoster() {
   const settings = useAppStore((s) => s.settings)
   const localLimits = useAppStore((s) => s.rateLimits)
+  const owner = useOwnerUsageRateLimits(localLimits)
   const visible = useAppStore((s) => s.statusBarVisible)
   const items = useAppStore((s) => s.statusBarItems)
   const fetchClaude = useAppStore((s) => s.fetchInactiveClaudeAccountUsage)
@@ -74,7 +35,9 @@ export function useAccountUsageRoster() {
   const refreshLocal = useAppStore((s) => s.refreshRateLimits)
   const claudeKey = getClaudeAccountSyncKey(settings)
   const codexKey = getCodexAccountSyncKey(settings)
-  const environmentId = runtimeTargetEnvironmentId(defaultScopeHost(settings))
+  // Why: accounts follow the focused workspace's owner, the same host the usage meters read.
+  const { target: ownerAccountTarget } = useActiveAccountOwner(LOCAL_TARGET)
+  const environmentId = runtimeTargetEnvironmentId(ownerAccountTarget)
   const ownerKey = environmentId ? `environment:${environmentId}` : 'local'
   const ownerTarget = useMemo(
     () => runtimeTargetForOwnerEnvironment(environmentId),
@@ -83,17 +46,10 @@ export function useAccountUsageRoster() {
   const [received, setReceived] = useState<{
     ownerKey: string
     snapshot: ProviderAccountsSnapshot
-    failed?: boolean
   } | null>(null)
   const snapshot = received?.ownerKey === ownerKey ? received.snapshot : EMPTY_ACCOUNTS
   const showClaude = visible && items.includes('claude')
   const showCodex = visible && items.includes('codex')
-
-  const markDisconnected = useCallback(() => {
-    setReceived((previous) =>
-      previous?.ownerKey === ownerKey ? { ...previous, failed: true } : previous
-    )
-  }, [ownerKey])
 
   useEffect(() => {
     if (!visible || (!environmentId && !showClaude && !showCodex)) {
@@ -117,27 +73,14 @@ export function useAccountUsageRoster() {
           }
         })
       },
-      onError: () => {
-        if (!closed) {
-          markDisconnected()
-        }
-      }
+      // Why: the owner's usage hook reports reachability; a dropped accounts stream keeps the last list.
+      onError: () => {}
     })
     return () => {
       closed = true
       watcher.close()
     }
-  }, [
-    ownerTarget,
-    ownerKey,
-    visible,
-    environmentId,
-    claudeKey,
-    codexKey,
-    showClaude,
-    showCodex,
-    markDisconnected
-  ])
+  }, [ownerTarget, ownerKey, visible, environmentId, claudeKey, codexKey, showClaude, showCodex])
 
   const refreshPreviews = useCallback(async () => {
     if (environmentId) {
@@ -153,35 +96,25 @@ export function useAccountUsageRoster() {
     void refreshPreviews()
   }, [refreshPreviews, claudeKey, codexKey])
 
+  const { refreshRemote } = owner
   const refreshUsage = useCallback(async () => {
-    if (environmentId) {
-      // The subscription delivers results; never install a late RPC snapshot after an owner change.
-      try {
-        await callRuntimeRpc(ownerTarget, 'accounts.list', {
-          refreshUsage: true
-        })
-      } catch {
-        markDisconnected()
-      }
+    if (refreshRemote) {
+      await refreshRemote()
       return
     }
     await Promise.all([refreshLocal(), refreshPreviews()])
-  }, [environmentId, ownerTarget, refreshLocal, refreshPreviews, markDisconnected])
+  }, [refreshRemote, refreshLocal, refreshPreviews])
 
   const accounts: ProviderAccountsSnapshot = {
     ...snapshot,
     claude: resolveClaudeStatusAccountState(settings, snapshot.claude, environmentId),
     codex: resolveCodexStatusAccountState(settings, snapshot.codex, environmentId)
   }
-  const remoteLimits = snapshot.rateLimits ?? EMPTY_LIMITS
   return {
     accounts,
     ownerKey,
-    rateLimits: environmentId
-      ? received?.ownerKey === ownerKey && received.failed
-        ? disconnectedUsage(remoteLimits)
-        : remoteLimits
-      : localLimits,
+    rateLimits: owner.rateLimits,
+    remoteOwned: owner.remoteOwned,
     refreshUsage,
     refreshPreviews
   }

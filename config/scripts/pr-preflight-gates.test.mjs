@@ -16,7 +16,7 @@ it('shares one setup and overlaps the compiler only after type-aware checks fini
   expect(workflow.jobs.static_analysis).toBeUndefined()
   expect(workflow.jobs.typecheck).toBeUndefined()
   expect(preflight.needs).toEqual(['code_paths'])
-  expect(preflight['runs-on']).toBe('ubuntu-24.04-arm')
+  expect(preflight['runs-on']).toBe('blacksmith-8vcpu-ubuntu-2404')
   const installs = steps.filter(
     (step) => step.uses === './.github/actions/install-node-dependencies'
   )
@@ -242,8 +242,9 @@ it('pins every foreground and background step to its selected phase', () => {
     ['Enforce runtime Electron-import ratchet', staticPhase],
     ['Enforce focus-read ratchet', staticPhase],
     ['Enforce layout-writer ratchets', staticPhase],
+    ['Enforce deprecated runtime-owner importer ratchet', staticPhase],
     ['Check Node runtime pin', staticPhase],
-    ['Boot orcad and round-trip a terminal', staticPhase],
+    ['Decide whether the orcad terminal smoke runs', staticPhase],
     ['Verify the generated RPC params catalog', staticPhase],
     ['Verify the generated ACP protocol schema', staticPhase],
     ['Verify bundled skill guides', staticPhase],
