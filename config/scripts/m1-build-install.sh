@@ -46,7 +46,14 @@ nohup bash -c '
   for _ in $(seq 1 480); do
     busy=$(orca worktree ps --json 2>/dev/null | python3 -c "import json,sys; print(sum(1 for w in json.load(sys.stdin)[\"result\"][\"worktrees\"] for a in w.get(\"agents\",[]) if a[\"state\"]==\"working\"))" 2>/dev/null) || busy=error
     if [ "$busy" = 0 ]; then
-      launchctl kickstart -k gui/$(id -u)/dev.onorca.serve && echo "$(date +%F\ %T) restarted dev.onorca.serve" >>"$log"
+      # kickstart -k alone leaves the old serve alive (the LaunchAgent abandons its process group); stop it so launchd starts the new build.
+      old=$(orca status 2>/dev/null | awk "/^pid:/{print \$2}")
+      [ -n "$old" ] && kill -TERM "$old"
+      for _ in $(seq 1 60); do kill -0 "$old" 2>/dev/null || break; sleep 1; done
+      launchctl kickstart gui/$(id -u)/dev.onorca.serve
+      sleep 20
+      new=$(orca status 2>/dev/null | awk "/^pid:/{print \$2}")
+      if [ -n "$new" ] && [ "$new" != "$old" ]; then echo "$(date +%F\ %T) restarted serve $old -> $new" >>"$log"; else echo "$(date +%F\ %T) RESTART FAILED: pid $old -> ${new:-none}" >>"$log"; fi
       exit 0
     fi
     sleep 30
