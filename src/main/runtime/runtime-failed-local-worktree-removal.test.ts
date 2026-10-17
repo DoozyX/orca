@@ -174,12 +174,14 @@ async function finishAtStartup(purged: string[], pushTarget?: GitPushTarget): Pr
 
 /** The same delete in session: the job runs Git's `worktree remove --force`, as Delete's does. */
 async function failInSession(): Promise<unknown> {
+  // Why the real OID: branch cleanup proves and deletes at the recorded head, never a placeholder.
+  const head = (await git(['rev-parse', 'feature'])).trim()
   const error = await startBackgroundWorktreeRemoval({
     removal: {
       worktreeId,
       repoId: repo.id,
       repoPath,
-      worktree: { path: worktreePath, branch: 'refs/heads/feature', head: 'abc' },
+      worktree: { path: worktreePath, branch: 'refs/heads/feature', head },
       deleteBranch: true,
       force: true
     },
