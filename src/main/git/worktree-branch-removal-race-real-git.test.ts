@@ -1,10 +1,9 @@
 // Real-binary race coverage: a branch that moves between the merge proof and the delete.
-import { execFile, execFileSync } from 'node:child_process'
 import { mkdir, mkdtemp, realpath, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { promisify } from 'node:util'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { runProcess } from '@orca/process-host'
 import { removeTree } from '../../shared/windows-transient-lock-removal'
 import type * as Runner from './runner'
 
@@ -32,19 +31,14 @@ vi.mock('./runner', async (importOriginal) => {
 
 import { removeWorktree } from './worktree'
 
-const execFileAsync = promisify(execFile)
-
 let scratchDir = ''
 let repoPath = ''
 let worktreePath = ''
 
-async function git(args: string[]): Promise<string> {
-  const { stdout } = await execFileAsync('git', args, { cwd: repoPath })
-  return stdout.trim()
-}
-
-function gitWithInput(args: string[], input: string): string {
-  return execFileSync('git', args, { cwd: repoPath, input, encoding: 'utf8' }).trim()
+async function git(args: string[], input?: string): Promise<string> {
+  const result = await runProcess({ program: 'git', args, cwd: repoPath, input })
+  expect(result.code, result.stderr).toBe(0)
+  return result.stdout.trim()
 }
 
 beforeEach(async () => {
@@ -73,8 +67,8 @@ describe('branch cleanup racing a branch update', () => {
   it('preserves a branch that advances to an upstream-only commit after the merge proof', async () => {
     const seed = await git(['rev-parse', 'HEAD'])
     // Contained only in the upstream, which `branch -d` trusts but local main does not prove.
-    const blob = gitWithInput(['hash-object', '-w', '--stdin'], 'upstream only\n')
-    const tree = gitWithInput(['mktree'], `100644 blob ${blob}\tupstream.txt\n`)
+    const blob = await git(['hash-object', '-w', '--stdin'], 'upstream only\n')
+    const tree = await git(['mktree'], `100644 blob ${blob}\tupstream.txt\n`)
     const upstreamOnly = await git(['commit-tree', tree, '-p', seed, '-m', 'upstream only'])
     await git(['update-ref', 'refs/remotes/origin/feature', upstreamOnly])
     await git(['config', 'remote.origin.url', join(scratchDir, 'origin.git')])

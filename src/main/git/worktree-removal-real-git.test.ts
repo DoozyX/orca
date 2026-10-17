@@ -1,13 +1,12 @@
 // Real-binary coverage for worktree removal: the mocked-runner suite cannot prove what Git deletes,
 // deregisters and refuses, or that deleting a checkout leaves Node's file pool free.
-import { execFile } from 'node:child_process'
 import { existsSync, statSync } from 'node:fs'
 import { link, mkdir, mkdtemp, readFile, realpath, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { performance } from 'node:perf_hooks'
-import { promisify } from 'node:util'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { runProcess } from '@orca/process-host'
 import { removeTree } from '../../shared/windows-transient-lock-removal'
 import { listWorktreesStrict, removeWorktree } from './worktree'
 import { areWorktreePathsEqual } from './worktree-path-comparison'
@@ -15,16 +14,15 @@ import { isPrunableGitFileWorktree } from '../worktree-prunable-git-file'
 import { removeStaleLocalWorktreeRegistration } from '../local-worktree-removal-recovery'
 import { sweepStaleWorktreeTrash, WORKTREE_TRASH_DIR_NAME } from '../worktree-trash'
 
-const execFileAsync = promisify(execFile)
-
 let scratchDir = ''
 let repoPath = ''
 let workspaceRoot = ''
 let worktreePath = ''
 
 async function git(args: string[], cwd: string): Promise<string> {
-  const { stdout } = await execFileAsync('git', args, { cwd })
-  return stdout
+  const result = await runProcess({ program: 'git', args, cwd })
+  expect(result.code, result.stderr).toBe(0)
+  return result.stdout
 }
 
 // Why parsed: Git prints forward slashes on Windows, so raw text never contains a joined path.
