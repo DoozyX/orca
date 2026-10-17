@@ -76,8 +76,10 @@ function lostConnectionRequestId(error: unknown): string | undefined {
     : undefined
 }
 
-function isEmptyLostWait(receipt: object): boolean {
+function isEmptyLostWait(receipt: unknown): boolean {
   return (
+    typeof receipt === 'object' &&
+    receipt !== null &&
     'connectionLost' in receipt &&
     receipt.connectionLost === true &&
     !('deliveryId' in receipt && receipt.deliveryId)
