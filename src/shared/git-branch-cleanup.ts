@@ -1,4 +1,5 @@
 import type { GitCapabilityCache } from './git-capability-cache'
+import { resolveDefaultBaseRefViaExec } from './git-default-base-ref'
 import { isUnsupportedMergeTreeWriteTreeError } from './git-merge-tree-capability'
 
 export type GitBranchCleanupExecOptions = {
@@ -13,10 +14,6 @@ export type GitBranchCleanupExec = (
 ) => Promise<{ stdout: string }>
 
 const SQUASH_PATCH_SCAN_LIMIT = 200
-
-function isLocalTargetRef(ref: string): boolean {
-  return ref === 'HEAD' || ref.startsWith('refs/heads/') || ref.startsWith('refs/tags/')
-}
 
 async function readOptionalGitStdout(
   runGit: GitBranchCleanupExec,
@@ -43,54 +40,16 @@ async function readOptionalGitRawStdout(
   }
 }
 
-function addCandidateRef(candidates: string[], ref: string | null): void {
-  const trimmed = ref?.trim()
-  if (!trimmed || trimmed.startsWith('-') || candidates.includes(trimmed)) {
-    return
-  }
-  candidates.push(trimmed)
-}
-
-export async function getBranchCleanupTargetRefs(
-  runGit: GitBranchCleanupExec,
-  branchName: string
-): Promise<string[]> {
-  const candidates: string[] = []
-  addCandidateRef(
-    candidates,
-    await readOptionalGitStdout(runGit, ['config', '--get', `branch.${branchName}.base`])
-  )
-  addCandidateRef(
-    candidates,
-    await readOptionalGitStdout(runGit, ['symbolic-ref', '--quiet', 'refs/remotes/origin/HEAD'])
-  )
-  addCandidateRef(candidates, 'HEAD')
-  return candidates
-}
-
-export async function refreshBranchCleanupTargetRefs(
-  runGit: GitBranchCleanupExec,
-  targetRefs: readonly string[]
-): Promise<void> {
-  const remotesStdout = await readOptionalGitStdout(runGit, ['remote'])
-  const remotes = (remotesStdout ?? '')
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((remote) => remote && !remote.startsWith('-'))
-    .sort((left, right) => right.length - left.length)
-  const fetchedRemotes = new Set<string>()
-
-  for (const targetRef of targetRefs) {
-    const remote = remotes.find((candidate) => targetRef.startsWith(`refs/remotes/${candidate}/`))
-    if (!remote || fetchedRemotes.has(remote)) {
-      continue
-    }
-    fetchedRemotes.add(remote)
-    // Why: deleting a worktree often follows a PR merge. Refresh the saved base
-    // before deciding a local branch is unpublished, but keep network failures
-    // non-fatal so offline cleanup preserves today's safe behavior.
-    await readOptionalGitStdout(runGit, ['fetch', '--prune', remote])
-  }
+/**
+ * `refs/heads/<default>` on the host `runGit` executes on: the one ref whose containment proves a
+ * branch merged (#15). An upstream, a saved base, `origin/HEAD` or the primary checkout's HEAD do not.
+ */
+export async function resolveLocalDefaultBranchRef(
+  runGit: GitBranchCleanupExec
+): Promise<string | null> {
+  const baseRef = await resolveDefaultBaseRefViaExec((argv) => runGit(argv))
+  // Same base-ref → branch-name normalization as getRepoDefaultBranchName.
+  return baseRef ? `refs/heads/${baseRef.replace(/^origin\//, '')}` : null
 }
 
 async function resolveCommitOid(runGit: GitBranchCleanupExec, ref: string): Promise<string | null> {
@@ -283,27 +242,4 @@ export async function branchHasNoUnmergedChangesOnAnyTarget(
   }
 
   return false
-}
-
-export async function branchHasNoUnmergedChangesWithLazyTargetRefresh(
-  runGit: GitBranchCleanupExec,
-  branchName: string,
-  targetRefs: string[],
-  capabilities: GitCapabilityCache
-): Promise<boolean> {
-  // Why: an unrefreshed remote-tracking ref may no longer represent the remote's branch contents.
-  const localTargetRefs = targetRefs.filter(isLocalTargetRef)
-  const refreshDependentTargetRefs = targetRefs.filter((targetRef) => !isLocalTargetRef(targetRef))
-  if (
-    await branchHasNoUnmergedChangesOnAnyTarget(runGit, branchName, localTargetRefs, capabilities)
-  ) {
-    return true
-  }
-  await refreshBranchCleanupTargetRefs(runGit, targetRefs)
-  return branchHasNoUnmergedChangesOnAnyTarget(
-    runGit,
-    branchName,
-    refreshDependentTargetRefs,
-    capabilities
-  )
 }

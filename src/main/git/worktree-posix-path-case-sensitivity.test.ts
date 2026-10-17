@@ -9,6 +9,7 @@
  * comparison are UNC, never Linux. The end-to-end case below therefore drives the real translator.
  */
 import type * as FsPromises from 'node:fs/promises'
+import type * as GitWorktreeAdmin from '../../shared/git-worktree-admin'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type * as WslPathTranslation from './command-runner/wsl-path-translation'
 
@@ -23,6 +24,12 @@ const { gitExecFileAsyncMock, gitExecFileSyncMock, statMock, readFileMock, resol
 
 // Why the real translator: an identity mock removes the Linux -> UNC rewrite that production
 // always applies, which is the only reason the Linux spelling would ever reach the comparison.
+// Why: the reservation probe reads admin dirs from disk; these fixtures have none.
+vi.mock('../../shared/git-worktree-admin', async (importOriginal) => ({
+  ...(await importOriginal<typeof GitWorktreeAdmin>()),
+  isBranchReservedByWorktreeOperation: vi.fn().mockResolvedValue(false)
+}))
+
 vi.mock('./runner', async () => {
   const translation = await vi.importActual<typeof WslPathTranslation>(
     './command-runner/wsl-path-translation'
@@ -156,9 +163,18 @@ worktree /home/alice/ws/feature
 HEAD ccc333
 branch refs/heads/feature
 `
+    // After the removal only the case twin still holds its branch.
+    const afterRemoval = `worktree /home/alice/repo
+HEAD aaa111
+branch refs/heads/main
+
+worktree /home/alice/ws/Feature
+HEAD bbb222
+branch refs/heads/Feature
+`
     mockGitCommands({
       'git worktree list --porcelain -z': { stdout: listing },
-      'git worktree list --porcelain': { stdout: listing }
+      'git worktree list --porcelain': { stdout: afterRemoval }
     })
 
     await removeWorktree('\\\\wsl.localhost\\Ubuntu\\home\\alice\\repo', `${UNC}\\feature`, true, {
@@ -166,7 +182,7 @@ branch refs/heads/feature
     })
 
     const calls = getGitCalls()
-    expect(calls).toContain('git branch -d -- feature')
-    expect(calls).not.toContain('git branch -d -- Feature')
+    expect(calls).toContain('git update-ref -d refs/heads/feature ccc333')
+    expect(calls).not.toContain('git update-ref -d refs/heads/Feature bbb222')
   })
 })

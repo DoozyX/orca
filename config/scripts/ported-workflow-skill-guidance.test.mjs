@@ -331,6 +331,43 @@ describe('folded trigger vocabulary from the skills that were not ported', () =>
 })
 
 describe('delivery investigation repairs', () => {
+  it('states the retro guide rules for budget, tiers, CI baseline, suite reruns and waits', () => {
+    const read = (path) => squash(readFileSync(join(projectDir, path), 'utf8'))
+    const delivery = read('skill-guides/delivery.md')
+    const pipeline = read('skill-guides/delivery/references/task-pipeline.md')
+    const prompts = read('skill-guides/delivery/references/stage-prompts.md')
+    const orchestration = read('skill-guides/orchestration.md')
+
+    expect(pipeline).toContain('--terminal <implementer_handle>')
+    expect(pipeline).toContain('cannot combine with `--terminal`')
+    expect(delivery).toContain(
+      'A blocking finding is any `major` item or any `decision-needed` item'
+    )
+    expect(delivery).toContain('`fix-override`')
+    expect(delivery).toContain('`review-override`')
+    expect(delivery).toContain('fix-needed with only recorded last-round `minor` deferrals')
+    expect(pipeline).toContain('fix-needed with only recorded last-round `minor` deferrals')
+    expect(pipeline).toContain('An implementer already at strong draws `fix-needed` at review #2')
+    expect(pipeline).toContain(
+      'review #3, the integration review, and every review after a reviewer-oscillation escalation'
+    )
+    expect(pipeline).toContain('is never re-reviewed at strong')
+    expect(delivery).toContain(
+      'clean full-branch review verdict, or a fix-needed verdict with only recorded last-round `minor` deferrals'
+    )
+    expect(pipeline).toContain('A red required check with no baseline')
+    expect(pipeline).not.toContain('A required check with no baseline')
+    expect(delivery).toContain('CI baseline, once per repository, before the first branch is cut')
+    expect(delivery).toContain('ci-baseline=none <reason>')
+    expect(prompts).toContain('rerun once alone')
+    expect(prompts).toContain('`load-flake`')
+    expect(prompts).toContain('Isolated green never replaces full-suite acceptance')
+    expect(prompts).toContain('run the command in the foreground with a deadline')
+    expect(prompts).not.toContain('poll the handle')
+    expect(orchestration).toContain('Orca has no process or file wait')
+    expect(orchestration).not.toContain('Any poll you cannot avoid')
+  })
+
   it('keeps attempt inputs separate from the canonical tested runner', () => {
     const guide = readFileSync(
       join(projectDir, 'skill-guides/delivery/references/task-pipeline.md'),

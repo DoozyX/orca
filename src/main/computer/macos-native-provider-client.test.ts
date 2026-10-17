@@ -7,17 +7,21 @@ const {
   chmodSyncMock,
   connectMacOSProviderSocketMock,
   mkdtempSyncMock,
+  realpathSyncMock,
   resolveMacOSComputerUseExecutablePathMock,
   rmSyncMock,
   spawnMock,
+  statSyncMock,
   writeFileSyncMock
 } = vi.hoisted(() => ({
   chmodSyncMock: vi.fn(),
   connectMacOSProviderSocketMock: vi.fn(),
   mkdtempSyncMock: vi.fn(),
+  realpathSyncMock: vi.fn(),
   resolveMacOSComputerUseExecutablePathMock: vi.fn(),
   rmSyncMock: vi.fn(),
   spawnMock: vi.fn(),
+  statSyncMock: vi.fn(),
   writeFileSyncMock: vi.fn()
 }))
 
@@ -28,7 +32,9 @@ vi.mock('child_process', () => ({
 vi.mock('fs', () => ({
   chmodSync: chmodSyncMock,
   mkdtempSync: mkdtempSyncMock,
+  realpathSync: realpathSyncMock,
   rmSync: rmSyncMock,
+  statSync: statSyncMock,
   writeFileSync: writeFileSyncMock
 }))
 
@@ -90,18 +96,27 @@ async function loadClientModule() {
   return await import('./macos-native-provider-client')
 }
 
+const HELPER_A = '/Applications/Orca Computer Use.app/Contents/MacOS/orca-computer-use-macos'
+const HELPER_B = '/Applications/Orca Computer Use 2.app/Contents/MacOS/orca-computer-use-macos'
+
 describe('MacOSNativeProviderClient', () => {
   const sockets: FakeSocket[] = []
   const providers: FakeProvider[] = []
+  const helperInodes = new Map<string, number>()
 
   beforeEach(() => {
     vi.useFakeTimers()
     sockets.length = 0
     providers.length = 0
+    helperInodes.clear()
+    realpathSyncMock.mockImplementation((path: string) => path)
+    statSyncMock.mockImplementation((path: string) => ({
+      dev: 1,
+      ino: helperInodes.get(path) ?? 1,
+      mtimeMs: 1
+    }))
     mkdtempSyncMock.mockImplementation((prefix: string) => `${prefix}${sockets.length}`)
-    resolveMacOSComputerUseExecutablePathMock.mockReturnValue(
-      '/Applications/Orca Computer Use.app/Contents/MacOS/orca-computer-use-macos'
-    )
+    resolveMacOSComputerUseExecutablePathMock.mockReturnValue(HELPER_A)
     spawnMock.mockImplementation(() => {
       const provider = new FakeProvider()
       providers.push(provider)
@@ -123,11 +138,64 @@ describe('MacOSNativeProviderClient', () => {
     chmodSyncMock.mockReset()
     connectMacOSProviderSocketMock.mockReset()
     mkdtempSyncMock.mockReset()
+    realpathSyncMock.mockReset()
     resolveMacOSComputerUseExecutablePathMock.mockReset()
     rmSyncMock.mockReset()
     spawnMock.mockReset()
+    statSyncMock.mockReset()
     writeFileSyncMock.mockReset()
     vi.useRealTimers()
+  })
+
+  async function answerNextRequest(socket: FakeSocket, result: unknown): Promise<void> {
+    const answered = socket.writes.length
+    await vi.waitFor(() => expect(socket.writes).toHaveLength(answered + 1))
+    const request: unknown = JSON.parse(socket.writes[answered]!)
+    if (!request || typeof request !== 'object' || !('id' in request)) {
+      throw new TypeError(`expected a native request, got ${socket.writes[answered]}`)
+    }
+    socket.emit('data', `${JSON.stringify({ id: request.id, ok: true, result })}\n`)
+  }
+
+  // #14: a reinstall leaves the old helper (and its TCC attribution) answering live calls.
+  it.each([
+    [
+      'another executable',
+      () => resolveMacOSComputerUseExecutablePathMock.mockReturnValue(HELPER_B)
+    ],
+    ['a replaced executable at the same path', () => helperInodes.set(HELPER_A, 2)]
+  ])('restarts the helper once it resolves to %s', async (_label, changeHelper) => {
+    const { MacOSNativeProviderClient } = await loadClientModule()
+    const client = new MacOSNativeProviderClient()
+    const first = client.listApps()
+    await vi.waitFor(() => expect(sockets).toHaveLength(1))
+    await answerNextRequest(sockets[0]!, macOSProviderCapabilities())
+    await answerNextRequest(sockets[0]!, { apps: [] })
+    await first
+    expect(client.liveHelperIdentity()).toEqual({
+      executablePath: HELPER_A,
+      dev: 1,
+      ino: 1,
+      mtimeMs: 1
+    })
+
+    changeHelper()
+    const second = client.listApps()
+    await vi.waitFor(() => expect(sockets).toHaveLength(2))
+    expect(sockets[0]!.destroyed).toBe(true)
+    await answerNextRequest(sockets[1]!, macOSProviderCapabilities())
+    await answerNextRequest(sockets[1]!, { apps: [] })
+    await second
+    const restartedPath = resolveMacOSComputerUseExecutablePathMock()
+    expect(spawnMock.mock.calls.map((call) => call[0])).toEqual([HELPER_A, restartedPath])
+
+    const third = client.listApps()
+    await answerNextRequest(sockets[1]!, { apps: [] })
+    await third
+    expect(spawnMock).toHaveBeenCalledTimes(2)
+    expect(sockets).toHaveLength(2)
+    client.shutdown()
+    expect(client.liveHelperIdentity()).toBeNull()
   })
 
   it('does not rescan a growing fragmented screenshot reply', async () => {

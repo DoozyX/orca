@@ -1,8 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
   branchHasNoUnmergedChangesOnAnyTarget,
-  branchHasNoUnmergedChangesWithLazyTargetRefresh,
-  refreshBranchCleanupTargetRefs,
+  resolveLocalDefaultBranchRef,
   type GitBranchCleanupExec
 } from './git-branch-cleanup'
 import { GitCapabilityCache } from './git-capability-cache'
@@ -48,46 +47,29 @@ function baseProofResponses(
   })
 }
 
-describe('refreshBranchCleanupTargetRefs', () => {
-  it('fetches each remote-tracking target remote once and prefers slashed remote names', async () => {
-    const runGit = vi.fn<GitBranchCleanupExec>(async (args) => {
-      if (args[0] === 'remote') {
-        return { stdout: 'origin\nfoo\nfoo/bar\n' }
-      }
-      return { stdout: '' }
-    })
+describe('resolveLocalDefaultBranchRef', () => {
+  function forEachRefAnswering(stdout: string): GitBranchCleanupExec {
+    return vi.fn<GitBranchCleanupExec>(async (args) => ({
+      stdout: args[0] === 'for-each-ref' ? stdout : ''
+    }))
+  }
 
-    await refreshBranchCleanupTargetRefs(runGit, [
-      'refs/remotes/origin/main',
-      'refs/remotes/foo/bar/feature',
-      'refs/remotes/foo/bar/another',
-      'HEAD'
-    ])
-
-    expect(runGit.mock.calls.map((call) => call[0])).toEqual([
-      ['remote'],
-      ['fetch', '--prune', 'origin'],
-      ['fetch', '--prune', 'foo/bar']
-    ])
+  it('names the local branch behind the remote-tracking default', async () => {
+    await expect(
+      resolveLocalDefaultBranchRef(
+        forEachRefAnswering('refs/remotes/origin/HEAD\0refs/remotes/origin/release/stable\n')
+      )
+    ).resolves.toBe('refs/heads/release/stable')
   })
 
-  it('keeps cleanup non-fatal when listing or fetching remotes fails', async () => {
-    const remoteListFails = vi.fn<GitBranchCleanupExec>().mockRejectedValue(new Error('offline'))
-
+  it('names a local default when the repository has no remote', async () => {
     await expect(
-      refreshBranchCleanupTargetRefs(remoteListFails, ['refs/remotes/origin/main'])
-    ).resolves.toBeUndefined()
+      resolveLocalDefaultBranchRef(forEachRefAnswering('refs/heads/master\0\n'))
+    ).resolves.toBe('refs/heads/master')
+  })
 
-    const fetchFails = vi.fn<GitBranchCleanupExec>(async (args) => {
-      if (args[0] === 'remote') {
-        return { stdout: 'origin\n' }
-      }
-      throw new Error('offline')
-    })
-
-    await expect(
-      refreshBranchCleanupTargetRefs(fetchFails, ['refs/remotes/origin/main'])
-    ).resolves.toBeUndefined()
+  it('answers null when no default branch resolves', async () => {
+    await expect(resolveLocalDefaultBranchRef(forEachRefAnswering(''))).resolves.toBeNull()
   })
 })
 
@@ -257,78 +239,5 @@ describe('branchHasNoUnmergedChangesOnAnyTarget', () => {
 
     const mergeTreeCalls = vi.mocked(runGit).mock.calls.filter(([args]) => args[0] === 'merge-tree')
     expect(mergeTreeCalls).toHaveLength(1)
-  })
-})
-
-describe('branchHasNoUnmergedChangesWithLazyTargetRefresh', () => {
-  it('skips refresh when local HEAD proves the branch changes are retained', async () => {
-    const runGit = vi.fn<GitBranchCleanupExec>(async (args) => {
-      const command = args.join(' ')
-      const stdout =
-        {
-          'rev-parse --verify --quiet HEAD^{commit}': 'local-target\n',
-          'merge-tree --write-tree local-target refs/heads/feature/test': 'local-tree\n',
-          'rev-parse --verify --quiet local-target^{tree}': 'local-tree\n'
-        }[command] ?? ''
-      return { stdout }
-    })
-
-    await expect(
-      branchHasNoUnmergedChangesWithLazyTargetRefresh(
-        runGit,
-        'feature/test',
-        ['refs/remotes/origin/main', 'HEAD'],
-        new GitCapabilityCache()
-      )
-    ).resolves.toBe(true)
-
-    expect(runGit.mock.calls.map(([args]) => args)).not.toContainEqual(['remote'])
-  })
-
-  it('refreshes before trusting a stale remote-tracking proof', async () => {
-    let refreshed = false
-    const runGit = vi.fn<GitBranchCleanupExec>(async (args) => {
-      const command = args.join(' ')
-      if (command === 'remote') {
-        return { stdout: 'origin\n' }
-      }
-      if (command === 'fetch --prune origin') {
-        refreshed = true
-        return { stdout: '' }
-      }
-      if (command === 'rev-parse --verify --quiet refs/remotes/origin/main^{commit}') {
-        return { stdout: 'remote-target\n' }
-      }
-      if (command === 'rev-parse --verify --quiet origin/main^{commit}') {
-        return { stdout: 'short-remote-target\n' }
-      }
-      if (command === 'rev-parse --verify --quiet HEAD^{commit}') {
-        return { stdout: 'local-target\n' }
-      }
-      if (command === 'merge-tree --write-tree remote-target refs/heads/feature/test') {
-        return { stdout: refreshed ? 'changed-tree\n' : 'remote-tree\n' }
-      }
-      if (command === 'merge-tree --write-tree short-remote-target refs/heads/feature/test') {
-        return { stdout: refreshed ? 'changed-tree\n' : 'short-remote-tree\n' }
-      }
-      if (command === 'rev-parse --verify --quiet remote-target^{tree}') {
-        return { stdout: 'remote-tree\n' }
-      }
-      if (command === 'rev-parse --verify --quiet short-remote-target^{tree}') {
-        return { stdout: 'short-remote-tree\n' }
-      }
-      return { stdout: '' }
-    })
-
-    await expect(
-      branchHasNoUnmergedChangesWithLazyTargetRefresh(
-        runGit,
-        'feature/test',
-        ['refs/remotes/origin/main', 'origin/main', 'HEAD'],
-        new GitCapabilityCache()
-      )
-    ).resolves.toBe(false)
-
-    expect(runGit.mock.calls.map(([args]) => args)).toContainEqual(['fetch', '--prune', 'origin'])
   })
 })

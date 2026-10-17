@@ -10,6 +10,16 @@ import { RuntimeClientError, type RuntimeRpcResponse } from './types'
 import { MAX_TIMER_DELAY_MS, isSafeTimerDelayMs } from '../../shared/timer-delay'
 import { runtimeAccessDeniedError } from './runtime-access-denied'
 
+/** The runtime closed the socket after the request went out, before any terminal frame. */
+export class RuntimeConnectionClosedError extends RuntimeClientError {
+  constructor() {
+    super(
+      'runtime_unavailable',
+      'The Orca runtime closed the connection before responding. Restart Orca and try again.'
+    )
+  }
+}
+
 export async function sendRequest<TResult>(
   metadata: RuntimeMetadata,
   method: string,
@@ -91,13 +101,8 @@ export async function sendRequest<TResult>(
     // timeout fires. Reject promptly. finish() guards double-settle, so this
     // no-ops on the normal success/error paths that already called socket.end().
     socket.once('close', () => {
-      finish({
-        ok: false,
-        error: new RuntimeClientError(
-          'runtime_unavailable',
-          'The Orca runtime closed the connection before responding. Restart Orca and try again.'
-        )
-      })
+      // Why typed: a browser command tells a stalled page from a dead runtime by probing after it.
+      finish({ ok: false, error: new RuntimeConnectionClosedError() })
     })
     socket.on('data', (chunk: string) => {
       // Why: the server may interleave `{"_keepalive":true}\n` frames with the

@@ -122,6 +122,7 @@ function worker(hostScope: string | null): FleetDurableWorker {
       hostScope,
       ownershipState: 'owned',
       releaseState: 'not_requested',
+      retainedReason: null,
       updatedAt: '2026-01-01T00:00:00Z'
     }
   }

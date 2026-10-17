@@ -145,8 +145,9 @@ editor without the positive proof `## Outcome` requires.
 Wait on Deliveries, never on a worker's artifact. Do not background a loop that
 sleeps until a report file appears: a worker that stops without writing it
 leaves the loop running forever, and the session reads as monitoring with
-nothing visible. Any poll you cannot avoid gets a deadline, and you stop the
-previous poll before starting another.
+nothing visible. Orca has no process or file wait; `check --wait` waits only on
+messages. Run commands in the foreground with a deadline, or end the turn and let
+a message wake you.
 
 After three consecutive empty waits, stop waiting blindly and enumerate with
 `ORCA orchestration worker-list --include-remote --json` (defaults to the bound
@@ -191,7 +192,11 @@ follow its exact recovery receipt and never substitute `terminal close`.
 A valid `worker_done` settles the Task and Dispatch automatically; do not follow
 it with `task-update --status completed`. Enumerate the terminals still owing a
 decision with `worker-list --run <run_id> --terminal-state reclaimable --json`,
-and do not end the coordinator turn until it returns none.
+and do not end the coordinator turn until it returns none and you have reported
+its `counts.release_unknown` and `counts.release_pending`. For a
+`release_unknown` row, run one `worker-show`; run `worker-release` again only if
+it shows the terminal resolving, otherwise record it as unresolved ownership in
+the final report. Absence is not exit.
 
 ## Conditional references
 

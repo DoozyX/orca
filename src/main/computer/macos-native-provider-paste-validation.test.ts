@@ -27,7 +27,9 @@ vi.mock('child_process', () => ({
 vi.mock('fs', () => ({
   chmodSync: chmodSyncMock,
   mkdtempSync: mkdtempSyncMock,
+  realpathSync: (path: string) => path,
   rmSync: rmSyncMock,
+  statSync: () => ({ dev: 1, ino: 1, mtimeMs: 1 }),
   writeFileSync: writeFileSyncMock
 }))
 

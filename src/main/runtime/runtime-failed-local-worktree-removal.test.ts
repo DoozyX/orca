@@ -2,13 +2,12 @@
 // registration even when it cannot delete a file, so Orca must keep the leftover listed and
 // retryable itself. macOS only: `chflags uchg` is the portable way to make a file undeletable for
 // the file's owner; worktree-failed-removal.test.ts covers the same rules with Git mocked.
-import { execFile } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { mkdir, mkdtemp, readFile, realpath, rename, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { promisify } from 'node:util'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { runProcess } from '@orca/process-host'
 import type { Repo } from '../../shared/repo-types'
 import type { GitPushTarget } from '../../shared/worktree/types'
 import { removeTree } from '../../shared/windows-transient-lock-removal'
@@ -46,8 +45,6 @@ vi.mock('../host-tree-removal', async (importOriginal) => {
   return { ...actual, removeHostTree: vi.fn(actual.removeHostTree) }
 })
 
-const execFileAsync = promisify(execFile)
-
 let scratchDir = ''
 let recordsDir = ''
 let repoPath = ''
@@ -56,9 +53,14 @@ let lockedFile = ''
 let worktreeId = ''
 let repo: Repo
 
+async function runChecked(program: string, args: string[], cwd?: string): Promise<string> {
+  const result = await runProcess({ program, args, cwd })
+  expect(result.code, result.stderr).toBe(0)
+  return result.stdout
+}
+
 async function git(args: string[], cwd = repoPath): Promise<string> {
-  const { stdout } = await execFileAsync('git', args, { cwd })
-  return stdout
+  return runChecked('git', args, cwd)
 }
 
 async function isRegistered(path: string): Promise<boolean> {
@@ -68,7 +70,7 @@ async function isRegistered(path: string): Promise<boolean> {
 }
 
 async function setImmutable(on: boolean, path = lockedFile): Promise<void> {
-  await execFileAsync('chflags', on ? ['uchg', path] : ['-R', 'nouchg', path])
+  await runChecked('chflags', on ? ['uchg', path] : ['-R', 'nouchg', path])
 }
 
 async function listedRows(): Promise<{ path: string; removalError?: string }[]> {
@@ -174,12 +176,14 @@ async function finishAtStartup(purged: string[], pushTarget?: GitPushTarget): Pr
 
 /** The same delete in session: the job runs Git's `worktree remove --force`, as Delete's does. */
 async function failInSession(): Promise<unknown> {
+  // Why the real OID: branch cleanup proves and deletes at the recorded head, never a placeholder.
+  const head = (await git(['rev-parse', 'feature'])).trim()
   const error = await startBackgroundWorktreeRemoval({
     removal: {
       worktreeId,
       repoId: repo.id,
       repoPath,
-      worktree: { path: worktreePath, branch: 'refs/heads/feature', head: 'abc' },
+      worktree: { path: worktreePath, branch: 'refs/heads/feature', head },
       deleteBranch: true,
       force: true
     },
@@ -223,7 +227,7 @@ describe.skipIf(process.platform !== 'darwin')('a worktree delete Git fails part
     vi.mocked(removeHostTree).mockClear()
     vi.restoreAllMocks()
     await setImmutable(false, scratchDir)
-    expect((await execFileAsync('find', [scratchDir, '-flags', '+uchg'])).stdout).toBe('')
+    expect(await runChecked('find', [scratchDir, '-flags', '+uchg'])).toBe('')
     await removeTree(scratchDir)
   })
 

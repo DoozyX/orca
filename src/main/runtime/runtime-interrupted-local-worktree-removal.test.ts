@@ -1,12 +1,11 @@
 // Real-binary coverage for finishing a removal a quit or crash interrupted: what is left has to
 // come from Git and disk, whatever point the earlier run reached.
-import { execFile } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { mkdir, mkdtemp, readFile, realpath, unlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { promisify } from 'node:util'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { runProcess } from '@orca/process-host'
 import type { Repo } from '../../shared/repo-types'
 import { removeTree } from '../../shared/windows-transient-lock-removal'
 import type { RemoveWorktreeResult } from '../../shared/worktree/create-types'
@@ -43,8 +42,6 @@ vi.mock('../host-tree-removal', async (importOriginal) => {
   return { ...actual, removeHostTree: vi.fn(actual.removeHostTree) }
 })
 
-const execFileAsync = promisify(execFile)
-
 let scratchDir = ''
 let recordsDir = ''
 let repoPath = ''
@@ -52,8 +49,9 @@ let worktreePath = ''
 let repo: Repo
 
 async function git(args: string[], cwd = repoPath): Promise<string> {
-  const { stdout } = await execFileAsync('git', args, { cwd })
-  return stdout
+  const result = await runProcess({ program: 'git', args, cwd })
+  expect(result.code, result.stderr).toBe(0)
+  return result.stdout
 }
 
 // Why parsed: Git prints forward slashes on Windows, so raw text never contains a joined path.
@@ -366,7 +364,7 @@ describe('finishing an interrupted worktree removal after a restart', () => {
     expect(remember).toHaveBeenCalledWith(
       `repo-1::${worktreePath}`,
       undefined,
-      { preservedBranch: { branchName: 'feature', head } },
+      { preservedBranch: { branchName: 'feature', head, reason: 'not_merged_into_default' } },
       head,
       undefined
     )

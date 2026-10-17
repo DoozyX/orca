@@ -9,7 +9,7 @@ import { ORCHESTRATION_WORKER_LIST_METHOD } from './worker-list-method'
 type WorkerListResult = {
   workers: {
     dispatchId: string
-    projection: { attention: { categories: string[] } }
+    projection: { attention: { categories: string[] }; nextAction: { kind: string } }
   }[]
   counts: Record<string, number>
   page: { total: number; hasMore: boolean; nextCursor: string | null }
@@ -457,6 +457,55 @@ describe('orchestration worker-list pagination', () => {
     expect(filtered.counts).toEqual(page.counts)
   })
 
+  // #16/#32: release advice on a row the reclaimable filter omits sent coordinators in a loop.
+  it('advises release only on rows the reclaimable filter returns', async () => {
+    db = new OrchestrationDb(':memory:')
+    const runtime = new OrcaRuntimeService()
+    runtime.setOrchestrationDb(db)
+    const run = db.createRun({
+      objective: 'Release advice agrees with the reclaimable filter',
+      coordinatorHandle: 'term-coordinator',
+      coordinatorPaneKey: 'tab-coordinator:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+    })
+    const workerStates = ['ready', 'succeeded', 'failed', 'stopped', 'abandoned'] as const
+    const releases = [
+      ['not_requested', null],
+      ['retained', 'user_requested'],
+      ['retained', 'identity_unproven'],
+      ['requested', null],
+      ['releasing', null],
+      ['unknown', null]
+    ] as const
+    for (const workerState of workerStates) {
+      for (const [releaseState, retainedReason] of releases) {
+        const id = `${workerState}-${releaseState}-${retainedReason ?? 'none'}`
+        insertWorkerInventory(db, run.id, id, workerState, releaseState, 'owned', retainedReason)
+      }
+      insertWorkerInventory(
+        db,
+        run.id,
+        `${workerState}-user-owned`,
+        workerState,
+        'retained',
+        'user_owned'
+      )
+    }
+
+    const all = await callWorkerList(runtime, { run: run.id })
+    const reclaimable = await callWorkerList(runtime, {
+      run: run.id,
+      terminalState: 'reclaimable'
+    })
+    const advised = all.workers
+      .filter((worker) => worker.projection.nextAction.kind === 'release')
+      .map((worker) => worker.dispatchId)
+      .sort()
+
+    expect(all.workers).toHaveLength(35)
+    expect(advised).toEqual(['failed-not_requested-none', 'succeeded-not_requested-none'])
+    expect(reclaimable.workers.map((worker) => worker.dispatchId).sort()).toEqual(advised)
+  })
+
   it('never re-emits a row whose worker registers between pages', async () => {
     db = new OrchestrationDb(':memory:')
     const runtime = new OrcaRuntimeService()
@@ -672,9 +721,10 @@ function insertWorkerInventory(
   db: OrchestrationDb,
   runId: string,
   dispatchId: string,
-  workerState: 'ready' | 'succeeded' | 'failed',
-  releaseState: 'not_requested' | 'requested' | 'released' | 'unknown',
-  ownershipState: 'owned' | 'released' = 'owned'
+  workerState: 'ready' | 'succeeded' | 'failed' | 'stopped' | 'abandoned',
+  releaseState: 'not_requested' | 'retained' | 'requested' | 'releasing' | 'released' | 'unknown',
+  ownershipState: 'owned' | 'user_owned' | 'transferred' | 'released' = 'owned',
+  retainedReason: string | null = null
 ): void {
   insertDispatch(db, runId, dispatchId)
   const sqlite = sqliteFor(db)
@@ -689,8 +739,8 @@ function insertWorkerInventory(
     .prepare(
       `INSERT INTO worker_terminal_resources (
          id, origin_dispatch_id, owner_dispatch_id, terminal_handle,
-         ownership_state, release_state
-       ) VALUES (?, ?, ?, ?, ?, ?)`
+         ownership_state, release_state, retained_reason
+       ) VALUES (?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       `resource-${dispatchId}`,
@@ -698,7 +748,8 @@ function insertWorkerInventory(
       dispatchId,
       `term-${dispatchId}`,
       ownershipState,
-      releaseState
+      releaseState,
+      retainedReason
     )
 }
 

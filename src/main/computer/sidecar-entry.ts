@@ -1,5 +1,9 @@
 import { computerProviderUnavailableMessage } from './computer-provider-unavailable-message'
-import { currentComputerProvider, shutdownComputerProviders } from './computer-provider-lifecycle'
+import {
+  currentComputerProvider,
+  peekLiveHelperIdentity,
+  shutdownComputerProviders
+} from './computer-provider-lifecycle'
 import { RuntimeClientError } from './runtime-client-error'
 
 type SidecarRequest = {
@@ -43,6 +47,10 @@ async function handleMessage(message: unknown): Promise<void> {
 }
 
 async function dispatch(method: string, params: Record<string, unknown>): Promise<unknown> {
+  // Why first: status only observes; currentComputerProvider() would create a provider.
+  if (method === 'liveProvider') {
+    return peekLiveHelperIdentity()
+  }
   const provider = currentComputerProvider()
   if (!provider) {
     throw new RuntimeClientError(
