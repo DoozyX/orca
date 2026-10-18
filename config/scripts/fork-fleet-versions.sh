@@ -19,5 +19,5 @@ report() {
 report "laptop" "$(mac_commit 2>/dev/null)"
 report "m1    " "$(ssh -o BatchMode=yes -o ConnectTimeout=10 m1 "$(declare -f mac_commit); mac_commit" 2>/dev/null)"
 ucvm=$("${UCVM[@]}" "dpkg-query -W -f='\${Version}' orca-ide" 2>/dev/null) || ucvm=
-report "uc-vm " "${ucvm##*-fork.}"
+report "uc-vm " "${ucvm##*fork.}"
 exit $status

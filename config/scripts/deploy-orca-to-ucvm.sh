@@ -17,7 +17,8 @@ want_sha=$(git ls-remote "git@github.com:$REPO.git" refs/heads/main | cut -c1-12
 tag=linux-deb-$want_sha
 
 have=$("${SSH[@]}" "dpkg-query -W -f='\${Version}' orca-ide" 2>/dev/null) || fail "uc-vm unreachable or orca-ide not installed"
-case "$have" in *"-fork.$want_sha") log "uc-vm already on $want_sha"; exit 0 ;; esac
+# dpkg reports the fork suffix as ~fork.<sha>; the runtime as -fork.<sha>.
+case "$have" in *[-~]"fork.$want_sha") log "uc-vm already on $want_sha"; exit 0 ;; esac
 
 gh release view "$tag" -R "$REPO" >/dev/null 2>&1 || fail "no release $tag yet (the Linux build for fork main $want_sha has not published)"
 
@@ -29,4 +30,4 @@ deb=$(ls "$dir"/orca-ide_*.deb)
 scp -i "$KEY" -o IdentitiesOnly=yes -o BatchMode=yes "$deb" "$HOST:orca-update/" || fail "copy to uc-vm failed"
 "${SSH[@]}" "sudo -n /usr/local/sbin/orca-install-update" >>"$LOG" 2>&1 || fail "install on uc-vm failed (see $LOG)"
 now=$("${SSH[@]}" "dpkg-query -W -f='\${Version}' orca-ide")
-case "$now" in *"-fork.$want_sha") log "uc-vm now on $now" ;; *) fail "uc-vm reports $now, expected -fork.$want_sha" ;; esac
+case "$now" in *[-~]"fork.$want_sha") log "uc-vm now on $now" ;; *) fail "uc-vm reports $now, expected -fork.$want_sha" ;; esac
