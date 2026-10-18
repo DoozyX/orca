@@ -20,10 +20,11 @@ import { buildFolderWorkspaceRow } from './row-builders'
 import {
   buildMergedProjectGroupIndex,
   findMergedProjectGroup,
+  getMergedProjectGroupParent,
   getRepoProjectGroupHostId,
   type MergedProjectGroup
 } from './cross-host-project-group-merge'
-import { getProjectGroupExecutionHostId, type ExecutionHostId } from '../execution-host'
+import type { ExecutionHostId } from '../execution-host'
 import { getFolderWorkspaceProjectGroupHostId } from './folder-workspace-host-id'
 
 export function appendProjectGroupSections(
@@ -108,13 +109,7 @@ export function appendProjectGroupSections(
   }
   const childGroupsByParentId = new Map<string | null, MergedProjectGroup[]>()
   for (const merged of mergedGroups) {
-    const parentId = merged.primary.parentGroupId
-      ? (findMergedProjectGroup(
-          mergedIndex,
-          merged.primary.parentGroupId,
-          getProjectGroupExecutionHostId(merged.primary)
-        )?.rowId ?? null)
-      : null
+    const parentId = getMergedProjectGroupParent(mergedIndex, merged)?.rowId ?? null
     const children = childGroupsByParentId.get(parentId) ?? []
     children.push(merged)
     childGroupsByParentId.set(parentId, children)
@@ -192,14 +187,6 @@ export function appendProjectGroupSections(
 /** The same group parents used by section emission, keyed by merged row id. */
 export function getProjectGroupOccurrencePaths(projectGroups: readonly ProjectGroup[]) {
   const mergedIndex = buildMergedProjectGroupIndex(projectGroups)
-  const parentRowIdOf = (merged: MergedProjectGroup): string | undefined =>
-    merged.primary.parentGroupId
-      ? findMergedProjectGroup(
-          mergedIndex,
-          merged.primary.parentGroupId,
-          getProjectGroupExecutionHostId(merged.primary)
-        )?.rowId
-      : undefined
   const paths = new Map<string, OccurrenceSectionPath>()
   for (const group of mergedIndex.merged) {
     const pending: MergedProjectGroup[] = []
@@ -208,8 +195,7 @@ export function getProjectGroupOccurrencePaths(projectGroups: readonly ProjectGr
     while (current && !paths.has(current.rowId) && !seen.has(current.rowId)) {
       seen.add(current.rowId)
       pending.push(current)
-      const parentRowId = parentRowIdOf(current)
-      current = parentRowId ? mergedIndex.byRowId.get(parentRowId) : undefined
+      current = getMergedProjectGroupParent(mergedIndex, current)
     }
     let parent = current ? paths.get(current.rowId) : undefined
     for (let index = pending.length - 1; index >= 0; index -= 1) {

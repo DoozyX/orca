@@ -17,10 +17,10 @@ import { getProjectGroupHeaderKey } from '../../../../../../shared/sidebar-list/
 import {
   buildMergedProjectGroupIndex,
   buildProjectGroupHostIndex,
+  findMergedProjectGroup,
   findProjectGroupByHost,
-  resolveMergedProjectGroupId
+  getMergedProjectGroupAncestry
 } from '../../../../../../shared/sidebar-list/cross-host-project-group-merge'
-import { getProjectGroupHostId } from '../../../../store/slices/project-group-owner-routing'
 import type { ExecutionHostId } from '../../../../../../shared/execution-host'
 import { getFolderWorkspaceLaneKey } from '../../../../../../shared/sidebar-list/folder-workspace-lanes'
 import type { WorktreeGroupBy } from '../../../../../../shared/sidebar-list/row-types'
@@ -114,22 +114,15 @@ export function getFolderWorkspaceRevealGroupKeys(
   const mergedIndex = buildMergedProjectGroupIndex(projectGroups)
   // Why host-scoped: the folder workspace's group id is only unique on its own host.
   const groupHostId = getFolderWorkspaceProjectGroupHostId(folderWorkspace)
-  const keys: string[] = []
-  const seen = new Set<string>()
-  let groupId: string | null = folderWorkspace.projectGroupId
-  while (groupId && !seen.has(groupId)) {
-    seen.add(groupId)
-    const group = findProjectGroupByHost(groupHostIndex, groupId, groupHostId)
-    if (!group) {
-      break
-    }
-    keys.unshift(
-      getProjectGroupHeaderKey(
-        resolveMergedProjectGroupId(mergedIndex, group.id, getProjectGroupHostId(group))
+  const folderRow = folderWorkspace.projectGroupId
+    ? findMergedProjectGroup(mergedIndex, folderWorkspace.projectGroupId, groupHostId)
+    : undefined
+  // Why the drawn ancestry: a shared-id row nests where its primary does (#30045).
+  const keys = folderRow
+    ? getMergedProjectGroupAncestry(mergedIndex, folderRow).map((row) =>
+        getProjectGroupHeaderKey(row.rowId)
       )
-    )
-    groupId = group.parentGroupId
-  }
+    : []
 
   // Under non-repo grouping the project-group headers above do not exist, so the
   // lane and host headers are the ones actually hiding the row (#15362). Lane

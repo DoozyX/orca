@@ -3,16 +3,13 @@ import type { Repo } from '../../../../../../shared/repo-types'
 import { getProjectGroupHeaderKey } from '../../../../../../shared/sidebar-list/group-keys'
 import {
   buildMergedProjectGroupIndex,
-  buildProjectGroupHostIndex,
+  findMergedProjectGroup,
   findMergedProjectGroupByRowId,
-  findProjectGroupByHost,
-  resolveMergedProjectGroupId
+  getMergedProjectGroupAncestry,
+  type MergedProjectGroup,
+  type MergedProjectGroupIndex
 } from '../../../../../../shared/sidebar-list/cross-host-project-group-merge'
-import { getProjectGroupHostId } from '../../../../store/slices/project-group-owner-routing'
-import {
-  getRepoExecutionHostId,
-  type ExecutionHostId
-} from '../../../../../../shared/execution-host'
+import { getRepoExecutionHostId } from '../../../../../../shared/execution-host'
 import type { ProjectGroupingModel } from '../../../../../../shared/project-section-grouping'
 
 function getProjectIdFromHeaderRowKey(rowKey: string): string | null {
@@ -56,33 +53,17 @@ function getRepoIdsFromHeaderRowKey(
   return [...repoIds]
 }
 
-/** `hostId` scopes the whole walk: parentGroupId names a group on the owning host,
- *  and group ids are only unique per host. */
+// Why the drawn ancestry: reveal must open the merged headers the row renders under,
+// including a shared-id group's last-copy parents (#22022, #30045).
 function getProjectGroupAncestorKeys(
-  projectGroupId: string | null | undefined,
-  projectGroups: readonly ProjectGroup[],
-  hostId?: ExecutionHostId
+  row: MergedProjectGroup | undefined,
+  mergedIndex: MergedProjectGroupIndex
 ): string[] {
-  const groupHostIndex = buildProjectGroupHostIndex(projectGroups)
-  const mergedIndex = buildMergedProjectGroupIndex(projectGroups)
-  const keys: string[] = []
-  const seen = new Set<string>()
-  let currentGroupId = projectGroupId ?? null
-  while (currentGroupId && !seen.has(currentGroupId)) {
-    const group = findProjectGroupByHost(groupHostIndex, currentGroupId, hostId)
-    if (!group) {
-      break
-    }
-    seen.add(currentGroupId)
-    // Why: reveal must expand the merged header the row renders under (#22022).
-    keys.unshift(
-      getProjectGroupHeaderKey(
-        resolveMergedProjectGroupId(mergedIndex, group.id, getProjectGroupHostId(group))
+  return row
+    ? getMergedProjectGroupAncestry(mergedIndex, row).map((entry) =>
+        getProjectGroupHeaderKey(entry.rowId)
       )
-    )
-    currentGroupId = group.parentGroupId
-  }
-  return keys
+    : []
 }
 
 export function getSidebarRowRevealAncestorKeys(args: {
@@ -91,19 +72,15 @@ export function getSidebarRowRevealAncestorKeys(args: {
   projectGroups: readonly ProjectGroup[]
   projectGrouping?: ProjectGroupingModel
 }): string[] {
+  const mergedIndex = buildMergedProjectGroupIndex(args.projectGroups)
   if (args.rowKey.startsWith('project-group:')) {
     // Why the merged row: a rendered row key carries no host, so only the row it
     // was built from can say which host's parent chain to walk.
-    const rowId = args.rowKey.slice('project-group:'.length)
-    const primary = findMergedProjectGroupByRowId(
-      buildMergedProjectGroupIndex(args.projectGroups),
-      rowId
-    )?.primary
-    return getProjectGroupAncestorKeys(
-      primary?.parentGroupId,
-      args.projectGroups,
-      primary ? getProjectGroupHostId(primary) : undefined
+    const row = findMergedProjectGroupByRowId(
+      mergedIndex,
+      args.rowKey.slice('project-group:'.length)
     )
+    return getProjectGroupAncestorKeys(row, mergedIndex).slice(0, -1)
   }
   const keys = new Set<string>()
   for (const repoId of getRepoIdsFromHeaderRowKey(
@@ -114,11 +91,10 @@ export function getSidebarRowRevealAncestorKeys(args: {
     const repo = args.repoMap.get(repoId)
     const repoHostId =
       repo?.connectionId || repo?.executionHostId ? getRepoExecutionHostId(repo) : undefined
-    for (const key of getProjectGroupAncestorKeys(
-      repo?.projectGroupId,
-      args.projectGroups,
-      repoHostId
-    )) {
+    const row = repo?.projectGroupId
+      ? findMergedProjectGroup(mergedIndex, repo.projectGroupId, repoHostId)
+      : undefined
+    for (const key of getProjectGroupAncestorKeys(row, mergedIndex)) {
       keys.add(key)
     }
   }

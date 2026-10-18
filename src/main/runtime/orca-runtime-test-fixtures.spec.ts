@@ -10,6 +10,7 @@ import {
 import { getDefaultWorkspaceSession } from '../../shared/constants'
 import { makePaneKey } from '../../shared/stable-pane-id'
 import { toComparableRelaySshPtyId } from '../../shared/ssh-pty-id'
+import { spawnedPtyEnv } from './spawned-pty-env-fixtures'
 import {
   computeWorktreePathMock,
   ensurePathWithinWorkspaceMock
@@ -691,5 +692,5 @@ export { makeDeferred, makeFolderProjectGroup, makeFolderWorkspace, makeHeadless
 export { makeRpcRequest, makeRuntimeStoreWithWorkspaceSession, makeStatusFrame }
 export { makeWorkspaceSessionWithHeadlessTerminal, makeWorktreeInfo, makeWorktreeMeta }
 export { parseHeadlessSnapshotLines, pendingMailPointerRepoints, referenceStatusFrameLines }
-export { renderGateCapMs, setInMemoryOrchestrationMessages, store, syncSinglePty }
+export { renderGateCapMs, setInMemoryOrchestrationMessages, spawnedPtyEnv, store, syncSinglePty }
 export { visibleNonEmptyLines, withPlatform, writeHeadless }

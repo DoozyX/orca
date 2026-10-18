@@ -6,6 +6,7 @@ import {
   type ExecutionHostId
 } from '../execution-host'
 import type { Repo } from '../repo-types'
+import { foldProjectGroupCopies, getIdsSharedAcrossHosts } from './project-group-copy-folding'
 
 /** One sidebar row's worth of project group: the copy that owns the row plus
  *  every same-identity copy from another host folded into it. */
@@ -26,6 +27,8 @@ export type MergedProjectGroupIndex = {
    *  that two hosts reuse for different merged rows, where guessing would be wrong. */
   byAmbiguousId: ReadonlyMap<string, MergedProjectGroup | null>
   byRowId: ReadonlyMap<string, MergedProjectGroup>
+  /** Loop-free: a row absent here is drawn top-level. */
+  drawnParentByRowId: ReadonlyMap<string, MergedProjectGroup>
 }
 
 /** Raw (host, id) lookup over the unmerged groups, for walks up a parent chain:
@@ -43,45 +46,6 @@ export function toHostScopedKey(hostId: string, groupId: string): string {
   return `${hostId}\u0000${groupId}`
 }
 
-/**
- * Identity shared by the copies of one logical group across hosts: the chain of
- * normalized names up to the root. Ids and parentPath are per-host, names are not.
- *
- * Segments are length-prefixed rather than delimiter-joined because a folder-scan
- * group's name is a relative path and may itself contain the delimiter, which would
- * make `packages/shared` and `shared` under `packages` collide.
- */
-function getCrossHostIdentity(
-  group: ProjectGroup,
-  byHostScopedKey: ReadonlyMap<string, ProjectGroup>,
-  cache: Map<string, string>,
-  resolving: Set<string>
-): string {
-  const key = getHostScopedKey(group)
-  const cached = cache.get(key)
-  if (cached !== undefined) {
-    return cached
-  }
-  const name = group.name.trim().toLowerCase()
-  // Why: a cyclic parent chain would recurse forever; fall back to the row's own id.
-  if (resolving.has(key)) {
-    return `\u0001cycle\u0001${key.length}:${key}`
-  }
-  resolving.add(key)
-  const parent = group.parentGroupId
-    ? byHostScopedKey.get(
-        toHostScopedKey(getProjectGroupExecutionHostId(group), group.parentGroupId)
-      )
-    : undefined
-  const parentIdentity = parent
-    ? getCrossHostIdentity(parent, byHostScopedKey, cache, resolving)
-    : ''
-  resolving.delete(key)
-  const identity = `${parentIdentity}${name.length}:${name}`
-  cache.set(key, identity)
-  return identity
-}
-
 /** The local copy owns the row when there is one: its id keys collapse state and
  *  its host is where menu actions land without a round trip. */
 function isPreferredPrimary(candidate: ProjectGroup, current: ProjectGroup): boolean {
@@ -96,17 +60,6 @@ function isPreferredPrimary(candidate: ProjectGroup, current: ProjectGroup): boo
   return candidate.id < current.id
 }
 
-/**
- * Fold the per-host copies of one logical project group into a single row.
- *
- * Projects already merge across hosts (one row carrying a local and a paired-host
- * checkout), but their groups did not: the copy that lost the project rows stayed
- * behind as an identical, unfoldable header (#22022).
- *
- * Only copies on *different* hosts fold together. Two same-named siblings on one
- * host are two real groups the user can tell apart and move projects between, so
- * an identity any single host claims twice is left entirely unmerged.
- */
 type MergedProjectGroupRow = Omit<MergedProjectGroup, 'rowId'>
 
 /** A row id must survive two hosts reusing one group id for unrelated rows: both
@@ -125,46 +78,31 @@ function withMergedRowIds(rows: readonly MergedProjectGroupRow[]): MergedProject
   }))
 }
 
+/**
+ * Fold the per-host copies of one logical project group into a single row.
+ *
+ * Projects already merge across hosts (one row carrying a local and a paired-host
+ * checkout), but their groups did not: the copy that lost the project rows stayed
+ * behind as an identical, unfoldable header (#22022).
+ *
+ * Which copies fold is foldProjectGroupCopies' rule; only copies on *different*
+ * hosts ever share a row.
+ */
 export function mergeProjectGroupsAcrossHosts(
   projectGroups: readonly ProjectGroup[]
 ): MergedProjectGroup[] {
-  const byHostScopedKey = new Map(projectGroups.map((group) => [getHostScopedKey(group), group]))
-  const identityCache = new Map<string, string>()
-  const membersByIdentity = new Map<string, ProjectGroup[]>()
-  const identityOrder: string[] = []
-  for (const group of projectGroups) {
-    const identity = getCrossHostIdentity(group, byHostScopedKey, identityCache, new Set())
-    const members = membersByIdentity.get(identity)
-    if (members) {
-      members.push(group)
-      continue
-    }
-    membersByIdentity.set(identity, [group])
-    identityOrder.push(identity)
-  }
-
+  const sharedIds = getIdsSharedAcrossHosts(projectGroups)
   const merged: MergedProjectGroupRow[] = []
-  for (const identity of identityOrder) {
-    const members = membersByIdentity.get(identity) ?? []
-    const hostIds = new Set<ExecutionHostId>()
-    const claimedTwiceByOneHost = members.some((member) => {
-      const hostId = getProjectGroupExecutionHostId(member)
-      if (hostIds.has(hostId)) {
-        return true
-      }
-      hostIds.add(hostId)
-      return false
-    })
-    if (claimedTwiceByOneHost) {
+  for (const members of foldProjectGroupCopies(projectGroups)) {
+    // Why the last shared-id copy: every id-keyed lookup resolves to it, so the drawn
+    // name and parents match Cmd+J and reveal (#30045).
+    let primary = members.findLast((member) => sharedIds.has(member.id))
+    if (!primary) {
+      primary = members[0]
       for (const member of members) {
-        merged.push({ primary: member, members: [member] })
-      }
-      continue
-    }
-    let primary = members[0]
-    for (const member of members) {
-      if (isPreferredPrimary(member, primary)) {
-        primary = member
+        if (isPreferredPrimary(member, primary)) {
+          primary = member
+        }
       }
     }
     merged.push({ primary, members })
@@ -200,9 +138,57 @@ export function buildMergedProjectGroupIndex(
       }
     }
   }
-  const index = { merged, byHostScopedKey, byAmbiguousId, byRowId }
+  const drawnParentByRowId = new Map<string, MergedProjectGroup>()
+  for (const entry of merged) {
+    const parentId = entry.primary.parentGroupId
+    const parent = parentId
+      ? byHostScopedKey.get(
+          toHostScopedKey(getProjectGroupExecutionHostId(entry.primary), parentId)
+        )
+      : undefined
+    if (parent) {
+      drawnParentByRowId.set(entry.rowId, parent)
+    }
+  }
+  // Why: folded copies can disagree on parents, so drawn parents can loop across hosts;
+  // a row on a loop is drawn top-level rather than not at all.
+  const onLoop = merged.filter((entry) => {
+    const seen = new Set<string>()
+    let current = drawnParentByRowId.get(entry.rowId)
+    while (current && !seen.has(current.rowId) && current !== entry) {
+      seen.add(current.rowId)
+      current = drawnParentByRowId.get(current.rowId)
+    }
+    return current === entry
+  })
+  for (const entry of onLoop) {
+    drawnParentByRowId.delete(entry.rowId)
+  }
+  const index = { merged, byHostScopedKey, byAmbiguousId, byRowId, drawnParentByRowId }
   mergedIndexCache.set(projectGroups, index)
   return index
+}
+
+/** The row a merged row is drawn under: its primary's parent, top-level on a loop. */
+export function getMergedProjectGroupParent(
+  index: MergedProjectGroupIndex,
+  row: MergedProjectGroup
+): MergedProjectGroup | undefined {
+  return index.drawnParentByRowId.get(row.rowId)
+}
+
+/** The rows from the top-level ancestor down to `row`, the headers that reveal opens. */
+export function getMergedProjectGroupAncestry(
+  index: MergedProjectGroupIndex,
+  row: MergedProjectGroup
+): MergedProjectGroup[] {
+  const ancestry: MergedProjectGroup[] = []
+  let current: MergedProjectGroup | undefined = row
+  while (current) {
+    ancestry.unshift(current)
+    current = index.drawnParentByRowId.get(current.rowId)
+  }
+  return ancestry
 }
 
 /** The host a repo's `projectGroupId` is scoped to: its own stamp, else the catalog's host. */

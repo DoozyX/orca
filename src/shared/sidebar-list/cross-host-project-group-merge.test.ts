@@ -5,6 +5,8 @@ import {
   findMergedProjectGroup,
   findMergedProjectGroupByRowId,
   findProjectGroupByHost,
+  getMergedProjectGroupAncestry,
+  getMergedProjectGroupParent,
   mergeProjectGroupsAcrossHosts,
   resolveMergedProjectGroupId
 } from './cross-host-project-group-merge'
@@ -201,7 +203,7 @@ describe('buildMergedProjectGroupIndex', () => {
     expect(resolveMergedProjectGroupId(index, 'local-adaptam')).toBe('local-adaptam')
   })
 
-  it('separates two hosts that reuse one group id for different groups', () => {
+  it('folds two hosts that publish one group id under different names, last copy drawn (#30045)', () => {
     const local = group({ id: 'shared-id', name: 'adaptam' })
     const remote = group({
       id: 'shared-id',
@@ -210,10 +212,92 @@ describe('buildMergedProjectGroupIndex', () => {
     })
     const index = buildMergedProjectGroupIndex([local, remote])
 
-    expect(findMergedProjectGroup(index, 'shared-id', 'local')?.primary.name).toBe('adaptam')
-    expect(findMergedProjectGroup(index, 'shared-id', 'runtime:m1')?.primary.name).toBe('fjordbyte')
-    // Why: with no host to disambiguate, no answer is right — better none than a wrong row.
-    expect(findMergedProjectGroup(index, 'shared-id')).toBeUndefined()
+    expect(index.merged).toHaveLength(1)
+    expect(findMergedProjectGroup(index, 'shared-id', 'local')).toBe(index.merged[0])
+    expect(findMergedProjectGroup(index, 'shared-id', 'runtime:m1')).toBe(index.merged[0])
+    expect(findMergedProjectGroup(index, 'shared-id')?.primary).toBe(remote)
+    expect(index.merged[0].rowId).toBe('shared-id')
+  })
+
+  it("folds a third host's same-named copy into a shared-id row", () => {
+    const local = group({ id: 'x', name: 'Platform' })
+    const server = group({ id: 'x', name: 'Platform', executionHostId: 'runtime:server' })
+    const ssh = group({ id: 'z', name: 'Platform', executionHostId: 'ssh:builder' })
+
+    const merged = mergeProjectGroupsAcrossHosts([local, server, ssh])
+
+    expect(merged).toHaveLength(1)
+    expect(merged[0].members).toEqual([local, server, ssh])
+    expect(merged[0].primary).toBe(server)
+  })
+
+  it('never folds two copies from one host through a shared id', () => {
+    const local = group({ id: 'x', name: 'Platform' })
+    const remote = group({ id: 'x', name: 'Infra', executionHostId: 'runtime:m1' })
+    const localInfra = group({ id: 'y', name: 'Infra' })
+
+    const merged = mergeProjectGroupsAcrossHosts([local, remote, localInfra])
+
+    expect(merged.map((entry) => entry.members)).toEqual([[local, remote], [localInfra]])
+  })
+
+  it('draws a row top-level when folded copies make its parents loop', () => {
+    const localP = group({ id: 'P', name: 'P' })
+    const remoteG = group({ id: 'G', name: 'G', executionHostId: 'runtime:m1' })
+    const remoteP = group({
+      id: 'P',
+      name: 'P',
+      parentGroupId: 'G',
+      executionHostId: 'runtime:m1'
+    })
+    const localG = group({ id: 'G', name: 'G', parentGroupId: 'P' })
+    const index = buildMergedProjectGroupIndex([localP, remoteG, remoteP, localG])
+
+    expect(index.merged).toHaveLength(2)
+    for (const row of index.merged) {
+      expect(getMergedProjectGroupParent(index, row)).toBeUndefined()
+      expect(getMergedProjectGroupAncestry(index, row)).toEqual([row])
+    }
+  })
+
+  it("walks a shared-id row up its drawn copy's parents", () => {
+    const localS = group({ id: 'S', name: 'S' })
+    const remoteP = group({ id: 'P', name: 'P', executionHostId: 'runtime:m1' })
+    const remoteS = group({
+      id: 'S',
+      name: 'S',
+      parentGroupId: 'P',
+      executionHostId: 'runtime:m1'
+    })
+    const index = buildMergedProjectGroupIndex([localS, remoteP, remoteS])
+    const row = findMergedProjectGroup(index, 'S', 'local')
+
+    expect(row && getMergedProjectGroupAncestry(index, row).map((entry) => entry.rowId)).toEqual([
+      'P',
+      'S'
+    ])
+  })
+
+  it('nests a same-named child under a shared-id parent once', () => {
+    const localParent = group({ id: 'parent', name: 'adaptam' })
+    const remoteParent = group({ id: 'parent', name: 'renamed', executionHostId: 'runtime:m1' })
+    const localChild = group({ id: 'local-child', name: 'web', parentGroupId: 'parent' })
+    const remoteChild = group({
+      id: 'remote-child',
+      name: 'web',
+      parentGroupId: 'parent',
+      executionHostId: 'runtime:m1'
+    })
+
+    const merged = mergeProjectGroupsAcrossHosts([
+      localParent,
+      remoteParent,
+      localChild,
+      remoteChild
+    ])
+
+    expect(merged.map((entry) => entry.members.length)).toEqual([2, 2])
+    expect(merged[1].primary).toBe(localChild)
   })
 
   it('keeps an unknown group id addressable by falling back to itself', () => {
@@ -243,7 +327,7 @@ describe('host-qualified lookups', () => {
     expect(findMergedProjectGroup(index, 'adaptam', 'runtime:m1')).toBe(index.merged[0])
   })
 
-  it('gives two hosts that reuse one group id distinct row ids', () => {
+  it('gives every host copy of a shared group id the one row id', () => {
     const local = group({ id: 'shared-id', name: 'adaptam' })
     const remote = group({
       id: 'shared-id',
@@ -253,10 +337,8 @@ describe('host-qualified lookups', () => {
     const index = buildMergedProjectGroupIndex([local, remote])
 
     const localRowId = resolveMergedProjectGroupId(index, 'shared-id', 'local')
-    const remoteRowId = resolveMergedProjectGroupId(index, 'shared-id', 'runtime:m1')
-    expect(localRowId).not.toBe(remoteRowId)
-    expect(findMergedProjectGroupByRowId(index, localRowId)?.primary).toBe(local)
-    expect(findMergedProjectGroupByRowId(index, remoteRowId)?.primary).toBe(remote)
+    expect(resolveMergedProjectGroupId(index, 'shared-id', 'runtime:m1')).toBe(localRowId)
+    expect(findMergedProjectGroupByRowId(index, localRowId)?.primary).toBe(remote)
   })
 
   it('leaves the row id as the plain primary id when no id is reused', () => {

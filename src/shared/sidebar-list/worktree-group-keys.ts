@@ -11,9 +11,8 @@ import { getRepoExecutionHostId } from '../execution-host'
 import { buildProjectGroupingIndex, getProjectGroupingForRepo } from '../project-section-grouping'
 import {
   buildMergedProjectGroupIndex,
-  buildProjectGroupHostIndex,
-  findProjectGroupByHost,
-  resolveMergedProjectGroupId
+  findMergedProjectGroup,
+  getMergedProjectGroupAncestry
 } from './cross-host-project-group-merge'
 import type { ProjectGroupingModel } from '../project-section-grouping'
 import type { SidebarPRGroupReader, WorktreeGroupBy } from './row-types'
@@ -67,34 +66,20 @@ export function getGroupKeysForWorktree(
     return [groupKey]
   }
   const repo = repoMap.get(worktree.repoId)
-  const groupIds: string[] = []
-  // Why: the sidebar renders one header per merged group, so a key built from a
-  // non-primary host copy's id would never match the row it means to reveal.
+  // Why the drawn ancestry: the sidebar renders one header per merged group, nested
+  // under its primary's parents, so keys must name those rows (#22022, #30045).
   const mergedIndex = buildMergedProjectGroupIndex(projectGroups)
   const repoHostId =
     repo?.connectionId || repo?.executionHostId ? getRepoExecutionHostId(repo) : undefined
-  // Why host-scoped: parentGroupId names a group on the repo's own host, and a bare
-  // id can land on another host's unrelated group before merged-id resolution runs.
-  const groupHostIndex = buildProjectGroupHostIndex(projectGroups)
-  const visited = new Set<string>()
-  let currentGroupId = repo?.projectGroupId ?? null
-  while (currentGroupId && !visited.has(currentGroupId)) {
-    const group = findProjectGroupByHost(groupHostIndex, currentGroupId, repoHostId)
-    if (!group) {
-      // Why: repos can arrive before their remote Project Group metadata; reveal
-      // keys must match the top-level fallback rows planSidebarRows actually renders.
-      break
-    }
-    visited.add(currentGroupId)
-    groupIds.unshift(currentGroupId)
-    const parentId = group.parentGroupId ?? null
-    currentGroupId =
-      parentId && findProjectGroupByHost(groupHostIndex, parentId, repoHostId) ? parentId : null
-  }
-  return [
-    ...groupIds.map((id) =>
-      getProjectGroupHeaderKey(resolveMergedProjectGroupId(mergedIndex, id, repoHostId))
-    ),
-    groupKey
-  ]
+  const row = repo?.projectGroupId
+    ? findMergedProjectGroup(mergedIndex, repo.projectGroupId, repoHostId)
+    : undefined
+  // Why: repos can arrive before their remote Project Group metadata; reveal keys
+  // must match the top-level fallback rows planSidebarRows actually renders.
+  const groupKeys = row
+    ? getMergedProjectGroupAncestry(mergedIndex, row).map((entry) =>
+        getProjectGroupHeaderKey(entry.rowId)
+      )
+    : []
+  return [...groupKeys, groupKey]
 }

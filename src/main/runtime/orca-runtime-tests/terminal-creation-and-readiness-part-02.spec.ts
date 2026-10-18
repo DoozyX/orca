@@ -33,6 +33,7 @@ import {
   makeFolderWorkspace,
   makeHeadlessTerminalLayout,
   makeWorkspaceSessionWithHeadlessTerminal,
+  spawnedPtyEnv,
   store
 } from '../orca-runtime-test-fixtures.spec'
 
@@ -499,7 +500,7 @@ describe('OrcaRuntimeService', () => {
     expect(spawnCall?.command).toBe(
       "codex --no-daemon '--dangerously-bypass-approvals-and-sandbox'"
     )
-    expect(spawnCall?.env).toMatchObject({
+    expect(spawnedPtyEnv(spawnCall)).toMatchObject({
       CODEX_PROFILE: 'captured',
       ORCA_WORKTREE_ID: TEST_WORKTREE_ID
     })

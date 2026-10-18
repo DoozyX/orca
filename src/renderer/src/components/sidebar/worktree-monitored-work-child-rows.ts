@@ -1,5 +1,5 @@
 import type { DashboardAgentRow } from '@/components/dashboard/useDashboardData'
-import type { AgentRowState } from '@/lib/agent-row-decay-state'
+import type { AgentRowState } from '../../../../shared/agent-row-decay-state'
 import type { AgentStatusEntry } from '../../../../shared/agent-status-types'
 import type { TerminalTab } from '../../../../shared/terminal-tab-types'
 import { buildSubagentChildRows, derivedChildRowKey } from './worktree-subagent-child-rows'

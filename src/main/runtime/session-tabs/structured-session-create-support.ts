@@ -74,7 +74,9 @@ export abstract class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport exte
         assertClaudeBoundHomeUsable: this.assertClaudeBoundHomeUsableFn,
         prepareCodexLaunchHome: this.prepareCodexStructuredLaunchFn,
         readCodexLaunchHome: this.resolveCodexStructuredLaunchHomeFn,
-        workspaceTrustSettings: () => this.requireStore().getSettings()
+        workspaceTrustSettings: () => this.requireStore().getSettings(),
+        // The chat host's own state root (ensureStructuredAgentSessionHost).
+        stateDirectory: getProfileUserDataPath()
       },
       launchDirectory: async () =>
         hostLaunchDirectory ?? (await this.resolveRuntimeFileTarget(worktree)).worktree.path

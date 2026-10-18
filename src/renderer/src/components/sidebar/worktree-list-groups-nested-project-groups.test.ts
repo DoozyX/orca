@@ -461,7 +461,7 @@ describe('project groups', () => {
     expect(getGroupKeysForWorktree('repo', worktree, repoMap, null)).toEqual(['repo:repo-1'])
   })
 
-  it('gives each host its own header and bucket when two hosts reuse one group id', () => {
+  it('draws one header holding both hosts when two hosts publish one group id (#30045)', () => {
     const localGroup: ProjectGroup = {
       id: 'shared-id',
       name: 'Adaptam',
@@ -528,9 +528,8 @@ describe('project groups', () => {
     const groupHeaders = rows.flatMap((row) =>
       row.type === 'header' && row.key.startsWith('project-group:') ? [row] : []
     )
-    expect(groupHeaders.map((row) => row.label)).toEqual(['Adaptam', 'Fjordbyte'])
-    // Why: a shared header key would let the first header drain the only bucket.
-    expect(new Set(groupHeaders.map((row) => row.key)).size).toBe(2)
-    expect(groupHeaders.map((row) => row.count)).toEqual([1, 1])
+    // The last copy names the row, as every id-keyed lookup does.
+    expect(groupHeaders.map((row) => row.label)).toEqual(['Fjordbyte'])
+    expect(groupHeaders.map((row) => row.count)).toEqual([2])
   })
 })

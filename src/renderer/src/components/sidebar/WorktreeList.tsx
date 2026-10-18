@@ -328,6 +328,7 @@ const WorktreeList = React.memo(function WorktreeList({
         workspaceStatuses={workspaceStatuses}
         projectGrouping={projectGrouping}
         projectGroups={projectGroups}
+        visibleProjectGroups={visibleScope.visibleProjectGroupsForRows}
         onMoveWorktreeToStatus={statusMutations.moveWorktreeToStatus}
         onMoveWorktreesToStatus={statusMutations.moveWorktreesToStatus}
         onMoveWorktreesToStatusAtIndex={statusMutations.moveWorktreesToStatusAtIndex}
