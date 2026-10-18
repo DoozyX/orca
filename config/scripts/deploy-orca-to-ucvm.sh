@@ -1,5 +1,6 @@
 #!/bin/bash
 # Installs the newest fork-main Linux .deb on the headless uc-vm host; run from the M1 (idempotent).
+# Working agents don't defer it: their terminals live in the daemon scope, which a serve restart leaves running.
 set -euo pipefail
 
 REPO=DoozyX/orca
@@ -19,11 +20,6 @@ have=$("${SSH[@]}" "dpkg-query -W -f='\${Version}' orca-ide" 2>/dev/null) || fai
 case "$have" in *"-fork.$want_sha") log "uc-vm already on $want_sha"; exit 0 ;; esac
 
 gh release view "$tag" -R "$REPO" >/dev/null 2>&1 || fail "no release $tag yet (the Linux build for fork main $want_sha has not published)"
-
-busy=$("${SSH[@]}" "orca-ide worktree ps --json" | python3 -c '
-import json, sys
-print(sum(1 for w in json.load(sys.stdin)["result"]["worktrees"] for a in w.get("agents", []) if a["state"] == "working"))') || fail "cannot read agent state on uc-vm"
-[ "$busy" = 0 ] || { log "uc-vm has $busy working agent(s); install deferred"; exit 3; }
 
 dir=$(mktemp -d "${TMPDIR:-/tmp}/ucvm-deb.XXXXXX")
 trap 'rm -rf "$dir"' EXIT

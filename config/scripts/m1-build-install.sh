@@ -40,11 +40,12 @@ print('installed', d['version'], d['commit'])
 PY
 
 # Restart the headless runtime onto the new build once no agent is working (up to 4h); detached so it outlives this shell.
-nohup bash -c '
+nohup env self_pane="${ORCA_PANE_KEY:-}" bash -c '
   export PATH=/opt/homebrew/bin:/usr/local/bin:$PATH
   log=$HOME/Library/Logs/orca-m1-restart.log
   for _ in $(seq 1 480); do
-    busy=$(orca worktree ps --json 2>/dev/null | python3 -c "import json,sys; print(sum(1 for w in json.load(sys.stdin)[\"result\"][\"worktrees\"] for a in w.get(\"agents\",[]) if a[\"state\"]==\"working\"))" 2>/dev/null) || busy=error
+    # Only the calling agent blocks: other agents keep their terminals in the daemon across a serve restart.
+    busy=$(orca worktree ps --json 2>/dev/null | python3 -c "import json,sys; print(sum(1 for w in json.load(sys.stdin)[\"result\"][\"worktrees\"] for a in w.get(\"agents\",[]) if a[\"state\"]==\"working\" and a[\"paneKey\"]==sys.argv[1]))" "$self_pane" 2>/dev/null) || busy=error
     if [ "$busy" = 0 ]; then
       # kickstart -k alone leaves the old serve alive (the LaunchAgent abandons its process group); stop it so launchd starts the new build.
       old=$(orca status 2>/dev/null | awk "/^pid:/{print \$2}")
@@ -58,7 +59,7 @@ nohup bash -c '
     fi
     sleep 30
   done
-  echo "$(date +%F\ %T) restart skipped: agents still working after 4h" >>"$log"
+  echo "$(date +%F\ %T) restart skipped: calling agent still working after 4h" >>"$log"
 ' >/dev/null 2>&1 &
 disown
 echo "restart waiter started"
