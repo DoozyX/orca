@@ -35,6 +35,7 @@ export const ORCHESTRATION_HANDLER_GROUP: HandlerGroup = {
     'orchestration lease acquire',
     'orchestration lease release',
     'orchestration lease show',
+    'orchestration review-metrics',
     'orchestration reset'
   ],
   load: async () => (await import('./handlers/orchestration.js')).ORCHESTRATION_HANDLERS
