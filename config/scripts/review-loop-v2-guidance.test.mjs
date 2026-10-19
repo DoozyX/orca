@@ -44,8 +44,9 @@ describe('review loop v2 guide contract', () => {
     const merge = squash(section(readGuide(), '## 4. Merge', '## 5.'))
 
     expect(merge).toContain(
-      'A missing `Coverage:` line for any bucket means that layer did not run — run it again before merging.'
+      'A missing `Coverage:` line for any adversarial checklist bucket means the adversarial layer did not run — run it again before merging.'
     )
+    expect(merge).toContain('Only the adversarial layer emits `Coverage:` lines')
   })
 
   it('US-4: states the merged-finding line format and bucket mapping', () => {
@@ -63,6 +64,10 @@ describe('review loop v2 guide contract', () => {
       '   evidence: <quoted code + one-line trace>  |  cmd=`<command>` exit=<n> <deciding line>'
     )
     expect(triage).toContain('`patch`, `nit`, `decision-needed`, `defer`')
+    expect(triage).toContain('`patch` = mechanical and in scope, fix it now')
+    expect(triage).toContain(
+      '`decision-needed` = a scope question, a product decision, or a trade-off the spec does not settle'
+    )
     expect(triage).toContain('`critical`/`major` → `patch`, `decision-needed` or `defer`')
     expect(triage).toContain('`minor` → `nit`, `decision-needed` or `defer`')
     const sq = squash(format)

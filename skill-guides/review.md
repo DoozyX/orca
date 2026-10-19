@@ -129,7 +129,8 @@ Sort by severity, then by how many layers flagged the finding: multi-layer
 agreement is a free confidence signal. A finding whose blast radius is existing
 data, introduced by this change, is never `minor`.
 
-A missing `Coverage:` line for any bucket means that layer did not run — run it
+Only the adversarial layer emits `Coverage:` lines. A missing `Coverage:` line for
+any adversarial checklist bucket means the adversarial layer did not run — run it
 again before merging.
 
 Match candidates against the root worktree's `.orca/known-issues.md` (ignored,
@@ -150,9 +151,11 @@ After:  `user.email` is read without a null check; a signed-out user crashes the
 ```
 
 Every merged finding gets exactly one bucket: `patch`, `nit`, `decision-needed`,
-`defer`. Mapping: `critical`/`major` → `patch`, `decision-needed` or `defer`;
-`minor` → `nit`, `decision-needed` or `defer`. `defer` = pre-existing (the diff
-doesn't change those lines) or out of scope; it never extends a fix loop. Inside
+`defer`. `patch` = mechanical and in scope, fix it now; `decision-needed` = a
+scope question, a product decision, or a trade-off the spec does not settle;
+`defer` = pre-existing (the diff doesn't change those lines) or out of scope, and
+it never extends a fix loop. Mapping: `critical`/`major` → `patch`,
+`decision-needed` or `defer`; `minor` → `nit`, `decision-needed` or `defer`. Inside
 a run, append each `defer` item to the root worktree's
 `.orca/<run>/orchestrate/deferred.md`; otherwise list them under a `## Deferred`
 heading in the review output.
