@@ -1,4 +1,4 @@
-import { readFileSync, statSync } from 'node:fs'
+import { accessSync, constants, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { countEscapes, parseDispositions } from './review-dispositions-parser'
 import { parseFindingsFile, type ParsedFindingsFile } from './review-findings-parser'
@@ -24,6 +24,7 @@ function assertRunDir(runDir: string): void {
     if (!statSync(runDir).isDirectory()) {
       throw new ReviewMetricsRunDirError(runDir, 'not a directory')
     }
+    accessSync(runDir, constants.R_OK | constants.X_OK)
   } catch (error) {
     if (error instanceof ReviewMetricsRunDirError) {
       throw error
@@ -51,7 +52,15 @@ function groupByUnit(rows: readonly LedgerRow[]): Map<string, LedgerRow[]> {
 export function readRunMetrics(runDir: string): RunMetrics {
   assertRunDir(runDir)
   const parseErrors: string[] = []
-  const budget = readIfPresent(join(runDir, 'orchestrate', 'budget.md'))
+  let budget: string | null
+  try {
+    budget = readIfPresent(join(runDir, 'orchestrate', 'budget.md'))
+  } catch (error) {
+    if (error instanceof ReviewMetricsReadError) {
+      throw new ReviewMetricsRunDirError(runDir, error.message)
+    }
+    throw error
+  }
   if (budget === null || !isLedgerV2(budget)) {
     return {
       run: runDir,
@@ -64,8 +73,21 @@ export function readRunMetrics(runDir: string): RunMetrics {
   }
 
   const findingsCache = new Map<string, ParsedFindingsFile>()
-  const readRelative = (relative: string): string | null =>
-    readIfPresent(join(runDir, ...relative.split('/')))
+  const unreadable = new Set<string>()
+  const readRelative = (relative: string): string | null => {
+    try {
+      return readIfPresent(join(runDir, ...relative.split('/')))
+    } catch (error) {
+      if (!(error instanceof ReviewMetricsReadError)) {
+        throw error
+      }
+      unreadable.add(relative)
+      parseErrors.push(`${relative}: unreadable (${error.message})`)
+      return null
+    }
+  }
+  const missing = (relative: string): string[] =>
+    unreadable.has(relative) ? [] : [`${relative}: missing`]
   const source: UnitFileSource = {
     findings(unit, token) {
       const relative = `orchestrate/${unit}/review-${token}.findings.md`
@@ -76,7 +98,7 @@ export function readRunMetrics(runDir: string): RunMetrics {
       const text = readRelative(relative)
       const parsed: ParsedFindingsFile =
         text === null
-          ? { findings: [], priors: [], errors: [`${relative}: missing`] }
+          ? { findings: [], priors: [], errors: missing(relative) }
           : parseFindingsFile(text, relative)
       parseErrors.push(...parsed.errors)
       findingsCache.set(relative, parsed)
@@ -86,7 +108,7 @@ export function readRunMetrics(runDir: string): RunMetrics {
       const relative = `orchestrate/${unit}/fix-${token}.dispositions.md`
       const text = readRelative(relative)
       if (text === null) {
-        parseErrors.push(`${relative}: missing`)
+        parseErrors.push(...missing(relative))
         return []
       }
       return parseDispositions(text)
@@ -104,7 +126,7 @@ export function readRunMetrics(runDir: string): RunMetrics {
   const retrospective = readRelative('orchestrate/retrospective.md')
   let escapes = 0
   if (retrospective === null) {
-    parseErrors.push('orchestrate/retrospective.md: missing')
+    parseErrors.push(...missing('orchestrate/retrospective.md'))
   } else {
     const counted = countEscapes(retrospective)
     if (counted === null) {

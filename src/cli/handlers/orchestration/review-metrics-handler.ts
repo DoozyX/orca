@@ -38,10 +38,13 @@ export const ORCHESTRATION_REVIEW_METRICS_HANDLER: Record<string, CommandHandler
       }
       writeStdoutLine(json ? JSON.stringify(metrics, null, 2) : formatReviewMetricsText(metrics))
     }
-    if (dirErrors.length > 0) {
+    if (runs.length === 0 && dirErrors.length > 0) {
       throw dirErrors[0]
     }
-    if (runs.some((run) => run.parseErrors.length > 0)) {
+    for (const error of dirErrors) {
+      process.stderr.write(`${error.message}\n`)
+    }
+    if (dirErrors.length > 0 || runs.some((run) => run.parseErrors.length > 0)) {
       process.exitCode = 1
     }
   }

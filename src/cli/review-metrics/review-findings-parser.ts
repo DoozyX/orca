@@ -43,13 +43,13 @@ export function parseFindingsFile(text: string, path: string): ParsedFindingsFil
       verdict = true
       continue
     }
-    if (/^R[0-9I]+\./.test(line)) {
+    if (/^R[0-9A-Za-z]*\.\d+\. /.test(line)) {
       const match = FINDING_LINE.exec(line)
       if (match) {
         result.findings.push({
           id: match[1],
           bucket: bucketOf(match[2]),
-          round1Miss: match[3].includes('round-1-miss')
+          round1Miss: match[3].includes('[round-1-miss]')
         })
       } else {
         result.errors.push(`${path}: unparseable line "${line}"`)

@@ -33,7 +33,9 @@ function unitCells(unit: UnitMetrics): string[] {
 
 function table(units: readonly UnitMetrics[]): string[] {
   const rows = [COLUMNS, ...units.map(unitCells)]
-  const widths = COLUMNS.map((_, index) => Math.max(...rows.map((row) => row[index].length)))
+  const widths = COLUMNS.map((_, index) =>
+    rows.reduce((width, row) => Math.max(width, row[index].length), 0)
+  )
   return rows.map((row) =>
     row
       .map((value, index) => value.padEnd(widths[index]))
@@ -60,7 +62,10 @@ export function formatReviewMetricsText(metrics: ReviewMetrics): string {
   for (const run of metrics.runs) {
     lines.push(`Run ${run.run} (${run.format})`)
     if (run.format === 'v2') {
-      lines.push(...table(run.units), totalsRow('TOTAL', run.totals))
+      for (const row of table(run.units)) {
+        lines.push(row)
+      }
+      lines.push(totalsRow('TOTAL', run.totals))
     }
     if (run.parseErrors.length > 0) {
       lines.push('Parse errors:', ...run.parseErrors.map((error) => `  ${error}`))

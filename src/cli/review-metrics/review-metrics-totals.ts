@@ -10,8 +10,8 @@ export function computeTotals(units: readonly UnitMetrics[], escapes: number): T
   const cleaned = counted.flatMap((unit) =>
     unit.reviewsToClean === null ? [] : [unit.reviewsToClean]
   )
-  const patch = counted.reduce((sum, unit) => sum + unit.findings.patch, 0)
-  const withdrawn = counted.reduce((sum, unit) => sum + unit.disputes.withdrawn, 0)
+  const patch = units.reduce((sum, unit) => sum + unit.findings.patch, 0)
+  const withdrawn = units.reduce((sum, unit) => sum + unit.disputes.withdrawn, 0)
   const pct = (count: number): number | null =>
     counted.length === 0 ? null : round((count / counted.length) * 100, 1)
   return {
@@ -23,7 +23,7 @@ export function computeTotals(units: readonly UnitMetrics[], escapes: number): T
     cleanByReview2Pct: pct(cleaned.filter((value) => value <= 2).length),
     threePlusPct: pct(counted.filter((unit) => unit.reviews >= 3).length),
     patchPrecision: patch === 0 ? null : round(1 - withdrawn / patch, 3),
-    round1Misses: counted.reduce((sum, unit) => sum + unit.round1Misses, 0),
+    round1Misses: units.reduce((sum, unit) => sum + unit.round1Misses, 0),
     escapes
   }
 }

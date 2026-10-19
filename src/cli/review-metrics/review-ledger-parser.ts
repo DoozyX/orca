@@ -34,7 +34,7 @@ function splitRow(line: string): string[] {
 
 export function isLedgerV2(budgetText: string): boolean {
   const first = budgetText.split(/\r?\n/).find((line) => line.trim().length > 0)
-  return first !== undefined && first.trim() === 'ledger-format: 2'
+  return first === 'ledger-format: 2'
 }
 
 export function parseLedgerRows(budgetText: string): LedgerRow[] {

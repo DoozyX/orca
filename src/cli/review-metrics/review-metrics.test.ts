@@ -13,7 +13,7 @@ import {
   expectedUnits,
   findings,
   ledger
-} from './review-metrics-v2-fixture'
+} from './review-metrics-v2.test-fixture'
 
 describe('review-metrics', () => {
   let root: string
