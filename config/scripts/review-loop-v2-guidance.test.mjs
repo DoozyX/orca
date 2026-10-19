@@ -247,12 +247,13 @@ describe('review loop v2 guide contract', () => {
     )
   })
 
-  it('fix-1: review rounds receive the preceding dispositions file', () => {
+  it('fix-2: a review receives dispositions only when a fix ran since the previous review', () => {
     const prompts = squash(readDelivery('references/stage-prompts.md'))
 
     expect(prompts).toContain(
-      'the preceding `fix-<f>.dispositions.md` path and its content, given to the non-adversarial layers only'
+      "when a fix ran since the previous review (always for review #2 and #3), that fix's `fix-<f>.dispositions.md` path and its content, given to the non-adversarial layers only; an integration review adds its material reason"
     )
+    expect(prompts).not.toContain('plus previous findings, the preceding `fix-<f>.dispositions.md`')
   })
 
   it('fix-1: only resolved findings are not re-raised; disputed and blocked stay reviewable', () => {
