@@ -24,7 +24,7 @@ status=$(git status --porcelain) || report_error "status failed"
 # Known pnpm bootstrap drift: only added @pnpm/exe entries in pnpm-lock.yaml; revert that one file.
 if [ "$status" = " M pnpm-lock.yaml" ] && git diff -U0 pnpm-lock.yaml | python3 -c '
 import re, sys
-ok = re.compile(r"^\+(\s*$|\s+(\x27@pnpm/exe[^\n]*|specifier: 12\.8\.1|version: 12\.8\.1|resolution: \{integrity: sha512-[^\n]*\}|engines: \{node: [^\n]*\}|hasBin: true|optionalDependencies:))$")
+ok = re.compile(r"^\+(\s*$|\s+(\x27@pnpm/exe[^\n]*|specifier: [0-9]+\.[0-9]+\.[0-9]+|version: [0-9]+\.[0-9]+\.[0-9]+|resolution: \{integrity: sha512-[^\n]*\}|engines: \{node: [^\n]*\}|hasBin: true|optionalDependencies:))$")
 lines = [l.rstrip("\n") for l in sys.stdin if l[:1] in "+-" and not l.startswith(("+++", "---"))]
 sys.exit(0 if lines and all(ok.match(l) for l in lines) else 1)
 '; then

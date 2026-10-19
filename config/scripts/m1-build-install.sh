@@ -3,7 +3,7 @@
 set -euo pipefail
 
 WT=/Users/skletnikov/DoozyX/tools/orca/.worktrees/orca/m1-daily-upstream-sync
-PNPM12=/Users/skletnikov/Library/pnpm/store/v11/links/@/pnpm/12.8.1/0c329c8c347499aa1aead5ea0ee0544c1df985bd99ff0a3083ff1d24a679baf1/bin
+PNPM12=/Users/skletnikov/Library/pnpm/package-manager-store/v11/links/@/pnpm/12.14.0/fa4b6de714eee5e41198578d37b51a0becbe0643d80916ccfc693ffd9491d0c0/bin
 RUN=$WT/.orca/$(date +%F)-m1-build
 mkdir -p "$RUN/tmp"
 
