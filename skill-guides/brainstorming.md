@@ -62,7 +62,9 @@ analogous feature. Skim `docs/adr/` and any `docs/reference/` document the area
 names, so a trade-off already settled is not re-litigated. Before proposing
 approaches, read earlier runs' records in the root worktree —
 `.orca/*/orchestrate/manifest.md` and any `retrospective.md` beside it — for
-decisions taken and approaches rejected in this area. State what you found in a
+decisions taken and approaches rejected in this area. Also read
+`<root worktree>/.orca/known-issues.md` and the latest retrospective's
+`## Review metrics`. State what you found in a
 few lines. Questions asked without that context spend the user's turns on
 what the repository already answers.
 

@@ -36,12 +36,20 @@ Each stage row names the clauses its spec carries, in substance if not verbatim.
 | Report            | A routine report is at most 120 words, an escalation at most 200. Logs, diffs, and raw output stay in files under `orchestrate/<unit>/`; the report names the path and the deciding line. Mandated verbatim evidence overrides the cap.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | Run hygiene       | Plans, task files, captures, and logs live in the root worktree's run directory. Never copy them into the worktree, stage them, or name them in a commit, PR, or MR.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 
+## File names
+
+Canonical, under the run directory: `orchestrate/<unit>/review-<r>.findings.md`
+(`<r>` is the review number), `orchestrate/<unit>/review-I.findings.md` for an
+integration review, `orchestrate/<unit>/fix-<f>.dispositions.md`, and
+`orchestrate/<unit>/nit-fix.dispositions.md`. The metrics command reads these
+names and no others.
+
 ## Per-stage contract
 
 | Stage           | Required spec fields                                                                                                                                                                                                                    | Clauses                                     | Report must paste                                                                                                                                                                                                                                     |
 | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Implement       | Unit, worktree id, branch, base sha, distilled spec, task-file path and its `## Record`, verification contract, `environment-hazards.md` path, capture dir for UI work                                                                  | Execution, Change, Command, Report, Hygiene | Baseline failures or `baseline: none`; `Checked:` lines with cmd and exit for full suite, lint, format, build; commit shas; `Not checked: <what and why>` or `Not checked: none`; `git status --porcelain`; UI capture paths, one described line each |
-| Fix             | Unit, fix number, the `## Merged findings` section only, focused-test command, originating review row, task-file path and its `## Record`                                                                                               | Execution, Change, Command, Report          | `git status --porcelain`; `git diff HEAD --stat`; each commit's sha and `git show --stat <sha>`; per finding, the fixing hunk or `not fixed: <why>`; `Not checked: <what and why>` or `Not checked: none`                                             |
+| Fix             | Unit, fix number, the `## Merged findings` section only, focused-test command, originating review row, task-file path and its `## Record`                                                                                               | Execution, Change, Command, Report          | `git status --porcelain`; `git diff HEAD --stat`; each commit's sha and `git show --stat <sha>`; per finding, the fixing hunk or `not fixed: <why>`; the dispositions file path; `Not checked: <what and why>` or `Not checked: none`                 |
 | Review full     | Unit, worktree, base ref, reviewed sha, distilled spec, baseline, suite owner and log path, findings path, UI acceptance criteria to see; the latest implementer or fixer `Not checked:` line, given to the non-adversarial layers only | Read-only, Command, Report                  | Merged findings; `Seen:` lines; `Checked: tests full cmd=<cmd> exit=<n> duration=<s>`; `git status --porcelain`; the verdict line                                                                                                                     |
 | Review round    | Review-full fields plus previous findings, previous reviewed sha as focus, base ref as scope, focused-test command; an integration review adds its material reason                                                                      | Read-only, Command, Report                  | Review-full evidence plus `Checked: tests focused cmd=<cmd> exit=<n> duration=<s>` and each previous finding marked fixed or still open                                                                                                               |
 | Plan            | Design path, task directory, recorded planning trigger                                                                                                                                                                                  | Execution, Report, Hygiene                  | Plan and task-file paths; the planner worktree's `git status --porcelain`, which must be empty                                                                                                                                                        |
@@ -65,7 +73,9 @@ push. Append commits, touched files, and concerns to the task file's
 `## Record (append-only)` at its absolute path.
 
 **Fix.** The message carries only what changed: the findings. Fix every `patch`
-item; leave `decision-needed` and `defer` items alone and say so. Run the
+and `nit`; dispute with evidence instead of fixing a wrong one, and write one
+disposition line each. The file is `orchestrate/<unit>/fix-<f>.dispositions.md`
+(the `## Dispositions` lines in `task-pipeline.md`). Leave `decision-needed` and `defer` items alone and say so. Run the
 focused tests plus lint, format, and build — the next reviewer owns the full
 suite. Never assert a finding fixed; show the hunk.
 
@@ -75,8 +85,8 @@ owner's result for the same revision and environment. Run the `review` skill's
 layers in parallel, with the adversarial layer spec-blind — it receives the diff
 only. Thread spec compliance into the other layers. Write the findings file in
 this order: every layer's raw findings, a line reading exactly
-`## Merged findings`, the merged list, `Seen:` and `Scored:` lines, `Checked:`
-lines, the verdict line. Report only what follows the anchor. Claims about the
+`## Merged findings`, the merged list, the `Prior:` lines, `Seen:` and `Scored:`
+lines, `Checked:` lines, the verdict line. Report only what follows the anchor. Claims about the
 tree are pasted `git status --porcelain` output, never characterized. Only
 failures new against the recorded baseline are findings. A full-suite failure
 outside the baseline keeps its full-run log and exit line, and each such failing
