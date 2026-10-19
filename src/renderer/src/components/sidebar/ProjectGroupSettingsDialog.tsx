@@ -148,13 +148,13 @@ export function ProjectGroupSettingsDialog({
         }}
       >
         <DialogHeader>
-          <DialogTitle size="sm">
+          <DialogTitle size="compact">
             {translate(
               'auto.components.sidebar.ProjectGroupSettingsDialog.title',
               'Group Settings'
             )}
           </DialogTitle>
-          <DialogDescription size="sm">
+          <DialogDescription size="compact">
             {translate(
               'auto.components.sidebar.ProjectGroupSettingsDialog.description',
               'Settings for {{value0}} and the groups nested inside it.',

@@ -22,7 +22,7 @@ export {
   SessionId
 } from './structured-agent-session-identifiers'
 import { z } from 'zod'
-import { AccountHomeBinding } from './structured-agent-session-account-home-binding'
+import { AccountHome } from './structured-agent-session-account-home'
 import { isAgentSessionSurfaceTabId } from '../agent-session-surface-tab-id'
 import { isAgentSessionOptions } from '../agent-session-record'
 import { isStructuredAgentId } from '../agent-session-provider-handle-encoding'
@@ -88,14 +88,6 @@ export const ExecutionLocation = z
     wslDistro: Identifier('Invalid WSL distro').nullable(),
     workspaceId: Identifier('Invalid workspace id'),
     workspaceKind: z.enum(['git-worktree', 'folder'])
-  })
-  .strict()
-
-export const AccountHome = z
-  .object({
-    variable: z.enum(['CLAUDE_CONFIG_DIR', 'CODEX_HOME']),
-    path: z.string().min(1).max(4096),
-    binding: AccountHomeBinding.optional()
   })
   .strict()
 
@@ -279,10 +271,14 @@ export const SetOptionParams = z
   .strict()
 
 export const OptionsParams = z.object({ sessionId: SessionId }).strict()
+export const SleepWorkspaceParams = z.object({ workspaceId: z.string().min(1) }).strict()
 export const AcknowledgeAttentionParams = OptionsParams.extend({ observedCursor: JournalCursor })
 
 /** `agentSession.agents` takes nothing: the list is the host's, whichever client asks. */
 export const AgentsParams = z.object({}).strict()
+
+/** `agentSession.subscribeAvailability` takes nothing: the snapshot is the host's. */
+export const AvailabilityParams = z.strictObject({})
 
 /** `sessionId` scopes the catalog to that session's pinned account; without a
  *  session record the host keys it by the account a new launch would pin.

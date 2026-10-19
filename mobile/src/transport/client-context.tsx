@@ -30,15 +30,6 @@ import { RpcClientContext } from './rpc-client-context-value'
 
 export { useRpcClientContext } from './rpc-client-context-value'
 
-export {
-  useDisconnectHostClient,
-  useForceReconnect,
-  useForgetHostClient,
-  useHostClient,
-  usePrimeHosts,
-  useRefreshHostClient
-} from './host-client-hooks'
-
 type StoreEntry = HostClientStoreEntry
 
 export function RpcClientProvider({ children }: { children: ReactNode }) {

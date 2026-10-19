@@ -16,13 +16,8 @@ import { classifyWorkerTerminalCloseError } from './worker-release-close-error'
 import { workerTerminalLeaseIsCurrent } from './worker-terminal-release-lease'
 import { resolveStructuredWorkerForDispatch } from '../../orchestration-structured-worker-lifecycle'
 import { stopStructuredWorkerForRelease } from './structured-worker-release-stop'
-import { isStructuredWorkerHandle } from '../../../../structured-worker-identity'
+import { isStructuredWorkerHandle } from '../../../../../../shared/structured-worker-handle'
 import { captureWorkerReleaseArchive } from './worker-release-archive-capture'
-
-export {
-  archiveSummary,
-  exposeWorkerTerminalResource
-} from './worker-terminal-resource-presentation'
 
 type WorkerTerminalReleaseArgs = {
   runtime: WorkerTerminalReleaseRuntime

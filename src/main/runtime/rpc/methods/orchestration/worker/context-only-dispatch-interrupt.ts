@@ -8,7 +8,7 @@ import {
   resolveStructuredWorkerIdentity,
   structuredWorkerSession
 } from '../../../../structured-worker-authority'
-import { isStructuredWorkerHandle } from '../../../../structured-worker-identity'
+import { isStructuredWorkerHandle } from '../../../../../../shared/structured-worker-handle'
 
 export type StopInterrupt = {
   outcome: 'cancelled' | 'no_running_turn' | 'not_interrupted'

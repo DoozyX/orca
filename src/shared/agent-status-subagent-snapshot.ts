@@ -24,10 +24,7 @@ export type AgentSubagentSnapshot = {
   startedAt: number
 }
 
-/** Maximum subagent child rows carried per status entry. Bounds per-pane cache
- *  and IPC fanout against a runaway spawner. */
-export const AGENT_STATUS_MAX_SUBAGENTS = 32
-const AGENT_SUBAGENT_ID_MAX_LENGTH = 64
+export const AGENT_SUBAGENT_ID_MAX_LENGTH = 64
 
 function normalizeSubagentSnapshot(
   value: unknown,
@@ -81,9 +78,6 @@ function readAgentSubagents(
     const snapshot = normalizeSubagentSnapshot(item, allowFutureState)
     if (snapshot) {
       normalized.push(snapshot)
-      if (normalized.length >= AGENT_STATUS_MAX_SUBAGENTS) {
-        break
-      }
     }
   }
   return normalized.length > 0 ? normalized : undefined
@@ -116,4 +110,15 @@ export function agentSubagentsEqual(
     }
   }
   return true
+}
+
+/** OSC 7501 does carry children, so a child-only change is news (absent means none left). */
+export function programStatusChildrenUnchanged(
+  event: { fromProgramStatus?: boolean; payload: { subagents?: AgentSubagentSnapshot[] } },
+  cachedPayload: { subagents?: AgentSubagentSnapshot[] } | undefined
+): boolean {
+  return (
+    event.fromProgramStatus !== true ||
+    agentSubagentsEqual(cachedPayload?.subagents, event.payload.subagents)
+  )
 }

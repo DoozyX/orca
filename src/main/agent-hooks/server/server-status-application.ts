@@ -1,3 +1,4 @@
+import { deriveCliWriterTopology } from './cli-writer-observation'
 import { createHash } from 'node:crypto'
 
 import { getCohortAtEmit } from '../../telemetry/cohort-classifier'
@@ -58,7 +59,8 @@ export abstract class AgentHookServerStatusApplication extends AgentHookServerSt
   protected refreshTerminalStatusEvidence(
     previous: EnrichedAgentHookEventPayload,
     mutationBefore?: EnrichedAgentHookEventPayload,
-    emitEnrichedStatus = false
+    emitEnrichedStatus = false,
+    newRun = false
   ): void {
     if (!this.canWriteLegacyStatusRow(previous)) {
       return
@@ -80,13 +82,18 @@ export abstract class AgentHookServerStatusApplication extends AgentHookServerSt
       ...payload
     } = previous
     // Why: `payload` keeps `agentEvidenceObservedAt`; a repaint is not word from the agent (#17).
-    const refreshed: EnrichedAgentHookEventPayload = {
-      ...payload,
-      receivedAt: now,
-      evidenceObservedAt: now,
-      stateStartedAt,
-      observation: this.stampObservation(payload, 'osc', now)
-    }
+    const refreshed = deriveCliWriterTopology(
+      {
+        ...payload,
+        receivedAt: now,
+        evidenceObservedAt: now,
+        stateStartedAt,
+        observation: this.stampObservation(payload, 'osc', now)
+      },
+      mutationBefore ?? previous,
+      this.cliWriterExecutionMatches,
+      newRun
+    )
     const firstRuntimeObservation = !this.runtimeObservedStatusPaneKeys.has(refreshed.paneKey)
     this.runtimeObservedStatusPaneKeys.add(refreshed.paneKey)
     if (!this.writeLegacyStatusRow(refreshed)) {

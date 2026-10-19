@@ -14,7 +14,7 @@ import {
   findMergedProjectGroup,
   getMergedProjectGroupAncestry
 } from './cross-host-project-group-merge'
-import type { ProjectGroupingModel } from '../project-section-grouping'
+import type { ProjectSectionModel } from '../project-section-grouping'
 import type { SidebarPRGroupReader, WorktreeGroupBy } from './row-types'
 
 export function getGroupKeyForWorktree(
@@ -24,7 +24,7 @@ export function getGroupKeyForWorktree(
   /** Null reads every worktree as having no PR, which is the in-progress lane. */
   prGroupOf: SidebarPRGroupReader | null,
   workspaceStatuses: readonly WorkspaceStatusDefinition[] = cloneDefaultWorkspaceStatuses(),
-  projectGrouping?: ProjectGroupingModel
+  projectGrouping?: ProjectSectionModel
 ): string | null {
   if (groupBy === 'none') {
     return ALL_GROUP_KEY
@@ -49,7 +49,7 @@ export function getGroupKeysForWorktree(
   prGroupOf: SidebarPRGroupReader | null,
   workspaceStatuses: readonly WorkspaceStatusDefinition[] = cloneDefaultWorkspaceStatuses(),
   projectGroups: readonly ProjectGroup[] = [],
-  projectGrouping?: ProjectGroupingModel
+  projectGrouping?: ProjectSectionModel
 ): string[] {
   const groupKey = getGroupKeyForWorktree(
     groupBy,

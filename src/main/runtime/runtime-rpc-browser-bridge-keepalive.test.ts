@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { OrcaRuntimeService } from './orca-runtime'
 import { readRuntimeMetadata } from './runtime-metadata'
-import { classifyRuntimeLongPoll } from './runtime-rpc'
+import { classifyRuntimeLongPoll } from './runtime-rpc/runtime-rpc-long-poll'
 import { createLongPollServer as createServer } from './runtime-rpc-long-poll-server.test-fixture'
 import { openFramedSession } from './runtime-rpc-test-harness'
 

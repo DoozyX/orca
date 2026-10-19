@@ -9,14 +9,17 @@ import {
   summarizeWorkerOutputArchive
 } from '../../../../orchestration/worker-output-archive'
 import type { WorkerTerminalReleaseRuntime } from '../../../../orchestration/worker-terminal-release-runtime'
-import { archiveSummary, releaseUnknownRecovery } from '../worker/worker-release-completion'
+import { releaseUnknownRecovery } from '../worker/worker-release-completion'
 import { OrchestrationError } from '../../../../orchestration/orchestration-error'
 import {
   remoteAttachmentReleaseCustody,
   retainedReleaseGuidance,
   type WorkerReleaseReceipt
 } from '../worker/worker-release-receipt'
-import { takeoverReceiptField } from '../worker/worker-terminal-resource-presentation'
+import {
+  archiveSummary,
+  takeoverReceiptField
+} from '../worker/worker-terminal-resource-presentation'
 import { orchestrationTimestampToMs } from '../worker/worker-output'
 import { inspectRemoteAttachment } from './federation-attachment-observation'
 import { readRemoteAttachmentArchive } from './remote-attachment-archive-read'

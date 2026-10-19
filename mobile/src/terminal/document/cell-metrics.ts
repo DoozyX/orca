@@ -1,15 +1,6 @@
 import type { TerminalDocumentScope } from './document-scope'
 
-export function getCellWidth(scope: TerminalDocumentScope) {
-  if (!scope.term || !scope.term._core) {
-    return 0
-  }
-  const core = scope.term._core
-  if (core._renderService && core._renderService.dimensions) {
-    return core._renderService.dimensions.css.cell.width || 0
-  }
-  return 0
-}
+// Why: a leaf of pure reads, so fit, transform and overlay modules can share them without a cycle.
 
 /** 0 until the renderer has measured a cell. */
 export function getMeasuredCellHeight(scope: TerminalDocumentScope) {
@@ -22,6 +13,17 @@ export function getMeasuredCellHeight(scope: TerminalDocumentScope) {
 
 export function getCellHeight(scope: TerminalDocumentScope) {
   return getMeasuredCellHeight(scope) || 15
+}
+
+export function getCellWidth(scope: TerminalDocumentScope) {
+  if (!scope.term || !scope.term._core) {
+    return 0
+  }
+  const core = scope.term._core
+  if (core._renderService && core._renderService.dimensions) {
+    return core._renderService.dimensions.css.cell.width || 0
+  }
+  return 0
 }
 
 export function getTotalScale(scope: TerminalDocumentScope) {

@@ -8,7 +8,7 @@ import {
   createShedMonitoredWorkField,
   createShedSubagentsField,
   isAgentHookSource,
-  isRemoteAgentHooksEnabled,
+  isWslAgentHookRelayEnabled,
   restoreShedStatusFields
 } from './agent-hook-relay'
 import type { ParsedAgentStatusPayload } from './agent-status-types'
@@ -30,21 +30,22 @@ describe('agent-hook-relay wire shape', () => {
   })
 })
 
-describe('isRemoteAgentHooksEnabled', () => {
+describe('isWslAgentHookRelayEnabled', () => {
   it('is on when the env var is absent', () => {
-    expect(isRemoteAgentHooksEnabled({})).toBe(true)
+    expect(isWslAgentHookRelayEnabled({})).toBe(true)
   })
 
   it('is off for empty / "0"', () => {
-    expect(isRemoteAgentHooksEnabled({ [ORCA_FEATURE_REMOTE_AGENT_HOOKS_ENV]: '' })).toBe(false)
-    expect(isRemoteAgentHooksEnabled({ [ORCA_FEATURE_REMOTE_AGENT_HOOKS_ENV]: '0' })).toBe(false)
-    expect(isRemoteAgentHooksEnabled({ [ORCA_FEATURE_REMOTE_AGENT_HOOKS_ENV]: '   ' })).toBe(false)
+    expect(isWslAgentHookRelayEnabled({ [ORCA_FEATURE_REMOTE_AGENT_HOOKS_ENV]: '' })).toBe(false)
+    expect(isWslAgentHookRelayEnabled({ [ORCA_FEATURE_REMOTE_AGENT_HOOKS_ENV]: '0' })).toBe(false)
+    expect(isWslAgentHookRelayEnabled({ [ORCA_FEATURE_REMOTE_AGENT_HOOKS_ENV]: '   ' })).toBe(false)
+    expect(isWslAgentHookRelayEnabled({ [ORCA_FEATURE_REMOTE_AGENT_HOOKS_ENV]: ' 0 ' })).toBe(false)
   })
 
   it('is on for any other non-empty value', () => {
-    expect(isRemoteAgentHooksEnabled({ [ORCA_FEATURE_REMOTE_AGENT_HOOKS_ENV]: '1' })).toBe(true)
-    expect(isRemoteAgentHooksEnabled({ [ORCA_FEATURE_REMOTE_AGENT_HOOKS_ENV]: 'on' })).toBe(true)
-    expect(isRemoteAgentHooksEnabled({ [ORCA_FEATURE_REMOTE_AGENT_HOOKS_ENV]: 'true' })).toBe(true)
+    expect(isWslAgentHookRelayEnabled({ [ORCA_FEATURE_REMOTE_AGENT_HOOKS_ENV]: '1' })).toBe(true)
+    expect(isWslAgentHookRelayEnabled({ [ORCA_FEATURE_REMOTE_AGENT_HOOKS_ENV]: 'on' })).toBe(true)
+    expect(isWslAgentHookRelayEnabled({ [ORCA_FEATURE_REMOTE_AGENT_HOOKS_ENV]: 'true' })).toBe(true)
   })
 })
 

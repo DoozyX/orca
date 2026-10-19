@@ -1,17 +1,10 @@
 import { repositionOverlay } from './selection-overlay'
-import {
-  computeFitScale,
-  flog,
-  getCellWidth,
-  getTotalScale,
-  updateTransform
-} from './viewport-transform'
+import { computeFitScale, flog, updateTransform } from './viewport-transform'
+import { getCellWidth, getTotalScale } from './cell-metrics'
 import type { TerminalDocumentScope } from './document-scope'
 import type { TerminalViewportChange } from './document-host-seams'
 import { scheduleDocumentFrame } from './document-frame-registry'
 import { emitKeyboardAvoidanceMetrics } from './keyboard-avoidance-metrics'
-
-export { getCellHeight } from './cell-metrics'
 
 // Why: clamp pan so the terminal content always covers the viewport
 // when zoomed in. When content is smaller than viewport in a

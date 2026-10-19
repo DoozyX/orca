@@ -4,7 +4,8 @@ import { defineMethod } from '../../../core'
 import { releaseFederatedWorker } from '../federation/federated-worker-release'
 import { ORCHESTRATION_WORKER_LIST_METHOD } from './worker-list-method'
 import { resolvePinnedFederatedServer } from './worker-observation'
-import { archiveSummary, completeWorkerTerminalRelease } from './worker-release-completion'
+import { completeWorkerTerminalRelease } from './worker-release-completion'
+import { archiveSummary } from './worker-terminal-resource-presentation'
 import {
   localReleaseCustody,
   retainedReleaseGuidance,

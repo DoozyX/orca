@@ -89,8 +89,8 @@ export function ProjectGroupNameDialog({
         }}
       >
         <DialogHeader>
-          <DialogTitle size="sm">{title}</DialogTitle>
-          <DialogDescription size="sm">{description}</DialogDescription>
+          <DialogTitle size="compact">{title}</DialogTitle>
+          <DialogDescription size="compact">{description}</DialogDescription>
         </DialogHeader>
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div className="space-y-1">

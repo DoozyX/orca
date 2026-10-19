@@ -3,8 +3,6 @@ import { shouldRouteScrollToTerminalInput } from './mouse-input-encoding'
 import type { TerminalDocumentScope } from './document-scope'
 import { getCellWidth, getTotalScale } from './cell-metrics'
 
-export { getCellWidth, getMeasuredCellHeight, getTotalScale } from './cell-metrics'
-
 // Why: after init() the initial scrollback applyFitScale may have run
 // against an empty buffer (or one without the widest line yet). Re-fit
 // once when the first live data chunk arrives so a wider line that pushes

@@ -3,7 +3,7 @@ import type { WorkerTerminalReleaseRuntime } from '../../../../orchestration/wor
 import type { OrchestrationDb } from '../../../../orchestration/db'
 import { OrchestrationError } from '../../../../orchestration/orchestration-error'
 import { isStartingWorkerTerminalCurrent } from './starting-worker-terminal-identity'
-import { parseWorkerTerminalHostScope } from '../../../../orchestration/worker-terminal-process-liveness'
+import { parseWorkerTerminalHostScope } from '../../../../../../shared/worker-terminal-host-scope'
 import type { OrchestrationFleetWorker } from '../../../../../../shared/orchestration-fleet-projection'
 import { projectWorkerFleet } from './worker-list-projection'
 import { observeChatAssignee } from '../../../../orchestration/chat-assignee'

@@ -1,5 +1,5 @@
-import type { TerminalDocumentScope } from './document-scope'
 import { getCellHeight, getCellWidth, getTotalScale } from './cell-metrics'
+import type { TerminalDocumentScope } from './document-scope'
 
 /**
  * A client point in the grid's own frame, which is where pan, cells and overlays are measured.

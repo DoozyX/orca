@@ -107,13 +107,13 @@ export function ProjectGroupDeleteDialog({
         }}
       >
         <DialogHeader>
-          <DialogTitle size="sm">
+          <DialogTitle size="compact">
             {translate(
               'auto.components.sidebar.ProjectGroupDeleteDialog.591f330288',
               'Delete Project Group'
             )}
           </DialogTitle>
-          <DialogDescription size="sm">
+          <DialogDescription size="compact">
             {translate('auto.components.sidebar.ProjectGroupDeleteDialog.69f5cb97d0', 'Delete')}{' '}
             <span className="break-all font-medium text-foreground">{groupName}</span>.
           </DialogDescription>
