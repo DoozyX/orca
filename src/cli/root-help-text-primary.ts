@@ -138,6 +138,7 @@ export const ROOT_HELP_TEXT_PRIMARY = [
   '  orchestration lease acquire Take, renew or queue for a shared resource lease',
   '  orchestration lease release Release a shared resource lease or leave its queue',
   '  orchestration lease show  Show who holds a shared resource and who waits for it',
+  '  orchestration review-metrics Summarize review and fix rounds from run directories',
   '  orchestration reset       Reset orchestration state',
   '',
   'Computer Use:',

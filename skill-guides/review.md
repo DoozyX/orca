@@ -129,6 +129,15 @@ Sort by severity, then by how many layers flagged the finding: multi-layer
 agreement is a free confidence signal. A finding whose blast radius is existing
 data, introduced by this change, is never `minor`.
 
+Only the adversarial layer emits `Coverage:` lines. A missing `Coverage:` line for
+any adversarial checklist bucket means the adversarial layer did not run — run it
+again before merging.
+
+Match candidates against the root worktree's `.orca/known-issues.md` (ignored,
+per repository, never committed) at this merge step only — never in the
+adversarial layer, which stays context-starved. A match becomes `defer` tagged
+`[KI-<n>]`.
+
 ## 5. Rewrite the tone, then triage
 
 The adversarial layer's output is hostile on purpose. Rewrite each finding as an
@@ -141,18 +150,37 @@ After:  `user.email` is read without a null check; a signed-out user crashes the
         handler. Return early when `user` is null, before the read.
 ```
 
-Every merged finding gets exactly one bucket: `patch` (mechanical and in scope,
-fix it now), `decision-needed` (a scope question, a product decision, or a
-trade-off the spec does not settle), or `defer` (pre-existing or out of scope,
-never extending a fix loop). Inside a run, append each `defer` item to the root
-worktree's `.orca/<run>/orchestrate/deferred.md`; otherwise list them under a
-`## Deferred` heading in the review output.
+Every merged finding gets exactly one bucket: `patch`, `nit`, `decision-needed`,
+`defer`. `patch` = mechanical and in scope, fix it now; `decision-needed` = a
+scope question, a product decision, or a trade-off the spec does not settle;
+`defer` = pre-existing (the diff doesn't change those lines) or out of scope, and
+it never extends a fix loop. Mapping: `critical`/`major` → `patch`,
+`decision-needed` or `defer`; `minor` → `nit`, `decision-needed` or `defer`. Inside
+a run, append each `defer` item to the root worktree's
+`.orca/<run>/orchestrate/deferred.md`; otherwise list them under a `## Deferred`
+heading in the review output.
 
 ## 6. Output format
 
+One line per finding, up to two indented continuation lines:
+
 ```text
-N. <file>:<line> - <critical|major|minor> - [<patch|decision-needed|defer>] - <provenance> - <observation and concrete fix>
+R<r>.<n>. <file>:<line> - <critical|major|minor> - [<patch|nit|decision-needed|defer>] - <tags> - <observation and concrete fix>
+   class: <bug class, ≤6 words> | sweep: `<search command>` -> <k> sites
+   evidence: <quoted code + one-line trace>  |  cmd=`<command>` exit=<n> <deciding line>
 ```
+
+- IDs: `<r>` is the review number from the budget row (`1`–`3`, or `I` for an
+  integration review); a standalone review outside delivery uses `1`; `<n>`
+  counts from 1. An open or upheld prior finding is re-listed under its
+  **original** ID, never a new one.
+- Tags: provenance `[Adversarial] [Edge] [V-Gap] [Deletion] [Reuse]`, plus
+  `[round-1-miss]` (rounds ≥2 only, on a new finding whose lines are unchanged
+  since review #1's head) and `[KI-<n>]` (on a `defer` matching a known issue).
+- Required: `class`/`sweep` on every `patch`; `evidence` on every `patch` and
+  every `critical`/`major` `decision-needed`.
+- Rounds ≥2, after the merged list, one line per earlier ID:
+  `Prior: R<r>.<n> - fixed|open|disputed-upheld|disputed-withdrawn - <one-line reason; evidence for a ruling>`.
 
 Then two or three lines starting with `Checked:` naming what was actually
 verified: which layers ran, what the suite did if it ran, and what was skipped and
@@ -160,13 +188,23 @@ why. Then exactly one verdict line, last:
 
 ```text
 VERDICT: clean
-VERDICT: fix-needed patch=<n> decision-needed=<n> defer=<n>
+VERDICT: fix-needed patch=<n> decision-needed=<n> nit=<n> defer=<n>
 ```
 
 `VERDICT: clean` is emitted if and only if there are no `patch` and no
-`decision-needed` findings; `defer` items may exist and are still listed above it.
-The clean verdict is a mandated exact line — never an empty response, never "looks
-good to me", never silence. Counts are real counts, not estimates.
+`decision-needed` findings; `nit` and `defer` items may exist and are still listed
+above it. The clean verdict is a mandated exact line — never an empty response,
+never "looks good to me", never silence. Counts come from the merged list.
+
+## Later rounds
+
+Rounds ≥2 focus on the fix diff.
+
+- Rule on every `disputed` fix disposition with a `Prior:` line: withdrawn = false
+  alarm; upheld = re-listed as an open `patch`.
+- Check each prior `class`'s sweep.
+- A new finding in lines unchanged since review #1 must be `critical`/`major` and
+  tagged `[round-1-miss]`; a `minor` there becomes `defer`.
 
 ## Conditional references
 

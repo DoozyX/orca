@@ -28,9 +28,8 @@ the stub; substitute it before running and do not create a shell variable.
 **Result:** every in-scope task ends as `done`, `needs-attention`, or — for a
 verification entrance — exactly one of `pass`, `defect`, `inconclusive`. **Next
 consumer:** the user who asked for the delivery. **Done:** each done task has a
-clean full-branch review verdict, or a fix-needed verdict with only recorded
-last-round `minor` deferrals, a landed PR or the repository's prescribed
-endgame, and green checks; each parked task has its worker terminal, worktree,
+clean full-branch review verdict (nits and defers listed), a landed PR or the
+repository's prescribed endgame, and green checks; each parked task has its worker terminal, worktree,
 branch, and findings preserved; the run's retrospective is written and every
 Orca issue in it is filed upstream; and the closing report names, per task, its
 outcome, the evidence behind it, and any unresolved blocker. A run is never
@@ -201,9 +200,8 @@ surface it; dispatch nothing downstream on that body.
    landing policy: a PR/MR, a direct merge, or the repository's own endgame.
 5. **Green CI.** Watch the checks. A mechanical fix pushes directly; a fix that
    touches logic takes one more review round on the new commits. A task is `done`
-   only when the verdict is clean, or fix-needed with only recorded last-round
-   `minor` deferrals, the PR exists or the endgame has landed, and all checks
-   are green (see the manifest's CI baseline).
+   only when the verdict is clean (nits and defers may be listed), the PR exists
+   or the endgame has landed, and all checks are green (see the manifest's CI baseline).
 
 Load `references/task-pipeline.md` for the mechanics of each stage.
 
@@ -225,9 +223,11 @@ defect: stop and record it.
 | unit | kind | review# | fix# | base-sha | head-sha | result-sha | dispatch | outcome | reason |
 ```
 
-`kind` is `review-full`, `review-round`, `review-integration`, `fix`,
-`fix-override`, or `review-override`.
-`outcome` is `reserved`, `clean`, `fix-needed`, `invalid`, `startup-failed`, or
+`orchestrate/budget.md` starts with the line `ledger-format: 2`. `kind` is
+`review-full`, `review-round`, `review-integration`, `fix`, `fix-override`,
+`review-override`, or `nit-fix`.
+`nit-fix` is an uncounted `kind` (outcome `reserved`, then `done`): the PR-sync
+commit that fixes a clean review's nits. `outcome` is `reserved`, `clean`, `fix-needed`, `invalid`, `startup-failed`, or
 `quota@<reset>`. Only `clean` and `fix-needed` count. Before each dispatch, read
 `head-sha` from the worktree itself, then refuse unless the row passes:
 
@@ -243,21 +243,25 @@ defect: stop and record it.
 | After a quota stop | The `quota@<earliest reset>` across over-quota candidates has passed; an unknown reset is `needs-attention`                                               | Park only that unit until reset; other units continue |
 
 **Validate the verdict before counting it.** Record `invalid` when the findings
-file is missing or has no `## Merged findings` anchor, a `clean` verdict lists
-any `patch` or `decision-needed` finding, a `fix-needed` verdict lists none, the
-verdict line's counts differ from the merged list, or no
+file is missing or has no `## Merged findings` anchor, a `patch` that is not
+`critical`/`major` or lacks its required `class`/`sweep`/`evidence` lines, a
+`clean` verdict lists any `patch` or `decision-needed` finding, a `fix-needed`
+verdict lists none, the verdict line's `patch`, `decision-needed`, `nit` and
+`defer` counts differ from the merged list, or no
 `Checked: tests full cmd=<cmd> exit=<n> duration=<s>` line is present. An
 `invalid` review is not counted; re-dispatch it once on the same HEAD, and a
 second `invalid` makes the unit `needs-attention`.
 
 A blocking finding is any `major` item or any `decision-needed` item. Budget
 exhaustion with blocking findings, or with a user decision still open, makes the
-unit `needs-attention` with no PR.
+unit `needs-attention` with no PR. Its report asks the user whether to extend the
+budget, or rethink the approach?
 
-When the budget is spent and every remaining item is a `minor` `patch`, record
-each as `defer` with a one-line reason in the ledger `reason` cell and in the
-closing report; the unit lands at that head. Any other continuation takes a
-decision gate (`gate-create`/`gate-resolve`) and a ledger row of kind
+When the budget is spent with any `patch` or `decision-needed` left, the unit is
+`needs-attention` with no PR, and its report asks whether to extend the budget,
+or rethink the approach? A `clean` verdict lands at that head with its `nit` and
+`defer` items listed in the closing report. Any continuation past the budget
+takes a decision gate (`gate-create`/`gate-resolve`) and a ledger row of kind
 `fix-override` or `review-override`, for example
 `| u1 | fix-override | - | 3 | <base> | <head> | <result> | <dispatch> | reserved | gate <id>: user approved a third fix |`.
 Such a row never counts toward, or resets, the budget.

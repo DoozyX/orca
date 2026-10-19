@@ -95,6 +95,9 @@ candidates yield `needs-attention` with their reasons.
 Cheap never implements or reviews. It is for bounded extraction whose result you
 can check at a glance — work you would otherwise read yourself at a higher rate.
 
+Review #1 runs at the strong tier on another engine when one is eligible;
+otherwise record `same-engine-review`.
+
 Escalations are one-way for the rest of the unit:
 
 | Trigger                                                            | Escalation                                                                                                                            |
@@ -168,10 +171,15 @@ rather than mailing an implementer a fix round with no findings in it. The fix
 spec carries only the section from that anchor down: the raw layer output above
 it is ungraded and undeduplicated, and shipping it undoes the merge.
 
+Review #1 reruns the full suite itself — the one exception to "no second full
+suite per revision": it runs after the implementer settles, one run at a time,
+never concurrently.
+
 Rounds after the first are full-branch rounds with the prior findings attached.
 They take the diff since the reviewed sha as their focus and the diff since the
 base as their scope, every unfixed prior finding is a new finding, and an item
-already dispositioned is not re-raised.
+already resolved is not re-raised; a `disputed` or `blocked` item stays
+reviewable under its original ID.
 
 ### UI evidence
 
@@ -206,12 +214,14 @@ pair is recaptured and judged again.
 Branch on the verdict directly.
 
 - `clean` from **any** round is terminal for the task, because every round
-  certifies the whole branch against a verified suite. Proceed to the PR.
+  certifies the whole branch against a verified suite. Its `nit` and `defer`
+  items are listed, not looped on. Proceed to the PR.
 - `fix-needed` splits by bucket. Ordinary defects go back to the same implementer
   as a fix round carrying the findings and nothing else. Items needing a product
   or scope decision go to the user, exactly like a worker's blocking question,
   and the task holds while you wait. Items explicitly deferred are recorded, named
-  in the closing report, and never extend the loop.
+  in the closing report, and never extend the loop. A fix round carries that
+  review's `nit` items along with its `patch` items.
 - **The reviewer proposes a severity; you decide it.** A finding whose blast
   radius is existing data, introduced by this branch, is never minor — regrade it
   upward and send it back. Regrading downward needs a one-line written reason that
@@ -229,6 +239,23 @@ Branch on the verdict directly.
   deviation and run `worker-start --worktree` without `--terminal` into the same
   worktree, with an instruction to read the log and branch diff first.
 
+- The fix stage writes `orchestrate/<unit>/fix-<f>.dispositions.md` under
+  `## Dispositions`, one line per `patch` and `nit`:
+
+  ```text
+  R1.2 - fixed - <sha> - swept <a>/<k>[ - <why a<k>]
+  R1.3 - disputed - <reason> - evidence: <cmd=`…` exit=<n> | quoted code>
+  R1.5 - blocked - <environment or authority reason>
+  R1.6 - nit-fixed - <sha>
+  R1.7 - nit-skipped - <reason>
+  ```
+
+  `nit-skipped` lines become known-issues `nit` rows at closing. The next review
+  rules on every `disputed` line. A finding the next review upholds and the fixer
+  disputes again opens a decision gate (`fix as reviewer says` / `accept dispute`
+  / `park unit`); no round is spent on it. A dispute upheld after the budget is
+  spent follows the exhaustion rule.
+
 - A repeated in-scope defect across rounds is reviewer oscillation: escalate the
   reviewer rather than the round count. Adjacent or preventive scope is never
   smuggled into the branch because a late round mentioned it; each such finding
@@ -240,6 +267,13 @@ The branch was cut when the task started and the base has probably moved. Have
 the implementer fetch and merge the current base, resolve conflicts preserving
 both sides' intent, rerun the full suite **and** the build checks — an automatic
 merge can compile and still be wrong — commit the merge, and push.
+
+At PR sync the implementer fixes the nits in one `nit-fix` commit that touches
+only the lines the nits name, and writes
+`orchestrate/<unit>/nit-fix.dispositions.md` in the same `## Dispositions`
+format with `nit-fixed`/`nit-skipped` lines. A nit whose fix changes logic is
+recorded as a known-issues `nit` row instead. The sync's full-suite rerun covers
+the commit.
 
 ```bash
 gh pr create --base <base-branch> --title "<title>" --body "<body>"
@@ -293,7 +327,6 @@ count as done. When a sibling PR from
 this run merges, rerun stage 4's sync for every still-open PR: the base just moved
 under them.
 
-A task is **done** only when the review verdict is clean, or fix-needed with only
-recorded last-round `minor` deferrals, the PR exists or the
-prescribed endgame has landed, and all checks are green. A red required check with
+A task is **done** only when the review verdict is clean (nits and defers may be
+listed), the PR exists or the prescribed endgame has landed, and all checks are green. A red required check with
 no baseline in the manifest's `ci-baseline` line goes to a decision gate.

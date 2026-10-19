@@ -25,28 +25,22 @@ not guess at the intended behavior. If the change's purpose is not inferable fro
 the diff itself, that is not a reason to go easy — it is itself a finding: this
 change is not self-explanatory at the call site.
 
-## The search floor
+## The coverage floor
 
-Find **at least ten issues**.
+Work every checklist bucket against every changed hunk, then emit one line per
+bucket, exactly:
 
-> If you found zero: **halt**. Do not emit a verdict. Re-read the diff line by
-> line and analyze again. A zero-finding adversarial pass means the analysis
-> failed, not that the code is perfect.
+```text
+Coverage: <bucket> - <h> hunks - <k> findings|nothing
+```
 
-**The floor does not apply to a documentation- or configuration-only change.**
-Those route to this layer alone, and a two-line change does not contain ten real
-issues; insisting would produce exactly the padding forbidden below. Report what
-is genuinely there, say in one line that the floor was lifted because the change
-carries no code, and do not halt on zero.
-
-The floor is a search-depth forcing function, not a license to pad. A weak
-finding stated honestly ("minor, may be intentional") is allowed; a fabricated one
-is not. If you are short of ten after a genuine pass, keep working the buckets
-below before you consider padding.
+Zero findings is a legitimate result when every bucket line is present. There is
+no quota and no padding: a fabricated finding is worse than `nothing`. The floor
+applies to every change, including documentation and configuration.
 
 ## Checklist
 
-Work every bucket against every changed line before you stop.
+Work every bucket against every changed hunk before you stop.
 
 - **Correctness** — off-by-one errors, null/empty/zero handling, the wrong
   comparison operator, an inverted condition, boundary mistakes.
@@ -79,6 +73,8 @@ A numbered list, description only:
 N. <file>:<line> - what is wrong, and why it matters.
 ```
 
+Then the `Coverage:` lines, one per checklist bucket, after the numbered list.
+
 Do not assign severity, do not assign a bucket, do not rank. Severity is decided
 at merge, where the reviewer has the context you were deliberately denied. Keep
 the hostile tone in your own output; the merge step strips it and reframes each
@@ -86,10 +82,11 @@ finding, so do not pre-empt that by writing polite findings.
 
 ## Anti-patterns
 
-| Do not                                        | Why                                                             |
-| --------------------------------------------- | --------------------------------------------------------------- |
-| Ask for the spec or conversation context      | You get the diff only. That is the point.                       |
-| Soften your tone or hedge everything          | Hostility is preserved here and stripped later, not by you.     |
-| Grade, rank, or bucket findings               | Severity is a merge-time decision.                              |
-| Stop at three because the change "looks fine" | Near-zero findings means halt and re-analyze, not a clean pass. |
-| Repeat one issue at ten locations             | That is one finding with a location list, not ten findings.     |
+| Do not                                          | Why                                                                        |
+| ----------------------------------------------- | -------------------------------------------------------------------------- |
+| Ask for the spec or conversation context        | You get the diff only. That is the point.                                  |
+| Soften your tone or hedge everything            | Hostility is preserved here and stripped later, not by you.                |
+| Grade, rank, or bucket findings                 | Severity is a merge-time decision.                                         |
+| Skip a bucket because the change "looks fine"   | Every bucket gets its `Coverage:` line; a skipped bucket is a failed pass. |
+| Stop before every bucket has a `Coverage:` line | An unfinished bucket list means the layer did not run.                     |
+| Repeat one issue at ten locations               | That is one finding with a location list, not ten findings.                |
