@@ -15,6 +15,8 @@ const PRIOR_LINE =
   /^Prior: (R[0-9I]+\.\d+) - (fixed|open|disputed-upheld|disputed-withdrawn)(?: - .*)?$/
 const VERDICT_LINE =
   /^VERDICT: (?:clean|fix-needed patch=\d+ decision-needed=\d+ nit=\d+ defer=\d+)$/
+// Why: a line shaped like a finding head (ID start or `<file>:<line> - <severity> - `) must parse or fail loudly.
+const FINDING_LIKE = [/^R[0-9A-Za-z]*\./, /^[^:]*:\d+ - (?:critical|major|minor) - /i]
 
 function bucketOf(value: string): FindingBucket {
   switch (value) {
@@ -43,7 +45,14 @@ export function parseFindingsFile(text: string, path: string): ParsedFindingsFil
       verdict = true
       continue
     }
-    if (/^R[0-9A-Za-z]*\.\d+\. /.test(line)) {
+    if (line.startsWith('Prior:')) {
+      const match = PRIOR_LINE.exec(line)
+      if (match) {
+        result.priors.push({ id: match[1], ruling: match[2] })
+      } else {
+        result.errors.push(`${path}: unparseable line "${line}"`)
+      }
+    } else if (FINDING_LIKE.some((pattern) => pattern.test(line))) {
       const match = FINDING_LINE.exec(line)
       if (match) {
         result.findings.push({
@@ -51,13 +60,6 @@ export function parseFindingsFile(text: string, path: string): ParsedFindingsFil
           bucket: bucketOf(match[2]),
           round1Miss: match[3].includes('[round-1-miss]')
         })
-      } else {
-        result.errors.push(`${path}: unparseable line "${line}"`)
-      }
-    } else if (line.startsWith('Prior:')) {
-      const match = PRIOR_LINE.exec(line)
-      if (match) {
-        result.priors.push({ id: match[1], ruling: match[2] })
       } else {
         result.errors.push(`${path}: unparseable line "${line}"`)
       }

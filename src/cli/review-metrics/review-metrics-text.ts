@@ -68,7 +68,10 @@ export function formatReviewMetricsText(metrics: ReviewMetrics): string {
       lines.push(totalsRow('TOTAL', run.totals))
     }
     if (run.parseErrors.length > 0) {
-      lines.push('Parse errors:', ...run.parseErrors.map((error) => `  ${error}`))
+      lines.push('Parse errors:')
+      for (const error of run.parseErrors) {
+        lines.push(`  ${error}`)
+      }
     }
     lines.push('')
   }

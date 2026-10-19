@@ -1,4 +1,5 @@
 import { resolve } from 'node:path'
+import { reportCliError } from '../../cli-error'
 import type { CommandHandler } from '../../dispatch'
 import { getRepeatedStringFlag } from '../../flags'
 import { RuntimeClientError } from '../../runtime-client'
@@ -41,8 +42,9 @@ export const ORCHESTRATION_REVIEW_METRICS_HANDLER: Record<string, CommandHandler
     if (runs.length === 0 && dirErrors.length > 0) {
       throw dirErrors[0]
     }
+    // Why: stdout already holds the one ReviewMetrics object, so --json errors still go to stderr.
     for (const error of dirErrors) {
-      process.stderr.write(`${error.message}\n`)
+      reportCliError(error, false)
     }
     if (dirErrors.length > 0 || runs.some((run) => run.parseErrors.length > 0)) {
       process.exitCode = 1

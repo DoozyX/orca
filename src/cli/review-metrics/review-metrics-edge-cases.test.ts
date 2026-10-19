@@ -13,7 +13,9 @@ import { buildV2Run, expectedTotals, findings, ledger } from './review-metrics-v
 describe('review-metrics edge cases', () => {
   let root: string
   let stdout: string[]
-  let stderr: string[]
+  let errors: string[]
+  // Why skip: mode 000 blocks neither root nor Windows readers.
+  const modeBitsIgnored = process.platform === 'win32' || process.getuid?.() === 0
 
   function put(rel: string, text: string, base = root): void {
     const path = join(base, rel)
@@ -31,14 +33,13 @@ describe('review-metrics edge cases', () => {
   beforeEach(() => {
     root = mkdtempSync(join(tmpdir(), 'orca-review-metrics-edge-'))
     stdout = []
-    stderr = []
+    errors = []
     vi.spyOn(process.stdout, 'write').mockImplementation((chunk: string | Uint8Array) => {
       stdout.push(String(chunk))
       return true
     })
-    vi.spyOn(process.stderr, 'write').mockImplementation((chunk: string | Uint8Array) => {
-      stderr.push(String(chunk))
-      return true
+    vi.spyOn(console, 'error').mockImplementation((message: unknown) => {
+      errors.push(String(message))
     })
     process.exitCode = undefined
   })
@@ -57,42 +58,52 @@ describe('review-metrics edge cases', () => {
     const output: ReviewMetrics = JSON.parse(stdout.join(''))
     expect(output.runs).toHaveLength(1)
     expect(output.totals).toEqual(expectedTotals)
-    expect(stderr.join('')).toContain(`Cannot read run directory ${join(root, 'missing')}`)
+    expect(errors).toEqual([
+      expect.stringContaining(`Cannot read run directory ${join(root, 'missing')}`)
+    ])
     expect(process.exitCode).toBe(1)
   })
 
-  it('keeps parsed runs when a later run directory is unreadable', async () => {
-    const good = join(root, 'good')
-    const locked = join(root, 'locked')
-    mkdirSync(good)
-    mkdirSync(locked)
-    buildV2Run((rel, text) => put(rel, text, good))
-    chmodSync(locked, 0o000)
-    try {
-      await runCli('good', 'locked')
-    } finally {
-      chmodSync(locked, 0o700)
+  it.skipIf(modeBitsIgnored)(
+    'keeps parsed runs when a later run directory is unreadable',
+    async () => {
+      const good = join(root, 'good')
+      const locked = join(root, 'locked')
+      mkdirSync(good)
+      mkdirSync(locked)
+      buildV2Run((rel, text) => put(rel, text, good))
+      chmodSync(locked, 0o000)
+      try {
+        await runCli('good', 'locked')
+      } finally {
+        chmodSync(locked, 0o700)
+      }
+      expect(JSON.parse(stdout.join('')).runs).toHaveLength(1)
+      expect(errors).toEqual([
+        expect.stringContaining(`Cannot read run directory ${join(root, 'locked')}`)
+      ])
+      expect(process.exitCode).toBe(1)
     }
-    expect(JSON.parse(stdout.join('')).runs).toHaveLength(1)
-    expect(stderr.join('')).toContain(`Cannot read run directory ${join(root, 'locked')}`)
-    expect(process.exitCode).toBe(1)
-  })
+  )
 
-  it('records an unreadable findings file as a parse error and still prints the unit', () => {
-    put('orchestrate/budget.md', ledger([['solo', 'review-full', '1', '-', 'clean']]))
-    put('orchestrate/retrospective.md', '## Escapes\nnone\n')
-    const file = join(root, 'orchestrate/solo/review-1.findings.md')
-    put('orchestrate/solo/review-1.findings.md', findings(['VERDICT: clean']))
-    chmodSync(file, 0o000)
-    try {
-      const run = readRunMetrics(root)
-      expect(run.units.map((unit) => unit.unit)).toEqual(['solo'])
-      expect(run.parseErrors).toHaveLength(1)
-      expect(run.parseErrors[0]).toContain('orchestrate/solo/review-1.findings.md: unreadable')
-    } finally {
-      chmodSync(file, 0o600)
+  it.skipIf(modeBitsIgnored)(
+    'records an unreadable findings file as a parse error and still prints the unit',
+    () => {
+      put('orchestrate/budget.md', ledger([['solo', 'review-full', '1', '-', 'clean']]))
+      put('orchestrate/retrospective.md', '## Escapes\nnone\n')
+      const file = join(root, 'orchestrate/solo/review-1.findings.md')
+      put('orchestrate/solo/review-1.findings.md', findings(['VERDICT: clean']))
+      chmodSync(file, 0o000)
+      try {
+        const run = readRunMetrics(root)
+        expect(run.units.map((unit) => unit.unit)).toEqual(['solo'])
+        expect(run.parseErrors).toHaveLength(1)
+        expect(run.parseErrors[0]).toContain('orchestrate/solo/review-1.findings.md: unreadable')
+      } finally {
+        chmodSync(file, 0o600)
+      }
     }
-  })
+  )
 
   it('counts integration-only findings and misses in the totals', () => {
     put('orchestrate/budget.md', ledger([['only', 'review-integration', 'I', '-', 'fix-needed']]))
@@ -164,6 +175,36 @@ describe('review-metrics edge cases', () => {
       totals: computeTotals(units, 0)
     }
     expect(formatReviewMetricsText(metrics)).toContain('ALL RUNS')
+  })
+
+  it('formats 150000 parse errors without exceeding the argument limit', () => {
+    const parseErrors = Array.from({ length: 150000 }, (_, index) => `f.md: error ${index}`)
+    const metrics: ReviewMetrics = {
+      runs: [
+        {
+          run: 'noisy',
+          format: 'v2',
+          units: [],
+          totals: computeTotals([], 0),
+          escapes: 0,
+          parseErrors
+        }
+      ],
+      totals: computeTotals([], 0)
+    }
+    const text = formatReviewMetricsText(metrics)
+    expect(text).toContain('  f.md: error 149999')
+    expect(text).toContain('ALL RUNS')
+  })
+
+  it('collects 150000 unparseable lines from one findings file', () => {
+    put('orchestrate/budget.md', ledger([['noisy', 'review-full', '1', '-', 'clean']]))
+    put('orchestrate/retrospective.md', '## Escapes\nnone\n')
+    const broken = Array.from({ length: 150000 }, () => 'R1.1. broken line')
+    put('orchestrate/noisy/review-1.findings.md', findings([...broken, 'VERDICT: clean']))
+    const run = readRunMetrics(root)
+    expect(run.units.map((unit) => unit.unit)).toEqual(['noisy'])
+    expect(run.parseErrors).toHaveLength(150000)
   })
 
   it('uses the latest listing when an ID is relisted in a different bucket', () => {

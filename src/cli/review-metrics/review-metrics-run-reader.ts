@@ -76,7 +76,7 @@ export function readRunMetrics(runDir: string): RunMetrics {
   const unreadable = new Set<string>()
   const readRelative = (relative: string): string | null => {
     try {
-      return readIfPresent(join(runDir, ...relative.split('/')))
+      return readIfPresent(join(runDir, relative))
     } catch (error) {
       if (!(error instanceof ReviewMetricsReadError)) {
         throw error
@@ -88,6 +88,12 @@ export function readRunMetrics(runDir: string): RunMetrics {
   }
   const missing = (relative: string): string[] =>
     unreadable.has(relative) ? [] : [`${relative}: missing`]
+  // Why: a spread of one file's errors into push() overflows the call stack.
+  const recordErrors = (errors: readonly string[]): void => {
+    for (const error of errors) {
+      parseErrors.push(error)
+    }
+  }
   const source: UnitFileSource = {
     findings(unit, token) {
       const relative = `orchestrate/${unit}/review-${token}.findings.md`
@@ -100,7 +106,7 @@ export function readRunMetrics(runDir: string): RunMetrics {
         text === null
           ? { findings: [], priors: [], errors: missing(relative) }
           : parseFindingsFile(text, relative)
-      parseErrors.push(...parsed.errors)
+      recordErrors(parsed.errors)
       findingsCache.set(relative, parsed)
       return parsed
     },
@@ -108,7 +114,7 @@ export function readRunMetrics(runDir: string): RunMetrics {
       const relative = `orchestrate/${unit}/fix-${token}.dispositions.md`
       const text = readRelative(relative)
       if (text === null) {
-        parseErrors.push(...missing(relative))
+        recordErrors(missing(relative))
         return []
       }
       return parseDispositions(text)
@@ -126,7 +132,7 @@ export function readRunMetrics(runDir: string): RunMetrics {
   const retrospective = readRelative('orchestrate/retrospective.md')
   let escapes = 0
   if (retrospective === null) {
-    parseErrors.push(...missing('orchestrate/retrospective.md'))
+    recordErrors(missing('orchestrate/retrospective.md'))
   } else {
     const counted = countEscapes(retrospective)
     if (counted === null) {
