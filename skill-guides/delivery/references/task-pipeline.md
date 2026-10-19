@@ -178,7 +178,8 @@ never concurrently.
 Rounds after the first are full-branch rounds with the prior findings attached.
 They take the diff since the reviewed sha as their focus and the diff since the
 base as their scope, every unfixed prior finding is a new finding, and an item
-already dispositioned is not re-raised.
+already resolved is not re-raised; a `disputed` or `blocked` item stays
+reviewable under its original ID.
 
 ### UI evidence
 
@@ -327,6 +328,5 @@ this run merges, rerun stage 4's sync for every still-open PR: the base just mov
 under them.
 
 A task is **done** only when the review verdict is clean (nits and defers may be
-listed), or fix-needed with only recorded last-round `minor` deferrals, the PR exists or the
-prescribed endgame has landed, and all checks are green. A red required check with
+listed), the PR exists or the prescribed endgame has landed, and all checks are green. A red required check with
 no baseline in the manifest's `ci-baseline` line goes to a decision gate.

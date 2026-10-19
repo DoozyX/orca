@@ -235,4 +235,56 @@ describe('review loop v2 guide contract', () => {
     expect(step).toContain('`<root worktree>/.orca/known-issues.md`')
     expect(step).toContain("the latest retrospective's `## Review metrics`")
   })
+  // Fix 1 (review-full #1 findings).
+  it('fix-1: every one-suite clause carries the review #1 exception', () => {
+    const prompts = squash(readDelivery('references/stage-prompts.md'))
+
+    expect(prompts).toContain(
+      'the sole exception is review #1, which reruns the full suite itself after the implementer settles, one run at a time'
+    )
+    expect(prompts).toContain(
+      "everyone else reuses the owner's result for the same revision and environment, except that review #1 owns and reruns the full suite itself"
+    )
+  })
+
+  it('fix-1: review rounds receive the preceding dispositions file', () => {
+    const prompts = squash(readDelivery('references/stage-prompts.md'))
+
+    expect(prompts).toContain(
+      'the preceding `fix-<f>.dispositions.md` path and its content, given to the non-adversarial layers only'
+    )
+  })
+
+  it('fix-1: only resolved findings are not re-raised; disputed and blocked stay reviewable', () => {
+    const pipeline = squash(readDelivery('references/task-pipeline.md'))
+    const prompts = squash(readDelivery('references/stage-prompts.md'))
+
+    expect(pipeline).toContain(
+      'an item already resolved is not re-raised; a `disputed` or `blocked` item stays reviewable under its original ID'
+    )
+    expect(prompts).toContain(
+      'never re-raises an item already resolved; a `disputed` or `blocked` item stays reviewable under its original ID'
+    )
+  })
+
+  it('fix-1: the v2 endgame replaces the minor-deferral done and exhaustion path', () => {
+    const delivery = squash(readDelivery('../delivery.md'))
+    const pipeline = squash(readDelivery('references/task-pipeline.md'))
+
+    expect(delivery).toContain(
+      'each done task has a clean full-branch review verdict (nits and defers listed)'
+    )
+    expect(delivery).toContain(
+      'A task is `done` only when the verdict is clean (nits and defers may be listed), the PR exists'
+    )
+    expect(delivery).toContain(
+      'When the budget is spent with any `patch` or `decision-needed` left, the unit is `needs-attention` with no PR'
+    )
+    expect(pipeline).toContain(
+      'A task is **done** only when the review verdict is clean (nits and defers may be listed), the PR exists'
+    )
+    for (const text of [delivery, pipeline]) {
+      expect(text).not.toContain('minor` deferrals')
+    }
+  })
 })

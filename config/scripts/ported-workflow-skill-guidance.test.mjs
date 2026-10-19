@@ -401,16 +401,14 @@ describe('delivery investigation repairs', () => {
     )
     expect(delivery).toContain('`fix-override`')
     expect(delivery).toContain('`review-override`')
-    expect(delivery).toContain('fix-needed with only recorded last-round `minor` deferrals')
-    expect(pipeline).toContain('fix-needed with only recorded last-round `minor` deferrals')
+    expect(delivery).not.toContain('last-round `minor` deferrals')
+    expect(pipeline).not.toContain('last-round `minor` deferrals')
     expect(pipeline).toContain('An implementer already at strong draws `fix-needed` at review #2')
     expect(pipeline).toContain(
       'review #3, the integration review, and every review after a reviewer-oscillation escalation'
     )
     expect(pipeline).toContain('is never re-reviewed at strong')
-    expect(delivery).toContain(
-      'clean full-branch review verdict, or a fix-needed verdict with only recorded last-round `minor` deferrals'
-    )
+    expect(delivery).toContain('clean full-branch review verdict (nits and defers listed)')
     expect(pipeline).toContain('A red required check with no baseline')
     expect(pipeline).not.toContain('A required check with no baseline')
     expect(delivery).toContain('CI baseline, once per repository, before the first branch is cut')
