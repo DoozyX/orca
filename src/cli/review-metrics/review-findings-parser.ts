@@ -15,8 +15,13 @@ const PRIOR_LINE =
   /^Prior: (R[0-9I]+\.\d+) - (fixed|open|disputed-upheld|disputed-withdrawn)(?: - .*)?$/
 const VERDICT_LINE =
   /^VERDICT: (?:clean|fix-needed patch=\d+ decision-needed=\d+ nit=\d+ defer=\d+)$/
-// Why: a line shaped like a finding head (ID start or `<file>:<line> - <severity> - `) must parse or fail loudly.
-const FINDING_LIKE = [/^R[0-9A-Za-z]*\./, /^[^:]*:\d+ - (?:critical|major|minor) - /i]
+// Why: a line shaped like a finding head (ID start, bracketed bucket or `<file>:<line> - <severity> - `) must parse or fail loudly.
+const FINDING_LIKE = [
+  /^R(?:\d+|[A-Z])?\./,
+  /\[(?:patch|nit|decision-needed|defer)\]/i,
+  /^[^:]*:\d+ - (?:critical|major|minor) - /i
+]
+const PRIOR_LIKE = /^prior\b/i
 
 function bucketOf(value: string): FindingBucket {
   switch (value) {
@@ -45,7 +50,7 @@ export function parseFindingsFile(text: string, path: string): ParsedFindingsFil
       verdict = true
       continue
     }
-    if (line.startsWith('Prior:')) {
+    if (PRIOR_LIKE.test(line)) {
       const match = PRIOR_LINE.exec(line)
       if (match) {
         result.priors.push({ id: match[1], ruling: match[2] })

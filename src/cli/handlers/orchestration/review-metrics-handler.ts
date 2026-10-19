@@ -40,6 +40,9 @@ export const ORCHESTRATION_REVIEW_METRICS_HANDLER: Record<string, CommandHandler
       writeStdoutLine(json ? JSON.stringify(metrics, null, 2) : formatReviewMetricsText(metrics))
     }
     if (runs.length === 0 && dirErrors.length > 0) {
+      for (const error of dirErrors.slice(1)) {
+        reportCliError(error, false)
+      }
       throw dirErrors[0]
     }
     // Why: stdout already holds the one ReviewMetrics object, so --json errors still go to stderr.

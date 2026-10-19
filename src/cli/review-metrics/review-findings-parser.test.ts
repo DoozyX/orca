@@ -16,7 +16,16 @@ describe('parseFindingsFile', () => {
     ['unknown bucket', 'R1.1. a.ts:1 - major - [fix] - logic - bad bucket'],
     ['numbered instead of an ID', '1. a.ts:1 - major - [patch] - logic - list number'],
     ['bulleted ID', '- R1.1. a.ts:1 - major - [patch] - logic - bullet'],
-    ['lowercase ID', 'r1.1. a.ts:1 - major - [patch] - logic - lowercase']
+    ['lowercase ID', 'r1.1. a.ts:1 - major - [patch] - logic - lowercase'],
+    ['em-dash separators', '1. R1 — src/a.ts:50 — major — [patch] — [Edge] — em-dash'],
+    ['severity before the file', '1. R4 - minor - [defer] - [Edge] - severity-first - src/a.ts:36'],
+    ['non-R ID', '1. F1 - major - [patch] - [Edge] - F prefix'],
+    ['Windows drive path', '1. C:\\src\\a.ts:1 - major - [patch] - logic - drive'],
+    ['line range', '- a.ts:10-12 - major - [patch] - logic - range'],
+    ['uppercase bucket', '1. F2 - major - [PATCH] - logic - uppercase bucket'],
+    ['uppercase severity', '1. a.ts:1 - Major - patch - logic - bare bucket'],
+    ['lowercase prior', 'prior: R1.1 - disputed-upheld - x'],
+    ['prior without a colon', 'Prior R1.1 - disputed-withdrawn - x']
   ])('reports a finding-like line with a %s', (_shape, line) => {
     const parsed = parseFindingsFile(findings([line, 'VERDICT: clean']), PATH)
     expect(parsed.findings).toEqual([])
@@ -33,6 +42,8 @@ describe('parseFindingsFile', () => {
         'Scored: 1 finding',
         'Checked: tests focused cmd=pnpm test a.ts:1 exit=0',
         'Rerun alone passed',
+        'Rerun. It passed alone.',
+        'README.md was not touched.',
         '',
         'VERDICT: fix-needed patch=1 decision-needed=0 nit=0 defer=0'
       ]),

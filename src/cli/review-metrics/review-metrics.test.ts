@@ -129,4 +129,18 @@ describe('review-metrics', () => {
       ReviewMetricsRunDirError
     )
   })
+
+  it('reports every missing run directory when none can be read', async () => {
+    const errors: string[] = []
+    vi.spyOn(console, 'error').mockImplementation((message: unknown) => {
+      errors.push(String(message))
+    })
+    await expect(runHandler([join(root, 'missing-a'), join(root, 'missing-b')])).rejects.toThrow(
+      `Cannot read run directory ${join(root, 'missing-a')}`
+    )
+    expect(errors).toEqual([
+      expect.stringContaining(`Cannot read run directory ${join(root, 'missing-b')}`)
+    ])
+    expect(logged).toEqual([])
+  })
 })
