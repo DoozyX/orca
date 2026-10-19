@@ -305,7 +305,7 @@ describe('quality-layer invariants', () => {
 
     expect(squash(guide)).toContain('The asymmetry is a rule, not a preference.')
     expect(guide).toContain('VERDICT: clean')
-    expect(guide).toContain('VERDICT: fix-needed patch=<n> decision-needed=<n> defer=<n>')
+    expect(guide).toContain('VERDICT: fix-needed patch=<n> decision-needed=<n> nit=<n> defer=<n>')
     for (const layer of [
       'adversarial.md',
       'edge-cases.md',
