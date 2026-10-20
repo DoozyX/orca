@@ -40,9 +40,11 @@ Name a shared resource owner when concurrent checks would conflict over a
 database, port, simulator, build directory, or suite. Sequence conflicting users;
 independent checks may run together. Transfer ownership explicitly with the prior
 job's exit evidence, never from an idle pane or a successful wrapper alone.
-The owner takes `orca orchestration lease acquire --resource <key>` before the
-first command that would conflict with another Run, treats `queued` as wait, and
-releases it with the last job's exit evidence.
+Use Orca resource leases only for simulators. Before using a shared simulator,
+take `orca orchestration lease acquire --resource ios-sim-<udid prefix>`, treat
+`queued` as wait, and release it after the last simulator job exits. Do not
+acquire or queue Orca leases for CPU, builds, validation suites, ports, or
+databases; isolate their mutable state and coordinate actual conflicts directly.
 
 Reuse an existing simulator, browser session, or app instance when no other user
 or test is using it and its state suits the check. A fresh instance is required
