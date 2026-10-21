@@ -14,7 +14,6 @@ import { useActiveAccountOwner } from '@/runtime/use-worktree-runtime-target'
 import type { RuntimeClientTarget } from '../../../../shared/runtime-client-target'
 import { resolveClaudeStatusAccountState } from './status-bar-claude-accounts'
 import { resolveCodexStatusAccountState } from './status-bar-codex-accounts'
-import { getClaudeAccountSyncKey, getCodexAccountSyncKey } from './provider-account-sync-key'
 import { useOwnerUsageRateLimits } from './use-owner-usage-rate-limits'
 
 const LOCAL_TARGET: RuntimeClientTarget = { kind: 'local' }
@@ -22,6 +21,15 @@ const EMPTY_ACCOUNTS: ProviderAccountsSnapshot = {
   claude: emptyClaudeAccountsState(),
   codex: emptyCodexAccountsState(),
   rateLimits: null
+}
+
+function managedAccountsKey(
+  accounts: readonly { id: string; updatedAt: number }[] | undefined,
+  activeId: string | null | undefined,
+  activeIdsByRuntime: unknown
+): string {
+  const roster = accounts?.map((account) => `${account.id}:${account.updatedAt}`).join('|') ?? ''
+  return `${activeId ?? 'system'}:${JSON.stringify(activeIdsByRuntime ?? null)}:${roster}`
 }
 
 export function useAccountUsageRoster() {
@@ -33,8 +41,17 @@ export function useAccountUsageRoster() {
   const fetchClaude = useAppStore((s) => s.fetchInactiveClaudeAccountUsage)
   const fetchCodex = useAppStore((s) => s.fetchInactiveCodexAccountUsage)
   const refreshLocal = useAppStore((s) => s.refreshRateLimits)
-  const claudeKey = getClaudeAccountSyncKey(settings)
-  const codexKey = getCodexAccountSyncKey(settings)
+  // Why: only the account roster matters here; the owner is already in ownerKey, never the Active Server.
+  const claudeKey = managedAccountsKey(
+    settings?.claudeManagedAccounts,
+    settings?.activeClaudeManagedAccountId,
+    settings?.activeClaudeManagedAccountIdsByRuntime
+  )
+  const codexKey = managedAccountsKey(
+    settings?.codexManagedAccounts,
+    settings?.activeCodexManagedAccountId,
+    settings?.activeCodexManagedAccountIdsByRuntime
+  )
   // Why: accounts follow the focused workspace's owner, the same host the usage meters read.
   const { target: ownerAccountTarget } = useActiveAccountOwner(LOCAL_TARGET)
   const environmentId = runtimeTargetEnvironmentId(ownerAccountTarget)
@@ -114,7 +131,7 @@ export function useAccountUsageRoster() {
     accounts,
     ownerKey,
     rateLimits: owner.rateLimits,
-    remoteOwned: owner.remoteOwned,
+    remoteOwner: owner.remoteOwner,
     refreshUsage,
     refreshPreviews
   }

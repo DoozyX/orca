@@ -7,7 +7,7 @@ import {
   getWorkspaceStatusGroupKey
 } from '../workspace-statuses'
 import { ALL_GROUP_KEY, getPRLaneKey, getProjectGroupHeaderKey } from './group-keys'
-import { getRepoExecutionHostId } from '../execution-host'
+import { getRepoExecutionHostId, getRepoRoutingConnectionId } from '../execution-host'
 import { buildProjectGroupingIndex, getProjectGroupingForRepo } from '../project-section-grouping'
 import {
   buildMergedProjectGroupIndex,
@@ -70,7 +70,9 @@ export function getGroupKeysForWorktree(
   // under its primary's parents, so keys must name those rows (#22022, #30045).
   const mergedIndex = buildMergedProjectGroupIndex(projectGroups)
   const repoHostId =
-    repo?.connectionId || repo?.executionHostId ? getRepoExecutionHostId(repo) : undefined
+    repo && (getRepoRoutingConnectionId(repo) || repo.executionHostId)
+      ? getRepoExecutionHostId(repo)
+      : undefined
   const row = repo?.projectGroupId
     ? findMergedProjectGroup(mergedIndex, repo.projectGroupId, repoHostId)
     : undefined

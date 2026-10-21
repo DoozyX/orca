@@ -190,6 +190,9 @@ export function UsageRow({
           {accountLabel}
         </span>
       ) : null}
+      {state.detail ? (
+        <span className="pl-[30px] text-[11px] text-muted-foreground">{state.detail}</span>
+      ) : null}
       {hasUsage && mode === 'verbose' ? (
         <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 pl-[30px]">
           {sections.map((section) => (

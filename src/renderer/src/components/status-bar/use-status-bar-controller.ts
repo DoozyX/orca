@@ -7,30 +7,30 @@ import { normalizeUsagePercentageDisplay } from '../../../../shared/usage-percen
 import { normalizeStatusBarUsageMode } from '../../../../shared/status-bar-usage-mode'
 import { isStatusBarItemAvailable } from './status-bar-agent-gating'
 import { getVisibleUsageProvider, isUsageEmptyState } from './status-bar-provider-visibility'
-import {
-  getUsageProviderAccountsSectionId,
-  usageRowSignInOpensSettings
-} from './usage-provider-settings-target'
+import { usageRowSignInOpensSettings } from './usage-provider-settings-target'
 import { useStatusBarMenuFocusHandoff } from './ProviderDetailsMenu'
 import { CLOSE_ALL_CONTEXT_MENUS_EVENT } from '@/lib/close-all-context-menus'
 import { useStatusBarDensity } from './status-bar-density'
+import { useUsageSettingsNavigation } from './use-usage-settings-navigation'
 import { useAccountUsageRoster } from './use-account-usage-roster'
 import { buildAccountUsageRoster } from './account-usage-roster'
+import { isOwnerNotSetUpPlaceholder } from './owner-usage-rate-limits'
 
 export function useStatusBarController(floatingTerminalOpen: boolean) {
   const floatingTerminalShortcut = useShortcutLabel('floatingTerminal.toggle')
   // Why: with a remote account owner the agents run there, so its usage is the one to show.
-  const { rateLimits, remoteOwned, accounts, ownerKey, refreshUsage, refreshPreviews } =
+  const { rateLimits, remoteOwner, accounts, ownerKey, refreshUsage, refreshPreviews } =
     useAccountUsageRoster()
+  const remoteOwned = remoteOwner !== null
   const settings = useAppStore((s) => s.settings)
-  const openSettingsTarget = useAppStore((s) => s.openSettingsTarget)
-  const openSettingsPage = useAppStore((s) => s.openSettingsPage)
   const usagePercentageDisplay = normalizeUsagePercentageDisplay(
     useAppStore((s) => s.usagePercentageDisplay)
   )
   const statusBarUsageMode = normalizeStatusBarUsageMode(useAppStore((s) => s.statusBarUsageMode))
   const setStatusBarUsageMode = useAppStore((s) => s.setStatusBarUsageMode)
   const [usageMenuOpen, setUsageMenuOpen] = useState(false)
+  const { handleManageAccounts, handleUsageDetails, handleOpenProviderAccounts } =
+    useUsageSettingsNavigation(remoteOwner, () => setUsageMenuOpen(false))
   const usageMenuFocusHandoff = useStatusBarMenuFocusHandoff()
   const statusBarVisible = useAppStore((s) => s.statusBarVisible)
   const statusBarItems = useAppStore((s) => s.statusBarItems)
@@ -244,7 +244,10 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
     showCursor ? visibleCursor : null,
     showOmp ? visibleOmp : null,
     showZcode ? visibleZcode : null
-  ].filter((p): p is ProviderRateLimits => p !== null)
+  ]
+    .filter((p): p is ProviderRateLimits => p !== null)
+    // Why: the bar collapses chips from the end, so placeholders give way first.
+    .sort((a, b) => Number(isOwnerNotSetUpPlaceholder(a)) - Number(isOwnerNotSetUpPlaceholder(b)))
 
   const usageEntries = buildAccountUsageRoster({
     providers: rosterProviders,
@@ -253,25 +256,6 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
     ownerKey
   })
 
-  const handleManageAccounts = (): void => {
-    setUsageMenuOpen(false)
-    openSettingsTarget({ pane: 'accounts', repoId: null })
-    openSettingsPage()
-  }
-  const handleUsageDetails = (): void => {
-    setUsageMenuOpen(false)
-    openSettingsTarget({ pane: 'stats', repoId: null })
-    openSettingsPage()
-  }
-  const handleOpenProviderAccounts = (provider: ProviderRateLimits['provider']): void => {
-    const sectionId = getUsageProviderAccountsSectionId(provider)
-    if (!sectionId) {
-      return
-    }
-    setUsageMenuOpen(false)
-    openSettingsTarget({ pane: 'accounts', repoId: null, sectionId })
-    openSettingsPage()
-  }
   const canSignInFromUsageRow = (provider: ProviderRateLimits['provider']): boolean =>
     usageRowSignInOpensSettings(provider, settings)
   const handleUsageMenuOpenChange = (nextOpen: boolean): void => {
@@ -307,6 +291,7 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
     overflowing,
     petEnabled,
     recordFeatureInteraction,
+    remoteOwner,
     rosterProviders,
     segmentsIconOnly,
     segmentsRef,

@@ -7,7 +7,10 @@ import type {
   PermissionMode
 } from '@anthropic-ai/claude-agent-sdk'
 import type { AgentChatPermissionMode } from '../../shared/agent-chat-permission-mode'
-import { agentSessionProviderHandleRoot } from '../../shared/agent-session-provider-handle'
+import {
+  agentSessionProviderHandleKey,
+  agentSessionProviderHandleRoot
+} from '../../shared/agent-session-provider-handle'
 import { claudeProviderHandleLeafUuid } from '../../shared/agent-session-provider-handle-encoding'
 import type { ClaudeStructuredAuthPolicy } from '../claude-accounts/claude-structured-auth-policy'
 import {
@@ -31,6 +34,10 @@ import type { ResolvedClaudeHomeBinding } from '../../shared/claude-home-binding
 import type { AssertClaudeBoundHomeUsable } from './claude-bound-home-refusal'
 import { assertClaudeChatPredatesNoBinding } from './claude-structured-bound-home-checks'
 import { claudeChildLaunchEnv, isEffectiveBoundClaudeHome } from './claude-structured-account-home'
+import {
+  pendingAgentSessionRewindFork,
+  type AgentSessionRewindFork
+} from '../../shared/agent-session-rewind'
 
 export { claudeSessionIdForOrcaSession }
 
@@ -53,6 +60,8 @@ export type ClaudeStructuredSdkOptions = Pick<
   | 'settings'
   | 'sessionId'
   | 'resume'
+  | 'resumeSessionAt'
+  | 'forkSession'
 >
 
 /**
@@ -106,6 +115,8 @@ export type ClaudeStructuredLaunch = {
   /** Lineage: the record's chain already heads this provider session, so the child continues it
    *  even when no transcript exists to `--resume`. Never derived from the launch mode. */
   continuesChain: boolean
+  /** The head a rewind's fork leaves behind: this launch starts the session that replaces it. */
+  forkedFromKey?: string
 }
 
 export type ClaudeStructuredLaunchPartDeps = {
@@ -194,13 +205,16 @@ export function claudeStructuredLaunchPart(
     ) {
       throw new Error('claude durable resume identity changed before spawn')
     }
-    const providerSessionId = head
-      ? head.nativeId
-      : claudeSessionIdForOrcaSession(
-          identity.sessionId,
-          active.pendingClear ? record.providerContextBoundary?.operationId : undefined
-        )
-    const continuesChain = head !== null
+    const fork = pendingAgentSessionRewindFork(record.rewind, head?.nativeId)
+    const providerSessionId = fork
+      ? fork.sessionId
+      : head
+        ? head.nativeId
+        : claudeSessionIdForOrcaSession(
+            identity.sessionId,
+            active.pendingClear ? record.providerContextBoundary?.operationId : undefined
+          )
+    const continuesChain = head?.nativeId === providerSessionId
     const cwd = await basis.launchDirectory()
     const envDeps: ClaudeEnvDeps & Pick<ClaudeStructuredLaunchPartDeps, 'resolveAuthPolicy'> = {
       ...(deps.resolveCommand ? { resolveCommand: deps.resolveCommand } : {}),
@@ -228,7 +242,7 @@ export function claudeStructuredLaunchPart(
     const permission = claudeStructuredPermissionOptions(basis.permissionMode ?? 'ask')
     // A start that failed before its first turn wrote no transcript, and `--resume` of an absent
     // one exits; launch that id fresh instead. With a transcript, `--session-id` would collide.
-    const leafUuid = head ? claudeProviderHandleLeafUuid(head) : null
+    const leafUuid = head && continuesChain ? claudeProviderHandleLeafUuid(head) : null
     const resumes = async (claudeConfigDir: string): Promise<boolean> =>
       (head !== null || active.pendingClear) &&
       (await claudeLaunchResumesTranscript({
@@ -261,6 +275,16 @@ export function claudeStructuredLaunchPart(
       assertUsable: deps.assertBoundHomeUsable
     })
     const resumesTranscript = resumedWithoutRouter ?? (await resumes(launchHome))
+    if (fork?.throughEntryId && !resumesTranscript) {
+      // The fork reads its source, so a source only another account holds is refused as a resume is.
+      await claudeLaunchResumesTranscript({
+        router: boundHome ? undefined : router,
+        leafUuid: fork.throughEntryId,
+        providerSessionId: fork.sourceSessionId,
+        claudeConfigDir: launchHome,
+        hasTranscript: deps.hasTranscript
+      })
+    }
     return {
       launch: {
         pathToClaudeCodeExecutable: command,
@@ -277,13 +301,18 @@ export function claudeStructuredLaunchPart(
             ...thinkingDisplayArgs
           },
           // Claude owns where a resumed conversation continues; the stored leaf is Orca's bookkeeping.
-          ...(resumesTranscript ? { resume: providerSessionId } : { sessionId: providerSessionId })
+          ...(resumesTranscript
+            ? { resume: providerSessionId }
+            : { sessionId: providerSessionId, ...(fork ? claudeRewindForkOptions(fork) : {}) })
         },
         claudeConfigDir: launchHome,
         providerSessionId,
         resumeLeafUuid: resumesTranscript ? leafUuid : null,
         resumesTranscript,
-        continuesChain
+        continuesChain,
+        ...(fork && head && !continuesChain
+          ? { forkedFromKey: agentSessionProviderHandleKey(head) }
+          : {})
       },
       env,
       // Every structured session speaks orchestration as itself; Claude strips no inherited key.
@@ -292,4 +321,13 @@ export function claudeStructuredLaunchPart(
       cliRuntimeCommand: command
     }
   }
+}
+
+/** Until Claude writes the rewind's session, each launch forks it from the kept conversation. */
+function claudeRewindForkOptions(
+  fork: AgentSessionRewindFork
+): Pick<ClaudeStructuredSdkOptions, 'resume' | 'resumeSessionAt' | 'forkSession'> {
+  return fork.throughEntryId
+    ? { resume: fork.sourceSessionId, resumeSessionAt: fork.throughEntryId, forkSession: true }
+    : {}
 }

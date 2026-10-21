@@ -2,6 +2,7 @@ import type { ProjectGroup } from '../project-group-types'
 import {
   getProjectGroupExecutionHostId,
   getRepoExecutionHostId,
+  getRepoRoutingConnectionId,
   LOCAL_EXECUTION_HOST_ID,
   type ExecutionHostId
 } from '../execution-host'
@@ -196,7 +197,9 @@ export function getRepoProjectGroupHostId(
   repo: Pick<Repo, 'connectionId' | 'executionHostId'> | undefined,
   defaultHostId: ExecutionHostId
 ): ExecutionHostId {
-  return repo?.connectionId || repo?.executionHostId ? getRepoExecutionHostId(repo) : defaultHostId
+  return repo && (getRepoRoutingConnectionId(repo) || repo.executionHostId)
+    ? getRepoExecutionHostId(repo)
+    : defaultHostId
 }
 
 /** The merged row a raw group id belongs to. Pass the owning host whenever it is

@@ -26,7 +26,7 @@ describe('parseFindingsFile', () => {
     ['uppercase severity', '1. a.ts:1 - Major - patch - logic - bare bucket'],
     ['lowercase prior', 'prior: R1.1 - disputed-upheld - x'],
     ['prior without a colon', 'Prior R1.1 - disputed-withdrawn - x']
-  ])('reports a finding-like line with a %s', (_shape, line) => {
+  ])('reports a finding-like line with a %s', (_lineKind, line) => {
     const parsed = parseFindingsFile(findings([line, 'VERDICT: clean']), PATH)
     expect(parsed.findings).toEqual([])
     expect(parsed.errors).toEqual([`${PATH}: unparseable line "${line}"`])

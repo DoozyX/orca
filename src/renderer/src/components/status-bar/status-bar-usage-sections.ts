@@ -3,7 +3,7 @@ import type { StatusBarUsageMode } from '../../../../shared/status-bar-usage-mod
 import { isCursorUsageBucket } from '../../../../shared/cursor-usage-buckets'
 import { translate } from '@/i18n/i18n'
 import { formatRateLimitWindowChipLabel } from '@/lib/window-label-formatter'
-import { getUsageHeadlineSection } from './UsageRosterPanel'
+import { getUsageHeadlineSection } from './UsageRow'
 
 export type StatusBarUsageSection = {
   key: string
