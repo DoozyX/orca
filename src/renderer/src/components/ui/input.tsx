@@ -1,17 +1,30 @@
 import * as React from 'react'
+import { cva, type VariantProps } from 'class-variance-authority'
 
 import { cn } from '@/lib/utils'
 import { ImeInput } from '@/lib/ime-text-field'
 
+const inputVariants = cva('', {
+  variants: {
+    density: {
+      default: '',
+      compact: 'h-7 border-border bg-input/50 px-2 text-xs shadow-none md:text-xs'
+    }
+  },
+  defaultVariants: { density: 'default' }
+})
+
 /**
- * `sm` is the 32px density `SelectTrigger` already spells that way, at the matching text ramp.
- * A number keeps the native character-count attribute expressible, so the design axis costs
- * nothing: it is forwarded to the element and leaves `data-size` at `default`.
+ * `size="sm"` is the 32px density `SelectTrigger` already spells that way, at the matching text
+ * ramp. A number keeps the native character-count attribute expressible: it is forwarded to the
+ * element and leaves `data-size` at `default`.
  */
 const Input = React.forwardRef<
   HTMLInputElement,
-  Omit<React.ComponentProps<'input'>, 'size'> & { size?: number | 'default' | 'sm' }
->(({ className, type, size = 'default', ...props }, ref) => {
+  Omit<React.ComponentProps<'input'>, 'size'> & { size?: number | 'default' | 'sm' } & VariantProps<
+      typeof inputVariants
+    >
+>(({ className, type, size = 'default', density, ...props }, ref) => {
   return (
     <ImeInput
       ref={ref}
@@ -26,6 +39,7 @@ const Input = React.forwardRef<
         // Why the attribute selector, not a conditional class: it outranks any unmodified base
         // utility on specificity, so adding one later cannot silently unstyle this density.
         'data-[size=sm]:h-8 data-[size=sm]:text-xs',
+        inputVariants({ density }),
         className
       )}
       {...props}

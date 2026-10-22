@@ -113,6 +113,7 @@ export function SidebarWorktreeListDialogs({
           }
         }}
         onConfirm={dialogs.handleConfirmDeleteProjectGroup}
+        unsavedTargets={dialogs.deleteUnsavedTargets}
       />
       {/* Why mounted only with a resolved target: there is no safe host to fall back to, so the
           dialog simply does not exist while the row does not resolve. */}
