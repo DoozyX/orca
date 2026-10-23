@@ -93,11 +93,16 @@ actually and then revert:
 > If a mutation survives and nothing fails, that behavior is unprotected. Write
 > the test that catches it.
 
-## Exceptions require asking
+## Exceptions
 
-Throwaway prototypes and generated code are the only two, and both need the user
-to say so. "This is hard to test" is not an exception; it is a design signal that
-the code needs a seam.
+Throwaway prototypes and generated code are exceptions only when the user says
+so. Shell and release scripts (`scripts/*.sh` and their helpers) need no ask:
+they get no tests, no stubbed-CLI harness and no wiring into a test gate, and the
+failing-test-first step does not apply to them. Verify a script change with a
+dry-run and a read-only comparison against the real system, and record it.
+
+"This is hard to test" is not an exception; it is a design signal that the code
+needs a seam.
 
 ## Cross-platform and workspace notes
 
