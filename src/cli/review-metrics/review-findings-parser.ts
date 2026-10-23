@@ -15,13 +15,13 @@ const PRIOR_LINE =
   /^Prior: (R[0-9I]+\.\d+) - (fixed|open|disputed-upheld|disputed-withdrawn)(?: - .*)?$/
 const VERDICT_LINE =
   /^VERDICT: (?:clean|fix-needed patch=\d+ decision-needed=\d+ nit=\d+ defer=\d+)$/
-// Why: a line shaped like a finding head (ID start, bracketed bucket or `<file>:<line> - <severity> - `) must parse or fail loudly.
+// Why: a line opening like a finding head (list marker, numbered item or ID token, then a bracketed bucket, or `<file>:<line> - <severity> - `) must parse or fail loudly; quoting lines stay ignorable.
 const FINDING_LIKE = [
   /^R(?:\d+|[A-Z])?\./,
-  /(?:critical|major|minor)\s+[-\u2013\u2014]\s+\[(?:patch|nit|decision-needed|defer)\]/i,
+  /^(?:[-*]|\d+\.|[A-Za-z]+\d+(?:\.\d+)*\.?)\s.*\[(?:patch|nit|decision-needed|defer)\]/i,
   /^[^:]*:\d+ - (?:critical|major|minor) - /i
 ]
-const PRIOR_LIKE = /^prior(?::|\s+R[0-9I])/i
+const PRIOR_LIKE = /^prior(?:\s*(?::|[-–—(])|\s+R[0-9I]+\.)/i
 
 function bucketOf(value: string): FindingBucket {
   switch (value) {
