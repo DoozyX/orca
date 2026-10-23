@@ -40,11 +40,13 @@ describe('engine roles guidance', () => {
     const pipeline = guide('delivery/references/task-pipeline.md')
     const delivery = guide('delivery.md')
     expect(pipeline).toContain('Dispatch → role')
-    expect(pipeline).toContain('different engine')
+    expect(pipeline).toContain('a cross-engine review is an Orca worker')
     expect(pipeline).toContain('same-engine-review')
     expect(pipeline).toContain('--agent <selected>')
     expect(delivery).toContain('## Engine roles')
-    expect(delivery).toContain('role=<r> agent=<a> model=<m|default> quota=<max used %>')
+    expect(delivery).toContain(
+      'role=<r> via=subagent|worker agent=<a> model=<m|default> quota=<max used %>'
+    )
     expect(delivery).toContain('quota@<earliest')
     expect(delivery).toContain('needs-attention')
     expect(delivery).toContain('role=<r> source=default')

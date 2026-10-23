@@ -115,7 +115,7 @@ describe('review loop v2 guide contract', () => {
     const pipeline = squash(readDelivery('references/task-pipeline.md'))
 
     expect(pipeline).toContain(
-      'Review #1 runs at the strong tier on another engine when one is eligible; otherwise record `same-engine-review`.'
+      'Review #1 runs at the strong tier on another engine, as an Orca worker, when the selection rule picks one; otherwise it is a strong same-engine subagent recorded `same-engine-review`.'
     )
     expect(pipeline).toContain(
       'Review #1 reruns the full suite itself — the one exception to "no second full suite per revision": it runs after the implementer settles, one run at a time, never concurrently.'
@@ -149,11 +149,11 @@ describe('review loop v2 guide contract', () => {
     expect(flat).toContain('`orchestrate/<unit>/fix-<f>.dispositions.md`')
   })
 
-  it('US-7: a second dispute opens a gate without spending a round', () => {
+  it('US-7: a second dispute takes a decision row without spending a round', () => {
     const pipeline = squash(readDelivery('references/task-pipeline.md'))
 
     expect(pipeline).toContain(
-      'A finding the next review upholds and the fixer disputes again opens a decision gate (`fix as reviewer says` / `accept dispute` / `park unit`); no round is spent on it.'
+      'A finding the next review upholds and the fixer disputes again takes a `## Decisions` row (`fix as reviewer says` / `accept dispute` / `park unit`); no round is spent on it.'
     )
     expect(pipeline).toContain(
       'A dispute upheld after the budget is spent follows the exhaustion rule.'
