@@ -25,12 +25,14 @@ the unit's allowance without recorded continuation authority. A checkpoint never
 proves process exit or authorizes stopping a live worker.
 
 A parked task keeps its terminal. Retain it explicitly rather than releasing it,
-so the next owner inherits a live session rather than a transcript.
+so the next owner inherits a live session rather than a transcript. A parked
+subagent stage keeps its agent id in the ledger; the subagent dies with the
+coordinator's session, so name its worktree and uncommitted state in the report.
 
 ## Releasing a done task
 
 Release is post-settlement cleanup, never cancellation, and only an accepted
-settlement authorizes it. After each accepted report, do exactly one of: reuse
+settlement authorizes it. A settled subagent needs no release. After each accepted report, do exactly one of: reuse
 the terminal for the next stage, retain it on the user's request, or release it —
 all three are `orchestration` operations and that guide owns the receipts.
 
@@ -73,19 +75,20 @@ authorized. This procedure adds no authority to delete worktrees or scratch.
 ## Teardown check
 
 Per-task cleanup proves only that the recorded worktrees were removed. Before the
-report ships, a **fresh read-only worker** — never your own reading — runs these
+report ships, a **fresh read-only stage agent** — never your own reading — runs these
 checks against `worktrees.md` and writes `orchestrate/teardown.md`, each command
 with its output, ending in `VERDICT: clean` or `VERDICT: residue`:
 
-| Surface          | Command                                                                                        | Residue when                                                                                                  |
-| ---------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| Git worktrees    | `git -C <root> worktree list --porcelain`                                                      | A run worktree marked `removed`, or one nested under the run that the table never recorded                    |
-| Orca worktrees   | `ORCA worktree list --repo id:<repoId> --json`                                                 | A row for a `removed` worktree, or an unrecorded child of the coordinator's worktree                          |
-| Branches         | `git -C <root> branch --list <branch>` per recorded branch                                     | A `removed` unit's branch still exists                                                                        |
-| Worker terminals | `ORCA orchestration worker-list --run <run_id> --terminal-state reclaimable --json`            | Any row, or a `counts.release_unknown`/`release_pending` row the report does not name as unresolved ownership |
-| Other terminals  | `ORCA terminal list --worktree id:<repoId>::<path> --json` per recorded worktree still present | A terminal in a worktree the run no longer owns                                                               |
-| Scratch          | The run's scratch and build-cache roots                                                        | A directory for a released unit                                                                               |
-| Primary checkout | The last `primary-<label>.after` against a fresh snapshot                                      | Any difference                                                                                                |
+| Surface          | Command                                                                                                          | Residue when                                                                                                  |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Git worktrees    | `git -C <root> worktree list --porcelain`                                                                        | A run worktree marked `removed`, or one nested under the run that the table never recorded                    |
+| Orca worktrees   | `ORCA worktree list --repo id:<repoId> --json`                                                                   | A row for a `removed` worktree, or an unrecorded child of the coordinator's worktree                          |
+| Branches         | `git -C <root> branch --list <branch>` per recorded branch                                                       | A `removed` unit's branch still exists                                                                        |
+| Live subagents   | The ledger's `subagent:` dispatch cells against the coordinator's agent list                                     | A subagent with no settling notification that the report does not name as stopped                             |
+| Worker terminals | `ORCA orchestration worker-list --run <run_id> --terminal-state reclaimable --json`, only when the run has a Run | Any row, or a `counts.release_unknown`/`release_pending` row the report does not name as unresolved ownership |
+| Other terminals  | `ORCA terminal list --worktree id:<repoId>::<path> --json` per recorded worktree still present                   | A terminal in a worktree the run no longer owns                                                               |
+| Scratch          | The run's scratch and build-cache roots                                                                          | A directory for a released unit                                                                               |
+| Primary checkout | The last `primary-<label>.after` against a fresh snapshot                                                        | Any difference                                                                                                |
 
 On residue, give the list to a cleanup worker as exact targets, then run the
 check again with a fresh worker. Whatever remains after that stays in place:
@@ -122,8 +125,8 @@ Reviewers read it at the merge step only.
 
 ## Retrospective
 
-Every run gets one, whatever its outcome. Before the closing report, dispatch one
-worker to append this run's entry to
+Every run gets one, whatever its outcome. Before the closing report, run one
+stage agent to append this run's entry to
 `orchestrate/retrospective.md`, which later `brainstorming` sessions read. It
 reads earlier runs' `.orca/*/orchestrate/retrospective.md` first; a repeated
 issue cites the earlier file and adds only the new evidence. Record only what
@@ -158,12 +161,10 @@ runtime, orchestration, terminals and agent hooks, or a bundled skill guide. An
 entry about the target repository, its CI, or an agent CLI Orca cannot work
 around stays in the retrospective only.
 
-A structured retrospective worker cannot be reused with `worker-start --terminal`.
-Either hand it the filing Task with `orchestration dispatch --task <task_id> --to
-<structworker_handle> --from <coordinator_handle> --return-preamble --json` and
-`orchestration send` of the returned preamble — unsupervised reuse, whose
-`worker-stop` fences the Dispatch and interrupts the session's running turn — or
-file with a fresh worker given the retrospective's path.
+Continue the retrospective subagent with the filing instructions through the
+launch table's Continue action, or file with a fresh stage agent given the
+retrospective's path. A retrospective that ran as an Orca worker cannot be reused
+with `worker-start --terminal`; file with a fresh stage agent.
 
 Per entry, search first, then file or comment, never both:
 
@@ -193,7 +194,7 @@ Deliver it to the user, one block per task:
 - PR: <url or "endgame: <what landed>"> - checks: green | failing | none
 - Review: <N> review(s), <M> fix(es) counted in budget.md - clean | open items: <list>
 - Rework: amendment and recovery attempts and continuation decisions
-- Models: <stage tier/model per dispatch> - escalations: <none | what and why>
+- Models: <stage tier/model/via=subagent|worker per dispatch> - escalations: <none | what and why>
 - Evidence: <the command output that settled it>
 - Screenshots: <orchestrate/<unit>/ capture paths> (UI units only)
 - Blind A/B: <AB_SUMMARY line> (when the judge ran)

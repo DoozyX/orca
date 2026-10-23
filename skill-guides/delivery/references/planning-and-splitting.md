@@ -6,7 +6,7 @@ of a split is always one branch and one PR or endgame for the issue.
 
 ## Planner
 
-One planner worker in its own worktree writes, under the run directory's
+One planner stage agent in its own worktree writes, under the run directory's
 `plan/<unit>/`, a `plan.md` and one task file per task at
 `tasks/task-NN-<name>.md`. It implements nothing, commits nothing, and its
 worktree's `git status --porcelain` is empty when it settles; a non-empty

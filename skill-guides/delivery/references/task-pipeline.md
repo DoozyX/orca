@@ -1,8 +1,9 @@
 # Task pipeline
 
 Load this reference when running a task's implement, review, fix, PR, or CI
-stage. Every dispatch, wait, and release here is an `orchestration` operation;
-this document owns only what to ask for and what settles it.
+stage. A stage runs as a subagent or as an Orca worker by the kernel's selection
+rule. A worker's dispatch, wait, and release are `orchestration` operations; this
+document owns only what to ask for and what settles it.
 
 ## Shared verification contract
 
@@ -62,11 +63,34 @@ A changed head or relevant environment invalidates the affected proof.
 ## Model tiers
 
 A tier is a task strength, not a model name. Record it for every dispatch. When
-Engine roles are configured, follow `orchestration`'s role selection and pass
-the selected candidate's model and effort; a strong tier uses its `strong`
-override when present. With no roles file or a missing role, keep the existing
+Engine roles are configured, select the candidate with `orchestration`'s quota
+check, then run the stage by the kernel's selection rule and pass the selected
+candidate's model and effort; a strong tier uses its `strong` override when
+present. With no roles file or a missing role, keep the existing
 `## Model tiers` rule: pass `--model` only for a concrete user-configured tier
 mapping, otherwise inherit the agent default and record `model=default`.
+
+### Launching a stage agent
+
+| Action                          | Claude Code                                                                   | Codex                                                                                                   |
+| ------------------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Start                           | `Agent`, general-purpose, background, `model` alias, prompt = saved spec text | `collaboration.spawn_agent` (`task_name`, `message`, `fork_turns: "none"`, `model`, `reasoning_effort`) |
+| Continue (fix round, follow-up) | `SendMessage` to the agent id                                                 | `collaboration.followup_task` (`target`, `message`)                                                     |
+| Settle                          | the completion notification                                                   | the agent's final message, announced through `collaboration.wait_agent`                                 |
+| Stop                            | `TaskStop`                                                                    | `collaboration.interrupt_agent` (`target`)                                                              |
+
+A returned agent id proves the stage started. Codex applies a `model` or
+`reasoning_effort` override only with `fork_turns: "none"`, so a Codex subagent
+spec is self-contained and forks no history.
+
+**Model mapping.** A Claude candidate's model id maps to its family alias:
+`claude-opus-*` → `opus`, `claude-sonnet-*` → `sonnet`, `claude-haiku-*` →
+`haiku`, `claude-fable-*` → `fable`. A pinned version runs as the alias's current
+model and is recorded as `model=<alias>`. Pass the candidate's `effort` when the
+roles file sets one: user configuration counts as an explicit request. With no
+mapping the subagent inherits the coordinator's model, recorded as
+`model=default`. For Codex, pass the candidate's model and effort; with none
+configured, record `model=default`.
 
 ### Dispatch → role
 
@@ -81,12 +105,15 @@ mapping, otherwise inherit the agent default and record `model=default`.
 Read and validate Engine roles before the first dispatch. Immediately before
 each configured-role dispatch, select from fresh quota as specified in
 `orchestration/references/coordinator-loop.md`; an omitted role follows the
-default launch path and records `role=<r> source=default`. For review, prefer a
-different engine from the producer while preserving each group's candidate
-order. If only the producer's engine is eligible, record `same-engine-review`
-and mention it in the next status message. A `quota@<earliest reset>` parks only
-that unit while other units continue; all `no-quota-data` or `unavailable`
-candidates yield `needs-attention` with their reasons.
+default launch path and records `role=<r> source=default`. Then apply the
+kernel's selection rule: a cross-engine review is an Orca worker on the other
+engine while it has a reviewer candidate under quota; every other stage is a
+subagent on the coordinator's engine, or an Orca worker on the next eligible
+candidate when that engine has none under quota. A review that falls back to the
+producer's engine records `same-engine-review` and is mentioned in the next
+status message. A `quota@<earliest reset>` parks only that unit while other
+units continue; all `no-quota-data` or `unavailable` candidates yield
+`needs-attention` with their reasons.
 
 | Tier     | Dispatches                                                                                                                                                                                                                 |
 | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -97,18 +124,19 @@ candidates yield `needs-attention` with their reasons.
 Cheap never implements or reviews. It is for bounded extraction whose result you
 can check at a glance — work you would otherwise read yourself at a higher rate.
 
-Review #1 runs at the strong tier on another engine when one is eligible;
-otherwise record `same-engine-review`.
+Review #1 runs at the strong tier on another engine, as an Orca worker, when the
+selection rule picks one; otherwise it is a strong same-engine subagent recorded
+`same-engine-review`.
 
 Escalations are one-way for the rest of the unit:
 
-| Trigger                                                            | Escalation                                                                                                                            |
-| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
-| Reviewer oscillation: new findings in code an earlier round passed | Every later review of the unit runs strong                                                                                            |
-| An implementer below strong still draws `fix-needed` at review #2  | Fix #2 goes to a fresh strong worker in the same worktree, told to read `git log` and the branch diff first, not to the same terminal |
-| An implementer already at strong draws `fix-needed` at review #2   | Fix #2 stays on that implementer's terminal; no fresh worker                                                                          |
+| Trigger                                                            | Escalation                                                                                                                                                        |
+| ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Reviewer oscillation: new findings in code an earlier round passed | Every later review of the unit runs strong                                                                                                                        |
+| An implementer below strong still draws `fix-needed` at review #2  | Fix #2 goes to a fresh subagent on the strong model in the same worktree, told to read `git log` and the branch diff first, not to the implementer's own subagent |
+| An implementer already at strong draws `fix-needed` at review #2   | Fix #2 continues that implementer's subagent; no fresh agent                                                                                                      |
 
-With no concrete strong model mapped, the fresh session is the escalation;
+With no concrete strong model mapped, the fresh agent is the escalation;
 record `tier=strong model=default`. A `clean` verdict from a standard-tier round
 is terminal like any other and is never re-reviewed at strong.
 
@@ -119,11 +147,18 @@ coordinator's worktree, so the whole delivery run reads as one tree instead of a
 row of unrelated top-level entries. Cut it explicitly from the base branch, never
 from whatever branch happens to be checked out. Record the worktree path, branch,
 HEAD, and the resolved base sha in `worktrees.md` and the manifest before the
-worker starts changing files; a mismatch is a launch failure, not a baseline to
-work around.
+stage agent starts changing files; a mismatch is a launch failure, not a baseline
+to work around.
 
 ```text
 ORCA worktree create --name <task-slug> --parent-worktree active --base-branch <base> --json
+```
+
+Then start the implementer as a subagent per the launch table, with the saved
+spec as its prompt. Where the selection rule sends the stage to an Orca worker,
+run `run-create` first if the run has none, then:
+
+```text
 ORCA orchestration worker-start --spec "<task spec>" --worktree id:<repoId>::<worktreePath> --agent <selected> --from <coordinator_handle> --json
 ```
 
@@ -144,15 +179,18 @@ commit without pushing.
 list.** Every path you include should be something the worker consults to check a
 detail, never something it must read before it can start.
 
-**Confirm the brief arrived.** A successful dispatch proves durable enqueue, not
-that the agent took the brief up as a turn. Check that the worker is actually
-working — a fresh heartbeat, or `worker-show` reporting a live agent that has
-begun — before you count the stage as started.
+**Confirm the brief arrived.** For a subagent, the returned agent id proves it
+started. For an Orca worker, a successful dispatch proves durable enqueue, not
+that the agent took the brief up as a turn: check that it is actually working — a
+fresh heartbeat, or `worker-show` reporting a live agent that has begun — before
+you count the stage as started.
 
 ## 2. Review
 
 Dispatch a **fresh** reviewer into the **same worktree** once the implementer
-settles. Record that worktree's HEAD at dispatch; every later round is scoped
+settles. Any reviewer, subagent or Orca worker, runs the `review` skill's layers
+as its own parallel subagents; the adversarial layer's subagent receives the diff
+only. Record that worktree's HEAD at dispatch; every later round is scoped
 against it as the reviewed sha.
 
 Keep review read-only. Tool restrictions block editing tools but leave a shell
@@ -228,18 +266,15 @@ Branch on the verdict directly.
   radius is existing data, introduced by this branch, is never minor — regrade it
   upward and send it back. Regrading downward needs a one-line written reason that
   goes into the closing report.
-- Reuse the settled implementer's terminal for the fix round, except under a
-  tier escalation below, rather than dispatching a new one: it holds why the code took its shape, and a fresh session
-  re-reads the branch before it can start.
-
-  ```text
-  ORCA orchestration worker-start --spec "<fix spec>" --terminal <implementer_handle> --worktree id:<repoId>::<worktreePath> --from <coordinator_handle> --json
-  ```
-
-  `--agent`, `--model` and `--effort` cannot combine with `--terminal`; the
-  reused terminal keeps its agent and model. If that terminal is gone, record the
-  deviation and run `worker-start --worktree` without `--terminal` into the same
-  worktree, with an instruction to read the log and branch diff first.
+- Continue the settled implementer's own subagent for the fix round, except under
+  a tier escalation above, rather than starting a new one: it holds why the code
+  took its shape, and a fresh agent re-reads the branch before it can start. Send
+  the fix spec with the launch table's Continue action; the continued agent keeps
+  its model. If that agent is gone, record the deviation and start a fresh
+  subagent on the same worktree with an instruction to read `git log` and the
+  branch diff first. An implementer that ran as an Orca worker is reused with
+  `ORCA orchestration worker-start --spec "<fix spec>" --terminal <implementer_handle> --worktree id:<repoId>::<worktreePath> --from <coordinator_handle> --json`;
+  `--agent`, `--model` and `--effort` cannot combine with `--terminal`.
 
 - The fix stage writes `orchestrate/<unit>/fix-<f>.dispositions.md` under
   `## Dispositions`, one line per `patch` and `nit`:
@@ -254,8 +289,8 @@ Branch on the verdict directly.
 
   `nit-skipped` lines become known-issues `nit` rows at closing. The next review
   rules on every `disputed` line. A finding the next review upholds and the fixer
-  disputes again opens a decision gate (`fix as reviewer says` / `accept dispute`
-  / `park unit`); no round is spent on it. A dispute upheld after the budget is
+  disputes again takes a `## Decisions` row (`fix as reviewer says` / `accept
+  dispute` / `park unit`); no round is spent on it. A dispute upheld after the budget is
   spent follows the exhaustion rule.
 
 - A repeated in-scope defect across rounds is reviewer oscillation: escalate the
@@ -296,12 +331,13 @@ The PR body covers what changed, why, and how it was verified, plus the issue
 reference for an issue-sourced task. It carries no run-directory paths, no
 terminal handles, and no orchestration detail.
 
-**Guard the primary checkout around every merge or deploy worker.** Those
-workers run where they are pointed, and the primary checkout is where a person's
-uncommitted work lives. Give each its own worktree; a direct merge pushes
-`HEAD:refs/heads/<target>` from there and never needs the primary checked out.
-Immediately before dispatch and again when it settles — before releasing it —
-record into `orchestrate/primary-<label>.before` and `.after`:
+**Guard the primary checkout around every writing stage agent.** Every merge or
+deploy worker and every subagent with write authority runs where it is pointed,
+and the primary checkout is where a person's uncommitted work lives. Give each its
+own worktree; a direct merge pushes `HEAD:refs/heads/<target>` from there and
+never needs the primary checked out. Immediately before dispatch and again when it
+settles — before releasing it — record into `orchestrate/primary-<label>.before`
+and `.after`:
 
 ```text
 git -C <primary> rev-parse HEAD
@@ -309,14 +345,17 @@ git -C <primary> symbolic-ref -q --short HEAD
 git -C <primary> status --porcelain
 ```
 
+Take the same three snapshots of the coordinator's own worktree, which a
+subagent that starts in the coordinator's directory can also write to.
+
 Any difference is a stop: record what moved in the manifest, retain the worker's
-terminal, report to the user, and dispatch nothing further until they decide.
+terminal or keep the subagent's agent id, report to the user, and dispatch nothing further until they decide.
 Never repair it yourself. A folder workspace has no primary checkout to guard;
 record that instead.
 
 ## 5. Green CI
 
-Dispatch a cheap inspection worker for the open PRs rather than polling from the
+Run a cheap inspection subagent for the open PRs rather than polling from the
 coordinator. It runs the host's check command, writes a compact status artifact,
 and on failure pulls the failing log into the task's directory. You read the
 deciding green or red summary and route the result to the still-live implementer.
@@ -331,4 +370,4 @@ under them.
 
 A task is **done** only when the review verdict is clean (nits and defers may be
 listed), the PR exists or the prescribed endgame has landed, and all checks are green. A red required check with
-no baseline in the manifest's `ci-baseline` line goes to a decision gate.
+no baseline in the manifest's `ci-baseline` line takes a `## Decisions` row.

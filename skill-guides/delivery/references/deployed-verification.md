@@ -27,8 +27,9 @@ imagined.
 
 ## 2. Independent measurement arms
 
-Dispatch the arms as one parallel wave so they cannot share conclusions or
-contaminate one another's evidence. Each arm writes its machine-readable artifact,
+Start the arms as one parallel wave of fresh subagents, each given only its own
+arm spec, so they cannot share conclusions or contaminate one another's
+evidence. Each arm writes its machine-readable artifact,
 settles, and reports the artifact path. **A path reported before the producer
 settled is not ready for use** — an arm that names its output file and then keeps
 writing has told you where to look, not that there is anything to look at.

@@ -182,8 +182,96 @@ describe('delivery layers on orchestration rather than reimplementing it', () =>
     const guide = squash(readGuide('delivery'))
 
     expect(guide).toContain('at most three counted reviews and two counted fixes')
-    expect(guide).toContain('gate-create')
-    expect(guide).toContain('gate-resolve')
+    expect(guide).not.toContain('gate-create')
+    expect(guide).not.toContain('gate-resolve')
+  })
+
+  it('logs budget overrides and coordinator decisions as manifest rows', () => {
+    const guide = squash(readGuide('delivery'))
+
+    expect(guide).toContain('| id | unit | asked-at | question | options | answer | decided-by |')
+    expect(guide).toContain('The `answer` cell quotes the user verbatim')
+    expect(guide).toContain('decision D2: user approved a third fix')
+    expect(guide).toContain('delivery opens no orchestration decision gate for it')
+  })
+
+  it('runs stages as subagents unless the selection rule sends them to an Orca worker', () => {
+    const guide = squash(readGuide('delivery'))
+
+    expect(guide).not.toContain('Every stage runs as an Orca worker')
+    expect(guide).toContain(
+      'A review with `crossEngineReview: true`, where the other engine has a reviewer candidate under `skipAbovePercent`: an Orca worker on that candidate.'
+    )
+    expect(guide).toContain(
+      "where the coordinator's engine has a candidate for the role under the threshold, or `engine-roles=none`: a subagent on that candidate's model"
+    )
+    expect(guide).toContain(
+      'Otherwise, the next eligible candidate in role order, as an Orca worker.'
+    )
+    expect(guide).toContain('Otherwise `quota@<reset>` or `needs-attention`')
+    expect(guide).toContain(
+      "Run `run-create` immediately before the run's first Orca worker dispatch, and never otherwise"
+    )
+    expect(guide).toContain('`role=<r> via=subagent|worker agent=<a>')
+    expect(guide).toContain('`subagent:<claude|codex>:<agent-id>`')
+  })
+
+  it('settles a subagent only on its final notification and keeps the liveness vocabulary', () => {
+    const guide = squash(readGuide('delivery'))
+
+    expect(guide).toContain(
+      "A subagent stage settles only on the subagent's final completion notification"
+    )
+    expect(guide).toContain('is a checkpoint: note it in the manifest and keep waiting')
+    expect(guide).toContain('a completion notification with no live background work of its own')
+    expect(guide).toContain('lacks its evidence goes through the evidence-free rule')
+  })
+
+  it('resolves subagents lost with a previous session and bans handing off with live ones', () => {
+    const guide = squash(readGuide('delivery'))
+
+    expect(guide).toContain('becomes `invalid` with reason `subagent-lost`')
+    expect(guide).toContain('any other stage becomes a recovery attempt')
+    expect(guide).toContain('Never hand off with a live subagent')
+  })
+
+  it('continues the implementer subagent for fixes and escalates to a fresh strong subagent', () => {
+    const reference = squash(readReference('delivery', 'task-pipeline.md'))
+
+    expect(reference).toContain("Continue the settled implementer's own subagent for the fix round")
+    expect(reference).toContain('`SendMessage` to the agent id')
+    expect(reference).toContain(
+      'Fix #2 goes to a fresh subagent on the strong model in the same worktree, told to read `git log` and the branch diff first'
+    )
+    expect(reference).toContain('`claude-opus-*` → `opus`')
+    expect(reference).toContain('`model=default`')
+  })
+
+  it('binds subagents to their worktree and widens the primary-checkout guard to them', () => {
+    const prompts = squash(readReference('delivery', 'stage-prompts.md'))
+    const pipeline = squash(readReference('delivery', 'task-pipeline.md'))
+
+    expect(prompts).toContain('cd <abs worktree> && git rev-parse --show-toplevel')
+    expect(prompts).toContain('stop with `BLOCKED`')
+    expect(prompts).toContain('give every file tool an absolute path')
+    expect(prompts).toContain('Never run `orca orchestration` commands')
+    expect(prompts).toContain("Start no subagents, except the review skill's layer subagents")
+    expect(pipeline).toContain('Guard the primary checkout around every writing stage agent')
+    expect(pipeline).toContain("Take the same three snapshots of the coordinator's own worktree")
+  })
+
+  it('takes the Codex subagent tool names from the probed tool list', () => {
+    const pipeline = readReference('delivery', 'task-pipeline.md')
+
+    for (const tool of [
+      'collaboration.spawn_agent',
+      'collaboration.followup_task',
+      'collaboration.wait_agent',
+      'collaboration.interrupt_agent'
+    ]) {
+      expect(pipeline).toContain(tool)
+    }
+    expect(pipeline).not.toContain('close_agent')
   })
 
   it('accounts for pre-review rework without resetting budgets or stopping live workers', () => {
