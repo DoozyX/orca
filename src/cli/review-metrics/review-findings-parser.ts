@@ -18,10 +18,10 @@ const VERDICT_LINE =
 // Why: a line shaped like a finding head (ID start, bracketed bucket or `<file>:<line> - <severity> - `) must parse or fail loudly.
 const FINDING_LIKE = [
   /^R(?:\d+|[A-Z])?\./,
-  /\[(?:patch|nit|decision-needed|defer)\]/i,
+  /(?:critical|major|minor)\s+[-\u2013\u2014]\s+\[(?:patch|nit|decision-needed|defer)\]/i,
   /^[^:]*:\d+ - (?:critical|major|minor) - /i
 ]
-const PRIOR_LIKE = /^prior\b/i
+const PRIOR_LIKE = /^prior(?::|\s+R[0-9I])/i
 
 function bucketOf(value: string): FindingBucket {
   switch (value) {

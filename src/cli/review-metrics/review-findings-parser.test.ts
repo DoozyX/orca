@@ -25,7 +25,9 @@ describe('parseFindingsFile', () => {
     ['uppercase bucket', '1. F2 - major - [PATCH] - logic - uppercase bucket'],
     ['uppercase severity', '1. a.ts:1 - Major - patch - logic - bare bucket'],
     ['lowercase prior', 'prior: R1.1 - disputed-upheld - x'],
-    ['prior without a colon', 'Prior R1.1 - disputed-withdrawn - x']
+    ['prior without a colon', 'Prior R1.1 - disputed-withdrawn - x'],
+    ['unknown bucket after file and line', 'a.ts:1 - major - [fix] - logic - bad bucket'],
+    ['malformed prior ruling', 'Prior: R1.1 - bogus']
   ])('reports a finding-like line with a %s', (_lineKind, line) => {
     const parsed = parseFindingsFile(findings([line, 'VERDICT: clean']), PATH)
     expect(parsed.findings).toEqual([])
@@ -51,5 +53,23 @@ describe('parseFindingsFile', () => {
     )
     expect(parsed.errors).toEqual([])
     expect(parsed.findings).toEqual([{ id: 'R1.1', bucket: 'patch', round1Miss: false }])
+  })
+
+  it('ignores lines that only quote a bucket tag or open with Prior to', () => {
+    const parsed = parseFindingsFile(
+      findings([
+        'R1.1. a.ts:1 - major - [patch] - logic - valid',
+        'evidence: the reviewer tagged it [patch] but it is a [defer]',
+        'class: logic [patch]',
+        'Checked: bucket [nit] confirmed against the guide',
+        'The [decision-needed] bucket is explained in the guide.',
+        'Prior to the fix, the parser rejected this line.',
+        'VERDICT: fix-needed patch=1 decision-needed=0 nit=0 defer=0'
+      ]),
+      PATH
+    )
+    expect(parsed.errors).toEqual([])
+    expect(parsed.findings).toEqual([{ id: 'R1.1', bucket: 'patch', round1Miss: false }])
+    expect(parsed.priors).toEqual([])
   })
 })
