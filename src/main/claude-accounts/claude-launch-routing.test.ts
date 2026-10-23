@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ClaudeManagedAccount } from '../../shared/managed-account-types'
 import { resolveClaudeStructuredInvocation } from '../claude/claude-structured-launch-resolution'
 import { resolveClaudeStructuredLaunchHome } from '../claude/claude-structured-launch-home'
@@ -22,6 +22,7 @@ import type { ClaudeHomeBindingCatalogSource } from '../claude/claude-structured
 
 const roots: string[] = []
 afterEach(() => {
+  vi.unstubAllEnvs()
   installClaudeProfileRouter(undefined)
   roots.splice(0).forEach((root) => rmSync(root, { recursive: true, force: true }))
 })
@@ -206,6 +207,8 @@ function boundGroupCatalog(boundDir: string) {
 
 describe("a project group's bound Claude home", () => {
   it('overrides the selected account on every entry point, and Orca writes nothing there', async () => {
+    // A test run from an Orca terminal inherits the real user's pointer.
+    vi.stubEnv(CLAUDE_PROFILE_POINTER_ENV, undefined)
     const boundDir = mkdtempSync(join(tmpdir(), 'claude-bound-home-'))
     roots.push(boundDir)
     writeFileSync(join(boundDir, '.credentials.json'), '{}')

@@ -130,6 +130,10 @@ const NODE_RUNTIME_INCLUDE = [
   'src/main/window/native-chat-paste-files.test.ts',
   'src/main/computer/desktop-script-serve-channel.test.ts',
   'src/main/providers/local-pty-child-process-verdict.test.ts',
+  // These drive real zsh through node-pty, which Bun cannot spawn.
+  'src/main/daemon/shell-ready.test.ts',
+  'src/main/daemon/repro-13767-shell-ready-marker-lost-to-exec.test.ts',
+  'src/main/shell-startup-feature-channel.test.ts',
   'src/main/providers/working-directory-validation.test.ts',
   'src/main/pty/posix-pty-process-groups.integration.test.ts',
   'src/shared/ephemeral-vm-recipe-output-capture.test.ts',
@@ -177,6 +181,8 @@ const NODE_RUNTIME_INCLUDE = [
   'src/main/claude/claude-agent-sdk-contract-pins.test.ts',
   'config/scripts/profile-state-worker-smoke.test.mjs',
   'config/scripts/process-host-dev-rebuild.test.ts',
+  // Bun's node:module has no stripTypeScriptTypes.
+  'tests/e2e/cross-version-wire/host-model-catalog-released-phone.unit.test.ts',
   'config/scripts/vitest-node-runtime-boundary.test.ts',
   'config/scripts/vitest-node-runtime-pool.test.ts'
 ]

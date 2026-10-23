@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -234,6 +234,7 @@ describe('unloaded plugin directive unused warning', () => {
     const directory = mkdtempSync(path.join(root, 'config', 'anti-slop-directive-test-'))
     try {
       const file = path.join(directory, filename)
+      mkdirSync(path.dirname(file), { recursive: true })
       writeFileSync(file, [firstLine, 'export const value = 1', ''].join('\n'))
       assert({
         message: 'Unused oxlint-disable directive (no problems were reported).',
@@ -325,13 +326,17 @@ describe('unloaded plugin directive unused warning', () => {
       '  return value',
       '}'
     ].join('\n')
-    withFixture(source, ({ filename }) => {
-      const normal = scanFixture('code quality', filename)
-      const unused = normal.find((diagnostic) => diagnostic.message.startsWith('Unused '))
-      expect(unused).toBeDefined()
-      expect(isUnloadedPluginDirectiveUnusedWarning(unused, root, 'code quality')).toBe(true)
-      expect(scanFixture('React Doctor', filename)).toEqual([])
-    })
+    withFixture(
+      source,
+      ({ filename }) => {
+        const normal = scanFixture('code quality', filename)
+        const unused = normal.find((diagnostic) => diagnostic.message.startsWith('Unused '))
+        expect(unused).toBeDefined()
+        expect(isUnloadedPluginDirectiveUnusedWarning(unused, root, 'code quality')).toBe(true)
+        expect(scanFixture('React Doctor', filename)).toEqual([])
+      },
+      'src/fixture.ts'
+    )
   })
 
   it('keeps an unused Doctor directive failing in its loaded scan', () => {
