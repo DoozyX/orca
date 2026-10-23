@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -20,7 +20,7 @@ import {
 let userDataPath: string
 
 beforeEach(() => {
-  userDataPath = mkdtempSync(join(tmpdir(), 'orca-removed-preference-'))
+  userDataPath = realpathSync(mkdtempSync(join(tmpdir(), 'orca-removed-preference-')))
 })
 
 afterEach(() => {
