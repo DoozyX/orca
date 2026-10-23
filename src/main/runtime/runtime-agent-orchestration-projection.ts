@@ -14,11 +14,13 @@ import {
   projectWorkerAttentionContext
 } from './orchestration/worker-attention-context'
 import { worktreeIdsEqual } from '../../shared/worktree/id'
+import type { PtyPaneOf } from './terminal/surface/pty-pane-query'
 
 type RuntimeAgentOrchestrationDependencies = {
   getDb(): OrchestrationDb | null
   getLeaves(): Iterable<RuntimeLeafRecord>
   getPtys(): Iterable<RuntimePtyWorktreeRecord>
+  paneOf: PtyPaneOf
   issueLeafHandle(leaf: RuntimeLeafRecord): string
   issuePtyHandle(pty: RuntimePtyWorktreeRecord): string
   makePaneKey(leaf: RuntimeLeafRecord): string
@@ -57,6 +59,14 @@ export class RuntimeAgentOrchestrationProjection {
     // Defer attention to one batched query below; per-pane facts would refetch on every 16ms publish.
     const batchAttention = typeof db.getWorkerAttentionFactsForDispatches === 'function'
     const queriedHandles = new Set<string>()
+    const contextFor = (handle: string, paneKey: string) =>
+      this.getForHandle(handle, db, {
+        paneKey,
+        evidence: evidenceByPaneKey.get(paneKey),
+        deferAttention: batchAttention,
+        onSettledPastDisplayWindow: (dispatch) =>
+          settledRunIdByPaneKey.set(paneKey, dispatch.run_id)
+      })
     for (const leaf of this.deps.getLeaves()) {
       if (!leaf.ptyId) {
         continue
@@ -64,19 +74,14 @@ export class RuntimeAgentOrchestrationProjection {
       const handle = this.deps.issueLeafHandle(leaf)
       queriedHandles.add(handle)
       const paneKey = this.deps.makePaneKey(leaf)
-      const context = this.getForHandle(handle, db, {
-        paneKey,
-        evidence: evidenceByPaneKey.get(paneKey),
-        deferAttention: batchAttention,
-        onSettledPastDisplayWindow: (dispatch) =>
-          settledRunIdByPaneKey.set(paneKey, dispatch.run_id)
-      })
+      const context = contextFor(handle, paneKey)
       if (context) {
         contexts[paneKey] = context
       }
     }
     for (const pty of this.deps.getPtys()) {
-      if (!pty.paneKey || contexts[pty.paneKey]) {
+      const { paneKey } = this.deps.paneOf(pty)
+      if (!paneKey || contexts[paneKey]) {
         continue
       }
       const handle = this.deps.issuePtyHandle(pty)
@@ -84,16 +89,9 @@ export class RuntimeAgentOrchestrationProjection {
         continue
       }
       queriedHandles.add(handle)
-      const ptyPaneKey = pty.paneKey
-      const context = this.getForHandle(handle, db, {
-        paneKey: ptyPaneKey,
-        evidence: evidenceByPaneKey.get(ptyPaneKey),
-        deferAttention: batchAttention,
-        onSettledPastDisplayWindow: (dispatch) =>
-          settledRunIdByPaneKey.set(ptyPaneKey, dispatch.run_id)
-      })
+      const context = contextFor(handle, paneKey)
       if (context) {
-        contexts[pty.paneKey] = context
+        contexts[paneKey] = context
       }
     }
     const runWorkerPaneKeys = this.filterLiveRunMembers(db, settledRunIdByPaneKey)

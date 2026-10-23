@@ -31,7 +31,8 @@ function createController() {
     resolveFolderConnectionId: () => null,
     teardownFolderWorkspacePtys: async () => undefined,
     cleanupRemovedFolderWorkspaceState: vi.fn(),
-    onClaudeHomeBindingChanged
+    onClaudeHomeBindingChanged,
+    emitWorktreeLifecycle: vi.fn()
   })
   return { controller, onClaudeHomeBindingChanged, updateProjectGroup, deleteProjectGroup }
 }

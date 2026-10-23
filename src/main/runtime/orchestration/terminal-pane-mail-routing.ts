@@ -48,8 +48,9 @@ export abstract class OrcaRuntimeWithGetPtyRecordForPaneKey extends OrcaRuntimeW
     }
     let newestMatch: RuntimePtyWorktreeRecord | null = null
     for (const pty of this.ptysById.values()) {
-      const ptyPane = parsePaneKey(pty.paneKey ?? '')
-      if (pty.paneKey === paneKey || (parsed && ptyPane && parsed.leafId === ptyPane.leafId)) {
+      const recordedPaneKey = this.paneOfPty(pty).paneKey
+      const ptyPane = parsePaneKey(recordedPaneKey ?? '')
+      if (recordedPaneKey === paneKey || (parsed && ptyPane && parsed.leafId === ptyPane.leafId)) {
         if (pty.connected) {
           return pty
         }
@@ -60,9 +61,9 @@ export abstract class OrcaRuntimeWithGetPtyRecordForPaneKey extends OrcaRuntimeW
   }
 
   protected getPaneKeyForTerminalHandle(handle: string): string | null {
-    const livePty = this.getLivePtyForHandle(handle)
-    if (livePty?.pty.paneKey) {
-      return livePty.pty.paneKey
+    const livePaneKey = this.paneOfPty(this.getLivePtyForHandle(handle)?.pty).paneKey
+    if (livePaneKey) {
+      return livePaneKey
     }
     const record = this.handles.get(handle)
     if (!record || record.runtimeId !== this.runtimeId || !isTerminalLeafId(record.leafId)) {
@@ -77,10 +78,7 @@ export abstract class OrcaRuntimeWithGetPtyRecordForPaneKey extends OrcaRuntimeW
       return livePty.pty.worktreeId
     }
     const record = this.handles.get(handle)
-    if (!record || record.runtimeId !== this.runtimeId) {
-      return null
-    }
-    return record.worktreeId
+    return record && record.runtimeId === this.runtimeId ? record.worktreeId : null
   }
 
   protected setPtyManagementTitleFromObservedTitle(

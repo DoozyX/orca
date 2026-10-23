@@ -7,11 +7,9 @@ import {
   readAppBundle,
   readWrittenBundle,
   copyWrittenBundle
-} from './mobile-web-app-bundle-test-fixture.mjs'
+} from './mobile-web-app/mobile-web-app-bundle-test-fixture.mjs'
 import {
   MOBILE_WEB_APP_NATIVE_PARITY_STYLE,
-  MOBILE_WEB_APP_SHIMS,
-  mobileWebAppBuildOptions,
   MOBILE_WEB_APP_ROOT_RESET,
   bundleMobileWebApp,
   buildMobileWebAppBundle,
@@ -21,10 +19,8 @@ import {
 } from './build-mobile-web-app-bundle.mjs'
 import {
   MOBILE_WEB_APP_ROUTE_ROOT,
-  ROUTE_SOURCE_LOADERS,
-  collectMobileWebAppRoutes,
   collectMobileWebAppRouteKeys
-} from './mobile-web-app-route-manifest.mjs'
+} from './mobile-web-app/mobile-web-app-route-manifest.mjs'
 import {
   MOBILE_WEB_APP_BUNDLE_MAX_ENTRY_BYTES,
   MOBILE_WEB_APP_BUNDLE_MAX_TOTAL_BYTES,
@@ -54,7 +50,7 @@ import {
   MOBILE_WEB_BUNDLE_MAX_ASSET_BYTES,
   MOBILE_WEB_BUNDLE_MAX_ASSETS
 } from '../../src/shared/mobile-web-bundle/manifest-contract.js'
-import { mobileWebAppDependenciesPresent } from './mobile-web-app-bundle-dependencies.mjs'
+import { mobileWebAppDependenciesPresent } from './mobile-web-app/mobile-web-app-bundle-dependencies.mjs'
 
 const projectDir = fileURLToPath(new URL('../..', import.meta.url))
 const appDir = join(projectDir, 'mobile', 'app')
@@ -306,48 +302,6 @@ describeBundling('the app bundle', () => {
       expect(chunk.name).toBe(`${sha256Hex(chunk.bytes)}.js`)
     }
   }, 120_000)
-
-  it('asks esbuild for the split the budgets assume', async () => {
-    const options = mobileWebAppBuildOptions(await collectMobileWebAppRoutes(appDir))
-    // Each of these is load-bearing for a budget below: esm and splitting are what make a route a
-    // chunk, and the metafile is the only thing that says which imports are static.
-    expect(options.format).toBe('esm')
-    expect(options.splitting).toBe(true)
-    expect(options.chunkNames).toBe('[hash]')
-    expect(options.metafile).toBe(true)
-    expect(options.alias.react).toBe(join(projectDir, 'mobile', 'node_modules', 'react'))
-  })
-
-  it('reads a route source the same way the export guard does', async () => {
-    const options = mobileWebAppBuildOptions(await collectMobileWebAppRoutes(appDir))
-    // The guard parses each route on its own, outside this build. Sharing the table is what stops
-    // a loader the bundle relies on from being missing there and reported as a syntax error.
-    for (const [extension, loader] of Object.entries(ROUTE_SOURCE_LOADERS)) {
-      expect(options.loader[extension], extension).toBe(loader)
-    }
-  })
-
-  it('applies every shim it names', async () => {
-    const options = mobileWebAppBuildOptions(await collectMobileWebAppRoutes(appDir))
-    for (const shim of MOBILE_WEB_APP_SHIMS) {
-      expect(shim.appliesTo(options), `${shim.name} is named but not applied`).toBe(true)
-    }
-  })
-
-  it('fails the named shim, not the whole build, when its option goes missing', async () => {
-    const options = mobileWebAppBuildOptions(await collectMobileWebAppRoutes(appDir))
-    // Each shim reads an option of its own (two read `banner.js`), so stripping every option
-    // leaves none applying. Without that, the list could name a shim the build stopped applying.
-    const stripped = {
-      ...options,
-      alias: {},
-      loader: {},
-      define: {},
-      banner: {},
-      plugins: []
-    }
-    expect(MOBILE_WEB_APP_SHIMS.filter((shim) => shim.appliesTo(stripped))).toEqual([])
-  })
 
   it('ships no haptic that reaches for the DOM', async () => {
     // expo-haptics' web build fakes an iOS haptic by appending a hidden

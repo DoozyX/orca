@@ -310,7 +310,8 @@ export abstract class OrcaRuntimeWithPreservedBranchCleanup extends OrcaRuntimeW
       // Why every host after the local-only hub: this store mints folder ids, so none is shared.
       this.dropAgentStatusForRemovedWorktreeFn?.(worktreeId, ALL_EXECUTION_HOSTS_SCOPE)
     },
-    onClaudeHomeBindingChanged: (groupId) => this.accounts.evictBoundClaudeHomeUsage(groupId)
+    onClaudeHomeBindingChanged: (groupId) => this.accounts.evictBoundClaudeHomeUsage(groupId),
+    emitWorktreeLifecycle: (event) => this.worktreeLifecycleEvents.emit(event)
   })
 
   private readonly repositoryCatalogDeps = {

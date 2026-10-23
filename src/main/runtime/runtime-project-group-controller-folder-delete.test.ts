@@ -15,6 +15,7 @@ function createController(
   const teardownFolderWorkspacePtys = vi.fn(async () => undefined)
   const cleanupRemovedFolderWorkspaceState = vi.fn()
   const notifyReposChanged = vi.fn()
+  const emitWorktreeLifecycle = vi.fn()
   const controller = new RuntimeProjectGroupController({
     getStore: () => ({ getFolderWorkspaces: () => [workspace], removeFolderWorkspace }) as never,
     resolveRepo: async () => {
@@ -24,9 +25,11 @@ function createController(
     resolveFolderConnectionId,
     teardownFolderWorkspacePtys,
     cleanupRemovedFolderWorkspaceState,
-    onClaudeHomeBindingChanged: vi.fn()
+    onClaudeHomeBindingChanged: vi.fn(),
+    emitWorktreeLifecycle
   })
   return {
+    emitWorktreeLifecycle,
     controller,
     removeFolderWorkspace,
     teardownFolderWorkspacePtys,
@@ -47,6 +50,11 @@ describe('RuntimeProjectGroupController.deleteFolderWorkspace', () => {
       deps.removeFolderWorkspace.mock.invocationCallOrder[0]!
     )
     expect(deps.notifyReposChanged).toHaveBeenCalledTimes(1)
+    expect(deps.emitWorktreeLifecycle).toHaveBeenCalledWith({
+      kind: 'removed',
+      worktreeId: 'folder:ws-1',
+      path: '/tmp/ws'
+    })
   })
 
   it('still deletes when the folder host is ambiguous, skipping only the PTY sweep', async () => {
@@ -60,6 +68,9 @@ describe('RuntimeProjectGroupController.deleteFolderWorkspace', () => {
     expect(deps.teardownFolderWorkspacePtys).not.toHaveBeenCalled()
     expect(deps.cleanupRemovedFolderWorkspaceState).toHaveBeenCalledWith('folder:ws-1')
     expect(deps.removeFolderWorkspace).toHaveBeenCalledWith('ws-1')
+    expect(deps.emitWorktreeLifecycle).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'removed', worktreeId: 'folder:ws-1' })
+    )
     warn.mockRestore()
   })
 })

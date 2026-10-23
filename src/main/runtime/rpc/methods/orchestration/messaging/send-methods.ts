@@ -1,9 +1,11 @@
 import { defineMethod } from '../../../core'
 import { OrchestrationError } from '../../../../orchestration/orchestration-error'
 import { isGroupAddress } from '../../../../orchestration/groups'
+import {
+  dispatchReportMailbox,
+  isDispatchReportType
+} from '../../../../orchestration/dispatch-report-mailbox'
 import { orchestrationSkillRecoveryData } from '../../../../../../shared/orchestration-rpc-contract'
-import { ORCHESTRATION_SEND_DELIVERY_OBSERVE_MS } from '../../../../../../shared/orchestration-timing-budgets'
-import type { OrcaRuntimeService } from '../../../../orca-runtime'
 import {
   SendParams,
   isDispatchMutationMessageType,
@@ -23,7 +25,9 @@ import {
   stripMutationReplayNudge
 } from '../../../orchestration-mutation-receipt'
 import { replayMutationNudge } from './mutation-replay-nudge'
+import { handBackReplayTargets } from '../../../../orchestration/db/messages/helper-mailbox-hand-back'
 import { sendRemoteMessage } from './send-remote'
+import { withStructuredSendDelivery } from './structured-send-delivery'
 import { mayNameSession } from './session-recipient'
 import { sendPointToPointMessage } from './send-point-to-point'
 import { sendGroupMessage } from './send-group'
@@ -64,6 +68,12 @@ export const ORCHESTRATION_SEND_METHODS = [
           : undefined)
       if (replayNudge) {
         replayMutationNudge(runtime, replayNudge)
+        const settled =
+          params.type === 'worker_done' ? settledDispatchId(replayedMutationReceipt) : undefined
+        // Why: derived, since the executor's receipt rewrites drop stored hand-back targets.
+        for (const target of settled ? handBackReplayTargets(db, settled) : []) {
+          runtime.notifyMessageArrived(target.to, target.type)
+        }
         return stripMutationReplayNudge(replayedMutationReceipt)
       }
       const from = params.from ?? 'unknown'
@@ -136,7 +146,11 @@ export const ORCHESTRATION_SEND_METHODS = [
         (!to ||
           ((params.type === 'worker_done' || params.type === 'heartbeat') && routing.dispatchId))
       ) {
-        to = `run:${routing.run.id}`
+        const reporting =
+          routing.dispatchId && isDispatchReportType(params.type)
+            ? db.getDispatchContextById(routing.dispatchId)
+            : undefined
+        to = reporting ? dispatchReportMailbox(db, reporting) : `run:${routing.run.id}`
       }
       if (!to) {
         throw new OrchestrationError(
@@ -251,45 +265,15 @@ export const ORCHESTRATION_SEND_METHODS = [
   })
 ]
 
-// Why: lifecycle reports and gates settle through their own receipts, not a chat pointer.
-const UNOBSERVED_SEND_TYPES: ReadonlySet<string> = new Set([
-  'worker_done',
-  'heartbeat',
-  'escalation',
-  'decision_gate'
-])
-
-/** Adds the structured lane's own answer for this message, never a prediction (#23). */
-async function withStructuredSendDelivery(
-  runtime: OrcaRuntimeService,
-  type: string | undefined,
-  receipt: unknown
-): Promise<unknown> {
-  if (
-    (type !== undefined && UNOBSERVED_SEND_TYPES.has(type)) ||
-    typeof receipt !== 'object' ||
-    receipt === null ||
-    !('message' in receipt)
-  ) {
-    return receipt
+function settledDispatchId(receipt: unknown): string | undefined {
+  if (!receipt || typeof receipt !== 'object' || !('lifecycle' in receipt)) {
+    return undefined
   }
-  const { message } = receipt
-  if (
-    typeof message !== 'object' ||
-    message === null ||
-    !('id' in message) ||
-    !('to_handle' in message)
-  ) {
-    return receipt
-  }
-  const { id, to_handle: toHandle } = message
-  if (typeof id !== 'string' || typeof toHandle !== 'string' || toHandle.startsWith('run:')) {
-    return receipt
-  }
-  const delivery = await runtime.structuredSendDeliveryWatch.observe(
-    toHandle,
-    id,
-    ORCHESTRATION_SEND_DELIVERY_OBSERVE_MS
-  )
-  return delivery === undefined ? receipt : { ...receipt, delivery }
+  const { lifecycle } = receipt
+  return lifecycle &&
+    typeof lifecycle === 'object' &&
+    'dispatchId' in lifecycle &&
+    typeof lifecycle.dispatchId === 'string'
+    ? lifecycle.dispatchId
+    : undefined
 }

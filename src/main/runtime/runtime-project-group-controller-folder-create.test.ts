@@ -52,7 +52,8 @@ function createController() {
     resolveFolderConnectionId: () => null,
     teardownFolderWorkspacePtys: async () => undefined,
     cleanupRemovedFolderWorkspaceState: () => undefined,
-    onClaudeHomeBindingChanged: () => undefined
+    onClaudeHomeBindingChanged: () => undefined,
+    emitWorktreeLifecycle: () => undefined
   })
   return { controller, createFolderWorkspace, notifyReposChanged }
 }

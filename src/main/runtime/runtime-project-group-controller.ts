@@ -14,6 +14,7 @@ import {
 } from '../project-groups/folder-workspace-path-status'
 import { FolderWorkspaceCreateRefusedError } from '../project-groups/folder-workspace-create-refusal'
 import type { RuntimeStore } from './runtime-store-contract'
+import type { RuntimeWorktreeLifecycleEvent } from './orca-runtime-core'
 import {
   runtimeVisibleFolderWorkspaces,
   runtimeVisibleProjectGroups
@@ -36,6 +37,7 @@ type RuntimeProjectGroupDependencies = {
   cleanupRemovedFolderWorkspaceState: (worktreeId: string) => void
   /** A group's bound CLAUDE_CONFIG_DIR may now resolve elsewhere, or nowhere. */
   onClaudeHomeBindingChanged: (groupId: string) => void
+  emitWorktreeLifecycle: (event: RuntimeWorktreeLifecycleEvent) => void
 }
 
 type FolderWorkspaceUpdates = Partial<
@@ -282,6 +284,14 @@ export class RuntimeProjectGroupController {
     const deleted = store.removeFolderWorkspace(folderWorkspaceId)
     if (deleted) {
       this.deps.notifyReposChanged()
+      // The same removal a worktree announces, so its consumers end work held there too.
+      if (workspace) {
+        this.deps.emitWorktreeLifecycle({
+          kind: 'removed',
+          worktreeId: folderWorkspaceKey(folderWorkspaceId),
+          path: workspace.folderPath
+        })
+      }
     }
     return { deleted }
   }

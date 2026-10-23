@@ -1,6 +1,6 @@
 /** Durable account binding: existing single-directory records or OpenCode's data context. */
 
-import type { AgentSessionStoredAgent } from './agent-session-stored-agent'
+import type { AgentSessionStoredAgent } from './agent-session/lifecycle/agent-session-stored-agent'
 import {
   MAX_ID_LENGTH,
   MAX_PATH_LENGTH,
