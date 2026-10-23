@@ -1,5 +1,6 @@
 import type { ConnectorAgent } from '../../shared/external-conversation-link'
 import {
+  AgentNotInForegroundError,
   createLaunchedAgentWriteGuard,
   type LaunchedAgentWriteGuardRuntime
 } from '../runtime/launched-agent-write-guard'
@@ -15,11 +16,7 @@ export type FollowUpTerminal = Pick<
 > &
   LaunchedAgentWriteGuardRuntime
 
-const UNREACHABLE = new Set([
-  'terminal_not_writable',
-  'terminal_handle_stale',
-  'agent_not_in_foreground'
-])
+const UNREACHABLE = new Set(['terminal_not_writable', 'terminal_handle_stale'])
 
 /** The linked pane's handle and the process it is bound to now; null once nothing is. */
 export function bindPane(
@@ -85,7 +82,10 @@ export async function deliverFollowUp(
       if (signal.aborted) {
         return refused(refusalOf(signal))
       }
-      if (error instanceof Error && UNREACHABLE.has(error.message)) {
+      if (
+        error instanceof AgentNotInForegroundError ||
+        (error instanceof Error && UNREACHABLE.has(error.message))
+      ) {
         return refused('agent_not_reachable')
       }
     }

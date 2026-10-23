@@ -7,6 +7,7 @@ import { runProcess } from '@orca/process-host'
 import { managedSshShards, MANAGED_SSH_E2E_SPEC_PREFIX } from './ci-e2e-job-selection.mjs'
 import { compileAggregateExpression } from './pr-aggregate-gate-context.mjs'
 import { selectPrE2eSpecs } from './pr-e2e-source-routing.mjs'
+import { hasWorkflowBash } from './workflow-bash-support.mjs'
 
 const workflow = parse(readFileSync('.github/workflows/e2e.yml', 'utf8'))
 const prWorkflow = parse(readFileSync('.github/workflows/pr.yml', 'utf8'))
@@ -130,55 +131,60 @@ require('node:fs').writeFileSync(process.env.ARGV_CAPTURE, JSON.stringify(proces
 }
 
 // The production lane runs Bash on Linux; the stubs never start Docker, Electron, or Xvfb.
-describe.skipIf(process.platform === 'win32')('managed SSH workflow command', () => {
-  it('passes only the selected SSH files to Playwright, with literal file matching', async () => {
-    const { result, args } = await execute(
-      JSON.stringify([...small, 'tests/e2e/other.spec.ts', small[0]])
-    )
-    expect(result.code, result.stderr).toBe(0)
-    const filters = args.slice(
-      args.indexOf('tests/playwright.config.ts') + 1,
-      args.indexOf('--project=electron-headless')
-    )
-    expect(filters).toHaveLength(2)
-    expect(small.map((file) => filters.some((filter) => new RegExp(filter).test(file)))).toEqual([
-      true,
-      true
-    ])
-    expect(
-      filters.some((filter) => new RegExp(filter).test('tests/e2e/ssh-orcad-open-in-ownerXspecYts'))
-    ).toBe(false)
-    expect(
-      filters.some((filter) => new RegExp(filter).test('tests/e2e/ssh-orcad-unselected.spec.ts'))
-    ).toBe(false)
-    expect(args).toContain('--shard=1/1')
-  })
+describe.skipIf(process.platform === 'win32' || !hasWorkflowBash)(
+  'managed SSH workflow command',
+  () => {
+    it('passes only the selected SSH files to Playwright, with literal file matching', async () => {
+      const { result, args } = await execute(
+        JSON.stringify([...small, 'tests/e2e/other.spec.ts', small[0]])
+      )
+      expect(result.code, result.stderr).toBe(0)
+      const filters = args.slice(
+        args.indexOf('tests/playwright.config.ts') + 1,
+        args.indexOf('--project=electron-headless')
+      )
+      expect(filters).toHaveLength(2)
+      expect(small.map((file) => filters.some((filter) => new RegExp(filter).test(file)))).toEqual([
+        true,
+        true
+      ])
+      expect(
+        filters.some((filter) =>
+          new RegExp(filter).test('tests/e2e/ssh-orcad-open-in-ownerXspecYts')
+        )
+      ).toBe(false)
+      expect(
+        filters.some((filter) => new RegExp(filter).test('tests/e2e/ssh-orcad-unselected.spec.ts'))
+      ).toBe(false)
+      expect(args).toContain('--shard=1/1')
+    })
 
-  it.each(['', JSON.stringify([MANAGED_SSH_E2E_SPEC_PREFIX, small[0]])])(
-    'keeps full daily and explicit suite execution for %s',
-    async (input) => {
-      const { result, args } = await execute(input)
+    it.each(['', JSON.stringify([MANAGED_SSH_E2E_SPEC_PREFIX, small[0]])])(
+      'keeps full daily and explicit suite execution for %s',
+      async (input) => {
+        const { result, args } = await execute(input)
+        expect(result.code, result.stderr).toBe(0)
+        expect(args).toContain(MANAGED_SSH_E2E_SPEC_PREFIX)
+      }
+    )
+
+    it.each(['legacy', 'missing'])('keeps compatibility with %s checkout refs', async (version) => {
+      const { result, args } = await execute(JSON.stringify(small), version)
       expect(result.code, result.stderr).toBe(0)
       expect(args).toContain(MANAGED_SSH_E2E_SPEC_PREFIX)
-    }
-  )
+    })
 
-  it.each(['legacy', 'missing'])('keeps compatibility with %s checkout refs', async (version) => {
-    const { result, args } = await execute(JSON.stringify(small), version)
-    expect(result.code, result.stderr).toBe(0)
-    expect(args).toContain(MANAGED_SSH_E2E_SPEC_PREFIX)
-  })
-
-  it.each([
-    'malformed',
-    '[]',
-    '[null]',
-    JSON.stringify(['tests/e2e/other.spec.ts']),
-    JSON.stringify(['tests/e2e/ssh-orcad-../../other.spec.ts'])
-  ])('refuses invalid selection before starting Playwright: %s', async (input) => {
-    const { result, args } = await execute(input)
-    expect(result.code).not.toBe(0)
-    expect(args).toBeUndefined()
-    expect(managedSshShards(input)).toEqual(['1/2', '2/2'])
-  })
-})
+    it.each([
+      'malformed',
+      '[]',
+      '[null]',
+      JSON.stringify(['tests/e2e/other.spec.ts']),
+      JSON.stringify(['tests/e2e/ssh-orcad-../../other.spec.ts'])
+    ])('refuses invalid selection before starting Playwright: %s', async (input) => {
+      const { result, args } = await execute(input)
+      expect(result.code).not.toBe(0)
+      expect(args).toBeUndefined()
+      expect(managedSshShards(input)).toEqual(['1/2', '2/2'])
+    })
+  }
+)

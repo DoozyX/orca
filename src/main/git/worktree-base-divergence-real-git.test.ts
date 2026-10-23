@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { devNull, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { GIT_FETCH_SKIP_AUTO_MAINTENANCE_CONFIG_ARGS } from '../../shared/git-fetch-auto-maintenance'
@@ -11,6 +11,9 @@ import {
 
 const tempRoots: string[] = []
 
+// Why: the developer's global core.hooksPath would run its hooks on every one of the hundreds of fixture commits.
+const HERMETIC_GIT_ENV = { ...process.env, GIT_CONFIG_GLOBAL: devNull, GIT_CONFIG_NOSYSTEM: '1' }
+
 // Why the maintenance suppression: `git commit` detaches `git maintenance run --auto`, and its
 // commit-graph task arms once a fixture crosses 100 new commits — which the cap-sized histories
 // below always do. That detached process keeps writing `.git/objects/info/commit-graphs` after the
@@ -19,6 +22,7 @@ const tempRoots: string[] = []
 function git(cwd: string, args: string[]): string {
   return execFileSync('git', [...GIT_FETCH_SKIP_AUTO_MAINTENANCE_CONFIG_ARGS, ...args], {
     cwd,
+    env: HERMETIC_GIT_ENV,
     encoding: 'utf8',
     stdio: ['pipe', 'pipe', 'pipe']
   }).trim()
@@ -28,7 +32,7 @@ async function createRepo(): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), 'orca-base-divergence-'))
   tempRoots.push(root)
   const repoPath = join(root, 'repo')
-  execFileSync('git', ['init', '--quiet', repoPath])
+  execFileSync('git', ['init', '--quiet', repoPath], { env: HERMETIC_GIT_ENV })
   git(repoPath, ['symbolic-ref', 'HEAD', 'refs/heads/main'])
   git(repoPath, ['config', 'user.email', 'test@example.com'])
   git(repoPath, ['config', 'user.name', 'Test User'])

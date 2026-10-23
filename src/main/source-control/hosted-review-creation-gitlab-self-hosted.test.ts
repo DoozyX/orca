@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const {
   gitExecFileAsyncMock,
@@ -86,6 +86,7 @@ function mockNonGitLabProviders(): void {
 
 describe('GitLab self-hosted hosted review creation eligibility', () => {
   beforeEach(() => {
+    vi.stubEnv('ORCA_GITEA_TOKEN', undefined)
     resetMocks()
     mockNonGitLabProviders()
     getHostedReviewForBranchMock.mockResolvedValue(null)
@@ -93,6 +94,10 @@ describe('GitLab self-hosted hosted review creation eligibility', () => {
       stdout: 'git@gitlab.internal:team/orca.git\n',
       stderr: ''
     })
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
   })
 
   it('enables MR creation when glab recognizes the self-hosted origin host', async () => {

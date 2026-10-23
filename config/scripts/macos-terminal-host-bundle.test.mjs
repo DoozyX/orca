@@ -3,6 +3,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  realpathSync,
   readFileSync,
   rmSync,
   statSync,
@@ -147,7 +148,7 @@ describe.skipIf(process.platform !== 'darwin')('terminal host assembly', () => {
   let appPath
 
   beforeEach(() => {
-    root = mkdtempSync(join(tmpdir(), 'orca-terminal-host-'))
+    root = realpathSync(mkdtempSync(join(tmpdir(), 'orca-terminal-host-')))
     appPath = join(root, 'Orca.app')
     const resources = join(appPath, 'Contents', 'Resources')
     const out = join(resources, 'app.asar.unpacked', 'out')

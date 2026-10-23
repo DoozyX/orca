@@ -22,7 +22,7 @@ describe.skipIf(process.platform === 'win32')('live provider peek across the sid
     helperA = join(directory, 'helper-a')
     await writeFile(helperA, 'a')
     await build({
-      entryPoints: [join(__dirname, 'sidecar-entry.ts')],
+      entryPoints: [join(__dirname, 'computer-sidecar.ts')],
       outfile: entry,
       bundle: true,
       platform: 'node',

@@ -5,6 +5,7 @@ import {
   cp,
   mkdir,
   mkdtemp,
+  realpath,
   readFile,
   rm,
   stat,
@@ -307,7 +308,7 @@ printf 'arg=%s\\n' "$@"
   itRunsUnixShell.each(unixLauncherFixtures)(
     'sanitizes node env and forwards argv verbatim through the $name launcher',
     async (launcherFixture) => {
-      const root = await mkdtemp(join(tmpdir(), 'orca-unix-cli-env-'))
+      const root = await realpath(await mkdtemp(join(tmpdir(), 'orca-unix-cli-env-')))
       try {
         const appDir = join(root, ...launcherFixture.appDir)
         const launcherPath = join(appDir, ...launcherFixture.launcher)

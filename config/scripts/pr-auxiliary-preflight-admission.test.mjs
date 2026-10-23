@@ -15,6 +15,7 @@ import { runProcessSync } from '@orca/process-host'
 import { parse } from 'yaml'
 import { classifyPrJobs } from './pr-code-change-scope.mjs'
 import { collectNodeServerInputs } from './node-server-change-scope.mjs'
+import { hasWorkflowBash } from './workflow-bash-support.mjs'
 
 const workflow = parse(readFileSync('.github/workflows/pr.yml', 'utf8'))
 const unit = parse(readFileSync('.github/workflows/unit-tests.yml', 'utf8'))
@@ -450,116 +451,122 @@ function createMobileCiScopeRepository(
   return { directory, tool, git, commit, detect }
 }
 
-describe.skipIf(process.platform === 'win32')('Mobile CI complete Git change evidence', () => {
-  it('admits an actual modification through the workflow detector', () => {
-    const repo = createMobileCiScopeRepository()
-    writeFileSync(repo.tool, 'export const revision = 2\n')
-    repo.commit()
-    const { result, output } = repo.detect()
-    expect(result.code, result.stderr).toBe(0)
-    expect(readFileSync(output, 'utf8')).toContain('mobile_ci_tools=true\n')
-    expect(readFileSync(output, 'utf8')).toContain('test=true\n')
-  })
-
-  it.each(['addition', 'deletion', 'rename', 'type change'])(
-    'retains full root units for an actual %s',
-    (change) => {
-      const repo = createMobileCiScopeRepository(change !== 'addition')
-      if (change === 'addition') {
-        writeFileSync(repo.tool, 'export const revision = 1\n')
-      } else if (change === 'deletion') {
-        rmSync(repo.tool)
-      } else if (change === 'rename') {
-        repo.git(
-          'mv',
-          'config/scripts/run-mobile-ci-tests.mjs',
-          'config/mobile-ci.vitest.config.mjs'
-        )
-      } else {
-        rmSync(repo.tool)
-        symlinkSync('pr-code-change-scope.mjs', repo.tool)
-      }
+describe.skipIf(process.platform === 'win32' || !hasWorkflowBash)(
+  'Mobile CI complete Git change evidence',
+  () => {
+    it('admits an actual modification through the workflow detector', () => {
+      const repo = createMobileCiScopeRepository()
+      writeFileSync(repo.tool, 'export const revision = 2\n')
       repo.commit()
       const { result, output } = repo.detect()
       expect(result.code, result.stderr).toBe(0)
-      expect(readFileSync(output, 'utf8')).toContain('mobile_ci_tools=false\n')
+      expect(readFileSync(output, 'utf8')).toContain('mobile_ci_tools=true\n')
       expect(readFileSync(output, 'utf8')).toContain('test=true\n')
-    }
-  )
+    })
 
-  it('does not emit a passing classification when the Git evidence is unavailable', () => {
-    const repo = createMobileCiScopeRepository()
-    writeFileSync(repo.tool, 'export const revision = 2\n')
-    repo.commit()
-    expect(repo.detect().result.code).toBe(0)
-    rmSync(join(repo.directory, 'github-output'))
-    rmSync(join(repo.directory, '.git'), { recursive: true, force: true })
-    const { result } = repo.detect()
-    expect(result.code).not.toBe(0)
-    expect(result.stderr).toContain('not a git repository')
-  })
-})
+    it.each(['addition', 'deletion', 'rename', 'type change'])(
+      'retains full root units for an actual %s',
+      (change) => {
+        const repo = createMobileCiScopeRepository(change !== 'addition')
+        if (change === 'addition') {
+          writeFileSync(repo.tool, 'export const revision = 1\n')
+        } else if (change === 'deletion') {
+          rmSync(repo.tool)
+        } else if (change === 'rename') {
+          repo.git(
+            'mv',
+            'config/scripts/run-mobile-ci-tests.mjs',
+            'config/mobile-ci.vitest.config.mjs'
+          )
+        } else {
+          rmSync(repo.tool)
+          symlinkSync('pr-code-change-scope.mjs', repo.tool)
+        }
+        repo.commit()
+        const { result, output } = repo.detect()
+        expect(result.code, result.stderr).toBe(0)
+        expect(readFileSync(output, 'utf8')).toContain('mobile_ci_tools=false\n')
+        expect(readFileSync(output, 'utf8')).toContain('test=true\n')
+      }
+    )
 
-describe.skipIf(process.platform === 'win32')('Daemon mock complete Git change evidence', () => {
-  const helper = 'src/main/daemon/daemon-init-dependency-mocks.ts'
-  it('keeps real unit and type contracts while omitting unrelated packages for a modification', () => {
-    const repo = createMobileCiScopeRepository(true, helper)
-    writeFileSync(repo.tool, 'export const revision = 2\n')
-    repo.commit()
-    const { result, output } = repo.detect()
-    expect(result.code, result.stderr).toBe(0)
-    const flags = readFileSync(output, 'utf8')
-    expect(flags).toContain('package=false\n')
-    expect(flags).toContain('package_windows=false\n')
-    expect(flags).toContain('test=true\n')
-    expect(flags).toContain('typecheck=true\n')
-  })
-  it('routes the complete four-file modification through the real detector', () => {
-    const companions = [
-      'src/main/native-chat/agent-session-wire/structured-agent-session-claude-queued-stop.test.ts',
-      'config/scripts/process-host-build-dist.test.mjs',
-      'src/main/codex/codex-app-server-connection.test.ts'
-    ]
-    const repo = createMobileCiScopeRepository(true, helper, companions)
-    for (const file of [helper, ...companions]) {
-      writeFileSync(join(repo.directory, file), 'export const revision = 2\n')
-    }
-    repo.commit()
-    const { result, output } = repo.detect()
-    expect(result.code, result.stderr).toBe(0)
-    const flags = readFileSync(output, 'utf8')
-    for (const name of ['package', 'package_windows']) {
-      expect(classifyPrJobs([helper, ...companions])[name]).toBe(true)
-      expect(flags).toContain(`${name}=false\n`)
-    }
-    for (const name of ['test', 'static_analysis', 'typecheck', 'cross-version-wire']) {
-      expect(flags).toContain(`${name}=true\n`)
-    }
-    const e2e = repo.detect('e2e_filter')
-    expect(e2e.result.code, e2e.result.stderr).toBe(0)
-    const routes = readFileSync(e2e.output, 'utf8')
-    expect(routes).toContain('test_files=[]\n')
-    expect(routes).toContain('should_run=false\n')
-  })
-  it.each(['addition', 'deletion', 'rename', 'type change'])(
-    'keeps platform packages for an actual %s',
-    (change) => {
-      const repo = createMobileCiScopeRepository(change !== 'addition', helper)
-      if (change === 'addition') {
-        writeFileSync(repo.tool, 'export const revision = 1\n')
-      } else if (change === 'deletion') {
-        rmSync(repo.tool)
-      } else if (change === 'rename') {
-        repo.git('mv', helper, helper.replace('.ts', '-renamed.ts'))
-      } else {
-        rmSync(repo.tool)
-        symlinkSync('../../../config/scripts/pr-code-change-scope.mjs', repo.tool)
+    it('does not emit a passing classification when the Git evidence is unavailable', () => {
+      const repo = createMobileCiScopeRepository()
+      writeFileSync(repo.tool, 'export const revision = 2\n')
+      repo.commit()
+      expect(repo.detect().result.code).toBe(0)
+      rmSync(join(repo.directory, 'github-output'))
+      rmSync(join(repo.directory, '.git'), { recursive: true, force: true })
+      const { result } = repo.detect()
+      expect(result.code).not.toBe(0)
+      expect(result.stderr).toContain('not a git repository')
+    })
+  }
+)
+
+describe.skipIf(process.platform === 'win32' || !hasWorkflowBash)(
+  'Daemon mock complete Git change evidence',
+  () => {
+    const helper = 'src/main/daemon/daemon-init-dependency-mocks.ts'
+    it('keeps real unit and type contracts while omitting unrelated packages for a modification', () => {
+      const repo = createMobileCiScopeRepository(true, helper)
+      writeFileSync(repo.tool, 'export const revision = 2\n')
+      repo.commit()
+      const { result, output } = repo.detect()
+      expect(result.code, result.stderr).toBe(0)
+      const flags = readFileSync(output, 'utf8')
+      expect(flags).toContain('package=false\n')
+      expect(flags).toContain('package_windows=false\n')
+      expect(flags).toContain('test=true\n')
+      expect(flags).toContain('typecheck=true\n')
+    })
+    it('routes the complete four-file modification through the real detector', () => {
+      const companions = [
+        'src/main/native-chat/agent-session-wire/structured-agent-session-claude-queued-stop.test.ts',
+        'config/scripts/process-host-build-dist.test.mjs',
+        'src/main/codex/codex-app-server-connection.test.ts'
+      ]
+      const repo = createMobileCiScopeRepository(true, helper, companions)
+      for (const file of [helper, ...companions]) {
+        writeFileSync(join(repo.directory, file), 'export const revision = 2\n')
       }
       repo.commit()
       const { result, output } = repo.detect()
       expect(result.code, result.stderr).toBe(0)
-      expect(readFileSync(output, 'utf8')).toContain('package=true\n')
-      expect(readFileSync(output, 'utf8')).toContain('package_windows=true\n')
-    }
-  )
-})
+      const flags = readFileSync(output, 'utf8')
+      for (const name of ['package', 'package_windows']) {
+        expect(classifyPrJobs([helper, ...companions])[name]).toBe(true)
+        expect(flags).toContain(`${name}=false\n`)
+      }
+      for (const name of ['test', 'static_analysis', 'typecheck', 'cross-version-wire']) {
+        expect(flags).toContain(`${name}=true\n`)
+      }
+      const e2e = repo.detect('e2e_filter')
+      expect(e2e.result.code, e2e.result.stderr).toBe(0)
+      const routes = readFileSync(e2e.output, 'utf8')
+      expect(routes).toContain('test_files=[]\n')
+      expect(routes).toContain('should_run=false\n')
+    })
+    it.each(['addition', 'deletion', 'rename', 'type change'])(
+      'keeps platform packages for an actual %s',
+      (change) => {
+        const repo = createMobileCiScopeRepository(change !== 'addition', helper)
+        if (change === 'addition') {
+          writeFileSync(repo.tool, 'export const revision = 1\n')
+        } else if (change === 'deletion') {
+          rmSync(repo.tool)
+        } else if (change === 'rename') {
+          repo.git('mv', helper, helper.replace('.ts', '-renamed.ts'))
+        } else {
+          rmSync(repo.tool)
+          symlinkSync('../../../config/scripts/pr-code-change-scope.mjs', repo.tool)
+        }
+        repo.commit()
+        const { result, output } = repo.detect()
+        expect(result.code, result.stderr).toBe(0)
+        expect(readFileSync(output, 'utf8')).toContain('package=true\n')
+        expect(readFileSync(output, 'utf8')).toContain('package_windows=true\n')
+      }
+    )
+  }
+)
