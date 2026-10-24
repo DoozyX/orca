@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react'
 import { ChevronDown, Workflow } from 'lucide-react'
 
+import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
@@ -69,9 +70,11 @@ export function WorktreeCardHeaderControls({
       {showLineageChildChip && (
         <Tooltip>
           <TooltipTrigger asChild>
-            <button
+            <Button
               type="button"
-              className="flex h-[18px] max-w-24 shrink-0 items-center gap-1 rounded-sm border border-worktree-sidebar-border bg-worktree-sidebar px-1.5 text-[10px] font-medium leading-none text-muted-foreground hover:bg-worktree-sidebar-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-worktree-sidebar-ring"
+              variant="outline"
+              size="chip"
+              className="max-w-24 shrink-0"
               aria-label={lineageChildAriaLabel}
               aria-expanded={!lineageCollapsed}
               onClick={onLineageToggle}
@@ -81,7 +84,7 @@ export function WorktreeCardHeaderControls({
               <ChevronDown
                 className={cn('size-2.5 transition-transform', lineageCollapsed && '-rotate-90')}
               />
-            </button>
+            </Button>
           </TooltipTrigger>
           <TooltipContent side="right" sideOffset={8}>
             {lineageCollapsed

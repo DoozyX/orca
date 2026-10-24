@@ -1,4 +1,3 @@
-// removeWorktree: branch deletion safety after the checkout is removed.
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest'
 
 const { gitExecFileAsyncMock, gitExecFileSyncMock, translateWslOutputPathsMock } = vi.hoisted(
@@ -32,7 +31,7 @@ describe('removeWorktree', () => {
   const mockLocalMainDefault = () =>
     gitExecFileAsyncMock.mockResolvedValueOnce({ stdout: 'refs/heads/main\0\n' })
 
-  // Why: removal argv carries core.longpaths on Windows; pin a non-Windows default for exact argv.
+  // Pin a non-Windows host to keep exact argv independent of core.longpaths.
   let platformSpy: MockInstance<() => NodeJS.Platform>
 
   beforeEach(() => {
@@ -53,7 +52,6 @@ describe('removeWorktree', () => {
     gitExecFileAsyncMock.mockRejectedValueOnce(new Error('not an ancestor')) // merge-base --is-ancestor
     gitExecFileAsyncMock.mockResolvedValue({ stdout: '' }) // squash proof finds no target tree
 
-    // Should not throw — the unmerged branch is preserved, not force-deleted.
     await expect(removeWorktree('/repo', '/repo-feature', false)).resolves.toEqual({
       preservedBranch: {
         branchName: 'feature/test',

@@ -175,7 +175,7 @@ export abstract class OrcaRuntimeWithGetWorktreePs extends OrcaRuntimeWithWorktr
     settings: Pick<GlobalSettings, 'agentDefaultEnv'>
   ) {
     return {
-      ...resolveTuiAgentLaunchEnv(agent, settings.agentDefaultEnv),
+      ...resolveTuiAgentLaunchEnv(agent, settings),
       ...this.accounts.hostLaunchEnvFor(agent)
     }
   }

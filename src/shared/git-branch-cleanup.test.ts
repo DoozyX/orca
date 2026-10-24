@@ -74,6 +74,24 @@ describe('resolveLocalDefaultBranchRef', () => {
 })
 
 describe('branchHasNoUnmergedChangesOnAnyTarget', () => {
+  it('preserves a branch without simulating a merge when no common ancestor is available', async () => {
+    const runGit = baseProofResponses({
+      'merge-base target refs/heads/feature/test': new Error('no common ancestor')
+    })
+
+    await expect(
+      branchHasNoUnmergedChangesOnAnyTarget(
+        runGit,
+        'feature/test',
+        ['refs/remotes/origin/main'],
+        new GitCapabilityCache()
+      )
+    ).resolves.toBe(false)
+
+    expect(vi.mocked(runGit).mock.calls.some(([args]) => args[0] === 'merge-tree')).toBe(false)
+    expect(vi.mocked(runGit).mock.calls.some(([args]) => args[0] === 'cherry')).toBe(false)
+  })
+
   it('accepts a branch with merge commits when a target squash commit matches its net patch', async () => {
     const runGit = baseProofResponses()
 

@@ -136,7 +136,7 @@ async function deleteLocalBranchAfterWorktreeRemoval(
   }
 
   try {
-    // Why: only pay for `worktree prune` when a stale admin record may be blocking `branch -d`.
+    // Prune only when stale admin data may block branch deletion.
     await gitExecFileAsync(['worktree', 'prune'], gitExecOptions(repoPath, options))
   } catch (error) {
     console.warn(`[git] Failed to prune worktrees before deleting branch "${branchName}"`, error)
@@ -177,8 +177,7 @@ async function deleteSquashMergedBranch(
   if (!branchHead) {
     return 'unmerged'
   }
-  // Why: squash merges rewrite commit IDs, so `branch -d` and ancestry miss them; delete only when
-  // Git proves no unmerged tree changes against the local default.
+  // Squash merges change OIDs; delete only after proving no unmerged tree changes against the local default.
   const hasNoUnmergedChanges = await withLocalGitCapabilityCacheForExecution(
     { cwd: repoPath, wslDistro: options.wslDistro, signal: options.signal },
     (capabilities) =>
@@ -227,10 +226,9 @@ export async function forceDeleteLocalBranch(
   if (await isLocalBranchCheckedOut(repoPath, branchName, runGit, options)) {
     throw new LocalBranchCheckedOutError(branchName)
   }
-  // Why: stale toast actions must not delete a branch that moved; `update-ref -d` deletes only if the ref still == expectedHead.
+  // Compare-and-delete prevents stale actions from deleting a branch that moved.
   try {
-    // `update-ref -d` needs the packed-refs lock a running idle pack holds while
-    // it rewrites; waits it out rather than cancelling the pack.
+    // Wait out packed-refs rewrites instead of killing the pack.
     await withRepoRefMaintenancePaused('branch-delete', () =>
       runGit(['update-ref', '-d', `refs/heads/${branchName}`, expectedHead], repoPath)
     )
@@ -256,9 +254,7 @@ export async function forceDeleteLocalBranch(
   }
   try {
     await runGit(['config', '--remove-section', `branch.${branchName}`], repoPath)
-  } catch {
-    // Best-effort parity with `git branch -D`; stale config is harmless.
-  }
+  } catch {}
 }
 
 async function isLocalBranchCheckedOut(

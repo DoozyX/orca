@@ -55,7 +55,7 @@ const NOT_IN_LOCAL_MAIN = 'git merge-base --is-ancestor def456 refs/heads/main'
 const DELETE_AT_HEAD = 'git update-ref -d refs/heads/feature/test def456'
 const getGitCalls = createGitCallReader(gitExecFileAsyncMock)
 
-// Why: removal argv carries core.longpaths on Windows; pin a non-Windows default for exact argv.
+// Pin non-Windows argv; Windows removal also sets core.longpaths.
 let platformSpy: MockInstance<() => NodeJS.Platform>
 
 beforeEach(() => {
@@ -150,6 +150,7 @@ branch refs/heads/main
       'git rev-parse --verify --quiet refs/heads/main^{commit}': {
         stdout: 'base123\n'
       },
+      'git merge-base base123 refs/heads/feature/test': { stdout: 'base000\n' },
       'git merge-tree --write-tree base123 refs/heads/feature/test': {
         stdout: 'tree123\n'
       },
@@ -239,11 +240,11 @@ branch refs/heads/main
     expect(calls).toContain('git config --remove-section branch.feature/test')
     expect(gitExecFileAsyncMock.mock.calls).toContainEqual([
       ['patch-id', '--stable'],
-      { cwd: '/repo', stdin: 'branch net diff\n' }
+      expect.objectContaining({ cwd: '/repo', stdin: 'branch net diff\n' })
     ])
     expect(gitExecFileAsyncMock.mock.calls).toContainEqual([
       ['patch-id', '--stable'],
-      { cwd: '/repo', stdin: 'squash diff\n' }
+      expect.objectContaining({ cwd: '/repo', stdin: 'squash diff\n' })
     ])
   })
 
@@ -275,6 +276,7 @@ branch refs/heads/main
       'git rev-parse --verify --quiet refs/remotes/origin/main^{commit}': {
         stdout: 'base123\n'
       },
+      'git merge-base base123 refs/heads/feature/test': { stdout: 'base000\n' },
       'git merge-tree --write-tree base123 refs/heads/feature/test': {
         stdout: 'tree123\n'
       },
@@ -404,6 +406,8 @@ branch refs/heads/main
       'git cherry -v base123 refs/heads/feature/test': {
         stdout: '- def456 fix: already squash-merged\n'
       },
+      'git rev-parse --verify --quiet HEAD^{commit}': { stdout: 'base123\n' },
+      'git merge-base base123 refs/heads/feature/test': { stdout: 'base000\n' },
       'git update-ref -d refs/heads/feature/test def456': {
         error: new Error('cannot lock ref')
       }

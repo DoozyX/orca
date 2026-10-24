@@ -1,6 +1,7 @@
 import type { GitCapabilityCache } from './git-capability-cache'
 import { resolveDefaultBaseRefViaExec } from './git-default-base-ref'
 import { isUnsupportedMergeTreeWriteTreeError } from './git-merge-tree-capability'
+export { refreshBranchCleanupTargetRefs } from './git-branch-cleanup-fetch'
 
 export type GitBranchCleanupExecOptions = {
   stdin?: string
@@ -165,13 +166,9 @@ async function branchNetPatchMatchesTargetSquashCommit(
   runGit: GitBranchCleanupExec,
   targetOid: string,
   branchRef: string,
+  mergeBase: string,
   capabilities: GitCapabilityCache
 ): Promise<boolean> {
-  const mergeBase = await readOptionalGitStdout(runGit, ['merge-base', targetOid, branchRef])
-  if (!mergeBase) {
-    return false
-  }
-
   const branchPatchId = await computeStablePatchId(
     runGit,
     await readOptionalGitRawStdout(runGit, ['diff', mergeBase, branchRef])
@@ -225,12 +222,23 @@ export async function branchHasNoUnmergedChangesOnAnyTarget(
     if (!targetOid) {
       continue
     }
+    // Shallow/unrelated histories cannot support a merge proof; avoid the expensive tree walk.
+    const mergeBase = await readOptionalGitStdout(runGit, ['merge-base', targetOid, branchRef])
+    if (!mergeBase) {
+      continue
+    }
     if (await branchMergesWithoutTreeChanges(runGit, targetOid, branchRef, capabilities)) {
       return true
     }
     if (await hasBranchOnlyMergeCommits(runGit, targetOid, branchRef)) {
       if (
-        await branchNetPatchMatchesTargetSquashCommit(runGit, targetOid, branchRef, capabilities)
+        await branchNetPatchMatchesTargetSquashCommit(
+          runGit,
+          targetOid,
+          branchRef,
+          mergeBase,
+          capabilities
+        )
       ) {
         return true
       }

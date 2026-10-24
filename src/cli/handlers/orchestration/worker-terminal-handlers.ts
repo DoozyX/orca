@@ -79,7 +79,7 @@ export const ORCHESTRATION_WORKER_TERMINAL_HANDLERS: Record<string, CommandHandl
       'orchestration.workerRelease',
       runScopedDispatchParams(flags)
     )
-    // Why: only an unprovable close is a failure; retained/pending/already-released are settled answers.
+    // Retained, pending, and already-released are settled outcomes; only release_unknown fails.
     if (result.result.state === 'release_unknown') {
       process.exitCode = 1
     }
@@ -177,7 +177,6 @@ export const ORCHESTRATION_WORKER_TERMINAL_HANDLERS: Record<string, CommandHandl
                 const details = projection
                   ? `/${stage}] attention=${attention} liveness=${liveness} provider=${provider} host=${projection.host.id} workspace=${workspace}`
                   : `]`
-                // Why: the enumerating command owes the literal argv the guides tell callers to run.
                 const next = projection
                   ? ` next=${projection.nextAction.argv.join(' ') || 'none'} ${formatFleetDiagnostics(projection)}`
                   : ''
