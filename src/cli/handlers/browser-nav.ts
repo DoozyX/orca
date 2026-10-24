@@ -20,10 +20,7 @@ import { RuntimeClientError } from '../runtime-client'
 import { withBrowserInterruptRecovery } from '../runtime/browser-interrupted-retry'
 import { getBrowserCommandTarget } from '../selectors'
 
-// Why: selector/text/url waits can legitimately take longer than a normal RPC
-// round-trip, even when Orca is healthy. Give browser.wait an explicit timeout
-// budget so slow waits do not get mislabeled as "Orca is not running" by the
-// generic client timeout path.
+// Browser waits can outlast ordinary RPCs without indicating a disconnected runtime.
 const DEFAULT_BROWSER_WAIT_RPC_TIMEOUT_MS = 60_000
 
 export const BROWSER_NAV_HANDLERS: Record<string, CommandHandler> = {

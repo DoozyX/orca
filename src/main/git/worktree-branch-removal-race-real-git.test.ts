@@ -6,6 +6,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { runProcess } from '@orca/process-host'
 import { removeTree } from '../../shared/windows-transient-lock-removal'
 import type * as Runner from './runner'
+import { installRealWorkerThreadChildProcesses } from '../worker-thread-child-process/worker-thread-child-process-real.test-fixtures'
+
+installRealWorkerThreadChildProcesses()
 
 const gitHook = vi.hoisted(() => {
   const hook: { afterMergeProof: (() => Promise<void>) | null } = { afterMergeProof: null }

@@ -8,10 +8,7 @@ import type { ResolvedClaudeHomeBinding } from '../../shared/claude-home-binding
 import { prepareClaudeBoundHomeLaunch } from '../claude-accounts/claude-bound-home-route'
 import type { AssertClaudeBoundHomeUsable } from './claude-bound-home-refusal'
 
-/**
- * The folder a structured launch runs under, and the env patch that pins it there.
- * With account routing every launch follows the current selection, as a typed `claude` does.
- */
+/** Follow the current account selection and pin its environment for this launch. */
 export async function resolveClaudeStructuredLaunchHome(
   router: ClaudeProfileRouter | undefined,
   env: Record<string, string>,
@@ -35,7 +32,7 @@ export async function resolveClaudeStructuredLaunchHome(
     return recordHome
   }
   const preparation = await router.prepareLaunch()
-  // Why read before the patch: System default keeps the launch env's own CLAUDE_CONFIG_DIR.
+  // Read before patching: System default preserves the launch environment's CLAUDE_CONFIG_DIR.
   const launchHome =
     preparation.provenance === 'system'
       ? resolveStructuredClaudeAccountHomePath({
@@ -48,7 +45,6 @@ export async function resolveClaudeStructuredLaunchHome(
   return launchHome
 }
 
-/** Whether Claude wrote a transcript for this id under the given config folder. */
 async function claudeTranscriptExists(input: {
   providerSessionId: string
   claudeConfigDir: string
@@ -59,10 +55,7 @@ async function claudeTranscriptExists(input: {
   return path !== null
 }
 
-/**
- * Whether a chat with a recorded session resumes it. Unrouted, a stored leaf proves a transcript;
- * routed, the selected account may not be the one holding it, and starting fresh would drop the chat.
- */
+/** A stored leaf implies resume; refuse known history in another account instead of starting fresh. */
 export async function claudeLaunchResumesTranscript(input: {
   router: ClaudeProfileRouter | undefined
   leafUuid: string | null
@@ -90,6 +83,6 @@ export async function claudeLaunchResumesTranscript(input: {
       )
     }
   }
-  // Found nowhere Orca knows of (e.g. a folder since removed): the stored leaf still says it ran.
+  // A stored leaf still requires resume when its transcript folder is no longer known.
   return true
 }

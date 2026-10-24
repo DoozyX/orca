@@ -1,3 +1,4 @@
+import { installRealWorkerThreadChildProcesses } from '../worker-thread-child-process/worker-thread-child-process-real.test-fixtures'
 // Real-binary coverage for finishing a removal a quit or crash interrupted: what is left has to
 // come from Git and disk, whatever point the earlier run reached.
 import { existsSync } from 'node:fs'
@@ -411,3 +412,5 @@ describe('finishing an interrupted worktree removal after a restart', () => {
     expect(existsSync(worktreePath)).toBe(true)
   })
 })
+
+installRealWorkerThreadChildProcesses()

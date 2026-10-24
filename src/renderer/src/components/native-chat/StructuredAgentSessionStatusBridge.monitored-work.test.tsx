@@ -168,6 +168,42 @@ describe('StructuredAgentSessionStatusBridge monitored work', () => {
     ])
   })
 
+  it('delivers a new watch to the row even when nothing else changed', async () => {
+    render(<StructuredAgentSessionStatusBridge />)
+    await waitFor(() => expect(mocks.subscribeStatus).toHaveBeenCalledOnce())
+    const tasks = [
+      { id: 'child-1', kind: 'agent', state: 'done' },
+      { id: 'shell-1', kind: 'command', state: 'working' }
+    ] as const
+    act(() =>
+      feed().emit({
+        type: 'snapshot',
+        sessions: [summary({ status: 'idle', updatedAt: 2, backgroundTasks: [...tasks] })]
+      })
+    )
+    expect(statuses()[0]?.monitoredWork).toEqual([
+      { id: 'shell-1', kind: 'command', firstObservedAt: 0 }
+    ])
+
+    act(() =>
+      feed().emit({
+        type: 'status',
+        session: summary({
+          status: 'idle',
+          updatedAt: 2,
+          backgroundTasks: [
+            ...tasks,
+            { id: 'watch-1', kind: 'monitor', description: 'tail log', startedAt: 2 }
+          ]
+        })
+      })
+    )
+    expect(statuses()[0]?.monitoredWork).toEqual([
+      { id: 'shell-1', kind: 'command', firstObservedAt: 0 },
+      { id: 'watch-1', kind: 'monitor', label: 'tail log', firstObservedAt: 2 }
+    ])
+  })
+
   // A watch loop's age is not how long the agent has been working: the clock restarts when the
   // user's prompt turns a monitoring row into a real turn.
 })
