@@ -96,10 +96,12 @@ actually and then revert:
 ## Exceptions
 
 Throwaway prototypes and generated code are exceptions only when the user says
-so. Shell and release scripts (`scripts/*.sh` and their helpers) need no ask:
-they get no tests, no stubbed-CLI harness and no wiring into a test gate, and the
-failing-test-first step does not apply to them. Verify a script change with a
-dry-run and a read-only comparison against the real system, and record it.
+so. Shell, Python and Node build or release scripts (`scripts/*` and their
+helpers), GitHub workflows, Dockerfiles, CI selection logic and other runner,
+deploy or infra tooling need no ask: they get no tests, no stubbed-CLI harness
+and no wiring into a test gate, and the failing-test-first step does not apply
+to them. Verify such a change with a dry-run and a read-only comparison against
+the real system, and record it.
 
 "This is hard to test" is not an exception; it is a design signal that the code
 needs a seam.
@@ -114,13 +116,13 @@ file is enough.
 
 ## Red flags
 
-| Thought                                        | Reality                                                                    |
-| ------------------------------------------------ | ---------------------------------------------------------------------------- |
-| "I'll add tests after"                         | Code without a test in front of it does not get one.                       |
-| "The test is trivial, I know it fails"         | Run it. "I know" is how untested behavior ships.                           |
-| "I'll write all the tests, then all the code"  | Batching breaks the fail-then-pass loop and loses per-test verification.    |
-| "I'll assert the mock was called"              | That asserts you called your own double, not that behavior happened.       |
-| "The warning was already there"                | Check. If your change did not introduce it, say so rather than assume.     |
+| Thought                                       | Reality                                                                  |
+| --------------------------------------------- | ------------------------------------------------------------------------ |
+| "I'll add tests after"                        | Code without a test in front of it does not get one.                     |
+| "The test is trivial, I know it fails"        | Run it. "I know" is how untested behavior ships.                         |
+| "I'll write all the tests, then all the code" | Batching breaks the fail-then-pass loop and loses per-test verification. |
+| "I'll assert the mock was called"             | That asserts you called your own double, not that behavior happened.     |
+| "The warning was already there"               | Check. If your change did not introduce it, say so rather than assume.   |
 
 ## Hands off to
 

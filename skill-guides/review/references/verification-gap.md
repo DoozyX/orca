@@ -21,7 +21,9 @@ adversarial layer is.
 Before tracing anything, check whether the whole change falls into a class that
 carries no behavior to protect. If it does, emit the empty result and stop.
 
-Exits in one step, with no findings: comment or documentation changes; pure
+Exits in one step, with no findings: scripts, GitHub workflows, Dockerfiles, CI
+selection logic and other runner, deploy or infra tooling (they carry no tests by
+policy, so an absent test is never a gap); comment or documentation changes; pure
 formatting or import reordering; renames with no behavior change and call sites
 updated mechanically; additive logging or metrics nothing asserts on; new code not
 yet wired to any caller; test-only changes, including fixtures and doubles;
