@@ -12,13 +12,16 @@ import type { Tab } from '../../../../shared/tab-types'
 import type { AppState } from '@/store/types'
 import type * as RuntimeRpcClientModule from '@/runtime/runtime-rpc-client'
 
+type MonitoredWorkStore = {
+  getState: () => AppState
+  setState: (state: Partial<AppState> & { testRuntimeOwner?: string | null }) => void
+}
+
+const storeHolder = vi.hoisted((): { store: MonitoredWorkStore | null } => ({ store: null }))
+
 const mocks = vi.hoisted(() => ({
   removeAgentStatus: vi.fn(),
   setAgentStatus: vi.fn(),
-  store: null as null | {
-    getState: () => AppState
-    setState: (state: Partial<AppState> & { testRuntimeOwner?: string | null }) => void
-  },
   subscribeStatus: vi.fn(),
   subscribeTranscript: vi.fn(),
   supportsCapability: vi.fn(),
@@ -39,7 +42,7 @@ vi.mock('@/store', async () => {
       removeAgentStatus(paneKey)
     }
   })
-  mocks.store = useAppStore
+  storeHolder.store = useAppStore
   return { useAppStore }
 })
 
@@ -96,7 +99,7 @@ function summary(overrides: Partial<AgentSessionStatusSummary> = {}): AgentSessi
 }
 
 function statuses(): AgentStatusEntry[] {
-  return Object.values(mocks.store?.getState().agentStatusByPaneKey ?? {})
+  return Object.values(storeHolder.store?.getState().agentStatusByPaneKey ?? {})
 }
 
 /** The host side of the most recent status subscription. */
@@ -114,7 +117,7 @@ describe('StructuredAgentSessionStatusBridge monitored work', () => {
     resetStructuredAgentSessionStatusFeedsForTests()
     mocks.subscribeStatus.mockResolvedValue({ unsubscribe: mocks.unsubscribe })
     mocks.supportsCapability.mockResolvedValue(true)
-    mocks.store?.setState({
+    storeHolder.store?.setState({
       agentStatusByPaneKey: {},
       testRuntimeOwner: null,
       unifiedTabsByWorktree: { 'wt-1': [structuredTab] }
