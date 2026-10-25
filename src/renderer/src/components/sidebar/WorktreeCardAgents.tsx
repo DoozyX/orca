@@ -29,7 +29,7 @@ import {
   type WorktreeAgentExpansionControls
 } from './worktree-card-agents-expansion-state'
 import { translate } from '@/i18n/i18n'
-import { activateStructuredAgentSessionTab } from '@/lib/structured-agent-session-tab-activation'
+import { activateStructuredAgentSessionTab } from '@/lib/agent-session/structured-agent-session-tab-activation'
 import { selectAgentRowsUnread } from './worktree-card-agent-ack-inputs'
 import { dispatchSuppressScrollAdjustment } from './worktree-card-agent-scroll-suppression'
 import { revealCompactAgentCard } from './worktree-card-agent-reveal'

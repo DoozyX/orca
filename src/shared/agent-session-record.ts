@@ -1,6 +1,6 @@
 import { isAgentSessionRewindRecord, type AgentSessionRewindRecord } from './agent-session-rewind'
 import { isAgentSessionLaunchArgs } from './agent-session-launch-args'
-import { isAgentSessionConversationName } from './agent-session-conversation-name'
+import { isAgentSessionConversationName } from './agent-session/agent-session-conversation-name'
 import {
   isPersistedAgentSessionHandoffStage,
   isPersistedAgentSessionRuntimeKind,
@@ -30,7 +30,7 @@ import {
 import {
   isAgentSessionConversationCommandRecord,
   type AgentSessionConversationCommandRecord
-} from './agent-session-conversation-command'
+} from './agent-session/agent-session-conversation-command'
 import {
   decodePersistedAgentSessionProviderHandleChain,
   type AgentSessionProviderHandleLink

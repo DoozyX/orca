@@ -35,6 +35,9 @@ import {
 import { buildClaudeStatusPayload } from './claude-status-build'
 import { replaceClaudeMonitoredCrons, replaceClaudeMonitoredTasks } from './claude-monitored-work'
 import { trackClaudeTaskNotificationDelivery } from './claude-task-notification-delivery'
+import { recordClaudeTeammateSpawn } from './claude-teammate-spawn'
+
+const CLAUDE_HOOK_AGENT_ID_PREFIX = 'hook-agent-'
 
 export function normalizeClaudeEvent(
   state: HookListenerState,
@@ -106,6 +109,9 @@ export function normalizeClaudeEvent(
   const isTaskWakeup =
     eventAgentId === undefined &&
     trackClaudeTaskNotificationDelivery(state, paneKey, eventName, hookPayload, backgroundTasks)
+  if (eventName === 'PostToolUse' && eventAgentId === undefined) {
+    recordClaudeTeammateSpawn(state, paneKey, hookPayload)
+  }
   const sessionCrons = hookPayload['session_crons']
   const sessionCronInventoryPresent = Array.isArray(sessionCrons)
   const hasActiveSessionCron = sessionCronInventoryPresent && sessionCrons.length > 0
@@ -183,7 +189,9 @@ export function normalizeClaudeEvent(
       eventName === 'PostToolUseFailure')
       ? eventAgentId
       : undefined
-  if (eventAgentId && (subagentOriginId || isWaitingInducing)) {
+  // Why: `"type": "agent"` hook runs emit tool hooks (agent_type only if inherited) but never SubagentStop, so their row would stay working forever; real children may be untyped and start-less.
+  const isClaudeHookAgent = eventAgentId?.startsWith(CLAUDE_HOOK_AGENT_ID_PREFIX) === true
+  if (eventAgentId && (subagentOriginId || isWaitingInducing) && !isClaudeHookAgent) {
     upsertWorkingClaudeSubagent(
       getOrCreateClaudeSubagentRoster(state, paneKey),
       eventAgentId,

@@ -153,6 +153,7 @@ import {
   structuredWorkerIdentities,
   structuredWorkerProcessIncarnation
 } from './structured-worker-identity'
+import { partialRuntimeStore } from './runtime-store-partial-fixture'
 
 // A new agent goes last: its cases then shift only the configured ones' session ids.
 const AGENTS = [
@@ -582,14 +583,14 @@ beforeAll(async () => {
   process.env = inheritedEnvironment()
   installAppEnvironment()
   settings = defaultSettings()
-  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the host wiring reads only the settings and the (empty, hydrated) project catalog a Claude launch checks for a home binding.
-  const runtime = new OrcaRuntimeService({
+  // Why: a Claude launch refuses without the hydrated (empty) project catalog its home binding reads.
+  const storeMembers = {
     getSettings: () => settings,
     hasHydratedProjectCatalog: () => true,
     getProjectGroups: () => [],
-    getRepos: () => [],
     getFolderWorkspaces: () => []
-  } as never)
+  }
+  const runtime = new OrcaRuntimeService(partialRuntimeStore(storeMembers))
   await runtime.ensureStructuredAgentSessionHost()
   const production = capture.productionDeps.at(-1)
   if (!production) {
