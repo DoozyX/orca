@@ -115,6 +115,7 @@ describe('structured pointer lane answers through the watch', () => {
         readSessionFacts: async () =>
           options.attached === false ? null : { submissions: options.submissions ?? [] },
         hasActionablePromptNow: () => false,
+        isWorkingNow: () => false,
         currentFence: () => 1,
         currentContextClearOperationId: () => undefined,
         send
@@ -189,13 +190,6 @@ describe('structured pointer lane answers through the watch', () => {
       ]
     })
     await expect(observeAndNudge(message.id)).resolves.toBeUndefined()
-    expect(send).not.toHaveBeenCalled()
-  })
-
-  it('claims nothing while the mailbox holds an unacknowledged delivery', async () => {
-    vi.spyOn(db, 'hasOutstandingMailboxDelivery').mockReturnValue(true)
-    const { send, sendMessage } = lane({})
-    await expect(sendMessage()).resolves.toBeUndefined()
     expect(send).not.toHaveBeenCalled()
   })
 

@@ -1,6 +1,7 @@
-import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs'
+import { getClaudeAgentViewService } from '../claude/agent-view-service'
+import { existsSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { join } from 'node:path'
 import { isAgentStatusHooksEnabledForAgent } from '../../shared/agent-status-hooks-setting'
 import {
   CLAUDE_INJECTED_CONFIG_DIR_ENV,
@@ -11,7 +12,6 @@ import {
 import { claudeProfileMissing, claudeProfileSetupFailed } from './claude-profile-launch-errors'
 import type { GlobalSettings } from '../../shared/global-settings-types'
 import { probeRecentClaudeCliVersion } from '../claude/claude-hook-event-versions'
-import { writeFileAtomically } from '../codex-accounts/fs-utils'
 import { resolveClaudeCommand } from '../codex-cli/command'
 import {
   claudeProfileMarkerPath,
@@ -31,7 +31,7 @@ import {
   type ClaudeAccountSelectionTarget
 } from './runtime-selection'
 import { wslClaudeProfilePointer } from './claude-profile-wsl-paths'
-import { isDirectory, listClaudeProfileHomes } from './claude-profile-installed-router'
+import { isDirectory, listClaudeProfileHomes } from './claude-profile-homes'
 import {
   claudeStateFile,
   readClaudeFolderLogin,
@@ -40,6 +40,7 @@ import {
   type ClaudeFolderLogin
 } from './claude-account-folder'
 import { resolveLoginShellEnvironment } from '../startup/login-shell-environment'
+import { syncClaudeProfileHostPointer } from './claude-profile-host-pointer'
 import type { ClaudeBoundHomeOverride, ClaudeLaunchScope } from './claude-bound-home-route'
 
 export type ClaudeProfileRouterSettings = Pick<
@@ -145,17 +146,12 @@ export class ClaudeProfileRouter {
   }
 
   private writePointer(): boolean {
-    if (this.args.getSettings().claudeManagedAccounts.length === 0) {
-      rmSync(this.pointerPath, { force: true })
-      return false
-    }
-    const home = this.routedProfile()?.home ?? ''
-    // Avoid rewriting the pointer on every launch.
-    if (!existsSync(this.pointerPath) || readFileSync(this.pointerPath, 'utf8') !== home) {
-      mkdirSync(dirname(this.pointerPath), { recursive: true, mode: 0o700 })
-      writeFileAtomically(this.pointerPath, home, { mode: 0o600 })
-    }
-    return true
+    const managed = this.args.getSettings().claudeManagedAccounts.length > 0
+    syncClaudeProfileHostPointer(
+      this.pointerPath,
+      managed ? (this.routedProfile()?.home ?? '') : null
+    )
+    return managed
   }
 
   private setUpInBackground(profile: ClaudeProfileDescriptor): void {
@@ -257,6 +253,9 @@ export class ClaudeProfileRouter {
       hooks,
       claudeVersion: claudeVersion ?? undefined
     })
+    if (report.outcome === 'prepared') {
+      await getClaudeAgentViewService(this.args.dataRoot).prepareProfile(profile.home)
+    }
     if (report.outcome === 'refused' || report.warnings.length > 0) {
       console.warn('[claude-profile] Account setup was incomplete:', report)
     }

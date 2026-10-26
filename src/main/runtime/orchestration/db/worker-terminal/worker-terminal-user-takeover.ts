@@ -2,7 +2,6 @@ import { isEquivalentPaneKey } from '../pane-key-match'
 import type { OrchestrationDb } from '../orchestration-db'
 import type { WorkerTerminalTakeoverSource } from '../../worker-terminal-ownership'
 
-// Real user input durably relinquishes orchestration ownership, recording which input path did it.
 export function markWorkerTerminalUserOwned(
   this: OrchestrationDb,
   paneKey: string,

@@ -3,7 +3,6 @@ import type { TerminalDocumentScope } from './document-scope'
 import type { TerminalDocumentLine } from './document-terminal-shape'
 import { applyXtermSelection } from './selection-highlight'
 
-/** What counts as one word for select-all and for word seeding. */
 const WORD_RE = /[\p{L}\p{N}_./:@~+=?&#%-]/u
 
 type SelectionUnit = { text: string; start: number; end: number }

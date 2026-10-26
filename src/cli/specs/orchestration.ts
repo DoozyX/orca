@@ -117,7 +117,7 @@ export const ORCHESTRATION_COMMAND_SPECS: CommandSpec[] = [
       'On Windows PowerShell, quote comma-separated type filters, e.g. --types "worker_done,escalation".',
       '--types with --wait is both the wake condition and the delivery filter: a newly built Delivery holds only rows of those types, and other unread rows stay unread for a check without --types. Exception: when your un-acked Delivery already holds a row of those types, the wait replays that Delivery whole, rows of other types included. Without --wait, --types has no effect on consuming checks. --peek and --all filter their rows without consuming them.',
       '--format renders the returned rows as local text only; it never writes to another terminal.',
-      'A bound Run replays the same Delivery until --ack or all its messages are marked read; process every message before acknowledging.'
+      'A bound Run replays the same Delivery until --ack or all its messages are marked read; process every message before acknowledging. Several --wait calls may wait on one Run inbox; waiting reserves nothing, listeners with the same --types woken together get the same Delivery, and a repeated --ack is a no-op.'
     ]
   },
   {

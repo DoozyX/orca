@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { OrchestrationDb } from './db/orchestration-db'
 import {
   selectOrchestrationPointerBatch,
+  shouldReleaseOrchestrationPointer,
   type OrchestrationMessageWaiter
 } from './mailbox-pointer-eligibility'
 
@@ -36,7 +37,7 @@ describe('selectOrchestrationPointerBatch', () => {
         waiters: waiters(['question']),
         reservedTypes: undefined
       })
-      expect(batch.map((m) => m.type)).toEqual(['status', 'status'])
+      expect(batch.messages.map((m) => m.type)).toEqual(['status', 'status'])
     } finally {
       db.close()
     }
@@ -51,7 +52,7 @@ describe('selectOrchestrationPointerBatch', () => {
         waiters: undefined,
         reservedTypes: new Set(['status'])
       })
-      expect(batch.map((m) => m.type)).toEqual(['question'])
+      expect(batch.messages.map((m) => m.type)).toEqual(['question'])
     } finally {
       db.close()
     }
@@ -66,14 +67,14 @@ describe('selectOrchestrationPointerBatch', () => {
           mailboxHandle: MAILBOX,
           waiters: waiters(['question']),
           reservedTypes: new Set(['status'])
-        })
+        }).messages
       ).toEqual([])
     } finally {
       db.close()
     }
   })
 
-  // An unfiltered waiter owns the mailbox: a caller blocked in `check --wait` preempts delivery.
+  // An unfiltered check --wait owns the entire mailbox and preempts pointer delivery.
   it('yields nothing when any waiter is unfiltered', () => {
     const db = seeded()
     try {
@@ -83,8 +84,109 @@ describe('selectOrchestrationPointerBatch', () => {
           mailboxHandle: MAILBOX,
           waiters: waiters(['question'], undefined),
           reservedTypes: undefined
-        })
+        }).messages
       ).toEqual([])
+    } finally {
+      db.close()
+    }
+  })
+
+  it('selects only mail outside the unacked batch, and reselects behind the next one after an ack', () => {
+    const db = new OrchestrationDb(':memory:')
+    try {
+      const run = db.createRun({
+        objective: 'Held batch',
+        coordinatorHandle: 'term_coord',
+        coordinatorPaneKey: 'tab:11111111-1111-4111-8111-111111111111'
+      })
+      const mailbox = `run:${run.id}`
+      const params = {
+        runId: run.id,
+        mailboxHandle: mailbox,
+        consumerGeneration: run.consumer_generation
+      }
+      const insert = (subject: string) =>
+        db.insertMessage({ runId: run.id, from: 'worker', to: mailbox, subject })
+      const heldMessage = insert('held')
+      const first = db.getOrCreateMailboxDelivery(params)!.delivery
+      const newer = insert('newer')
+      const select = () =>
+        selectOrchestrationPointerBatch({
+          db,
+          mailboxHandle: mailbox,
+          waiters: undefined,
+          reservedTypes: undefined
+        })
+
+      const batch = select()
+      expect(batch.heldDeliveryId).toBe(first.id)
+      expect(batch.messages.map((message) => message.id)).toEqual([newer.id])
+      expect(db.getMessageById(heldMessage.id)).toMatchObject({ read: 0, delivered_at: null })
+
+      db.acknowledgeMailboxDelivery({ ...params, deliveryId: first.id })
+      const second = db.getOrCreateMailboxDelivery(params)!.delivery
+      const later = insert('later')
+      expect(select()).toEqual({
+        heldDeliveryId: second.id,
+        messages: [expect.objectContaining({ id: later.id })]
+      })
+    } finally {
+      db.close()
+    }
+  })
+
+  it('holds the mail of every unacked batch when typed and untyped batches coexist', () => {
+    const db = new OrchestrationDb(':memory:')
+    try {
+      const run = db.createRun({
+        objective: 'Typed and untyped batches',
+        coordinatorHandle: 'term_coord',
+        coordinatorPaneKey: 'tab:11111111-1111-4111-8111-111111111111'
+      })
+      const mailbox = `run:${run.id}`
+      const params = {
+        runId: run.id,
+        mailboxHandle: mailbox,
+        consumerGeneration: run.consumer_generation
+      }
+      const heartbeat = db.insertMessage({
+        runId: run.id,
+        from: 'worker',
+        to: mailbox,
+        subject: 'heartbeat',
+        type: 'heartbeat'
+      })
+      db.getOrCreateMailboxDelivery(params)
+      const done = db.insertMessage({
+        runId: run.id,
+        from: 'worker',
+        to: mailbox,
+        subject: 'done',
+        type: 'worker_done'
+      })
+      db.getOrCreateMailboxDelivery({ ...params, wakeTypes: ['worker_done'] })
+      const newer = db.insertMessage({ runId: run.id, from: 'worker', to: mailbox, subject: 'new' })
+
+      const batch = selectOrchestrationPointerBatch({
+        db,
+        mailboxHandle: mailbox,
+        waiters: undefined,
+        reservedTypes: undefined
+      })
+      const replay = db.getOrCreateMailboxDelivery(params)!
+      expect(replay.replayed).toBe(true)
+      expect(batch.heldDeliveryId).toBe(replay.delivery.id)
+      expect(batch.messages.map((message) => message.id)).toEqual([newer.id])
+      for (const held of [heartbeat, done]) {
+        expect(
+          shouldReleaseOrchestrationPointer(
+            db,
+            mailbox,
+            [{ id: held.id, type: held.type }],
+            undefined
+          )
+        ).toBe(true)
+      }
     } finally {
       db.close()
     }

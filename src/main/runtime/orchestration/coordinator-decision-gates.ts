@@ -1,4 +1,3 @@
-/** Decision-gate handling: opening a gate from a worker message and keeping gated tasks blocked. */
 import type { OrchestrationDb } from './db'
 import { OrchestrationError } from './orchestration-error'
 import type { DecisionGateRow, MessageRow } from './types'
@@ -55,7 +54,7 @@ export function openDecisionGateFromMessage(
 }
 
 export function reblockTasksWithPendingGates(db: OrchestrationDb): void {
-  // Why: the coordinator never auto-resolves gates (humans do, via orchestration.gateResolve) — that would defeat them as approval checkpoints.
+  // Only explicit human gate resolution may unblock these approval checkpoints.
   const pendingGates = db.listGates({ status: 'pending' })
   for (const gate of pendingGates) {
     if (gate.preserved_dispatch_id !== null) {
@@ -63,7 +62,6 @@ export function reblockTasksWithPendingGates(db: OrchestrationDb): void {
     }
     const task = db.getTask(gate.task_id)
     if (task && task.status !== 'blocked') {
-      // Why: gate exists but task isn't blocked — re-block to restore the invariant.
       db.updateTaskStatus(gate.task_id, 'blocked')
     }
   }

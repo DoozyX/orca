@@ -27,9 +27,7 @@ function worker(id: string, overrides: Partial<FleetDurableWorker> = {}): FleetD
   }
 }
 
-/** The identity the runtime resolves for the pane. Hand-built here because these cases are
- *  about the projection, not about identity resolution — `fleet-status-terminal-identity` and
- *  the producer census drive the real minter against a real runtime. */
+/** Supply runtime identity to isolate projection; fleet-status-terminal-identity and producer census test the real minter. */
 function status(
   id: string,
   receivedAt: number,
@@ -363,8 +361,7 @@ describe('orchestration fleet projection', () => {
 
     expect(result.workers[0]?.liveness.verdict).toBe('live')
 
-    // A reminted pane is only accepted through the terminal handle; a foreign handle is not
-    // this worker even when both the pane and the Dispatch would otherwise be reachable.
+    // Reminted panes require the matching terminal handle; pane/dispatch matches cannot authorize a foreign handle.
     expect(
       projectOrchestrationFleet({
         workers: [durable],
@@ -563,7 +560,6 @@ describe('fleet liveness and attention after a host verdict', () => {
       statuses: [],
       now
     })
-    // The same receipt used to carry `observation.status: exited` next to this verdict.
     expect(projected.workers[0]!.liveness).toEqual({
       verdict: 'exited',
       source: 'execution_host'
@@ -672,9 +668,7 @@ describe('fleet liveness and attention after a host verdict', () => {
     }
   )
 
-  // The live worker-list row from a stopped worker: the same receipt proved the exit,
-  // called it absence, and pointed back at the command that reported the settlement.
-  // worker-release always refuses a stopped worker `identity_unproven`, so `release` looped.
+  // The stopped worker’s receipt previously proved exit, called it absence and pointed back to itself; release always refuses it.
   it('never contradicts a proven exit on a stopped worker still owning its terminal', () => {
     const projected = projectOrchestrationFleet({
       workers: [

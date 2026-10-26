@@ -124,9 +124,7 @@ export function getFolderWorkspaceRevealGroupKeys(
       )
     : []
 
-  // Under non-repo grouping the project-group headers above do not exist, so the
-  // lane and host headers are the ones actually hiding the row (#15362). Lane
-  // keys come from the same function grouping uses, so the two cannot disagree.
+  // Non-repo modes hide folders behind lane/host headers; derive their reveal keys from the grouping function.
   const owningGroup = folderWorkspace.projectGroupId
     ? findProjectGroupByHost(groupHostIndex, folderWorkspace.projectGroupId, groupHostId)
     : undefined

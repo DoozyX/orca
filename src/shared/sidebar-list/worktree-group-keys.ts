@@ -66,8 +66,7 @@ export function getGroupKeysForWorktree(
     return [groupKey]
   }
   const repo = repoMap.get(worktree.repoId)
-  // Why the drawn ancestry: the sidebar renders one header per merged group, nested
-  // under its primary's parents, so keys must name those rows (#22022, #30045).
+  // The sidebar renders one header per merged group under its primary's parents (#22022, #30045).
   const mergedIndex = buildMergedProjectGroupIndex(projectGroups)
   const repoHostId =
     repo && (getRepoRoutingConnectionId(repo) || repo.executionHostId)
@@ -76,8 +75,7 @@ export function getGroupKeysForWorktree(
   const row = repo?.projectGroupId
     ? findMergedProjectGroup(mergedIndex, repo.projectGroupId, repoHostId)
     : undefined
-  // Why: repos can arrive before their remote Project Group metadata; reveal keys
-  // must match the top-level fallback rows planSidebarRows actually renders.
+  // Remote repos may precede Project Group metadata; reveal keys must match planSidebarRows’ fallback rows.
   const groupKeys = row
     ? getMergedProjectGroupAncestry(mergedIndex, row).map((entry) =>
         getProjectGroupHeaderKey(entry.rowId)

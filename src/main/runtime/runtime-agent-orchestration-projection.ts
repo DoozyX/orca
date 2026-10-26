@@ -34,16 +34,16 @@ type RuntimeAgentOrchestrationDependencies = {
 }
 
 export type RuntimeAgentOrchestrationPublication = {
-  byPaneKey?: Record<string, AgentStatusOrchestrationContext>
+  agentOrchestrationByPaneKey?: Record<string, AgentStatusOrchestrationContext>
   /** Live panes past the display window whose latest dispatch's run is still coordinated. */
-  runWorkerPaneKeys?: string[]
+  agentRunWorkerPaneKeys?: string[]
 }
 
 export class RuntimeAgentOrchestrationProjection {
   constructor(private readonly deps: RuntimeAgentOrchestrationDependencies) {}
 
   buildByPaneKey(): Record<string, AgentStatusOrchestrationContext> | undefined {
-    return this.buildPublication().byPaneKey
+    return this.buildPublication().agentOrchestrationByPaneKey
   }
 
   buildPublication(): RuntimeAgentOrchestrationPublication {
@@ -56,7 +56,7 @@ export class RuntimeAgentOrchestrationProjection {
     const evidenceByPaneKey = new Map(
       this.deps.getAgentStatusSnapshot().map((evidence) => [evidence.activity.paneKey, evidence])
     )
-    // Defer attention to one batched query below; per-pane facts would refetch on every 16ms publish.
+    // Batch attention queries below; per-pane reads would repeat every 16ms publication.
     const batchAttention = typeof db.getWorkerAttentionFactsForDispatches === 'function'
     const queriedHandles = new Set<string>()
     const contextFor = (handle: string, paneKey: string) =>
@@ -95,7 +95,8 @@ export class RuntimeAgentOrchestrationProjection {
       }
     }
     const runWorkerPaneKeys = this.filterLiveRunMembers(db, settledRunIdByPaneKey)
-    const membership = runWorkerPaneKeys.length > 0 ? { runWorkerPaneKeys } : {}
+    const membership =
+      runWorkerPaneKeys.length > 0 ? { agentRunWorkerPaneKeys: runWorkerPaneKeys } : {}
     const entries = Object.entries(contexts)
     if (entries.length === 0) {
       return membership
@@ -121,7 +122,7 @@ export class RuntimeAgentOrchestrationProjection {
         }
       }
     }
-    return { byPaneKey: contexts, ...membership }
+    return { agentOrchestrationByPaneKey: contexts, ...membership }
   }
 
   /** Keeps panes whose run is still coordinated from a live pane; an unbound run has no coordinator. */
@@ -146,7 +147,7 @@ export class RuntimeAgentOrchestrationProjection {
     handle: string,
     db = this.deps.getDb(),
     options: {
-      // Why: handles are minted per process; after a restart only the pane identity still names the dispatch.
+      // Handles are process-local; pane identity still names the Dispatch after restart.
       paneKey?: string
       evidence?: FleetAgentStatusEvidence
       deferAttention?: boolean
@@ -215,8 +216,7 @@ export class RuntimeAgentOrchestrationProjection {
       task.creator_dispatch_process_incarnation === task.created_by_process_incarnation &&
       parsePaneKey(task.creator_dispatch_pane_key)?.leafId === storedCreatorPane?.leafId
     )
-    // Why: durable Run membership is what makes this pane the child's creator; the live
-    // process-incarnation and handle checks below only decide mutation authority.
+    // Durable Run membership identifies the creator; live incarnation/handle checks only decide mutation authority.
     const creatorLineageInRun = Boolean(
       owningRun?.legacy === 0 &&
       task?.created_by_run_generation === owningRun.consumer_generation &&
@@ -269,12 +269,7 @@ export class RuntimeAgentOrchestrationProjection {
     }
   }
 
-  /**
-   * Resolves a stored (handle, pane key) pair to what this process can address now. A handle
-   * this process never minted is stale and must not reach the renderer; the pane key is the
-   * remint-stable identity, so it is re-resolved to the live pane and published even when no
-   * pane is live yet, so the row nests again as soon as that pane is restored.
-   */
+  /** Never publish stale process-local handles; re-resolve the durable pane key, retaining it while offline so restored rows can nest again. */
   private resolveLivePane(
     storedHandle: string | null | undefined,
     storedPaneKey: string | null

@@ -6,6 +6,9 @@ import type { DashboardAgentRow as DashboardAgentRowData } from '@/components/da
 import { AgentTypeIcon } from '@/lib/agent-type-icon'
 import { formatAgentTypeLabel } from '@/lib/agent-status'
 import { cn } from '@/lib/utils'
+import { viewClaudeAgentFromRow } from '@/lib/claude-agent-row-view'
+import { useClaudeAgentRowView } from '@/components/dashboard/use-claude-agent-row-view'
+import { ClaudeAgentViewIndicator } from '@/components/ClaudeAgentViewIndicator'
 import { getAgentDotState } from './worktree-card-agent-summary'
 import { getAgentRowPrimaryText } from '../../../../shared/agent-row-primary-text'
 import { formatAgentToolPreview } from '@/lib/agent-row-tool-preview'
@@ -38,11 +41,11 @@ export function getCompactAgentSecondary(
   lastAssistantMessageOverride?: string,
   presentation: ProgramStatusPresentation = resolveRowProgramStatus(agent).presentation
 ): string {
-  // Why: the parent row already says Monitoring; each child is just its label and age.
+  // The parent row already says Monitoring; each child is just its label and age.
   if (agent.rowSource === 'monitored-work') {
     return ''
   }
-  // Why first: a block the program reports (sign-in) is the one thing on this row that needs the user.
+  // Program-reported blocks need user attention before other row details.
   if (presentation.attention) {
     return programStatusAttentionLine(presentation.attention)
   }
@@ -50,8 +53,7 @@ export function getCompactAgentSecondary(
   if (verdictLine) {
     return verdictLine
   }
-  // Why: the only honest thing to say about a pane Orca still holds but no longer hears
-  // from is how long the silence has run; the user supplies the meaning.
+  // Silence proves only time without updates; do not infer what the pane is doing.
   if (agent.state === 'unverifiable') {
     return agentNoUpdateLabel(agent.entry, now)
   }
@@ -95,8 +97,7 @@ type CompactAgentRowProps = {
   agent: DashboardAgentRowData
   now: number
   onActivate: (tabId: string, paneKey: string) => void
-  // Why: send-popover target mode temporarily turns compact sidebar rows into
-  // the picker surface, matching the full DashboardAgentRow behavior.
+  // Send-target mode temporarily turns compact rows into the picker, matching full agent rows.
   sendTargetStatus?: 'eligible' | 'disabled' | 'sending'
   sendTargetDisabledReason?: string
   onSendTargetClick?: (paneKey: string) => void
@@ -124,23 +125,20 @@ export const CompactAgentRow = React.memo(function CompactAgentRow({
   cacheTimerActive = true,
   isUnvisited = false
 }: CompactAgentRowProps) {
+  const view = useClaudeAgentRowView(agent)
+  const highlighted = view ? view.current && view.focused : isFocusedPane
   const hasChildDisclosure =
     typeof childAgentCount === 'number' &&
     childAgentCount > 0 &&
     typeof onToggleChildAgents === 'function'
-  // Why: derived child rows carry a child NAME (e.g. "pr-reviewer") or 'unknown' in agentType,
-  // which AgentTypeIcon would draw as a misleading letter. Nesting under the parent conveys identity.
+  // Child agentType contains its name or 'unknown', not a provider; nesting conveys identity without a misleading letter icon.
   const hideIcon = hideIdentityIcon || isDerivedChildRow(agent)
   const { presentation, dotStateOverride } = resolveRowProgramStatus(agent)
   const dotState = dotStateOverride ?? getAgentDotState(agent)
   const conversationName = useAgentRowConversationName(agent)
   const primary = getCompactAgentPrimary(agent, conversationName)
   const isLineageChild = agent.lineage?.depth === 1
-  // Keep a live row's last assistant line stable while status/tool payloads
-  // briefly omit the hook-only field between updates. Committed in an effect so a
-  // discarded concurrent render can't pin an uncommitted message and no extra render
-  // pass runs per streaming ping; a zero stateStartedAt has no per-turn identity, so
-  // those rows never cache.
+  // Hold assistant text per positive turn clock; commit in an effect so discarded renders cannot cache messages.
   const turn = agent.entry.stateStartedAt
   const currentMessage = agent.entry.lastAssistantMessage?.trim() ?? ''
   const turnHoldable = agent.state === 'working' && turn > 0
@@ -170,11 +168,11 @@ export const CompactAgentRow = React.memo(function CompactAgentRow({
   const handleActivate = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation()
-      // Why: subagent child rows have no pane of their own; they focus the
-      // parent pane whose session spawned them.
+      // Child agents activate their spawning parent pane because they have no pane of their own.
       onActivate(agent.tab.id, agent.activationPaneKey ?? agent.paneKey)
+      void viewClaudeAgentFromRow(agent)
     },
-    [agent.activationPaneKey, agent.paneKey, agent.tab.id, onActivate]
+    [agent, onActivate]
   )
   const handleSendTargetClickCapture = useCallback(
     (e: React.MouseEvent) => {
@@ -200,29 +198,28 @@ export const CompactAgentRow = React.memo(function CompactAgentRow({
     <span
       className={cn(
         'shrink-0 text-[10px] tabular-nums',
-        isFocusedPane ? 'text-foreground/70' : 'text-muted-foreground/60'
+        highlighted ? 'text-foreground/70' : 'text-muted-foreground/60'
       )}
     >
       {shortTime}
     </span>
   ) : null
 
-  // Why: the selected-row fill is strong enough to wash out the dimmed prompt/secondary text, so
-  // lift the lead toward full foreground when focused; an unvisited row stays bold either way.
+  // Focused fills wash out muted text; brighten the lead while preserving unread emphasis.
   const leadClassName = cn(
     isUnvisited ? 'font-semibold text-foreground' : 'font-normal text-muted-foreground/90',
-    isFocusedPane && !isUnvisited && 'text-foreground'
+    highlighted && !isUnvisited && 'text-foreground'
   )
 
   const rowBody = (
     <>
       {agent.childRow ? (
-        // Why: a child row reads through the piece the chat strip renders, so both say the same.
+        // Share chat-strip child content so both surfaces report the same state.
         <AgentChildRowContent
           row={agent.childRow}
           now={now}
           leadClassName={leadClassName}
-          trailClassName={isFocusedPane ? 'text-foreground/70' : 'text-muted-foreground/65'}
+          trailClassName={highlighted ? 'text-foreground/70' : 'text-muted-foreground/65'}
           separator=" - "
           dotTitle={sendTargetDisabledReason ? null : undefined}
           tooltipSide="right"
@@ -230,7 +227,7 @@ export const CompactAgentRow = React.memo(function CompactAgentRow({
         />
       ) : (
         <>
-          {/* Why: the row's actionable disabled reason must win on every hit area. */}
+          {/* Show the actionable disabled reason over every hit area. */}
           <AgentStateDot
             state={dotState}
             size="sm"
@@ -249,7 +246,7 @@ export const CompactAgentRow = React.memo(function CompactAgentRow({
           >
             <span className={leadClassName}>{leadingText}</span>
             {trailingText && (
-              <span className={isFocusedPane ? 'text-foreground/70' : 'text-muted-foreground/65'}>
+              <span className={highlighted ? 'text-foreground/70' : 'text-muted-foreground/65'}>
                 {' '}
                 - {trailingText}
               </span>
@@ -257,11 +254,12 @@ export const CompactAgentRow = React.memo(function CompactAgentRow({
           </span>
         </>
       )}
+      <ClaudeAgentViewIndicator view={view} showChild={!childAgentsExpanded} />
       {model && (
         <span
           className={cn(
             'min-w-0 max-w-24 truncate font-mono text-[10px]',
-            isFocusedPane ? 'text-foreground/70' : 'text-muted-foreground/70'
+            highlighted ? 'text-foreground/70' : 'text-muted-foreground/70'
           )}
           title={model}
         >
@@ -272,7 +270,7 @@ export const CompactAgentRow = React.memo(function CompactAgentRow({
         <span
           className={cn(
             'shrink-0 text-[10px] tabular-nums',
-            isFocusedPane ? 'text-foreground/70' : 'text-muted-foreground/70'
+            highlighted ? 'text-foreground/70' : 'text-muted-foreground/70'
           )}
         >
           +{childAgentCount}
@@ -301,7 +299,7 @@ export const CompactAgentRow = React.memo(function CompactAgentRow({
         hasChildDisclosure && 'worktree-agent-lineage-parent-row',
         isLineageChild && 'worktree-agent-lineage-child-row',
         'flex h-6 items-center gap-1',
-        isFocusedPane && 'bg-worktree-sidebar-accent',
+        highlighted && 'bg-worktree-sidebar-accent',
         sendTargetStatus === 'sending' && 'cursor-progress opacity-75',
         sendTargetStatus === 'disabled' && 'cursor-default opacity-60'
       )}
@@ -310,7 +308,9 @@ export const CompactAgentRow = React.memo(function CompactAgentRow({
       onMouseDown={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
       onDragStart={(e) => e.stopPropagation()}
-      data-focused-agent-pane={isFocusedPane ? 'true' : undefined}
+      data-focused-agent-pane={highlighted ? 'true' : undefined}
+      data-current={view?.current ? 'true' : undefined}
+      aria-current={view?.current ? 'true' : undefined}
       data-agent-send-target={sendTargetStatus}
       role={agent.lineage ? 'treeitem' : undefined}
       aria-level={agent.lineage ? agent.lineage.depth + 1 : undefined}

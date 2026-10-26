@@ -18,6 +18,8 @@ export type StructuredMailboxPointerHost = {
   /** `null` when the session cannot be read. */
   readSessionFacts: (sessionId: string) => Promise<StructuredPointerSessionFacts | null>
   hasActionablePromptNow: (sessionId: string) => boolean | null
+  /** False for a conversation the idle sweep closed: it runs no turn. */
+  isWorkingNow: (sessionId: string) => boolean
   send: (input: {
     sessionId: string
     dispatchId: string | null
@@ -25,6 +27,8 @@ export type StructuredMailboxPointerHost = {
     expectedRuntimeFence: number
     /** Names its senders as `from`. */
     body: AgentJournalMessageItem
+    /** Hold rather than steer when a turn is running at admission. */
+    holdWhileWorking: boolean
   }) => Promise<StructuredPointerSendOutcome>
   /** Current lease fence; `null` when no record backs the session any more. */
   currentFence: (sessionId: string) => number | null

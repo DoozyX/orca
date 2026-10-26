@@ -14,9 +14,7 @@ import {
 import { applyFederatedFleetObservations } from './federated-fleet-snapshot'
 import { parseRemoteWorkerTerminalResource } from './federated-terminal-custody-wire'
 
-/** Why worker-show cannot use the plain fleet projection: the push-fed agent-status snapshot
- *  only covers local panes, so a federated Dispatch got a fabricated `unverifiable` beside the
- *  execution host's real answer, and the guide makes the fleet verdict the one that decides. */
+/** Query host evidence: push-fed fleet snapshots cover only local panes and would fabricate unverifiable for federated workers. */
 export function projectFederatedFleetWorker(args: {
   runtime: OrcaRuntimeService
   db: OrchestrationDb

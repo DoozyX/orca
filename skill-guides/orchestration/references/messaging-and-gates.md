@@ -15,8 +15,12 @@ the caller; pass it explicitly from anywhere else, including a dispatched
 worker reading coordinator follow-ups.
 
 A consuming coordinator `check` returns the bound Run's oldest FIFO Delivery,
-up to 50 messages, and replays that exact batch until acknowledged. Process
-every row and required terminal ownership decision before `--ack`.
+up to 50 messages, and replays that exact batch until acknowledged or all its
+messages are marked read. Concurrent waits on one Run inbox are allowed; waits
+with the same `--types` share the outstanding batch, none reserves anything,
+and acknowledging the same
+Delivery twice is a no-op. Process every row and required terminal ownership
+decision before `--ack`.
 
 `--types` with `--wait` is both the wake condition and the delivery filter: a
 newly built Delivery holds only rows of those types, and other unread rows stay

@@ -215,6 +215,36 @@ export function hasOutstandingMailboxDelivery(
   )
 }
 
+/** Typed waits keep one batch per `--types`; `id` is the batch an untyped check replays, `messageIds` spans every held batch. */
+export function getOutstandingMailboxDelivery(
+  this: OrchestrationDb,
+  mailboxHandle: string
+): { id: string; messageIds: string[] } | undefined {
+  const rows = this.db
+    .prepare(
+      `SELECT id, message_ids FROM outstanding_deliveries WHERE mailbox_handle = ?
+       ORDER BY created_at, id`
+    )
+    .all(mailboxHandle)
+  let id: string | undefined
+  const messageIds: string[] = []
+  for (const row of rows) {
+    if (typeof row.id !== 'string' || typeof row.message_ids !== 'string') {
+      continue
+    }
+    const held: unknown = JSON.parse(row.message_ids)
+    if (
+      !Array.isArray(held) ||
+      !held.every((member): member is string => typeof member === 'string')
+    ) {
+      continue
+    }
+    id ??= row.id
+    messageIds.push(...held)
+  }
+  return id === undefined ? undefined : { id, messageIds }
+}
+
 export function fenceUnacknowledgedMailboxDeliveries(
   this: OrchestrationDb,
   mailboxHandle: string
@@ -232,6 +262,7 @@ export type RoleMailboxDeliveryMethods = {
   getOrCreateMailboxDelivery: typeof getOrCreateMailboxDelivery
   acknowledgeMailboxDelivery: typeof acknowledgeMailboxDelivery
   hasOutstandingMailboxDelivery: typeof hasOutstandingMailboxDelivery
+  getOutstandingMailboxDelivery: typeof getOutstandingMailboxDelivery
   fenceUnacknowledgedMailboxDeliveries: typeof fenceUnacknowledgedMailboxDeliveries
 }
 
@@ -242,6 +273,7 @@ export function attachRoleMailboxDelivery(ctor: { prototype: object }): void {
     getOrCreateMailboxDelivery,
     acknowledgeMailboxDelivery,
     hasOutstandingMailboxDelivery,
+    getOutstandingMailboxDelivery,
     fenceUnacknowledgedMailboxDeliveries
   })
 }
