@@ -280,8 +280,12 @@ defect: stop and record it.
 `review-override`, or `nit-fix`. The `dispatch` cell is `<dispatch_id> <task_id>`
 for an Orca worker and `subagent:<claude|codex>:<agent-id>` for a subagent.
 `nit-fix` is an uncounted `kind` (outcome `reserved`, then `done`): the PR-sync
-commit that fixes a clean review's nits. `outcome` is `reserved`, `clean`, `fix-needed`, `invalid`, `startup-failed`, or
-`quota@<reset>`. Only `clean` and `fix-needed` count. Before each dispatch, read
+commit that fixes a clean review's nits. `outcome` is exactly one bare token: a
+review row ends `clean` or `fix-needed`, a fix row ends `done`, and any row may
+be `reserved`, `invalid`, `startup-failed`, or `quota@<reset>`; finding counts
+belong in `reason`. Only `clean`, `fix-needed`, and a `fix` or `fix-override` row's `done` count. Keep the
+table contiguous: a blank line ends it and every later row goes uncounted.
+Pre-review recoveries and support work go in their own tables. Before each dispatch, read
 `head-sha` from the worktree itself, then refuse unless the row passes:
 
 | Dispatching        | Refuse unless                                                                                                                                             | On refusal                                            |

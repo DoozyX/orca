@@ -91,6 +91,24 @@ describe('review-metrics', () => {
     expect(JSON.parse(logged.join('')).runs[0].parseErrors).toHaveLength(1)
   })
 
+  it('reports ledger rows it cannot count instead of silently dropping them', () => {
+    const table = ledger([
+      ['solo', 'review-full', '1', '-', 'fix-needed'],
+      ['solo', 'fix', '-', '1', 'fix-needed patch=1']
+    ])
+    put(
+      'orchestrate/budget.md',
+      `${table}\n| solo | review-round | 2 | - | b | h | r | d | clean | - |\n`
+    )
+    put('orchestrate/retrospective.md', '## Escapes\nnone\n')
+    expect(
+      readRunMetrics(root).parseErrors.filter((e) => e.startsWith('orchestrate/budget'))
+    ).toEqual([
+      'orchestrate/budget.md:12: outcome "fix-needed patch=1" is not valid for kind fix',
+      'orchestrate/budget.md:14: ledger row after a break in the table is not counted'
+    ])
+  })
+
   it('records malformed findings and a missing retrospective as parse errors', () => {
     put('orchestrate/budget.md', ledger([['solo', 'review-full', '1', '-', 'clean']]))
     put(

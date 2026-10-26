@@ -15,7 +15,9 @@ ORCA orchestration send --from <worker_handle> --type heartbeat --subject "alive
 ```
 
 Use typed lifecycle flags, not a hand-written JSON payload. A heartbeat proves
-liveness, never completion.
+liveness, never completion. Never put progress, findings, or a decision in a
+heartbeat; coordinators often wait with heartbeats filtered out. Send those as
+`--type status`, or `--type escalation` when the coordinator must act.
 
 ## Ask and resume
 

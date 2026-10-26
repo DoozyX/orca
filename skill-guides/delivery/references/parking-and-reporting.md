@@ -132,22 +132,29 @@ reads earlier runs' `.orca/*/orchestrate/retrospective.md` first; a repeated
 issue cites the earlier file and adds only the new evidence. Record only what
 happened — `none` beats padding:
 
-| Section           | Content                                                                                |
-| ----------------- | -------------------------------------------------------------------------------------- |
-| Orca issues       | Exact command, expected versus actual, enough to file an issue                         |
-| Guide friction    | The rule, quoted, that misled or forced a workaround                                   |
-| Tiering outcomes  | Per unit: tiers used, rounds needed, escalations and their triggers                    |
-| Missed checks     | A lint, test, or CI check that would have caught a fix-round finding before review     |
-| Review metrics    | Output of `orca orchestration review-metrics --run <this run> --run <previous v2 run>` |
-| Escapes           | `ESCAPE:` lines, or `none` (form below)                                                |
-| Tool economy      | Which workers spent context on what, and what they could have been handed instead      |
-| Suggested changes | One line each                                                                          |
+| Section           | Content                                                                                        |
+| ----------------- | ---------------------------------------------------------------------------------------------- |
+| Orca issues       | Exact command, expected versus actual, enough to file an issue                                 |
+| Guide friction    | The rule, quoted, that misled or forced a workaround                                           |
+| Tiering outcomes  | Per unit: tiers used, rounds needed, escalations and their triggers                            |
+| Missed checks     | A lint, test, or CI check that would have caught a fix-round finding before review             |
+| Review metrics    | Output of `orca orchestration review-metrics --run <this run dir> --run <previous v2 run dir>` |
+| Escapes           | `ESCAPE:` lines, or `none` (form below)                                                        |
+| Tool economy      | Which workers spent context on what, and what they could have been handed instead              |
+| Suggested changes | One line each                                                                                  |
 
 `## Escapes` lines have the form
 `ESCAPE: <unit> - <ci|integration|ab-judge|user> - <file>:<line> - <what> - missed-by: <layer> - fix-at: <guide|lint|known-issues|test|none>`.
 Both sections are headed `## Review metrics` and `## Escapes`. On an SSH
 execution host without the Orca CLI, `## Review metrics` says exactly
 `metrics: unavailable on <host>`.
+
+`--run` takes a run directory (`.orca/<date>-<slug>`, the folder holding
+`orchestrate/`), never an orchestration Run ID. Run it once before writing:
+every `parseErrors` entry from `budget.md` or a findings file goes back to that
+file's owner to correct, and the retrospective quotes any error left unresolved.
+Keep the file under about 60 lines: one line per suggested change, receipts
+cited by path, not pasted.
 
 The worker edits nothing else, commits nothing, and pushes nothing.
 

@@ -2,7 +2,7 @@ import { accessSync, constants, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { countEscapes, parseDispositions } from './review-dispositions-parser'
 import { parseFindingsFile, type ParsedFindingsFile } from './review-findings-parser'
-import { isLedgerV2, parseLedgerRows, type LedgerRow } from './review-ledger-parser'
+import { isLedgerV2, parseLedger, type LedgerRow } from './review-ledger-parser'
 import { ReviewMetricsReadError, ReviewMetricsRunDirError } from './review-metrics-errors'
 import { computeTotals } from './review-metrics-totals'
 import type { RunMetrics } from './review-metrics-types'
@@ -125,7 +125,9 @@ export function readRunMetrics(runDir: string): RunMetrics {
     }
   }
 
-  const units = [...groupByUnit(parseLedgerRows(budget))].map(([unit, rows]) =>
+  const ledger = parseLedger(budget)
+  recordErrors(ledger.errors)
+  const units = [...groupByUnit(ledger.rows)].map(([unit, rows]) =>
     buildUnitMetrics(unit, rows, source)
   )
 

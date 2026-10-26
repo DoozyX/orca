@@ -179,6 +179,10 @@ R<r>.<n>. <file>:<line> - <critical|major|minor> - [<patch|nit|decision-needed|d
   since review #1's head) and `[KI-<n>]` (on a `defer` matching a known issue).
 - Required: `class`/`sweep` on every `patch`; `evidence` on every `patch` and
   every `critical`/`major` `decision-needed`.
+- Under `## Merged findings` write only finding lines, their continuations,
+  `Prior:`, `Checked:` and the verdict; explanation goes in a `Checked:` line.
+  A gate failure or other non-review item becomes a finding with its own
+  `R<r>.<n>` ID, never a `Prior:` line of an invented ID.
 - Rounds ≥2, after the merged list, one line per earlier ID:
   `Prior: R<r>.<n> - fixed|open|disputed-upheld|disputed-withdrawn - <one-line reason; evidence for a ruling>`.
 
