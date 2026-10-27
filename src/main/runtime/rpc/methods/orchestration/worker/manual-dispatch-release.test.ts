@@ -5,6 +5,7 @@ import { OrchestrationDb } from '../../../../orchestration/db'
 import type { OrchestrationSessionCaller } from '../../../../orchestration/orchestration-caller-identity'
 import { ORCHESTRATION_METHODS } from '../../orchestration'
 import { eraseRpcMethods, type RpcContext } from '../../../core'
+import type { ExecutionHostId } from '../../../../../../shared/execution-host'
 import { parseOrcaSessionAddress } from '../../../../../../shared/orca-session-address'
 import {
   agentSessionLeaseFixture,
@@ -284,8 +285,8 @@ describe('manual Dispatch release', () => {
     }
   )
 
-  it.each([
-    ['runs on another host', 'ssh-1', 'another host'],
+  it.each<[string, ExecutionHostId | null, string]>([
+    ['runs on another host', 'ssh:ssh-1', 'another host'],
     ['has no readable session record', null, 'No durable record'],
     ['refuses the cancel', 'local', 'The session fence moved.']
   ])(
@@ -357,7 +358,7 @@ describe('manual Dispatch release', () => {
   }
 
   /** `executionHostId` null: the host holds no durable record for the session. */
-  function installStructuredHost(executionHostId: string | null, cancel: unknown): void {
+  function installStructuredHost(executionHostId: ExecutionHostId | null, cancel: unknown): void {
     const record = agentSessionRecordFixture(
       agentSessionLeaseFixture({ sessionId: SESSION, runtimeFence: 3 })
     )
