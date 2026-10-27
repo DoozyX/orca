@@ -168,7 +168,7 @@ it.each([
     )
     expect(state.browserTabsByWorktree[WORKSPACE]).toHaveLength(1)
     expect(state.groupsByWorktree[WORKSPACE]?.find((group) => group.id === 'a')?.activeTabId).toBe(
-      'source'
+      navigation === 'unchanged' ? outcome.result.unifiedTabId : 'source'
     )
     expect(state.groupsByWorktree[WORKSPACE]?.find((group) => group.id === 'b')?.activeTabId).toBe(
       'terminal-b'
@@ -345,10 +345,13 @@ it('keeps the main view and workspace selected when revealing a floating HTTP li
     linkContext: { linkIntent: captureLinkOpenIntent(useAppStore.getState(), floating, 'source') }
   })
   await vi.waitFor(() => expect(opening).toHaveBeenCalledOnce())
-  expect(await opening.mock.results[0]!.value).toMatchObject({ status: 'opened' })
+  expect(await opening.mock.results[0]!.value).toMatchObject({
+    status: 'opened',
+    result: { groupId: 'a' }
+  })
   expect(useAppStore.getState().activeView).toBe('activity')
   expect(useAppStore.getState().activeWorktreeId).toBe(WORKSPACE)
-  expect(['a', 'b', 'c']).not.toContain(useAppStore.getState().activeGroupIdByWorktree[floating])
+  expect(useAppStore.getState().activeGroupIdByWorktree[floating]).toBe('a')
 })
 
 it('reuses an exact page for an HTTP link without source context', async () => {

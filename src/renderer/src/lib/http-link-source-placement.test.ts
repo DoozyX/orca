@@ -110,10 +110,7 @@ it('captures the link owner before an asynchronous preference decision and follo
   store.setState({ settings: { ...getDefaultSettings('/home/test'), openLinksInApp: true } })
   resolvePreference?.(true)
   await settle()
-  expect(outcomes).toMatchObject([{ status: 'opened' }])
-  expect(store.getState().layoutByWorktree[WORKSPACE]).toMatchObject({
-    second: { first: { type: 'split', first: { groupId: 'b' } } }
-  })
+  expect(outcomes).toMatchObject([{ status: 'opened', result: { groupId: 'b' } }])
 })
 
 it('a newer activation suppresses an older pending preference decision', async () => {
@@ -241,15 +238,10 @@ it.each([false, true])(
         result: {
           worktreeId: floating,
           executionHostId: 'local',
-          ...(explicit ? { groupId: 'left' } : {})
+          groupId: 'left'
         }
       }
     ])
-    if (!explicit) {
-      expect(store.getState().layoutByWorktree[floating]).toMatchObject({
-        first: { type: 'split', first: { groupId: 'left' } }
-      })
-    }
     expect(store.getState().activeWorktreeId).toBe(WORKSPACE)
     expect(store.getState().activeWorkspaceExecutionHostId).toBe('local')
     expect(store.getState().activeGroupIdByWorktree[WORKSPACE]).toBe('c')

@@ -63,7 +63,7 @@ it.each([
   ['ssh:detected-owner', false],
   ['ssh:detected-owner', true]
 ] as const)(
-  'opens a detected-only workspace preview beside its retained source on %s (selected twin: %s)',
+  'opens a detected-only workspace preview in the group of its retained source on %s (selected twin: %s)',
   async (host, selectedTwin) => {
     store.setState((state) => ({
       repos: state.repos.map((repo) => ({
@@ -127,9 +127,10 @@ it.each([
           }
     )
     expect(store.getState().activeGroupIdByWorktree[WORKSPACE]).toBe(outcome.result.groupId)
+    expect(outcome.result.groupId).toBe('a')
     expect(
       store.getState().groupsByWorktree[WORKSPACE]?.find((group) => group.id === 'a')?.activeTabId
-    ).toBe('source')
+    ).toBe(outcome.result.unifiedTabId)
   }
 )
 
@@ -316,13 +317,10 @@ it('a folder workspace uses its own layout and activates its browser without Git
   expect(outcome).toHaveBeenCalledWith(
     expect.objectContaining({
       status: 'opened',
-      result: expect.objectContaining({ worktreeId: folder })
+      result: expect.objectContaining({ worktreeId: folder, groupId: 'left' })
     })
   )
-  expect(['left', 'right']).not.toContain(store.getState().activeGroupIdByWorktree[folder])
-  expect(store.getState().layoutByWorktree[folder]).toMatchObject({
-    first: { type: 'split', first: { groupId: 'left' } }
-  })
+  expect(store.getState().activeGroupIdByWorktree[folder]).toBe('left')
 })
 
 it.each([false, true])(
