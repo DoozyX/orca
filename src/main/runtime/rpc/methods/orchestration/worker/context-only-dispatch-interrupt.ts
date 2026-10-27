@@ -102,7 +102,7 @@ function stoppedAssignmentTurn(
     host,
     sessionId: running.sessionId,
     turnId,
-    runtimeFence: running.record.lease.runtimeFence
+    runtimeFence: running.record.currentFence
   }
 }
 

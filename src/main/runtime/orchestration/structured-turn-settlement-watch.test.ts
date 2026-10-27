@@ -4,6 +4,7 @@ import {
   agentSessionRecordFixture
 } from '../../../shared/agent-session-record.test-fixture'
 import type { AgentSessionRecord } from '../../../shared/agent-session-record'
+import { agentSessionConversationView } from '../../../shared/agent-session-conversation-view'
 import { formatOrcaSessionAddress } from '../../../shared/orca-session-address'
 import { testOrcaSessionId } from '../../../shared/orca-session-address-test-fixture'
 
@@ -49,8 +50,11 @@ function installSessions(): void {
   hostRef.current = {
     deps: {
       store: {
-        getRecord: (sessionId: string) => records.get(sessionId) ?? null,
-        listRecords: () => [...records.values()],
+        getConversation: (sessionId: string) => {
+          const record = records.get(sessionId)
+          return record ? agentSessionConversationView(record) : null
+        },
+        listConversations: () => [...records.values()].map(agentSessionConversationView),
         getVisibleSessionTabIndex: () => ({ present: true, sessionIds: [WORKER, CHAT] })
       }
     }

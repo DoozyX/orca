@@ -7,6 +7,7 @@ import { CompactAgentRow } from './worktree-card-compact-agents'
 vi.mock('@/store', () => ({
   useAppStore: (selector: (state: unknown) => unknown) =>
     selector({
+      agentStatusByPaneKey: {},
       cacheTimerByKey: {},
       tabsByWorktree: {},
       terminalLayoutsByTabId: {},

@@ -7,7 +7,6 @@ import type { SessionOptionValue } from './native-chat-session-options'
 import { agentArgTerminatorIndex } from './agent-session-option-agent-args'
 import { getTuiAgentLaunchCommand, TUI_AGENT_CONFIG } from './tui-agent-config'
 import {
-  planAgentCliArgsSuffix,
   quoteStartupArg,
   tokenizeStartupCommand,
   type AgentStartupShell
@@ -23,7 +22,7 @@ export type ResolvedAgentLaunchCommand =
   | {
       ok: true
       command: string
-      commandWithoutSessionOptions: string
+      resumeLaunch: { agentCommand: string; agentArgs?: string }
       appliedSessionOptions: Record<string, SessionOptionValue>
     }
   | { ok: false; error: string }
@@ -52,10 +51,6 @@ export function resolveAgentLaunchCommand(args: {
   const launchHead = suppressionArgs.length
     ? `${command} ${suppressionArgs.map((arg) => quoteStartupArg(arg, args.shell)).join(' ')}`
     : command
-  const suffix = planAgentCliArgsSuffix(args.agentArgs, args.shell)
-  if (!suffix.ok) {
-    return suffix
-  }
   const trailingTokens = args.agentArgs?.trim()
     ? tokenizeStartupCommand(args.agentArgs.trim(), args.shell)
     : { ok: true as const, tokens: [], spans: [] }
@@ -66,7 +61,8 @@ export function resolveAgentLaunchCommand(args: {
     args.agent,
     args.sessionOptions,
     args.sessionOptionsOverrideAgentArgs ? [] : trailingTokens.tokens,
-    !args.sessionOptionsOverrideAgentArgs
+    !args.sessionOptionsOverrideAgentArgs,
+    trailingTokens.tokens
   )
   if (override && args.sessionOptionsOverrideAgentArgs) {
     const overrideTokens = tokenizeStartupCommand(override, args.shell)
@@ -87,35 +83,35 @@ export function resolveAgentLaunchCommand(args: {
       return {
         ok: false,
         error:
-          'Agent command override conflicts with the requested launch preferences. Remove model or effort flags from the command override.'
+          'Agent command override conflicts with the requested launch preferences. Remove model, effort or permission flags from the command override.'
       }
     }
   }
-  const optionSuffix = resolvedOptions.args.map((arg) => quoteStartupArg(arg, args.shell)).join(' ')
-  const commandWithoutSessionOptions = suffix.suffix ? `${command} ${suffix.suffix}` : command
-  const commandWithOptions = optionSuffix ? `${launchHead} ${optionSuffix}` : launchHead
-  const overrideTokens = args.sessionOptionsOverrideAgentArgs
-    ? insertBeforeTerminator(
-        args.agent,
-        removeOverriddenAgentSessionArgs(args.agent, args.sessionOptions, trailingTokens.tokens),
-        resolvedOptions.args
-      )
-    : []
-  const commandWithOverrides = overrideTokens.length
-    ? `${launchHead} ${overrideTokens.map((token) => quoteStartupArg(token, args.shell)).join(' ')}`
-    : launchHead
+  const rawTokens = trailingTokens.tokens
+  const keptTokens = args.sessionOptionsOverrideAgentArgs
+    ? removeOverriddenAgentSessionArgs(args.agent, resolvedOptions.appliedValues, rawTokens)
+    : rawTokens
+  const render = (tokens: readonly string[]): string =>
+    tokens.map((token) => quoteStartupArg(token, args.shell)).join(' ')
+  const withArgs = (suffix: string, head = command): string => (suffix ? `${head} ${suffix}` : head)
+  const initialTokens = args.sessionOptionsOverrideAgentArgs
+    ? insertBeforeTerminator(args.agent, keptTokens, resolvedOptions.args)
+    : [...resolvedOptions.args, ...keptTokens]
+  // Restart retains explicit policy and surviving raw pins, while providers restore model seeds.
+  const resumeArgs = render(
+    insertBeforeTerminator(args.agent, keptTokens, resolvedOptions.permissionArgs ?? [])
+  )
   const protectPane = (value: string): string =>
     args.agent === 'codex' ? withIndependentCodexLaunch(value, args.shell) : value
   return {
     ok: true,
-    command: protectPane(
-      args.sessionOptionsOverrideAgentArgs
-        ? commandWithOverrides
-        : suffix.suffix
-          ? `${commandWithOptions} ${suffix.suffix}`
-          : commandWithOptions
-    ),
-    commandWithoutSessionOptions: protectPane(commandWithoutSessionOptions),
+    command: protectPane(withArgs(render(initialTokens), launchHead)),
+    resumeLaunch: {
+      agentCommand: protectPane(withArgs(resumeArgs)),
+      ...(keptTokens.length !== rawTokens.length || resolvedOptions.permissionArgs
+        ? { agentArgs: resumeArgs }
+        : {})
+    },
     appliedSessionOptions: resolvedOptions.appliedValues
   }
 }
@@ -127,4 +123,33 @@ function insertBeforeTerminator(
 ): string[] {
   const terminator = agentArgTerminatorIndex(agent, tokens)
   return [...tokens.slice(0, terminator), ...inserted, ...tokens.slice(terminator)]
+}
+
+/** A launch's saved choice as terminal startup inputs: flags that replace conflicting raw ones, or,
+ *  when it yields to these CLI arguments, only the pieces they do not set themselves. */
+export function terminalSessionOptionInputs(args: {
+  agent: TuiAgent
+  sessionOptions: Readonly<Record<string, SessionOptionValue>> | undefined
+  yieldToAgentArgs?: boolean
+  agentArgs: string | null | undefined
+  shell: AgentStartupShell
+}): {
+  sessionOptions?: Record<string, SessionOptionValue>
+  sessionOptionsOverrideAgentArgs?: true
+} {
+  const tokens = args.agentArgs?.trim()
+    ? tokenizeStartupCommand(args.agentArgs.trim(), args.shell)
+    : null
+  const sessionOptions =
+    args.sessionOptions && args.yieldToAgentArgs && tokens?.ok
+      ? resolveAgentSessionOptionLaunch(
+          args.agent,
+          { ...args.sessionOptions },
+          tokens.tokens,
+          false
+        ).appliedValues
+      : args.sessionOptions && { ...args.sessionOptions }
+  return sessionOptions && Object.keys(sessionOptions).length > 0
+    ? { sessionOptions, sessionOptionsOverrideAgentArgs: true }
+    : {}
 }

@@ -11,6 +11,7 @@ import type { WorktreeCardPresentation } from './worktree-card-presentation'
 import { WorktreeCardSecondaryRows } from './worktree-card-secondary-rows'
 import { WorktreeCardStatusSlot } from './WorktreeCardStatusSlot'
 import { useWorktreeAgentExpansionState } from './worktree-card-agents-expansion-state'
+import { useWslHostOffForRepo } from './use-wsl-host-off-review'
 import type { WorktreeCardController } from './use-worktree-card-controller'
 
 export function WorktreeCardParentContent({
@@ -70,6 +71,7 @@ export function WorktreeCardParentContent({
     hoverWorkspaceTitle
   } = presentation
   const agentExpansion = useWorktreeAgentExpansionState(worktree.id)
+  const reviewStale = useWslHostOffForRepo(repo)
 
   const identityContent = (
     <div
@@ -164,6 +166,7 @@ export function WorktreeCardParentContent({
             reviewChecks={reviewChecks.total > 0 ? reviewChecks : undefined}
             newCardStyle={newCardStyle}
             hasBranchIdentity={Boolean(branchIdentityDisplay)}
+            reviewStale={reviewStale}
           />
         </div>
       ) : null}

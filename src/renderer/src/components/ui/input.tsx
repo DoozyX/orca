@@ -6,12 +6,16 @@ import { ImeInput } from '@/lib/ime-text-field'
 
 const inputVariants = cva('', {
   variants: {
+    variant: {
+      default: '',
+      code: 'font-mono text-xs md:text-xs'
+    },
     density: {
       default: '',
       compact: 'h-7 border-border bg-input/50 px-2 text-xs shadow-none md:text-xs'
     }
   },
-  defaultVariants: { density: 'default' }
+  defaultVariants: { variant: 'default', density: 'default' }
 })
 
 /**
@@ -24,7 +28,7 @@ const Input = React.forwardRef<
   Omit<React.ComponentProps<'input'>, 'size'> & { size?: number | 'default' | 'sm' } & VariantProps<
       typeof inputVariants
     >
->(({ className, type, size = 'default', density, ...props }, ref) => {
+>(({ className, type, size = 'default', variant, density, ...props }, ref) => {
   return (
     <ImeInput
       ref={ref}
@@ -39,7 +43,7 @@ const Input = React.forwardRef<
         // Why the attribute selector, not a conditional class: it outranks any unmodified base
         // utility on specificity, so adding one later cannot silently unstyle this density.
         'data-[size=sm]:h-8 data-[size=sm]:text-xs',
-        inputVariants({ density }),
+        inputVariants({ variant, density }),
         className
       )}
       {...props}

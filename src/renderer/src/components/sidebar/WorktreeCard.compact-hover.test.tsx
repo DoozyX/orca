@@ -33,6 +33,9 @@ let mockInlineAgentRows: unknown[] = []
 
 vi.mock('@/store', () => {
   const getState = () => ({
+    repos: [makeRepo()],
+    endpointProjects: [],
+    endpointProjectHostSetups: [],
     browserTabsByWorktree: {},
     agentSendPopoverTargetMode: null,
     agentStatusEpoch: 0,
