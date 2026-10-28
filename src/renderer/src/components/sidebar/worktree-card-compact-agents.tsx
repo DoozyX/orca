@@ -11,8 +11,6 @@ import {
   summarizeAgents
 } from './worktree-card-agent-summary'
 import { translate } from '@/i18n/i18n'
-import { ClaudeAgentSummaryViewIndicator } from '@/components/ClaudeAgentViewIndicator'
-import { useFocusedAgentPaneKey } from './focused-agent-row-highlight'
 
 export { CompactAgentRow } from './worktree-card-compact-agent-row'
 
@@ -82,8 +80,6 @@ export function CompactAgentSummaryButton({
   onToggle,
   placement = 'body'
 }: CompactAgentSummaryButtonProps): React.JSX.Element {
-  const focusedPaneKey = useFocusedAgentPaneKey(agents[0]?.tab.worktreeId ?? '')
-  const focusedAgent = agents.find((agent) => agent.paneKey === focusedPaneKey)
   const summary = summarizeAgents(agents, subjectLabel)
   const groups = buildSummaryAgentGroups(agents)
   const visibleGroups = groups.slice(0, 3)
@@ -138,7 +134,6 @@ export function CompactAgentSummaryButton({
       onPointerDown={stopPointerPropagation}
       onDragStart={stopPointerPropagation}
     >
-      {!expanded && focusedAgent && <ClaudeAgentSummaryViewIndicator agent={focusedAgent} />}
       {expanded || placement === 'header' ? (
         <span className="min-w-0 flex-1 truncate px-1 font-medium text-muted-foreground">
           {subjectLabel}

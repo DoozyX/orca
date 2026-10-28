@@ -45,19 +45,33 @@ export function createLaunchedAgentWriteGuard(
     settleDeadlineMs
   }: { unprovableHost?: UnprovableHostPolicy; settleDeadlineMs?: number } = {}
 ): LaunchedAgentWriteGuard {
-  let cleared: { ptyId: string; shellMayHaveReturned: boolean; unsubscribe: () => void } | null =
-    null
+  let disposed = false
+  let current: {
+    ptyId: string
+    proven: boolean
+    shellMayHaveReturned: boolean
+    unsubscribe: () => void
+  } | null = null
+  const clearWatch = (): void => {
+    const previous = current
+    current = null
+    previous?.unsubscribe()
+  }
   const dispose = (): void => {
-    cleared?.unsubscribe()
-    cleared = null
+    disposed = true
+    clearWatch()
   }
   const beforeWrite = async (ptyId: string): Promise<void> => {
-    if (cleared?.ptyId === ptyId && !cleared.shellMayHaveReturned) {
+    if (disposed) {
+      throw new Error('request_aborted')
+    }
+    if (current?.ptyId === ptyId && current.proven && !current.shellMayHaveReturned) {
       return
     }
-    dispose()
+    clearWatch()
     let carry = ''
-    const watch = { ptyId, shellMayHaveReturned: false, unsubscribe: (): void => {} }
+    const watch = { ptyId, proven: false, shellMayHaveReturned: false, unsubscribe: (): void => {} }
+    current = watch
     // Subscribe before probing so shell return during the read cannot be missed.
     watch.unsubscribe = runtime.subscribeToTerminalData(ptyId, (data) => {
       const window = carry + data
@@ -72,46 +86,55 @@ export function createLaunchedAgentWriteGuard(
         ? startedAt
         : Math.min(startedAt + LAUNCHED_AGENT_FOREGROUND_SETTLE_MS, settleDeadlineMs)
     const refusal = (foreground: LaunchedAgentForeground): AgentNotInForegroundError => {
-      watch.unsubscribe()
       const shellReturned = watch.shellMayHaveReturned ? 'a shell came back to its prompt; ' : ''
       return new AgentNotInForegroundError(
         `${shellReturned}last foreground sample was ${foreground} after ${Date.now() - startedAt} ms`
       )
     }
-    for (;;) {
-      let foreground: LaunchedAgentForeground
-      try {
-        foreground = await runtime.readLaunchedAgentForeground(ptyId, agent)
-      } catch (error) {
-        watch.unsubscribe()
-        throw error
+    try {
+      for (;;) {
+        const foreground: LaunchedAgentForeground = await runtime.readLaunchedAgentForeground(
+          ptyId,
+          agent
+        )
+        if (disposed || current !== watch) {
+          throw new Error('request_aborted')
+        }
+        // While settling, a returned shell outranks the sample: a read can still name the exiting agent.
+        if (settleDeadlineMs !== undefined && watch.shellMayHaveReturned) {
+          throw refusal(foreground)
+        }
+        if (foreground === 'agent') {
+          watch.proven = true
+          return
+        }
+        if (
+          foreground !== 'shell' &&
+          unprovableHost !== 'refuse' &&
+          runtime.launchedAgentHostProvesAgent?.(ptyId) === false &&
+          (unprovableHost === 'write-unless-shell' ||
+            runtime.launchedAgentHostProvesShellAlone?.(ptyId) === true)
+        ) {
+          clearWatch()
+          return
+        }
+        const remainingMs = settleUntil - Date.now()
+        // A shell back at its prompt is no wrapper about to exec the agent, so it ends the settle.
+        if (watch.shellMayHaveReturned || remainingMs <= 0) {
+          throw refusal(foreground)
+        }
+        await new Promise((resolve) =>
+          setTimeout(resolve, Math.min(LAUNCHED_AGENT_FOREGROUND_SAMPLE_MS, remainingMs))
+        )
+        if (disposed || current !== watch) {
+          throw new Error('request_aborted')
+        }
       }
-      // While settling, a returned shell outranks the sample: a read can still name the exiting agent.
-      if (settleDeadlineMs !== undefined && watch.shellMayHaveReturned) {
-        throw refusal(foreground)
+    } catch (error) {
+      if (current === watch) {
+        clearWatch()
       }
-      if (foreground === 'agent') {
-        cleared = watch
-        return
-      }
-      if (
-        foreground !== 'shell' &&
-        unprovableHost !== 'refuse' &&
-        runtime.launchedAgentHostProvesAgent?.(ptyId) === false &&
-        (unprovableHost === 'write-unless-shell' ||
-          runtime.launchedAgentHostProvesShellAlone?.(ptyId) === true)
-      ) {
-        watch.unsubscribe()
-        return
-      }
-      const remainingMs = settleUntil - Date.now()
-      // A shell back at its prompt is no wrapper about to exec the agent, so it ends the settle.
-      if (watch.shellMayHaveReturned || remainingMs <= 0) {
-        throw refusal(foreground)
-      }
-      await new Promise((resolve) =>
-        setTimeout(resolve, Math.min(LAUNCHED_AGENT_FOREGROUND_SAMPLE_MS, remainingMs))
-      )
+      throw error
     }
   }
   return { beforeWrite, dispose }

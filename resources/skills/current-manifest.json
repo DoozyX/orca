@@ -100,16 +100,16 @@
     {
       "name": "orca-cli",
       "sourcePath": "skills/orca-cli",
-      "packageDigest": "02a3400eb8c97031e3a6bcce9a8c68e34c8de4446e9f55463438aa66d1cb297e",
+      "packageDigest": "23fda730ecd98b54da2113d914cf3553285f912d720687c730d42a820836dcc2",
       "files": [
         {
           "path": "SKILL.md",
-          "size": 2691,
+          "size": 2631,
           "executable": false,
           "classification": "text",
-          "exactSha256": "4fc3ecb2c5d7339d71bfcde602ba7dd0c28a42c7f709cbaae9a4c2ae4d4099ac",
-          "textNormalizedSha256": "4fc3ecb2c5d7339d71bfcde602ba7dd0c28a42c7f709cbaae9a4c2ae4d4099ac",
-          "identitySha256": "4fc3ecb2c5d7339d71bfcde602ba7dd0c28a42c7f709cbaae9a4c2ae4d4099ac"
+          "exactSha256": "42c881addc607449d17615e9487647e34945d27ec00b587bffd2fc78c1b14f40",
+          "textNormalizedSha256": "42c881addc607449d17615e9487647e34945d27ec00b587bffd2fc78c1b14f40",
+          "identitySha256": "42c881addc607449d17615e9487647e34945d27ec00b587bffd2fc78c1b14f40"
         }
       ]
     },
@@ -196,16 +196,16 @@
     {
       "name": "orchestration",
       "sourcePath": "skills/orchestration",
-      "packageDigest": "185e6741ed649298290f4ba73b3b3d53572b53e9adc6c3effe935f1befab42ff",
+      "packageDigest": "d75bae83fbcf29b3d6456d62ca841f2ae114b8d77ceb247355e68edfbff71e8b",
       "files": [
         {
           "path": "SKILL.md",
-          "size": 4018,
+          "size": 4223,
           "executable": false,
           "classification": "text",
-          "exactSha256": "8fedf3c2772d877d695c954281a6cb82c7b59e2145128fac93fbfa5e6b2d0da0",
-          "textNormalizedSha256": "8fedf3c2772d877d695c954281a6cb82c7b59e2145128fac93fbfa5e6b2d0da0",
-          "identitySha256": "8fedf3c2772d877d695c954281a6cb82c7b59e2145128fac93fbfa5e6b2d0da0"
+          "exactSha256": "0a0be7934c4c35d24eaa3ef73493c5f95cac7c411d6128db227aa1f4eb7be9c1",
+          "textNormalizedSha256": "0a0be7934c4c35d24eaa3ef73493c5f95cac7c411d6128db227aa1f4eb7be9c1",
+          "identitySha256": "0a0be7934c4c35d24eaa3ef73493c5f95cac7c411d6128db227aa1f4eb7be9c1"
         }
       ]
     },

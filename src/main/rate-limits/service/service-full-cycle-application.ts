@@ -28,6 +28,7 @@ export abstract class RateLimitServiceFullCycleApplication extends RateLimitServ
       miniMaxGeneration,
       zcodeConfigChanged,
       zcodeGeneration,
+      antigravityGeneration,
       claudeFetchGated,
       results: [
         claudeResult,
@@ -219,6 +220,7 @@ export abstract class RateLimitServiceFullCycleApplication extends RateLimitServ
         }
     const shouldApplyZcode = zcodeGeneration === this.zcodeFetchGeneration
     const antigravity = settleSiblingProviderResult('antigravity', antigravitySettled)
+    const shouldApplyAntigravity = antigravityGeneration === this.antigravityFetchGeneration
     // Discard Cursor stale usage only for a known account change; unidentified transient failures retain their last reading.
     const previousCursorAccount = previousState.cursor?.usageMetadata?.authProvenance
     const cursorAccount = cursor.usageMetadata?.authProvenance
@@ -241,7 +243,9 @@ export abstract class RateLimitServiceFullCycleApplication extends RateLimitServ
     if (shouldApplyZcode) {
       this.trackActiveFailureStreak('zcode', zcode)
     }
-    this.trackActiveFailureStreak('antigravity', antigravity)
+    if (shouldApplyAntigravity) {
+      this.trackActiveFailureStreak('antigravity', antigravity)
+    }
     this.updateState({
       ...this.state,
       grok: this.applyStalePolicy(grok, previousState.grok),
@@ -257,7 +261,9 @@ export abstract class RateLimitServiceFullCycleApplication extends RateLimitServ
           : zcode.status === 'error' && !sameZcodeAccount
             ? zcode
             : this.applyStalePolicy(zcode, previousState.zcode),
-      antigravity: this.applyStalePolicy(antigravity, previousState.antigravity)
+      antigravity: shouldApplyAntigravity
+        ? this.applyStalePolicy(antigravity, previousState.antigravity)
+        : this.state.antigravity
     })
   }
 }

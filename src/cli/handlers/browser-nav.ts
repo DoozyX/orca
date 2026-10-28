@@ -19,9 +19,7 @@ import {
 import { RuntimeClientError } from '../runtime-client'
 import { withBrowserInterruptRecovery } from '../runtime/browser-interrupted-retry'
 import { getBrowserCommandTarget } from '../selectors'
-
-// Browser waits can outlast ordinary RPCs without indicating a disconnected runtime.
-const DEFAULT_BROWSER_WAIT_RPC_TIMEOUT_MS = 60_000
+import { browserWaitRequestTimeoutMs } from '../../shared/browser-wait-timeout'
 
 export const BROWSER_NAV_HANDLERS: Record<string, CommandHandler> = {
   snapshot: async ({ flags, client, cwd, json }) => {
@@ -111,7 +109,7 @@ export const BROWSER_NAV_HANDLERS: Record<string, CommandHandler> = {
         client.call<BrowserWaitResult>(
           'browser.wait',
           { selector, timeout, text, url, load, fn, state, ...target },
-          { timeoutMs: timeout ? timeout + 5000 : DEFAULT_BROWSER_WAIT_RPC_TIMEOUT_MS }
+          { timeoutMs: browserWaitRequestTimeoutMs(timeout) }
         )
     )
     printResult(result, json, (v) => JSON.stringify(v, null, 2))
