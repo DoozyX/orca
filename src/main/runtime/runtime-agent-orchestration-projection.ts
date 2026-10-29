@@ -1,22 +1,23 @@
-import {
-  AGENT_STATUS_STALE_AFTER_MS,
-  type AgentStatusOrchestrationContext
-} from '../../shared/agent-status-types'
+import type { AgentStatusOrchestrationContext } from '../../shared/agent-status-types'
 import type { FleetAgentStatusEvidence } from '../../shared/orchestration-fleet-agent-status-evidence'
 import { buildOrchestrationTaskDisplayMetadata } from '../../shared/orchestration-task-display'
 import { parsePaneKey } from '../../shared/stable-pane-id'
 import type { OrchestrationCompatibilityTerminalAuthority } from './runtime-terminal-contracts'
 import type { RuntimeLeafRecord, RuntimePtyWorktreeRecord } from './runtime-terminal-state-records'
 import type { OrchestrationDb } from './orchestration/db'
-import type { DispatchContextRow } from './orchestration/types'
 import {
   buildWorkerAttentionContext,
   projectWorkerAttentionContext
 } from './orchestration/worker-attention-context'
 import { worktreeIdsEqual } from '../../shared/worktree/id'
+import type { AgentSessionRecordReader } from './orchestration/structured-session-lineage'
+import { createOrchestrationProjectionScope } from './runtime-agent-orchestration-scope'
+import { filterLiveRunMembers, getRecentTerminalDispatch } from './runtime-agent-run-membership'
+import { currentRunCoordinatorOrcaSessionId } from './orchestration/db/runs/run-coordinator-orca-session'
+import type { DispatchContextRow } from './orchestration/types'
 import type { PtyPaneOf } from './terminal/surface/pty-pane-query'
 
-type RuntimeAgentOrchestrationDependencies = {
+export type RuntimeAgentOrchestrationDependencies = {
   getDb(): OrchestrationDb | null
   getLeaves(): Iterable<RuntimeLeafRecord>
   getPtys(): Iterable<RuntimePtyWorktreeRecord>
@@ -31,6 +32,7 @@ type RuntimeAgentOrchestrationDependencies = {
   getPaneKey(handle: string): string | null
   getDispatchAuthority(handle: string): OrchestrationCompatibilityTerminalAuthority | null
   getAgentStatusSnapshot(): readonly FleetAgentStatusEvidence[]
+  getSessionRecords(): AgentSessionRecordReader | null
 }
 
 export type RuntimeAgentOrchestrationPublication = {
@@ -51,6 +53,7 @@ export class RuntimeAgentOrchestrationProjection {
     if (!db || db.hasAnyDispatchContexts?.() === false) {
       return {}
     }
+    const scope = createOrchestrationProjectionScope(db, this.deps)
     const contexts: Record<string, AgentStatusOrchestrationContext> = {}
     const settledRunIdByPaneKey = new Map<string, string>()
     const evidenceByPaneKey = new Map(
@@ -60,13 +63,18 @@ export class RuntimeAgentOrchestrationProjection {
     const batchAttention = typeof db.getWorkerAttentionFactsForDispatches === 'function'
     const queriedHandles = new Set<string>()
     const contextFor = (handle: string, paneKey: string) =>
-      this.getForHandle(handle, db, {
-        paneKey,
-        evidence: evidenceByPaneKey.get(paneKey),
-        deferAttention: batchAttention,
-        onSettledPastDisplayWindow: (dispatch) =>
-          settledRunIdByPaneKey.set(paneKey, dispatch.run_id)
-      })
+      this.getForHandle(
+        handle,
+        db,
+        {
+          paneKey,
+          evidence: evidenceByPaneKey.get(paneKey),
+          deferAttention: batchAttention,
+          onSettledPastDisplayWindow: (dispatch) =>
+            settledRunIdByPaneKey.set(paneKey, dispatch.run_id)
+        },
+        scope
+      )
     for (const leaf of this.deps.getLeaves()) {
       if (!leaf.ptyId) {
         continue
@@ -94,7 +102,26 @@ export class RuntimeAgentOrchestrationProjection {
         contexts[paneKey] = context
       }
     }
-    const runWorkerPaneKeys = this.filterLiveRunMembers(db, settledRunIdByPaneKey)
+    for (const [paneKey, { dispatch }] of scope.sessionDispatches()) {
+      if (!contexts[paneKey]) {
+        contexts[paneKey] = this.projectDispatch(
+          dispatch,
+          dispatch.assignee_handle ?? '',
+          db,
+          {
+            paneKey,
+            evidence: evidenceByPaneKey.get(paneKey),
+            deferAttention: batchAttention
+          },
+          scope
+        )
+      }
+    }
+    const runWorkerPaneKeys = filterLiveRunMembers(
+      scope.run,
+      (paneKey) => this.deps.isPaneConnected(paneKey),
+      settledRunIdByPaneKey
+    )
     const membership =
       runWorkerPaneKeys.length > 0 ? { agentRunWorkerPaneKeys: runWorkerPaneKeys } : {}
     const entries = Object.entries(contexts)
@@ -102,7 +129,7 @@ export class RuntimeAgentOrchestrationProjection {
       return membership
     }
     if (batchAttention) {
-      const now = Date.now()
+      const now = scope.now
       const factsByDispatch = db.getWorkerAttentionFactsForDispatches(
         entries.map(([, context]) => context.dispatchId),
         now
@@ -125,24 +152,6 @@ export class RuntimeAgentOrchestrationProjection {
     return { agentOrchestrationByPaneKey: contexts, ...membership }
   }
 
-  /** Keeps panes whose run is still coordinated from a live pane; an unbound run has no coordinator. */
-  private filterLiveRunMembers(db: OrchestrationDb, runIdByPaneKey: Map<string, string>): string[] {
-    const liveRunIds = new Set<string>()
-    for (const runId of new Set(runIdByPaneKey.values())) {
-      const run = db.getRun?.(runId)
-      if (
-        run?.legacy === 0 &&
-        run.coordinator_pane_key &&
-        this.deps.isPaneConnected(run.coordinator_pane_key)
-      ) {
-        liveRunIds.add(runId)
-      }
-    }
-    return [...runIdByPaneKey]
-      .filter(([, runId]) => liveRunIds.has(runId))
-      .map(([paneKey]) => paneKey)
-  }
-
   getForHandle(
     handle: string,
     db = this.deps.getDb(),
@@ -153,16 +162,28 @@ export class RuntimeAgentOrchestrationProjection {
       deferAttention?: boolean
       /** Receives a settled dispatch too old for the display window, so run membership survives it. */
       onSettledPastDisplayWindow?: (dispatch: DispatchContextRow) => void
-    } = {}
+    } = {},
+    scope = createOrchestrationProjectionScope(db, this.deps)
   ): AgentStatusOrchestrationContext | undefined {
-    const { paneKey, evidence, deferAttention = false, onSettledPastDisplayWindow } = options
+    const { paneKey, onSettledPastDisplayWindow } = options
     const dispatch =
       db?.getActiveDispatchForTerminal?.(handle, paneKey) ??
-      this.getRecent(handle, db, onSettledPastDisplayWindow)
+      getRecentTerminalDispatch(handle, db, scope.now, onSettledPastDisplayWindow)
     if (!dispatch) {
       return undefined
     }
-    const task = db?.getTask?.(dispatch.task_id, dispatch.run_id)
+    return this.projectDispatch(dispatch, handle, db, options, scope)
+  }
+
+  private projectDispatch(
+    dispatch: DispatchContextRow,
+    handle: string,
+    db: OrchestrationDb | null,
+    options: { paneKey?: string; evidence?: FleetAgentStatusEvidence; deferAttention?: boolean },
+    scope: ReturnType<typeof createOrchestrationProjectionScope>
+  ): AgentStatusOrchestrationContext {
+    const { paneKey, evidence, deferAttention = false } = options
+    const task = scope.task(dispatch.task_id, dispatch.run_id)
     const display =
       typeof task?.spec === 'string'
         ? buildOrchestrationTaskDisplayMetadata({
@@ -172,7 +193,7 @@ export class RuntimeAgentOrchestrationProjection {
           })
         : { taskTitle: '', displayName: '' }
     const owningRun =
-      task?.run_id && task.run_id === dispatch.run_id ? db?.getRun?.(dispatch.run_id) : undefined
+      task?.run_id && task.run_id === dispatch.run_id ? scope.run(dispatch.run_id) : undefined
     const runCoordinatorHandle = owningRun?.coordinator_handle ?? undefined
     const legacyActiveRun =
       owningRun?.legacy === 1 && (dispatch.status === 'pending' || dispatch.status === 'dispatched')
@@ -208,7 +229,7 @@ export class RuntimeAgentOrchestrationProjection {
           currentCreatorPane &&
           storedCreatorPane.leafId === currentCreatorPane.leafId))
     )
-    const paneRun = creatorPaneKey ? db?.getCurrentRunForPane?.(creatorPaneKey) : undefined
+    const paneRun = creatorPaneKey ? scope.pane(creatorPaneKey) : undefined
     const sameRunCreatorDispatch = Boolean(
       task?.creator_dispatch_id &&
       task.creator_dispatch_run_id === owningRun?.id &&
@@ -232,28 +253,48 @@ export class RuntimeAgentOrchestrationProjection {
       sameCreatorPane
         ? (creatorPaneHandle ?? undefined)
         : undefined
-    const coordinator = this.resolveLivePane(
-      coordinatorHandle,
-      owningRun?.legacy === 0 ? owningRun.coordinator_pane_key : null
-    )
-    const creator = currentCreatorHandle
-      ? {
-          handle: currentCreatorHandle,
-          paneKey: this.deps.getPaneKey(currentCreatorHandle) ?? undefined
-        }
-      : creatorLineageInRun
-        ? this.resolveLivePane(creatorPaneHandle, creatorPaneKey ?? null)
-        : undefined
+    const selfSession = dispatch.assignee_orca_session_id
+    const selfPane = selfSession ? scope.resolve(selfSession) : paneKey
+    const coordinatorSession =
+      owningRun?.legacy === 0 ? currentRunCoordinatorOrcaSessionId(owningRun) : null
+    // Why: a chat party nests by its visible row; its handle and minted pane key match no row.
+    const coordinator: { handle?: string; paneKey?: string } = coordinatorSession
+      ? { paneKey: scope.resolve(coordinatorSession) }
+      : scope.resolveTerminal(
+          coordinatorHandle,
+          owningRun?.legacy === 0 ? owningRun.coordinator_pane_key : null
+        )
+    const creatorSession =
+      dispatch.creator_orca_session_id && dispatch.creator_orca_session_id !== selfSession
+        ? dispatch.creator_orca_session_id
+        : null
+    const creator: { handle?: string; paneKey?: string } | undefined = creatorSession
+      ? { paneKey: scope.resolve(creatorSession) }
+      : currentCreatorHandle
+        ? scope.resolveTerminal(currentCreatorHandle, creatorAuthority?.paneKey ?? null)
+        : creatorLineageInRun
+          ? scope.resolveTerminal(creatorPaneHandle, creatorPaneKey ?? null)
+          : undefined
     const coordinatorIsSelf =
       coordinator.handle === handle ||
+      (coordinatorSession !== null && coordinatorSession === selfSession) ||
       (paneKey !== undefined &&
         coordinator.paneKey !== undefined &&
         coordinator.paneKey === paneKey)
     // Why: a creator whose pane is gone still has a coordinator to nest under.
-    const parent = creator?.handle ? creator : coordinatorIsSelf ? {} : coordinator
+    const parent =
+      (creator?.handle || (creatorSession && creator?.paneKey)) &&
+      (!selfPane || creator?.paneKey !== selfPane) &&
+      creator?.handle !== handle
+        ? creator
+        : coordinatorIsSelf
+          ? {}
+          : coordinator.paneKey === selfPane
+            ? {}
+            : coordinator
     const attention =
       !deferAttention && db && typeof db.getWorkerAttentionFacts === 'function'
-        ? buildWorkerAttentionContext({ db, dispatch, task, evidence })
+        ? buildWorkerAttentionContext({ db, dispatch, task, evidence, now: scope.now })
         : undefined
     return {
       taskId: dispatch.task_id,
@@ -267,51 +308,5 @@ export class RuntimeAgentOrchestrationProjection {
       ...(orchestrationRunId ? { orchestrationRunId } : {}),
       ...(attention ? { attention } : {})
     }
-  }
-
-  /** Never publish stale process-local handles; re-resolve the durable pane key, retaining it while offline so restored rows can nest again. */
-  private resolveLivePane(
-    storedHandle: string | null | undefined,
-    storedPaneKey: string | null
-  ): { handle?: string; paneKey?: string } {
-    if (storedHandle && this.deps.getWorktreeId(storedHandle) !== null) {
-      return {
-        handle: storedHandle,
-        paneKey: this.deps.getPaneKey(storedHandle) ?? storedPaneKey ?? undefined
-      }
-    }
-    if (!storedPaneKey) {
-      return {}
-    }
-    const liveHandle = this.deps.getHandleForPaneKey(storedPaneKey)
-    if (!liveHandle) {
-      return { paneKey: storedPaneKey }
-    }
-    return { handle: liveHandle, paneKey: this.deps.getPaneKey(liveHandle) ?? storedPaneKey }
-  }
-
-  private getRecent(
-    handle: string,
-    db: OrchestrationDb | null,
-    onSettledPastDisplayWindow?: (dispatch: DispatchContextRow) => void
-  ) {
-    const dispatch = db?.getLatestDispatchForTerminal?.(handle)
-    if (
-      !dispatch?.completed_at ||
-      dispatch.status === 'pending' ||
-      dispatch.status === 'dispatched'
-    ) {
-      return undefined
-    }
-    const completedAt = Date.parse(
-      dispatch.completed_at.includes('T')
-        ? dispatch.completed_at
-        : `${dispatch.completed_at.replace(' ', 'T')}Z`
-    )
-    if (Number.isFinite(completedAt) && Date.now() - completedAt <= AGENT_STATUS_STALE_AFTER_MS) {
-      return dispatch
-    }
-    onSettledPastDisplayWindow?.(dispatch)
-    return undefined
   }
 }

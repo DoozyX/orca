@@ -15,6 +15,7 @@ import { useUsageSettingsNavigation } from './use-usage-settings-navigation'
 import { useAccountUsageRoster } from './use-account-usage-roster'
 import { buildAccountUsageRoster } from './account-usage-roster'
 import { isOwnerNotSetUpPlaceholder } from './owner-usage-rate-limits'
+import { translate } from '@/i18n/i18n'
 
 export function useStatusBarController(floatingTerminalOpen: boolean) {
   const floatingTerminalShortcut = useShortcutLabel('floatingTerminal.toggle')
@@ -88,7 +89,7 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
     setIsRefreshing(true)
     try {
       // Why: re-run PATH detection so a freshly-installed/removed CLI's bar appears/hides without restarting Orca.
-      await Promise.all([refreshUsage(), refreshDetectedAgents()])
+      await Promise.all([refreshUsage(), refreshDetectedAgents(undefined, { wakeWslDistro: true })])
     } finally {
       if (mountedRef.current) {
         setIsRefreshing(false)
@@ -222,8 +223,11 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
     zcode?.status === 'fetching'
 
   const floatingTerminalActionLabel = floatingTerminalOpen
-    ? 'Minimize Floating Workspace'
-    : 'Show Floating Workspace'
+    ? translate(
+        'auto.components.status.bar.floatingWorkspace.minimize',
+        'Minimize Floating Workspace'
+      )
+    : translate('auto.components.status.bar.floatingWorkspace.show', 'Show Floating Workspace')
   const showFloatingWorkspaceAttentionDot = !floatingTerminalOpen && hasFloatingUnread
 
   // Respect per-item visibility in the roster so its trigger cannot bypass hidden status items.

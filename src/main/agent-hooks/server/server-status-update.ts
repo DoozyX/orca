@@ -1,15 +1,14 @@
 import { deriveCliWriterTopology } from './cli-writer-observation'
 import { transitionHookPresence } from '../../../shared/agent-hook-presence-transition'
 import {
-  reconcileRemoteCodexState,
+  reconcileCodexStatusEvent,
   markCodexLeadTurnInterrupted
 } from '../../../shared/agent-hook-listener/providers/codex-state'
 import {
   resolveAgentStatusIdentity,
   shouldSuppressInheritedTerminalStatus
 } from '../../../shared/agent-status-identity'
-import type { EnrichedAgentHookEventPayload } from './server-types'
-import type { AgentHookEventPayload } from '../../../shared/agent-hook-listener/listener-event'
+import type { EnrichedAgentHookEventPayload, IncomingAgentHookEvent } from './server-types'
 import type { AgentStatusObservationOrigin } from '../../../shared/agent-status-observation'
 import { ClaudeOwedNotificationExpiryTimers } from '../../../shared/claude-owed-notification-expiry-timers'
 import { setClaudeMainAgentTurnState } from '../../../shared/agent-hook-listener/providers/claude-roster-state'
@@ -46,8 +45,7 @@ export abstract class AgentHookServerStatusUpdate extends AgentHookServerStatusA
   }
 
   protected applyNormalizedStatus(
-    /** `restatesRow`: the event repeats the stored row unchanged, so it is no word from the agent. */
-    incoming: AgentHookEventPayload & { authorityRestartId?: string; restatesRow?: true },
+    incoming: IncomingAgentHookEvent,
     onAccepted?: () => void,
     origin: AgentStatusObservationOrigin = 'hook',
     observedAt?: number,
@@ -61,7 +59,10 @@ export abstract class AgentHookServerStatusUpdate extends AgentHookServerStatusA
     if (!transitioned) {
       return undefined
     }
-    const { authorityRestartId, restatesRow, ...payload } = { ...incoming, ...transitioned }
+    const { authorityRestartId, codexRosterAuthority, restatesRow, ...payload } = {
+      ...incoming,
+      ...transitioned
+    }
     if (!this.canWriteLegacyStatusRow(payload)) {
       return undefined
     }
@@ -166,22 +167,12 @@ export abstract class AgentHookServerStatusUpdate extends AgentHookServerStatusA
       this.emitEnrichedStatus(enriched)
       return enriched
     }
-    const stateReconciledPayload =
-      (terminalOwnedPayload.connectionId || !terminalOwnedPayload.hookEventName) &&
-      terminalOwnedPayload.payload.agentType === 'codex' &&
-      (terminalOwnedPayload.hookEventName || terminalOwnedPayload.payload.mainAgent)
-        ? {
-            ...terminalOwnedPayload,
-            payload: reconcileRemoteCodexState(
-              this.state,
-              terminalOwnedPayload.paneKey,
-              terminalOwnedPayload.hookEventName,
-              terminalOwnedPayload.toolAgentId,
-              terminalOwnedPayload.payload,
-              previous?.payload
-            )
-          }
-        : terminalOwnedPayload
+    const stateReconciledPayload = reconcileCodexStatusEvent(
+      this.state,
+      terminalOwnedPayload,
+      previous?.payload,
+      codexRosterAuthority
+    )
     const previousCodexRoot =
       stateReconciledPayload.payload.agentType === 'codex' &&
       stateReconciledPayload.toolAgentId &&

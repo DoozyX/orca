@@ -46,9 +46,12 @@ export type BoundClaudeHomeCacheRow = {
 
 export type BoundClaudeHomesResolver = () => BoundClaudeHomeBinding[]
 
+export type InactiveCodexHome = { kind: 'ready'; managedHomePath: string } | { kind: 'skip' }
+
 export type InactiveCodexAccountInfo = {
   id: string
-  resolveHome: () => { kind: 'ready'; managedHomePath: string } | { kind: 'skip' }
+  /** May be async: a WSL home is checked before a preview reads it. */
+  resolveHome: () => InactiveCodexHome | Promise<InactiveCodexHome>
 }
 
 export type CodexHomePathResolver = (

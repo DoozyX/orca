@@ -2,7 +2,7 @@
 title: Usage & rate-limit tracking
 ---
 
-Orca tracks usage for Claude Code, Codex, Cursor, omp, Gemini, OpenCode, Kimi Code, and MiniMax in the status bar, so you know how close you are to a rate limit before an agent stalls.
+Orca fetches usage for Claude Code, Codex, Gemini, OpenCode Go, Kimi Code, MiniMax, omp, Grok, Antigravity, Cursor, and GLM Coding Plan and surfaces it in the status bar, so you know how close you are to a rate limit before an agent stalls.
 
 ## What's shown
 
@@ -12,7 +12,18 @@ Orca tracks usage for Claude Code, Codex, Cursor, omp, Gemini, OpenCode, Kimi Co
 
 ## How it works
 
-Orca reads each provider's usage on the host running Orca. Cursor uses its signed-in dashboard session. omp runs `omp usage --json` and shows the daily pool for its configured default model; the tooltip lists every reported pool. omp's command can make a network request and uses omp's own sign-in. Usage refreshes on Orca's normal polling cycle and when you request a refresh.
+Orca asks each provider for your usage over the network, using the login that agent already has or a key or session cookie you add in Orca Settings.
+
+For Claude, Orca requests `https://api.anthropic.com/api/oauth/usage` with the token from your existing Claude Code login; it does not ask for extra credentials. Triggers include:
+
+- Once the Orca window is active after startup, then about every 15 minutes while it stays visible and focused.
+- Bringing the window back to the front when the last check is more than 5 minutes old (sooner after a failed check).
+- Switching the active Claude account or the runtime it runs in.
+- Refreshing usage from the **Usage** popover or a Settings control that refreshes all usage, or changing OpenCode Go, MiniMax, or GLM Coding Plan usage credentials or settings. These refresh every provider, Claude included.
+- Expanding the account list in the status bar's Claude account switcher, which fetches your other saved Claude accounts. The list opens expanded when an account needs sign-in.
+- Orca Mobile or the web client connecting to this host or refreshing usage, which also fetches your other saved Claude accounts.
+
+For omp, Orca runs `omp usage --json` on the host running Orca and shows the daily pool for its configured default model; the tooltip lists every reported pool. omp's command can make a network request and uses omp's own sign-in.
 
 ## Multi-account accounting
 
@@ -20,7 +31,7 @@ The status bar always reflects the _active_ account. Other configured accounts a
 
 ## Usage roster
 
-Click the usage segment in the status bar to open the **Usage** popover. It lists every tracked provider (icon · name · plan · soonest reset · per-window bars), sorted so the tightest limit is first. Use the header refresh control to re-read local usage state.
+Click the usage segment in the status bar to open the **Usage** popover. It lists every tracked provider (icon · name · plan · soonest reset · per-window bars), sorted so the tightest limit is first. Use the header refresh control to fetch usage again.
 
 - **Detailed** — full bars, labels, and percentages for every window
 - **Compact** — only the tightest window per provider

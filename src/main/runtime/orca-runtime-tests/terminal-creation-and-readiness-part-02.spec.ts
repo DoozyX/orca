@@ -1,3 +1,7 @@
+import {
+  makeRuntimeOrchestrationDb,
+  dispatchContextRow
+} from '../runtime-orchestration-db.test-fixture'
 import { describe, expect, it, vi } from 'vitest'
 import {
   OrcaRuntimeService,
@@ -9,7 +13,6 @@ import {
   setTerminalViewAttributes,
   tmpdir
 } from '../orca-runtime-test-mocks.spec'
-import type { OrchestrationDb } from '../orchestration/db'
 import { getTerminalViewerColors } from '../terminal-view-attribute-store'
 import type {
   TerminalViewAttributes,
@@ -28,13 +31,11 @@ import {
   TEST_WINDOW_ID,
   TEST_WORKTREE_ID,
   TEST_WORKTREE_PATH,
-  UUID_RE,
   createFolderWorkspaceRuntimeStore,
   makeFolderProjectGroup,
   makeFolderWorkspace,
   makeHeadlessTerminalLayout,
   makeWorkspaceSessionWithHeadlessTerminal,
-  spawnedPtyEnv,
   store
 } from '../orca-runtime-test-fixtures.spec'
 
@@ -112,14 +113,15 @@ describe('OrcaRuntimeService', () => {
         retireAgentHookCompatibilityAuthority: retireAuthority
       }
     )
-    runtime.setOrchestrationDb({
-      getActiveDispatchForTerminal: (handle: string) =>
+    const orchestrationDb = makeRuntimeOrchestrationDb()
+    vi.spyOn(orchestrationDb, 'getActiveDispatchForTerminal').mockImplementation(
+      (handle: string) =>
         handle === 'term_ssh_retained'
-          ? { id: 'dispatch-ssh', task_id: 'task-ssh', status: 'dispatched' }
-          : undefined,
-      failDispatch,
-      getActiveCoordinatorRun: () => undefined
-    } as unknown as OrchestrationDb)
+          ? dispatchContextRow({ id: 'dispatch-ssh', task_id: 'task-ssh', status: 'dispatched' })
+          : undefined
+    )
+    vi.spyOn(orchestrationDb, 'failDispatch').mockImplementation(failDispatch)
+    runtime.setOrchestrationDb(orchestrationDb)
     runtime.attachWindow(TEST_WINDOW_ID)
     runtime.syncWindowGraph(TEST_WINDOW_ID, {
       tabs: [
@@ -218,9 +220,11 @@ describe('OrcaRuntimeService', () => {
         }
       })
     )
+    // No client launched it, so it follows the host-wide theme.
+    expect(spawn.mock.calls[0][0]).not.toHaveProperty('launcherColorQueryReplies')
   })
 
-  it("keeps a desktop host's own colours when a paired client creates a terminal", async () => {
+  it("pins a paired client's colours to the terminal it creates on a desktop host", async () => {
     setTerminalViewAttributes(viewAttributes([0xff, 0xff, 0xff], [0x28, 0x2c, 0x34]))
     const spawn = vi.fn().mockResolvedValue({ id: 'pty-remote-colors' })
     const runtime = new OrcaRuntimeService(store)
@@ -231,15 +235,22 @@ describe('OrcaRuntimeService', () => {
       getForegroundProcess: async () => null
     })
 
+    const clientAppearance = viewAttributes([0x2e, 0x34, 0x34], [0xff, 0xff, 0xff])
     await runtime.createTerminal(`path:${TEST_WORKTREE_PATH}`, {
       command: 'codex',
-      terminalColorQueryReplies: { foreground: '#2e3434', background: '#ffffff' }
+      terminalColorQueryReplies: { foreground: '#2e3434', background: '#ffffff' },
+      terminalViewAttributes: clientAppearance
     })
 
+    // The host window still themes everything else; only this terminal answers with the client's.
     const hostColors = { foreground: '#ffffff', background: '#282c34' }
     expect(getTerminalViewerColors()).toEqual(hostColors)
     expect(spawn).toHaveBeenCalledWith(
-      expect.objectContaining({ terminalColorQueryReplies: hostColors })
+      expect.objectContaining({
+        terminalColorQueryReplies: hostColors,
+        launcherColorQueryReplies: { foreground: '#2e3434', background: '#ffffff' },
+        launcherViewAttributes: clientAppearance
+      })
     )
   })
 
@@ -265,6 +276,8 @@ describe('OrcaRuntimeService', () => {
         terminalColorQueryReplies: { foreground: '#2e3434', background: '#ffffff' }
       })
     )
+    // The host-wide theme already is this client's and follows its later pushes, so nothing is pinned.
+    expect(spawn.mock.calls[0][0]).not.toHaveProperty('launcherColorQueryReplies')
   })
 
   it('does not register or publish a PTY incarnation that exited before spawn resolved', async () => {
@@ -476,45 +489,6 @@ describe('OrcaRuntimeService', () => {
     expect(spawn.mock.calls[0]?.[0]?.command).not.toContain('--host-default')
   })
 
-  it('applies Settings agent defaults to bare agent command terminal creates', async () => {
-    const spawn = vi.fn().mockResolvedValue({ id: 'pty-bg' })
-    const runtimeStore = {
-      ...store,
-      getSettings: () => ({
-        ...store.getSettings(),
-        disabledTuiAgents: [],
-        agentCmdOverrides: {},
-        agentDefaultArgs: { codex: '--dangerously-bypass-approvals-and-sandbox' },
-        agentDefaultEnv: { codex: { CODEX_PROFILE: 'captured' } }
-      })
-    }
-    const runtime = new OrcaRuntimeService(runtimeStore)
-    runtime.setPtyController({
-      spawn,
-      write: () => true,
-      kill: () => true,
-      getForegroundProcess: async () => null
-    })
-
-    await runtime.createTerminal(`path:${TEST_WORKTREE_PATH}`, {
-      command: 'codex',
-      title: 'worker'
-    })
-
-    const spawnCall = spawn.mock.calls[0]?.[0] as
-      | { command?: string; launchAgent?: string; env?: Record<string, string> }
-      | undefined
-    expect(spawnCall?.command).toBe(
-      "codex --no-daemon '--dangerously-bypass-approvals-and-sandbox'"
-    )
-    expect(spawnedPtyEnv(spawnCall)).toMatchObject({
-      CODEX_PROFILE: 'captured',
-      ORCA_WORKTREE_ID: TEST_WORKTREE_ID
-    })
-    expect(spawnCall?.env?.ORCA_AGENT_LAUNCH_TOKEN).toMatch(UUID_RE)
-    expect(spawnCall?.launchAgent).toBe('codex')
-  })
-
   // cursor is the desktop launcher; cursor-agent is the hostable CLI (#11926).
   it('launches the configured agent CLI for a startupAgent id, not the raw id', async () => {
     const spawn = vi.fn().mockResolvedValue({ id: 'pty-bg' })
@@ -572,7 +546,10 @@ describe('OrcaRuntimeService', () => {
     const [suppressed, ordinary] = spawn.mock.calls.map(([options]) => options.command)
     expect(ordinary).not.toContain('check_for_update_on_startup')
     expect(suppressed).toBe(
-      ordinary?.replace(/^codex/, "codex '-c' 'check_for_update_on_startup=false'")
+      ordinary?.replace(
+        /^codex --no-daemon/,
+        "codex --no-daemon '-c' 'check_for_update_on_startup=false'"
+      )
     )
   })
 

@@ -24,6 +24,7 @@ import {
   type WorktreeAgentExpansionControls
 } from './worktree-card-agents-expansion-state'
 import { translate } from '@/i18n/i18n'
+import { useUiLanguageRevision } from '@/i18n/use-ui-language-revision'
 import { selectAgentRowsUnread } from './worktree-card-agent-ack-inputs'
 import { dispatchSuppressScrollAdjustment } from './worktree-card-agent-scroll-suppression'
 import { revealCompactAgentCard } from './worktree-card-agent-reveal'
@@ -46,6 +47,7 @@ const WorktreeCardAgents = React.memo(function WorktreeCardAgents({
   expansionControls,
   compactSummaryInHeader = false
 }: Props) {
+  useUiLanguageRevision()
   const selectedAgents = useWorktreeAgentRows(worktreeId, precomputedAgents === undefined)
   const agents = precomputedAgents ?? selectedAgents
   if (agents.length === 0) {
@@ -70,6 +72,7 @@ type BodyProps = {
 
 const WorktreeCardAgentsWithOwnedExpansion = React.memo(
   function WorktreeCardAgentsWithOwnedExpansion(props: Omit<BodyProps, 'expansionControls'>) {
+    useUiLanguageRevision()
     const expansionControls = useWorktreeAgentExpansionState(props.worktreeId)
     return <WorktreeCardAgentsBody {...props} expansionControls={expansionControls} />
   }
@@ -82,6 +85,7 @@ const WorktreeCardAgentsBody = React.memo(function WorktreeCardAgentsBody({
   compactSummaryInHeader,
   expansionControls
 }: BodyProps) {
+  useUiLanguageRevision()
   const agentActivityDisplayMode =
     useAppStore((s) => s.agentActivityDisplayMode) ?? DEFAULT_AGENT_ACTIVITY_DISPLAY_MODE
   const dropAgentStatus = useAppStore((s) => s.dropAgentStatus)

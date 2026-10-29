@@ -6,7 +6,7 @@ import { activateTerminalTabOnOwner } from '@/lib/terminal-tab-owner-activation'
 import { parsePaneKey } from '../../../../shared/stable-pane-id'
 import { dismissStaleAgentRowByKey } from '../terminal-pane/stale-agent-row'
 import { activateStructuredAgentSessionTab } from '@/lib/agent-session/structured-agent-session-tab-activation'
-import { stablePaneHasLivePty } from '@/lib/sleeping-agent-pane-ownership'
+import { activateRetainedAgentRow } from './activate-retained-agent-row'
 
 export function useWorktreeAgentActivation(worktreeId: string): {
   handleActivateAgentTab: (tabId: string, paneKey: string) => void
@@ -52,24 +52,8 @@ export function useWorktreeAgentActivation(worktreeId: string): {
     [worktreeId]
   )
   const handleActivateRetainedAgent = useCallback(
-    (tabId: string, paneKey: string) => {
-      const parsed = parsePaneKey(paneKey)
-      const state = useAppStore.getState()
-      // Retained rows are completion evidence; only open a still-live pane so a sleeping target pane is never resumed.
-      if (
-        parsed?.tabId === tabId &&
-        state.tabsByWorktree[worktreeId]?.some((tab) => tab.id === tabId) &&
-        stablePaneHasLivePty(
-          tabId,
-          parsed.leafId,
-          state.ptyIdsByTabId,
-          state.terminalLayoutsByTabId[tabId]
-        )
-      ) {
-        handleActivateAgentTab(tabId, paneKey)
-      }
-    },
-    [handleActivateAgentTab, worktreeId]
+    (tabId: string, paneKey: string) => activateRetainedAgentRow(worktreeId, tabId, paneKey),
+    [worktreeId]
   )
   return { handleActivateAgentTab, handleActivateRetainedAgent }
 }

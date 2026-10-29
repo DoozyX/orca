@@ -178,7 +178,7 @@ vi.mock('../asar-transparent-fs', () => ratchet.forbiddenModule('asar-transparen
 // Why: `createRequire` is the general form of that escape — it resolves outside vitest's registry,
 // so `createRequire(__filename)('fs').writeFileSync` and `('original-fs')` alike land on the real
 // module whatever is mocked above. Nothing on this path needs a CommonJS require.
-// The import-time exceptions are the Windows process table's and security addon's native loaders,
+// The import-time exceptions are the Windows process table's, security addon's and registry's native loaders,
 // which only build their require at module load and read nothing on this path.
 vi.mock('node:module', async (importOriginal) => {
   const actual = await importOriginal<{ createRequire: (filename: string) => unknown }>()
@@ -186,7 +186,7 @@ vi.mock('node:module', async (importOriginal) => {
   const guarded = {
     ...actual,
     createRequire: (filename: string) =>
-      /windows-(process-table|security-addon)\.ts$/.test(String(filename))
+      /windows-(process-table|security-addon|native-registry)\.ts$/.test(String(filename))
         ? actual.createRequire(filename)
         : forbidden.createRequire()
   }

@@ -20,11 +20,14 @@ belongs to no run — and for remote placement, where `new-child` is invalid.
 ORCA orchestration worker-start --task <task_id> --worktree current --agent codex --from <coordinator_handle> --json
 
 # New worktree for a local worker: nested under the coordinator.
-ORCA orchestration worker-start --task <task_id> --worktree new-child --name <name> --agent codex --setup run --from <coordinator_handle> --json
+ORCA orchestration worker-start --task <task_id> --worktree new-child --agent codex --setup run --from <coordinator_handle> --json
 
 # Independent top-level worktree; unrelated work, or remote placement.
-ORCA orchestration worker-start --task <task_id> --worktree new-top-level --name <name> --agent codex --setup run --from <coordinator_handle> --json
+ORCA orchestration worker-start --task <task_id> --worktree new-top-level --agent codex --setup run --from <coordinator_handle> --json
 ```
+
+`--name` is optional: without it Orca picks a name as it does for an unnamed
+workspace, and the start output names the workspace it created.
 
 Current and exact existing workspaces create a fresh terminal unless
 `--terminal` is explicit. Folder workspaces are first-class; do not invoke Git

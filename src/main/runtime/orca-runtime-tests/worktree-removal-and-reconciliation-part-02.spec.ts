@@ -397,7 +397,11 @@ describe('OrcaRuntimeService', () => {
       const result = await runtime.removeManagedWorktree(worktreeId, { force: true })
 
       expect(result).toEqual({
-        preservedBranch: { branchName: 'feature/foo', head: 'abc' },
+        preservedBranch: {
+          branchName: 'feature/foo',
+          head: 'abc',
+          reason: 'not_merged_into_default'
+        },
         warning: `orca.yaml archive hook skipped for ${missingWorktreePath}; pass --run-hooks to run it.`
       })
       expect(runHook).not.toHaveBeenCalled()

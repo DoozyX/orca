@@ -51,6 +51,8 @@ let worktreePath = ''
 let lockedFile = ''
 let worktreeId = ''
 let repo: Repo
+// Only Orca's follow-up delete names the locked file; Git's error names the checkout.
+const LOCKED_FILE_ERROR = /LICENSE could not be deleted/
 
 async function runChecked(program: string, args: string[], cwd?: string): Promise<string> {
   const result = await runProcess({ program, args, cwd })
@@ -235,16 +237,19 @@ describe.skipIf(process.platform !== 'darwin')('a worktree delete Git fails part
     await removeTree(scratchDir)
   })
 
-  it('keeps the leftover listed with Git’s error after the startup finish fails', async () => {
+  it('keeps the leftover listed with the locked file’s error after the startup finish fails', async () => {
     const error = await failStartupFinish()
 
-    expect(String(error)).toMatch(/Operation not permitted/)
+    expect(String(error)).toMatch(LOCKED_FILE_ERROR)
     // Git removed registration and merged branch but left checkout files and Orca metadata.
     expect(await isRegistered(worktreePath)).toBe(false)
     expect(existsSync(lockedFile)).toBe(true)
     expect(await git(['branch', '--list', 'feature'])).toBe('')
     expect(await listedRows()).toEqual([
-      { path: worktreePath, removalError: expect.stringMatching(/Operation not permitted/) }
+      {
+        path: worktreePath,
+        removalError: expect.stringMatching(LOCKED_FILE_ERROR)
+      }
     ])
     // The leftover is not fenced: terminals may open in it while it waits for the user.
     beginTerminalInstall(worktreePath)()
@@ -389,7 +394,7 @@ describe.skipIf(process.platform !== 'darwin')('a worktree delete Git fails part
     )
     await _settlePendingWorktreeRemovalsForTests()
 
-    expect(String(error)).toMatch(/Operation not permitted/)
+    expect(String(error)).toMatch(LOCKED_FILE_ERROR)
     expect(await git(['remote'])).not.toContain(pushTarget.remoteName)
     expect(existsSync(lockedFile)).toBe(true)
   })
@@ -397,7 +402,7 @@ describe.skipIf(process.platform !== 'darwin')('a worktree delete Git fails part
   it('removes the push-target remote Orca added when the startup finish fails', async () => {
     const pushTarget = await addOrcaPushTargetRemote()
 
-    expect(String(await finishAtStartup([], pushTarget))).toMatch(/Operation not permitted/)
+    expect(String(await finishAtStartup([], pushTarget))).toMatch(LOCKED_FILE_ERROR)
 
     expect(await git(['remote'])).not.toContain(pushTarget.remoteName)
     expect(existsSync(lockedFile)).toBe(true)

@@ -77,6 +77,16 @@ export function resolveClaudeHomeBindingForSession(input: {
   })
 }
 
+/** A per-call reader, so each acquisition sees the store's current catalog. */
+export function claudeHomeBindingReader(
+  getStore: () => ClaudeHomeBindingCatalogSource
+): (location: {
+  workspaceId: string
+  executionHostId: ExecutionHostId | null
+}) => ResolvedClaudeHomeBinding | null {
+  return (location) => resolveClaudeHomeBindingForSession({ store: getStore(), ...location })
+}
+
 /**
  * The environment the Claude child is actually launched with: this process's own, with the agent
  * launch overlay on top (`claude-structured-launch-resolution.ts` merges them the same way). Every
