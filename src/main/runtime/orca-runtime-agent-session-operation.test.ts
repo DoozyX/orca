@@ -161,6 +161,7 @@ describe('agent-session execution namespace', () => {
     expect(launch?.launchCommand).not.toContain('old-model')
     const policyTokens = [
       'codex',
+      '--no-daemon',
       '-c',
       'model_verbosity=low',
       '-a',
@@ -187,7 +188,14 @@ describe('agent-session execution namespace', () => {
     const host = createTerminal.mock.calls[0]?.[1]
     expect(tokenizeStartupCommand(host?.command ?? '', 'posix')).toMatchObject({
       ok: true,
-      tokens: [...policyTokens, 'resume', providerSession.id]
+      tokens: [
+        ...policyTokens.slice(0, 2),
+        '-c',
+        'disable_paste_burst=true',
+        ...policyTokens.slice(2),
+        'resume',
+        providerSession.id
+      ]
     })
     expect(host?.launchConfig).toEqual(launch?.launchConfig)
     const resumeInputs = {
@@ -201,7 +209,7 @@ describe('agent-session execution namespace', () => {
     expect(resumedAgain?.launchConfig).toEqual(launch?.launchConfig)
     expect(tokenizeStartupCommand(resumedAgain?.launchCommand ?? '', 'posix')).toMatchObject({
       ok: true,
-      tokens: [...policyTokens, 'resume', providerSession.id]
+      tokens: [...policyTokens, '-c', 'disable_paste_burst=true', 'resume', providerSession.id]
     })
   })
 
@@ -249,6 +257,21 @@ describe('agent-session execution namespace', () => {
 })
 
 describe('agent-session create operation ledger', () => {
+  it.each(['auto-submit', 'draft', undefined] as const)(
+    'suppresses startup updates only for auto-submitted launches: %s',
+    async (promptDelivery) => {
+      const runtime = createRuntime()
+      const createTerminal = vi.spyOn(runtime, 'createTerminal').mockResolvedValue(terminal())
+      await runtime.createAgentSession(
+        request(operationId(), { prompt: undefined, promptDelivery })
+      )
+      expect(createTerminal).toHaveBeenCalledWith(
+        'id:worktree-1',
+        expect.objectContaining({ suppressStartupUpdatePrompt: promptDelivery === 'auto-submit' })
+      )
+    }
+  )
+
   it.each([true, false, undefined])(
     'forwards renderer keyboard support on create and resume: %s',
     async (terminalKittyKeyboardProtocol) => {

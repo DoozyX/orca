@@ -32,7 +32,13 @@ describe('dropAgentResumeArgvFromCommand', () => {
           agent: 'codex',
           providerSession: CODEX_SESSION
         })
-      ).toEqual({ status: 'dropped', command: 'codex --no-daemon' })
+      ).toEqual({
+        status: 'dropped',
+        command:
+          platform === 'win32'
+            ? 'codex --no-daemon'
+            : "codex --no-daemon '-c' 'disable_paste_burst=true'"
+      })
     }
   })
 
@@ -51,7 +57,10 @@ describe('dropAgentResumeArgvFromCommand', () => {
         agent: 'codex',
         providerSession: CODEX_SESSION
       })
-    ).toEqual({ status: 'dropped', command: "codex --no-daemon '-c' 'tui.resume_cwd=current'" })
+    ).toEqual({
+      status: 'dropped',
+      command: "codex --no-daemon '-c' 'disable_paste_burst=true' '-c' 'tui.resume_cwd=current'"
+    })
   })
 
   it('keeps the user CLI args that precede the resume argv', () => {
@@ -61,7 +70,10 @@ describe('dropAgentResumeArgvFromCommand', () => {
         agent: 'codex',
         providerSession: CODEX_SESSION
       })
-    ).toEqual({ status: 'dropped', command: "codex --no-daemon '--search'" })
+    ).toEqual({
+      status: 'dropped',
+      command: "codex --no-daemon '-c' 'disable_paste_burst=true' '--search'"
+    })
   })
 
   it('drops an unquoted resume argv from a legacy persisted command', () => {

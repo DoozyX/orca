@@ -55,7 +55,13 @@ describe('automatic terminal permissions', () => {
           expect(resumed?.launchConfig.agentArgs).toBe('')
           expect(tokenizeStartupCommand(resumed?.launchCommand ?? '', shell)).toMatchObject({
             ok: true,
-            tokens: ['codex', '--no-daemon', 'resume', 'saved-session']
+            tokens: [
+              'codex',
+              '--no-daemon',
+              ...(shell === 'posix' ? ['-c', 'disable_paste_burst=true'] : []),
+              'resume',
+              'saved-session'
+            ]
           })
           continue
         }

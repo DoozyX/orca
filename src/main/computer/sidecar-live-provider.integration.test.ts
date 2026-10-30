@@ -42,7 +42,7 @@ describe.skipIf(process.platform === 'win32')('live provider peek across the sid
               export function currentComputerProvider() {
                 if (!provider) {
                   created++;
-                  provider = { capabilities: async () => ({ created }) };
+                  provider = { capabilities: async () => ({ created, supports: { observation: {} } }) };
                 }
                 return provider;
               }
@@ -83,7 +83,11 @@ describe.skipIf(process.platform === 'win32')('live provider peek across the sid
     try {
       expect(await request(1, 'liveProvider')).toEqual({ id: 1, ok: true, result: null })
       // Creation count 1 here proves the peek above created no provider.
-      expect(await request(2, 'capabilities')).toEqual({ id: 2, ok: true, result: { created: 1 } })
+      expect(await request(2, 'capabilities')).toEqual({
+        id: 2,
+        ok: true,
+        result: { created: 1, supports: { observation: { treeDiff: true } } }
+      })
 
       const reply = await request(3, 'liveProvider')
       const live = reply.result

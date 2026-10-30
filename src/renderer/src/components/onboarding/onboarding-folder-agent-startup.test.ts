@@ -18,7 +18,8 @@ describe('buildOnboardingFolderAgentStartup', () => {
     })
 
     expect(startup).toEqual({
-      command: "codex --no-daemon '--dangerously-bypass-approvals-and-sandbox'",
+      command:
+        "codex --no-daemon '-c' 'disable_paste_burst=true' '--dangerously-bypass-approvals-and-sandbox'",
       env: {},
       launchAgent: 'codex',
       launchConfig: {

@@ -41,6 +41,7 @@ describe('Codex pane ownership', () => {
       '--no-daemon',
       '--profile',
       'work',
+      ...(host.platform === 'win32' ? [] : ['-c', 'disable_paste_burst=true']),
       'resume',
       'saved-session'
     ])
@@ -55,7 +56,9 @@ describe('Codex pane ownership', () => {
       agentCommand: 'codex --no-daemon --profile work',
       platform: 'linux'
     })
-    expect(plan?.launchCommand).toBe("codex --no-daemon --profile work 'resume' 'saved-session'")
+    expect(plan?.launchCommand).toBe(
+      "codex --no-daemon --profile work '-c' 'disable_paste_burst=true' 'resume' 'saved-session'"
+    )
   })
 })
 
@@ -69,7 +72,13 @@ describe('Codex launch overrides', () => {
       agentArgs: '--no-daemon'
     })
     const parsed = tokenizeStartupCommand(plan!.launchCommand, 'posix')
-    expect(parsed.ok && parsed.tokens).toEqual(['codex', '--no-daemon', 'hello'])
+    expect(parsed.ok && parsed.tokens).toEqual([
+      'codex',
+      '-c',
+      'disable_paste_burst=true',
+      '--no-daemon',
+      'hello'
+    ])
   })
 
   it('preserves an explicitly selected remote server in agent arguments', () => {

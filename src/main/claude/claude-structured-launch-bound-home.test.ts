@@ -43,7 +43,7 @@ function resolverFor(
   return createClaudeStructuredLaunchResolver({
     store: { getRecord: () => value, pinLaunchDirectory: vi.fn() },
     resolveWorkspacePath: async (id) => `/repos/${id}`,
-    resolveCommand: () => '/usr/local/bin/claude',
+    resolveCommand: () => ({ command: '/usr/local/bin/claude', prefixArgs: [] }),
     resolveAuthPolicy: () => ({ account: 'system' }),
     // A no-op by default so a test that is not about the bound home does not need a real directory.
     assertBoundHomeUsable: async () => {},

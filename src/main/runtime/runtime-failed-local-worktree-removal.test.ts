@@ -205,6 +205,10 @@ async function failInSession(): Promise<unknown> {
 
 describe.skipIf(process.platform !== 'darwin')('a worktree delete Git fails partway', () => {
   beforeEach(async () => {
+    // A git hook's GIT_DIR/GIT_INDEX_FILE would point the scratch repo's git, and Orca's, at the outer repo.
+    for (const key of Object.keys(process.env).filter((name) => name.startsWith('GIT_'))) {
+      vi.stubEnv(key, undefined)
+    }
     vi.spyOn(console, 'warn').mockImplementation(() => {})
     scratchDir = await realpath(await mkdtemp(join(tmpdir(), 'orca-failed-removal-')))
     recordsDir = join(scratchDir, 'profile')
@@ -232,6 +236,7 @@ describe.skipIf(process.platform !== 'darwin')('a worktree delete Git fails part
     _resetPendingWorktreeRemovalsForTests()
     vi.mocked(removeHostTree).mockClear()
     vi.restoreAllMocks()
+    vi.unstubAllEnvs()
     await setImmutable(false, scratchDir)
     expect(await runChecked('find', [scratchDir, '-flags', '+uchg'])).toBe('')
     await removeTree(scratchDir)
@@ -465,7 +470,14 @@ describe.skipIf(process.platform !== 'darwin')('a worktree delete Git fails part
     expect(await isRegistered(worktreePath)).toBe(true)
     expect(await git(['branch', '--list', 'feature'])).not.toBe('')
     expect(purged).toEqual([])
-    expect(await readWorktreeRemovalRecords(recordsDir)).toEqual([])
+    expect(await readWorktreeRemovalRecords(recordsDir)).toEqual([
+      expect.objectContaining({
+        worktreeId,
+        failure: expect.objectContaining({
+          message: expect.stringMatching(/A different checkout is now at/)
+        })
+      })
+    ])
   })
 
   it('never deletes a worktree Git registers inside the leftover', async () => {

@@ -19,7 +19,7 @@ describe('tui agent startup session options', () => {
       agentArgs: '-m gpt-5.5 -c model_reasoning_effort=low'
     })
     expect(plan?.launchCommand).toBe(
-      "codex --no-daemon '-m' 'custom-codex-model' '-c' 'model_reasoning_effort=high'"
+      "codex --no-daemon '-c' 'disable_paste_burst=true' '-m' 'custom-codex-model' '-c' 'model_reasoning_effort=high'"
     )
     expect(plan?.launchConfig).toMatchObject({
       agentCommand: 'codex --no-daemon',
@@ -121,7 +121,7 @@ describe('tui agent startup session options', () => {
       sessionOptionsOverrideAgentArgs: true
     })
     expect(plan?.launchCommand).toBe(
-      "codex --no-daemon '-m' 'gpt-5.5' '-c' 'model_reasoning_effort=high' 'resume' 'thread-1'"
+      "codex --no-daemon '-c' 'disable_paste_burst=true' '-m' 'gpt-5.5' '-c' 'model_reasoning_effort=high' 'resume' 'thread-1'"
     )
     expect(plan?.launchConfig).toMatchObject({
       agentCommand: 'codex --no-daemon',

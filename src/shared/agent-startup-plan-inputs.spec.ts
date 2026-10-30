@@ -139,7 +139,9 @@ describe('a picked session option outranks configured launch arguments', () => {
   it('strips the configured model flag instead of emitting both spellings', () => {
     const plan = commandFor({ agentDefaultArgs: { codex: '--model gpt-5-codex' } })
 
-    expect(plan?.launchCommand).toBe("codex --no-daemon '-m' 'gpt-5'")
+    expect(plan?.launchCommand).toBe(
+      "codex --no-daemon '-c' 'disable_paste_burst=true' '-m' 'gpt-5'"
+    )
     // Without the override the configured flag trailed the picked one and won on argv order.
     expect(plan?.launchCommand).not.toContain('gpt-5-codex')
   })

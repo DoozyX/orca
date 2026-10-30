@@ -1,18 +1,22 @@
 import type { AgentStatusEntry } from '../../../../../shared/agent-status-types'
 import '../../../../../shared/agent-status-types'
 import { agentSubagentsEqual } from '../../../../../shared/agent-status-subagent-snapshot'
+import { agentMonitoredWorkEqual } from '../../../../../shared/agent-monitored-work'
 import { agentChildWorkViewsEqual } from '../../../../../shared/agent-status-child-work-view-wire'
 import type { AgentStatusPayload } from './agent-status-contract'
 
-/** Reuse equal child arrays for derived-row identity; children are host views, subagents the legacy roster. */
+/** Reuse equal child arrays for derived-row identity; children are host views, subagents the legacy roster, monitored work the host's watched processes. */
 export function liveEntryChildFields(
   existing: AgentStatusEntry | undefined,
   payload: AgentStatusPayload
-): Pick<AgentStatusEntry, 'subagents' | 'children'> {
+): Pick<AgentStatusEntry, 'subagents' | 'children' | 'monitoredWork'> {
   return {
     subagents: agentSubagentsEqual(existing?.subagents, payload.subagents)
       ? existing?.subagents
       : payload.subagents,
+    monitoredWork: agentMonitoredWorkEqual(existing?.monitoredWork, payload.monitoredWork)
+      ? existing?.monitoredWork
+      : payload.monitoredWork,
     ...(payload.children
       ? {
           children: agentChildWorkViewsEqual(existing?.children, payload.children)

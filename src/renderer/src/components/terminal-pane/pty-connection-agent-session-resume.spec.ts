@@ -153,7 +153,7 @@ export function registerPtyConnectionAgentSessionResumeTests(): void {
         expect.objectContaining({
           sessionId: 'lost-pty',
           command:
-            "codex --no-daemon '--model' 'gpt-5' '--reasoning-effort' 'high' 'resume' 'codex-session-1'",
+            "codex --no-daemon '--model' 'gpt-5' '--reasoning-effort' 'high' '-c' 'disable_paste_burst=true' 'resume' 'codex-session-1'",
           env: expect.objectContaining({
             CODEX_PROFILE: 'captured',
             ORCA_PANE_KEY: paneKey,
@@ -358,7 +358,8 @@ export function registerPtyConnectionAgentSessionResumeTests(): void {
       expect(transport.connect).toHaveBeenCalledWith(
         expect.objectContaining({
           sessionId: 'lost-pty',
-          command: "codex --no-daemon '--model' 'gpt-5-mini' 'resume' 'codex-session-1'",
+          command:
+            "codex --no-daemon '--model' 'gpt-5-mini' '-c' 'disable_paste_burst=true' 'resume' 'codex-session-1'",
           env: expect.objectContaining({
             ORCA_AGENT_LAUNCH_TOKEN: expect.stringMatching(new RegExp(`^${UUID_RE}$`))
           })
@@ -557,7 +558,7 @@ export function registerPtyConnectionAgentSessionResumeTests(): void {
         expect.objectContaining({
           sessionId: 'lost-pty',
           // Neither stale recipe applies, and settings defaults never stand in for a recorded one.
-          command: "codex --no-daemon 'resume' 'codex-session-1'"
+          command: "codex --no-daemon '-c' 'disable_paste_burst=true' 'resume' 'codex-session-1'"
         })
       )
       expect(mockStoreState.registerAgentLaunchConfig).toHaveBeenCalledWith(

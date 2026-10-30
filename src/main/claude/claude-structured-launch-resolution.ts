@@ -25,7 +25,7 @@ import {
   type ClaudeEnvDeps
 } from './claude-structured-child-env'
 import { claudeStructuredLaunchArgs } from './claude-structured-launch-args'
-import type { ClaudeCliFlagSupport } from './claude-cli-flag-support'
+import type { ClaudeCliFlagCheck, ClaudeCliFlagSupport } from './claude-cli-flag-support'
 import { resolveClaudeLaunchFlags } from './claude-structured-launch-flags'
 import { withNativeChatVisualsEnv } from '../native-chat/native-chat-visuals-delivery'
 import {
@@ -102,6 +102,7 @@ export function claudeStructuredPermissionOptions(
 export type ClaudeStructuredLaunch = {
   /** Always Orca's resolved user CLI: the SDK's bundled binaries are excluded from the install. */
   pathToClaudeCodeExecutable: string
+  prefixArgs?: readonly string[]
   account?: ClaudeStructuredInvocation['account']
   options: ClaudeStructuredSdkOptions
   cwd: string
@@ -113,6 +114,8 @@ export type ClaudeStructuredLaunch = {
   resumeLeafUuid: string | null
   /** Whether this launch resumes an existing Claude transcript. */
   resumesTranscript: boolean
+  /** Version-gated flag and control support of the CLI this launch runs. */
+  cliFlag: ClaudeCliFlagCheck
   /** Chain identity is independent of whether a transcript exists to resume. */
   continuesChain: boolean
   /** Chain head replaced by this rewind fork. */
@@ -136,7 +139,7 @@ export type ClaudeStructuredLaunchPartDeps = {
    *  and the agent reads them without asking. */
   attachmentDirectory?: string
   /** Omit version-gated flags when support cannot be checked. */
-  cliFlags?: Pick<ClaudeCliFlagSupport, 'supports'>
+  cliFlags?: Pick<ClaudeCliFlagSupport, 'check'>
   /** Whether Claude wrote a transcript for this id; defaults to the transcript resolver. */
   hasTranscript?: (input: {
     providerSessionId: string
@@ -146,6 +149,7 @@ export type ClaudeStructuredLaunchPartDeps = {
 
 export type ClaudeStructuredInvocation = {
   command: string
+  prefixArgs: string[]
   env: Record<string, string>
   account: 'managed' | 'system'
 }
@@ -167,6 +171,7 @@ export async function resolveClaudeStructuredInvocation(
   // Preserve proxy credentials alongside ANTHROPIC_BASE_URL for every account.
   return {
     command: sources.command,
+    prefixArgs: sources.prefixArgs,
     env: claudeChildEnv(sources, decorateEnv, options),
     account: auth.account
   }
@@ -221,7 +226,12 @@ export function claudeStructuredLaunchPart(
     }
     const sources = await resolveClaudeChildEnvSources(envDeps)
     // Overlap the version probe with remaining launch preparation.
-    const probeLaunch = { command: sources.command, cwd, env: claudeProbeEnv(sources) }
+    const probeLaunch = {
+      command: sources.command,
+      prefixArgs: sources.prefixArgs,
+      cwd,
+      env: claudeProbeEnv(sources)
+    }
     const launchFlags = resolveClaudeLaunchFlags(
       { ...(deps.cliFlags ? { cliFlags: deps.cliFlags } : {}), prepareVisuals: basis.visuals },
       record.sessionId,
@@ -249,7 +259,7 @@ export function claudeStructuredLaunchPart(
     // Why: without a router the home is fixed, so check it before the recheck that must stay last.
     const resumedWithoutRouter = router && !boundHome ? undefined : await resumes(accountHome.path)
     // Last: it rechecks the account switch, which may have begun during any await above.
-    const { command, env, account } = await resolveClaudeStructuredInvocation(
+    const { command, prefixArgs, env, account } = await resolveClaudeStructuredInvocation(
       envDeps,
       (base) =>
         withNativeChatVisualsEnv(
@@ -282,6 +292,7 @@ export function claudeStructuredLaunchPart(
     return {
       launch: {
         pathToClaudeCodeExecutable: command,
+        prefixArgs,
         account,
         options: {
           ...CLAUDE_STRUCTURED_BASE_OPTIONS,
@@ -303,6 +314,8 @@ export function claudeStructuredLaunchPart(
         providerSessionId,
         resumeLeafUuid: resumesTranscript ? leafUuid : null,
         resumesTranscript,
+        cliFlag: async (flag, ...budget) =>
+          deps.cliFlags ? deps.cliFlags.check(flag, probeLaunch, ...budget) : 'unknown',
         continuesChain,
         ...(fork && head && !continuesChain
           ? { forkedFromKey: agentSessionProviderHandleKey(head) }

@@ -6,7 +6,7 @@ actually wrong in a change, not to enforce style for its own sake.
 
 ## DRY
 
-Eliminating duplicated *knowledge*, not duplicated characters. The same rule or
+Eliminating duplicated _knowledge_, not duplicated characters. The same rule or
 decision should live in one place.
 
 - Copy-pasted logic drifting apart: two near-identical blocks that started as one

@@ -1,3 +1,4 @@
+import { useWorktreeAgentActivation } from './use-worktree-agent-activation'
 import React, { useCallback, useLayoutEffect, useMemo, useRef } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { useAppStore } from '@/store'
@@ -9,6 +10,7 @@ import {
   selectSendTargetInputs
 } from './worktree-card-send-target-inputs'
 import { useWorktreeAgentRows } from './useWorktreeAgentRows'
+import { useWorktreeAgentDisplay } from './use-worktree-agent-display'
 import { cn } from '@/lib/utils'
 import type { DashboardAgentRow as DashboardAgentRowData } from '@/components/dashboard/useDashboardData'
 import { useFocusedAgentPaneKey } from './focused-agent-row-highlight'
@@ -18,17 +20,17 @@ import {
   CompactAgentSummaryButton
 } from './worktree-card-compact-agents'
 import { buildAgentRowLineageTree } from '@/components/dashboard/agent-row-lineage-model'
-import { DEFAULT_AGENT_ACTIVITY_DISPLAY_MODE } from '../../../../shared/constants'
 import {
   useWorktreeAgentExpansionState,
   type WorktreeAgentExpansionControls
 } from './worktree-card-agents-expansion-state'
 import { translate } from '@/i18n/i18n'
+import { agentSendDisabledReasonLabel } from '@/lib/agent-send-disabled-reason-label'
 import { useUiLanguageRevision } from '@/i18n/use-ui-language-revision'
+import { revealCompactAgentCard } from './worktree-sidebar-reveal'
 import { selectAgentRowsUnread } from './worktree-card-agent-ack-inputs'
 import { dispatchSuppressScrollAdjustment } from './worktree-card-agent-scroll-suppression'
-import { revealCompactAgentCard } from './worktree-card-agent-reveal'
-import { useWorktreeAgentActivation } from './use-worktree-agent-activation'
+import { opensClaudeParentConversation } from '@/lib/claude-agent-row-view'
 
 export { SUPPRESS_WORKTREE_LIST_SCROLL_ADJUSTMENT_EVENT } from './worktree-card-agent-scroll-suppression'
 
@@ -85,15 +87,13 @@ const WorktreeCardAgentsBody = React.memo(function WorktreeCardAgentsBody({
   compactSummaryInHeader,
   expansionControls
 }: BodyProps) {
-  useUiLanguageRevision()
-  const agentActivityDisplayMode =
-    useAppStore((s) => s.agentActivityDisplayMode) ?? DEFAULT_AGENT_ACTIVITY_DISPLAY_MODE
+  const languageRevision = useUiLanguageRevision()
+  const { agentActivityDisplayMode, showAgentModels } = useWorktreeAgentDisplay()
   const dropAgentStatus = useAppStore((s) => s.dropAgentStatus)
   const dismissRetainedAgent = useAppStore((s) => s.dismissRetainedAgent)
   const { targetMode: agentSendPopoverTargetMode, agentStatusEpoch } = useAppStore(
     useShallow((s) => selectSendTargetControlInputs(s, worktreeId))
   )
-  // Use a stable empty selector outside our send popover so unrelated title/status churn cannot wake idle cards.
   const sendTargetInputs = useAppStore(useShallow((s) => selectSendTargetInputs(s, worktreeId)))
   const sendPromptToSidebarAgentTarget = useAppStore((s) => s.sendPromptToSidebarAgentTarget)
   const focusedAgentPaneKey = useFocusedAgentPaneKey(worktreeId)
@@ -120,6 +120,7 @@ const WorktreeCardAgentsBody = React.memo(function WorktreeCardAgentsBody({
   const isAgentSendTargetModeActive = agentSendPopoverTargetMode !== null
   const sendTargetsByPaneKey = useMemo(() => {
     void agentStatusEpoch
+    void languageRevision
     if (!isAgentSendTargetModeActive) {
       return new Map<
         string,
@@ -132,15 +133,25 @@ const WorktreeCardAgentsBody = React.memo(function WorktreeCardAgentsBody({
         target.paneKey,
         agentSendPopoverTargetMode?.status === 'sending' &&
         agentSendPopoverTargetMode.sendingPaneKey === target.paneKey
-          ? { status: 'sending' as const, disabledReason: 'Sending...' }
+          ? {
+              status: 'sending' as const,
+              disabledReason: translate(
+                'auto.components.sidebar.WorktreeCardAgents.sendingTarget',
+                'Sending...'
+              )
+            }
           : target.disabledReason
-            ? { status: target.status, disabledReason: target.disabledReason }
+            ? {
+                status: target.status,
+                disabledReason: agentSendDisabledReasonLabel(target.disabledReason)
+              }
             : { status: target.status }
       ])
     )
   }, [
     // Freshness timers advance this epoch without replacing the status map.
     agentStatusEpoch,
+    languageRevision,
     agentSendPopoverTargetMode?.sendingPaneKey,
     agentSendPopoverTargetMode?.status,
     isAgentSendTargetModeActive,
@@ -225,6 +236,7 @@ const WorktreeCardAgentsBody = React.memo(function WorktreeCardAgentsBody({
       <React.Fragment key={agent.paneKey}>
         <DashboardAgentRow
           agent={agent}
+          showModel={showAgentModels}
           onDismiss={handleDismissAgent}
           onActivate={
             agent.rowSource === 'retained' ? handleActivateRetainedAgent : handleActivateAgentTab
@@ -285,7 +297,16 @@ const WorktreeCardAgentsBody = React.memo(function WorktreeCardAgentsBody({
       <div key={agent.paneKey} className="min-w-0">
         <CompactAgentRow
           agent={agent}
+          showModel={showAgentModels}
           now={now}
+          parentConversationDescription={
+            opensClaudeParentConversation(agent)
+              ? translate(
+                  'auto.lib.claudeAgentRowView.openParentConversation',
+                  'Open parent conversation'
+                )
+              : undefined
+          }
           isUnvisited={unvisitedByPaneKey[agent.paneKey] ?? false}
           onActivate={
             agent.rowSource === 'retained' ? handleActivateRetainedAgent : handleActivateAgentTab
@@ -322,7 +343,10 @@ const WorktreeCardAgentsBody = React.memo(function WorktreeCardAgentsBody({
     const summaryAgents = hasLineage ? rootAgents : agents
     // Collapse compact multi-agent lists except when their rows are the send-target picker.
     const shouldUseSummaryRow = summaryAgents.length > 1 && !isAgentSendTargetModeActive
-    const subjectLabel = `${hasLineage ? rootAgents.length : agents.length} agents`
+    const subjectLabel = translate('sidebar.agentSummary.agentCount', '{{count}} agents', {
+      count: hasLineage ? rootAgents.length : agents.length,
+      defaultValue_one: '{{count}} agent'
+    })
 
     return (
       <div

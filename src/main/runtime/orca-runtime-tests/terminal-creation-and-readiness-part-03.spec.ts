@@ -128,7 +128,7 @@ describe('OrcaRuntimeService', () => {
       | { command?: string; launchAgent?: string; env?: Record<string, string> }
       | undefined
     expect(spawnCall?.command).toBe(
-      "codex --no-daemon '--dangerously-bypass-approvals-and-sandbox'"
+      "codex --no-daemon '-c' 'disable_paste_burst=true' '--dangerously-bypass-approvals-and-sandbox'"
     )
     expect(spawnedPtyEnv(spawnCall)).toMatchObject({
       CODEX_PROFILE: 'captured',
@@ -164,7 +164,7 @@ describe('OrcaRuntimeService', () => {
 
     const spawnCall = spawn.mock.calls[0]?.[0] as { command?: string } | undefined
     expect(spawnCall?.command).toBe(
-      "codex --no-daemon --profile work '--dangerously-bypass-approvals-and-sandbox'"
+      "codex --no-daemon --profile work '-c' 'disable_paste_burst=true' '--dangerously-bypass-approvals-and-sandbox'"
     )
   })
 
@@ -458,7 +458,7 @@ describe('OrcaRuntimeService', () => {
     expect(compoundClaude.env?.TMUX).toBeUndefined()
 
     expect(normalAgent.command).toBe(
-      "codex --no-daemon '--dangerously-bypass-approvals-and-sandbox'"
+      "codex --no-daemon '-c' 'disable_paste_burst=true' '--dangerously-bypass-approvals-and-sandbox'"
     )
     expect(normalAgent.env?.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS).toBeUndefined()
     expect(normalAgent.env?.TMUX).toBeUndefined()

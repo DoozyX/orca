@@ -18,7 +18,7 @@ the rest of the workspace.
 
 ## Procedure
 
-1. List every removed *behavior*, not every removed line: a guard, a validation, a
+1. List every removed _behavior_, not every removed line: a guard, a validation, a
    fallback, a cleanup step, a log or metric emission, a test case.
 2. For each one, search the post-change tree for a replacement — the symbol name,
    the error string, or the call site that used to invoke it.

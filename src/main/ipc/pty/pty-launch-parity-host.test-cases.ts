@@ -96,7 +96,8 @@ const BOB_ARGS = {
   agentDefaultArgs: { claude: `--dangerously-skip-permissions --name "Bob's box"` }
 }
 const BOB_POSIX = `${POSIX_CLAUDE} '--name' 'Bob'"'"'s box'`
-const CODEX = "codex --no-daemon '--dangerously-bypass-approvals-and-sandbox'"
+const CODEX =
+  "codex --no-daemon '-c' 'disable_paste_burst=true' '--dangerously-bypass-approvals-and-sandbox'"
 
 function aiButton(
   name: string,

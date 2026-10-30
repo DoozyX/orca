@@ -562,7 +562,8 @@ describe('OrcaRuntimeService', () => {
     expect(spawn).toHaveBeenCalledWith(
       expect.objectContaining({
         cwd: '/tmp/workspaces/runtime-explicit-draft',
-        command: "codex --no-daemon '--dangerously-bypass-approvals-and-sandbox'",
+        command:
+          "codex --no-daemon '-c' 'disable_paste_burst=true' '--dangerously-bypass-approvals-and-sandbox'",
         worktreeId: result.worktree.id,
         telemetry: { agent_kind: 'codex', launch_source: 'cli', request_kind: 'new' }
       })

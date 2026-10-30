@@ -1,3 +1,7 @@
+import {
+  textGenerationFailure,
+  textGenerationFailureCodeFields
+} from '../../shared/text-generation-failure-copy'
 import type { CommitMessageDraftContext } from '../../shared/commit-message-generation'
 import { getCommitMessageModelDiscoveryHostKey } from '../../shared/commit-message-host-key'
 import type { HostedReviewProvider } from '../../shared/hosted-review'
@@ -48,7 +52,10 @@ export class RuntimeGitGenerationCommands {
       settingsOverride?.commitMessageDiscoveryHostKey ??
       getCommitMessageModelDiscoveryHostKey(route.kind === 'ssh' ? route.connectionId : null)
     const resolvedSettings = settingsOverride?.sourceControlAiResolvedParams
-      ? { ok: true as const, params: settingsOverride.sourceControlAiResolvedParams }
+      ? {
+          ok: true as const,
+          params: settingsOverride.sourceControlAiResolvedParams
+        }
       : resolveCommitMessageSettings(
           getRuntimeGitGenerationSettings(
             this.host.getRuntimeSettings(),
@@ -60,7 +67,11 @@ export class RuntimeGitGenerationCommands {
           target.repo ?? null
         )
     if (!resolvedSettings.ok) {
-      return { success: false, error: resolvedSettings.error }
+      return {
+        success: false,
+        error: resolvedSettings.error,
+        ...textGenerationFailureCodeFields(resolvedSettings)
+      }
     }
 
     if (route.kind === 'ssh') {
@@ -75,10 +86,13 @@ export class RuntimeGitGenerationCommands {
       })
     } catch (error) {
       console.error('[runtime-git] Failed to read staged commit context:', error)
-      return { success: false, error: 'Failed to read staged changes.' }
+      return {
+        success: false,
+        ...textGenerationFailure('stagedChangesReadFailed')
+      }
     }
     if (!context) {
-      return { success: false, error: 'No staged changes to summarize.' }
+      return { success: false, ...textGenerationFailure('noStagedChanges') }
     }
     context = withLinkedIssueDraftContext(context, linkedIssueForTarget(this.host, target))
     const localEnv = await prepareLocalCommitMessageAgentEnv(
@@ -126,7 +140,10 @@ export class RuntimeGitGenerationCommands {
       settingsOverride?.commitMessageDiscoveryHostKey ??
       getCommitMessageModelDiscoveryHostKey(route.kind === 'ssh' ? route.connectionId : null)
     const resolvedSettings = settingsOverride?.sourceControlAiResolvedParams
-      ? { ok: true as const, params: settingsOverride.sourceControlAiResolvedParams }
+      ? {
+          ok: true as const,
+          params: settingsOverride.sourceControlAiResolvedParams
+        }
       : resolveCommitMessageSettings(
           getRuntimeGitGenerationSettings(
             this.host.getRuntimeSettings(),
@@ -138,7 +155,11 @@ export class RuntimeGitGenerationCommands {
           target.repo ?? null
         )
     if (!resolvedSettings.ok) {
-      return { success: false, error: resolvedSettings.error }
+      return {
+        success: false,
+        error: resolvedSettings.error,
+        ...textGenerationFailureCodeFields(resolvedSettings)
+      }
     }
 
     if (route.kind === 'ssh') {
@@ -176,7 +197,7 @@ export class RuntimeGitGenerationCommands {
       }
     }
     if (!context) {
-      return { success: false, error: 'No branch changes to summarize.' }
+      return { success: false, ...textGenerationFailure('noBranchChanges') }
     }
     const linkedIssueDetails = await linkedIssueDetailsPromise
     context = {
@@ -223,7 +244,10 @@ export class RuntimeGitGenerationCommands {
       this.host.getRuntimeSettings().agentCmdOverrides?.[typedAgentId]
     const route = runtimeGitRouteForTarget(target)
     if (route.kind === 'ssh') {
-      return { success: false, error: `No git provider for connection "${route.connectionId}"` }
+      return {
+        success: false,
+        error: `No git provider for connection "${route.connectionId}"`
+      }
     }
     const localEnv = await prepareLocalCommitMessageAgentEnv(
       typedAgentId,

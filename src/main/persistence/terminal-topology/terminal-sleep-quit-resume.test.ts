@@ -134,7 +134,7 @@ describe('sleep → quit → resume', () => {
       relaunched.setWorkspaceSession(structuredClone(relaunched.getWorkspaceSession()))
       expect(heldForPane(relaunched)).toEqual(expected)
       expect(resumeCommand(heldForPane(relaunched).record)).toBe(
-        "codex --no-daemon 'resume' 'session-2'"
+        "codex --no-daemon '-c' 'disable_paste_burst=true' 'resume' 'session-2'"
       )
     } finally {
       await relaunched.freezeWritesAsync()
@@ -155,7 +155,7 @@ describe('sleep → quit → resume', () => {
         binding: PTY
       })
       expect(resumeCommand(heldForPane(relaunched).record)).toBe(
-        "codex --no-daemon 'resume' 'session-3'"
+        "codex --no-daemon '-c' 'disable_paste_burst=true' 'resume' 'session-3'"
       )
     } finally {
       await relaunched.freezeWritesAsync()

@@ -163,7 +163,9 @@ describe('tui agent startup plans', () => {
       platform: 'linux'
     })
 
-    expect(plan?.launchCommand).toBe("codex --no-daemon '--version'")
+    expect(plan?.launchCommand).toBe(
+      "codex --no-daemon '-c' 'disable_paste_burst=true' '--version'"
+    )
   })
 
   it.each([
@@ -238,7 +240,7 @@ describe('tui agent startup plans', () => {
       platform: 'linux'
     })
 
-    expect(plan?.launchCommand).toBe("codex --no-daemon 'fix it'")
+    expect(plan?.launchCommand).toBe("codex --no-daemon '-c' 'disable_paste_burst=true' 'fix it'")
     expect(plan?.startupCommandDelivery).toBe('shell-ready')
   })
 
@@ -253,7 +255,7 @@ describe('tui agent startup plans', () => {
 
     expect(plan).toEqual({
       agent: 'codex',
-      launchCommand: 'codex --no-daemon',
+      launchCommand: "codex --no-daemon '-c' 'disable_paste_burst=true'",
       expectedProcess: 'codex',
       followupPrompt: null,
       launchConfig: { agentCommand: 'codex --no-daemon', agentArgs: '', agentEnv: {} }
@@ -440,7 +442,9 @@ describe('tui agent startup plans', () => {
       platform: 'linux'
     })
 
-    expect(plan?.launchCommand).toBe("codex --no-daemon --profile work 'fix it'")
+    expect(plan?.launchCommand).toBe(
+      "codex --no-daemon --profile work '-c' 'disable_paste_burst=true' 'fix it'"
+    )
   })
 
   it('builds Windows resume plans that PowerShell can invoke', () => {
@@ -513,7 +517,9 @@ describe('tui agent startup plans', () => {
       platform: 'linux'
     })
 
-    expect(plan?.launchCommand).toBe("codex --no-daemon --profile work 'resume' 's1'")
+    expect(plan?.launchCommand).toBe(
+      "codex --no-daemon --profile work '-c' 'disable_paste_burst=true' 'resume' 's1'"
+    )
   })
 
   it('uses a captured launch command when building resume plans after overrides change', () => {
@@ -525,7 +531,9 @@ describe('tui agent startup plans', () => {
       platform: 'linux'
     })
 
-    expect(plan?.launchCommand).toBe("codex --no-daemon --profile captured 'resume' 's1'")
+    expect(plan?.launchCommand).toBe(
+      "codex --no-daemon --profile captured '-c' 'disable_paste_burst=true' 'resume' 's1'"
+    )
     expect(plan?.launchConfig).toEqual({
       agentCommand: 'codex --no-daemon --profile captured',
       agentArgs: '',

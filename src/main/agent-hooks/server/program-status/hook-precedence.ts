@@ -49,12 +49,14 @@ export function programStatusHookYieldEndsAt(
   return previous.receivedAt + HOOK_SILENCE_BEFORE_PROGRAM_STATUS_FALLBACK_MS
 }
 
+type HookObservationRow = Partial<
+  Pick<EnrichedAgentHookEventPayload, 'providerSessionOnly' | 'receivedAt'>
+>
+
 /** Whether the row is still the hook observation received at `receivedAt`. */
-export function isHookObservationAt(row: object | undefined, receivedAt: number): boolean {
-  return (
-    row !== undefined &&
-    !('providerSessionOnly' in row && row.providerSessionOnly === true) &&
-    'receivedAt' in row &&
-    row.receivedAt === receivedAt
-  )
+export function isHookObservationAt(
+  row: HookObservationRow | undefined,
+  receivedAt: number
+): boolean {
+  return row !== undefined && row.providerSessionOnly !== true && row.receivedAt === receivedAt
 }
