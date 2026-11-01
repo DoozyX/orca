@@ -52,16 +52,16 @@
     {
       "name": "delivery",
       "sourcePath": "skills/delivery",
-      "packageDigest": "d7493807c0dac0ec4db0149ccb3dd61b29f3055276bd97e0209f969f88c3fedc",
+      "packageDigest": "3ce666ef3d72705f00100ebb867641e7dce71d37cbb4590e70365284d98e4f8f",
       "files": [
         {
           "path": "SKILL.md",
-          "size": 6387,
+          "size": 6579,
           "executable": false,
           "classification": "text",
-          "exactSha256": "81b4765040c2a2f829fa5e7768a3687743828911f850a7a94f948d5505c09923",
-          "textNormalizedSha256": "81b4765040c2a2f829fa5e7768a3687743828911f850a7a94f948d5505c09923",
-          "identitySha256": "81b4765040c2a2f829fa5e7768a3687743828911f850a7a94f948d5505c09923"
+          "exactSha256": "4b3f395ce8ba657695d057d9dd437ad85c916fb3caea1bce0304fa53c0446a8e",
+          "textNormalizedSha256": "4b3f395ce8ba657695d057d9dd437ad85c916fb3caea1bce0304fa53c0446a8e",
+          "identitySha256": "4b3f395ce8ba657695d057d9dd437ad85c916fb3caea1bce0304fa53c0446a8e"
         }
       ]
     },
