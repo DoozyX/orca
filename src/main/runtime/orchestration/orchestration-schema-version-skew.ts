@@ -53,7 +53,11 @@ const VERSIONED_POST_V6_COLUMNS = [
   { version: 45, table: 'worker_terminal_resources', column: 'takeover_at' },
   { version: 46, table: 'decision_gates', column: 'preserved_dispatch_id' },
   { version: 47, table: 'resource_leases', column: 'holder_run_id' },
-  { version: 47, table: 'resource_lease_waiters', column: 'ttl_ms' }
+  { version: 47, table: 'resource_lease_waiters', column: 'ttl_ms' },
+  { version: 48, table: 'worker_terminal_resources', column: 'auto_release_at' },
+  { version: 48, table: 'worker_terminal_resources', column: 'auto_release_dispatch_id' },
+  { version: 49, table: 'federated_dispatches', column: 'home_auto_release_at' },
+  { version: 49, table: 'federated_dispatches', column: 'home_auto_release_state' }
 ] as const
 
 // v34 stamps can lack these repairs; v35 probes must verify their stored defaults.

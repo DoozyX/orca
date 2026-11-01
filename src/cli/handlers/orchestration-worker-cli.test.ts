@@ -243,6 +243,7 @@ describe('orchestration worker-start CLI contract', () => {
 
       await invokeWorkerStart(
         new Map<string, string | boolean>([
+          ['full', true],
           ['task', 'task_1'],
           ['agent', 'codex'],
           ['from', 'term_coord']
@@ -317,7 +318,7 @@ describe('orchestration worker-start CLI contract', () => {
     })
 
     expect(printedText()).toContain(
-      'Warning: Terminal term_worker is running but could not be revealed.'
+      'warning="Terminal term_worker is running but could not be revealed."'
     )
   })
 
@@ -371,7 +372,7 @@ describe('orchestration worker-start CLI contract', () => {
     })
 
     expect(printedText()).toContain(
-      'Warning: The assignment was stopped without closing its unsupervised terminal process.'
+      'warning="The assignment was stopped without closing its unsupervised terminal process."'
     )
   })
 
@@ -450,7 +451,7 @@ describe('orchestration worker-start CLI contract', () => {
     })
 
     await ORCHESTRATION_HANDLERS['orchestration worker-list']({
-      flags: new Map(),
+      flags: new Map([['full', true]]),
       client,
       cwd: '/tmp/repo',
       json: false
@@ -471,7 +472,7 @@ describe('orchestration worker-start CLI contract', () => {
     mockWorkerListResponse(response)
 
     await ORCHESTRATION_HANDLERS['orchestration worker-list']({
-      flags: new Map<string, string | boolean>(),
+      flags: new Map<string, string | boolean>([['full', true]]),
       client,
       cwd: '/tmp/repo',
       json: false
@@ -562,7 +563,7 @@ describe('orchestration worker-start CLI contract', () => {
     mockWorkerListResponse(response)
 
     await ORCHESTRATION_HANDLERS['orchestration worker-list']({
-      flags: new Map<string, string | boolean>(),
+      flags: new Map<string, string | boolean>([['full', true]]),
       client,
       cwd: '/tmp/repo',
       json: false
@@ -607,7 +608,10 @@ describe('orchestration worker-start CLI contract', () => {
     mockWorkerListResponse(response)
 
     await ORCHESTRATION_HANDLERS['orchestration worker-list']({
-      flags: new Map<string, string | boolean>([['include-remote', true]]),
+      flags: new Map<string, string | boolean>([
+        ['include-remote', true],
+        ['full', true]
+      ]),
       client,
       cwd: '/tmp/repo',
       json: false
@@ -639,7 +643,10 @@ describe('orchestration worker-start CLI contract', () => {
     mockWorkerListResponse(response)
 
     await ORCHESTRATION_HANDLERS['orchestration worker-list']({
-      flags: new Map<string, string | boolean>([['include-remote', true]]),
+      flags: new Map<string, string | boolean>([
+        ['include-remote', true],
+        ['full', true]
+      ]),
       client,
       cwd: '/tmp/repo',
       json: false
@@ -670,7 +677,10 @@ describe('orchestration worker-start CLI contract', () => {
     mockWorkerListResponse(response)
 
     await ORCHESTRATION_HANDLERS['orchestration worker-list']({
-      flags: new Map<string, string | boolean>([['include-remote', true]]),
+      flags: new Map<string, string | boolean>([
+        ['include-remote', true],
+        ['full', true]
+      ]),
       client,
       cwd: '/tmp/repo',
       json: true
@@ -788,5 +798,15 @@ describe('orchestration worker-start CLI contract', () => {
       [method, { dispatch: 'd', run: 'run_1' }],
       [method, { dispatch: 'd' }]
     ])
+  })
+
+  it('does not tell a coordinator that chat workers skip automatic release', () => {
+    const spec = ORCHESTRATION_WORKER_COMMAND_SPECS.find(
+      (entry) => entry.path.join(' ') === 'orchestration worker-release'
+    )
+    if (!spec) {
+      throw new Error('worker-release command is missing')
+    }
+    expect(formatCommandHelp(spec)).not.toContain('never released automatically')
   })
 })

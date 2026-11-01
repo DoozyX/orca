@@ -274,7 +274,7 @@ describe('orchestration federation control mail', () => {
 
   it('uses imported types for waiter eligibility and returns only the matching rows', async () => {
     vi.useFakeTimers()
-    await dispatchImport(importRequest('import-heartbeat', 1, 'relay-heartbeat', 'heartbeat'))
+    await dispatchImport(importRequest('import-merge-ready', 1, 'relay-merge-ready', 'merge_ready'))
 
     const escalationWaiter = workerDispatcher.dispatch(
       checkRequest('wait-escalation', true, 1_000, 'escalation')

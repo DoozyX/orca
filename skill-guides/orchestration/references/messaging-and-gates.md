@@ -1,51 +1,25 @@
 # Messaging and gates
 
-Load this reference for inbox replay, attempt-specific guidance, group
-addresses, blocking questions, or coordinator-managed DAG decisions.
+Handle a whole `check` batch before the next `check`. Scripts that only watch
+the inbox must use `check --peek`, which marks nothing handled.
 
-A successful `send` proves durable enqueue. Wake and nudge are best-effort
-attention only: neither proves the recipient read the message, began a turn, or
-accepted steering.
-
-## Coordinator delivery loop
-
-`check` names its caller with `--terminal <handle>` and is the only verb that
-rejects `--from`. Omit `--terminal` inside an Orca terminal, where Orca resolves
-the caller; pass it explicitly from anywhere else, including a dispatched
-worker reading coordinator follow-ups.
-
-A consuming coordinator `check` returns the bound Run's oldest FIFO Delivery,
-up to 50 messages, and replays that exact batch until acknowledged or all its
-messages are marked read. Concurrent waits on one Run inbox are allowed; waits
-with the same `--types` share the outstanding batch, none reserves anything,
-and acknowledging the same
-Delivery twice is a no-op. Process every row and required terminal ownership
-decision before `--ack`.
+Groups (`@all`, `@idle`, `@codex`, ...) reach the live workers of your Run;
+`@worktree:<id>` also reaches coordinators in that workspace. Use groups only
+for deliberate fan-out.
 
 `--types` with `--wait` is both the wake condition and the delivery filter: a
 newly built Delivery holds only rows of those types, and other unread rows stay
-unread for a check without `--types`. Exception: when your un-acked Delivery
-already holds a row of those types, the wait replays that Delivery whole, rows
-of other types included. Without `--wait`, `--types` has no effect on consuming
-checks. `--peek` and `--all` are read-only inspection, not progress through the
-coordinator inbox.
+unread for a check without `--types`. Exception: an unhandled Delivery left by
+an older Orca that already holds a row of those types replays whole, rows of
+other types included. Without `--wait`, `--types` has no effect on consuming
+checks. A consuming check marks the batch it returns as handled, so no `--ack`
+is needed; waiting reserves nothing, and listeners with the same `--types` woken
+by the same arrival get the same Delivery.
 
-An empty wait or timeout is a checkpoint. Continue rolling waits until every
-expected Dispatch settles. Heartbeat or visible activity means alive, not done.
-
-## Addresses
-
-Use a stable Dispatch address for attempt-specific coordinator guidance:
-
-```text
-ORCA orchestration send --to dispatch:<dispatch_id> --subject "Follow-up" --body "<guidance>" --json
-```
-
-Do not substitute a remote terminal handle. Inside the coordinator's own Orca
-terminal `--from` may be omitted, because `ORCA_TERMINAL_HANDLE` names it; a
-dispatched worker instead copies the exact `--from` and other arguments in its
-preamble. `check` is the exception: it identifies its caller with `--terminal`,
-never `--from`.
+Inside the coordinator's own Orca terminal `--from` may be omitted, because
+`ORCA_TERMINAL_HANDLE` names it; a dispatched worker instead copies the exact
+`--from` and other arguments in its preamble. `check` is the exception: it
+identifies its caller with `--terminal`, never `--from`.
 
 `run-create` binds the terminal named by `--from` or `ORCA_TERMINAL_HANDLE`; it
 never guesses. `run-use`, `dispatch` and `worker-start` resolve their caller the
@@ -59,36 +33,3 @@ pointer started a turn, and `queued` means the worker's chat holds the pointer
 and sends it when the current turn ends, so the running turn does not see it.
 Put a scope change for a running worker in a new Task or a stop-and-relaunch
 instead. A send without `delivery` claims nothing about when the worker sees it.
-
-Group addresses include `@all`, `@idle`, `@claude`, `@codex`, `@opencode`,
-`@gemini`, `@droid`, `@grok`, `@cursor`, and `@worktree:<id>`. Every group but
-`@worktree:<id>` means the live Dispatches of the sender's own Run. Mail goes
-to each `dispatch:<id>` mailbox, except a worker coordinating a child Run
-receives it in that `run:<id>` mailbox. A sender bound to no Run is refused;
-`--run` must match the group audience and never grants membership.
-A Run group excludes its owning coordinator; a worker raising a blocker sends
-to `run:<id>`. A worker that created its own Run addresses that Run's workers,
-not its siblings. `@worktree:<id>` reaches matching workspace terminals,
-including coordinators. Use groups only for intentional fan-out status or
-questions. `worker_done`, heartbeat, and other
-Dispatch lifecycle messages never target groups.
-
-## Questions and gates
-
-A worker uses `ask`; its timeout leaves one durable question pending, which the
-worker resumes by message ID. The coordinator answers that message with `reply`;
-a helper's question goes to the worker that started it, which answers it the
-same way.
-
-Use a gate only for a coordinator-owned Task-DAG decision:
-
-```text
-ORCA orchestration gate-create --task <task_id> --question "<decision>" --options <json_array> --json
-ORCA orchestration gate-resolve --id <gate_id> --resolution "<choice>" --json
-ORCA orchestration gate-list --task <task_id> --json
-```
-
-Pass `json_array` using the quoting rules of the active shell; do not copy POSIX
-single-quote syntax into PowerShell or `cmd.exe`.
-
-Do not create a gate merely to answer a worker's `ask`.

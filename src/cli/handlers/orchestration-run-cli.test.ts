@@ -21,6 +21,7 @@ import {
   formatRunRemovedWorkLine
 } from './orchestration/removed-work-format'
 import { okFixture, queueFixtures } from '../test-fixtures'
+import { ORCHESTRATION_RETAINED_RUN_BINDINGS_RUNTIME_CAPABILITY } from '../../shared/protocol-version'
 
 afterEach(() => {
   vi.unstubAllEnvs()
@@ -38,6 +39,9 @@ describe('lightweight Run CLI handlers', () => {
     queueFixtures(
       callMock,
       okFixture('req_identity', { identity: { handle: 'term_coord', live: true } }),
+      okFixture('req_status', {
+        capabilities: [ORCHESTRATION_RETAINED_RUN_BINDINGS_RUNTIME_CAPABILITY]
+      }),
       okFixture('req_run', {
         run: { id: 'run_1', objective: 'Coordinate work', consumer_generation: 1 }
       })
@@ -58,7 +62,7 @@ describe('lightweight Run CLI handlers', () => {
     expect(callMock).toHaveBeenNthCalledWith(1, 'terminal.resolveIdentity', {
       terminal: 'term_coord'
     })
-    expect(callMock).toHaveBeenCalledTimes(2)
+    expect(callMock).toHaveBeenCalledTimes(3)
   })
 
   it('reuses the same explicit binding path for run-use and run-current', async () => {
@@ -119,7 +123,7 @@ describe('lightweight Run CLI handlers', () => {
     } as never)
 
     expect(callMock).toHaveBeenCalledWith('orchestration.runList', {
-      limit: 100,
+      limit: 10,
       cursor: undefined
     })
   })
@@ -217,6 +221,12 @@ describe('coordinator verbs that bind a Run or a worker preamble never guess the
       if (method === 'terminal.resolvePane') {
         return { result: { terminal: { handle: 'term_live_coord' } } }
       }
+      // A current runtime keeps older Runs bound, so run-create skips the runCurrent lookup.
+      if (method === 'status.get') {
+        return {
+          result: { capabilities: [ORCHESTRATION_RETAINED_RUN_BINDINGS_RUNTIME_CAPABILITY] }
+        }
+      }
       return NO_RUN
     })
     for (const name of [
@@ -277,7 +287,10 @@ describe('coordinator verbs that bind a Run or a worker preamble never guess the
   it('run-create binds the live coordinator named by ORCA_TERMINAL_HANDLE and says so', async () => {
     vi.stubEnv('ORCA_TERMINAL_HANDLE', 'term_live_coord')
 
-    await invoke('run-create', [['objective', 'x']])
+    await invoke('run-create', [
+      ['objective', 'x'],
+      ['full', true]
+    ])
 
     expect(callMock).toHaveBeenCalledWith('orchestration.runCreate', {
       objective: 'x',
@@ -329,8 +342,11 @@ describe('coordinator verbs that bind a Run or a worker preamble never guess the
 
     await invoke('run-create', [['objective', 'x']])
 
-    expect(calledMethods()).toEqual(['orchestration.runCreate'])
-    expect(callMock.mock.calls[0]?.[1]).toEqual({ objective: 'x', from: undefined })
+    expect(calledMethods()).toEqual(['status.get', 'orchestration.runCreate'])
+    expect(callMock).toHaveBeenCalledWith('orchestration.runCreate', {
+      objective: 'x',
+      from: undefined
+    })
     expect(getTerminalHandleMock).not.toHaveBeenCalled()
   })
 

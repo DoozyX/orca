@@ -1,8 +1,15 @@
-import type { MessageType, OrchestrationDb } from '../../../../orchestration/db'
+import type { MessageRow, MessageType, OrchestrationDb } from '../../../../orchestration/db'
+import type { MailboxDeliveryBatch } from '../../../../orchestration/db/messages/role-mailbox-delivery'
 import type { OrcaRuntimeService } from '../../../../orca-runtime'
 import { OrchestrationError } from '../../../../orchestration/orchestration-error'
 import { formatMessageBanner } from '../../../../orchestration/formatter'
-import { exposeMessages } from './mailbox-message-receipt'
+import { ORCHESTRATION_MESSAGE_WAIT_DEFAULT_TIMEOUT_MS } from '../../../../../../shared/orchestration-message-wait-timeout'
+import {
+  acknowledgedOnlyReceipt,
+  deliveryReceipt,
+  exposeMessages,
+  wakeShareKey
+} from './mailbox-message-receipt'
 import { routeAllMailboxPages } from '../schemas'
 import { asDispatchFence, callerHoldsDispatchPane, dispatchFenced } from './dispatch-mailbox-fence'
 import { interruptedAcknowledgedCheck } from '../routing'
@@ -30,6 +37,10 @@ export async function checkWorkerMailbox(args: {
   revalidateConsumer?: () => void
   deferDelivery?: () => boolean
   recordMutationReceipt?: (receipt: unknown) => void
+  /** An ack the enclosing Run check already applied, reported when this check applied none. */
+  runAcknowledged?: string
+  /** The caller's --ack came without --wait, so this check takes no new mail. */
+  acknowledgeOnly?: boolean
 }) {
   const {
     params,
@@ -190,20 +201,36 @@ export async function checkWorkerMailbox(args: {
     args.recordMutationReceipt?.(
       interruptedAcknowledgedCheck(deliveryRunId, acknowledged.delivery.id, 'outcome_unknown')
     )
+    if (args.acknowledgeOnly) {
+      return acknowledgedOnlyReceipt(mailboxIdentity, acknowledged.delivery.id)
+    }
   }
+  const formatted = (messages: MessageRow[]) =>
+    params.format || params.inject
+      ? { formatted: messages.map(formatMessageBanner).join('\n\n') }
+      : {}
   const showAll = params.all === true || (params.unread === false && params.peek !== true)
   const readPeek = () => db.getUnreadMessages(address, typeFilter)
-  const readDelivery = (wakeTypes?: MessageType[]) => {
+  const result = (batch: MailboxDeliveryBatch | undefined) =>
+    deliveryReceipt({
+      mailbox: mailboxIdentity,
+      batch,
+      acknowledged: acknowledged?.delivery.id ?? args.runAcknowledged,
+      format: params.format === true || params.inject === true
+    })
+  // The receipt commits with the take, so --retry-request can always replay a handed-over batch.
+  const takeDelivery = (wakeTypes?: MessageType[]) => {
     if (args.deferDelivery?.()) {
       return undefined
     }
     try {
-      return db.getOrCreateMailboxDelivery({
+      return db.takeMailboxDelivery({
         runId: deliveryRunId,
         mailboxHandle: address,
         consumerGeneration: workerMailbox.generation,
         consumerSource: activeDispatch ? 'dispatch' : 'attachment',
-        wakeTypes
+        wakeTypes,
+        recordTaken: (taken) => args.recordMutationReceipt?.(result(taken))
       })
     } catch (error) {
       throw asDispatchFence(error)
@@ -216,9 +243,7 @@ export async function checkWorkerMailbox(args: {
       messages: exposeMessages(messages),
       count: messages.length,
       acknowledged: acknowledged?.delivery.id ?? null,
-      ...(params.format || params.inject
-        ? { formatted: messages.map(formatMessageBanner).join('\n\n') }
-        : {})
+      ...formatted(messages)
     }
   }
   if (params.peek) {
@@ -229,76 +254,55 @@ export async function checkWorkerMailbox(args: {
         messages: exposeMessages(messages),
         count: messages.length,
         acknowledged: acknowledged?.delivery.id ?? null,
-        ...(params.format || params.inject
-          ? { formatted: messages.map(formatMessageBanner).join('\n\n') }
-          : {})
+        ...formatted(messages)
       }
     }
   } else {
-    const current = readDelivery(params.wait ? typeFilter : args.wakeTypes)
+    const current = takeDelivery(params.wait ? typeFilter : args.wakeTypes)
     if (current || !params.wait) {
+      return result(current)
+    }
+  }
+  const deadline = Date.now() + (params.timeoutMs ?? ORCHESTRATION_MESSAGE_WAIT_DEFAULT_TIMEOUT_MS)
+  // A co-woken waiter of other types may take this wake's mail; an empty take waits on until the deadline.
+  for (;;) {
+    // Binding can happen during recovery, before run-create/run-use can cancel this wait.
+    const waitResult =
+      activeDispatch && currentDispatchAssigneeRun(runtime, db, activeDispatch)
+        ? 'cancelled'
+        : await runtime.waitForMessage(address, {
+            typeFilter: typeFilter as string[] | undefined,
+            timeoutMs: Math.max(deadline - Date.now(), 0),
+            signal
+          })
+    await revalidateWorkerMailbox()
+    if (readCurrentGeneration() !== workerMailbox.generation) {
+      throw dispatchFenced()
+    }
+    if (waitResult === 'timed_out' || waitResult === 'cancelled') {
       return {
-        ...mailboxIdentity,
-        deliveryId: current?.delivery.id ?? null,
-        messages: exposeMessages(current?.messages ?? []),
-        count: current?.messages.length ?? 0,
-        replayed: current?.replayed ?? false,
-        acknowledged: acknowledged?.delivery.id ?? null,
-        timedOut: false,
-        cancelled: false,
-        connectionLost: false,
-        ...(params.format || params.inject
-          ? { formatted: current?.messages.map(formatMessageBanner).join('\n\n') ?? '' }
-          : {})
+        ...result(undefined),
+        timedOut: waitResult === 'timed_out',
+        cancelled: waitResult === 'cancelled',
+        connectionLost: waitResult === 'cancelled' && signal?.aborted === true
       }
     }
-  }
-  // Binding can happen during recovery, before run-create/run-use can cancel this wait.
-  const waitResult =
-    activeDispatch && currentDispatchAssigneeRun(runtime, db, activeDispatch)
-      ? 'cancelled'
-      : await runtime.waitForMessage(address, {
-          typeFilter: typeFilter as string[] | undefined,
-          timeoutMs: params.timeoutMs ?? undefined,
-          signal
-        })
-  await revalidateWorkerMailbox()
-  if (readCurrentGeneration() !== workerMailbox.generation) {
-    throw dispatchFenced()
-  }
-  if (waitResult === 'timed_out' || waitResult === 'cancelled') {
-    return {
-      ...mailboxIdentity,
-      messages: [],
-      count: 0,
-      acknowledged: acknowledged?.delivery.id ?? null,
-      timedOut: waitResult === 'timed_out',
-      cancelled: waitResult === 'cancelled',
-      connectionLost: waitResult === 'cancelled' && signal?.aborted === true
+    if (params.peek) {
+      const arrived = readPeek()
+      return {
+        ...mailboxIdentity,
+        messages: exposeMessages(arrived),
+        count: arrived.length,
+        acknowledged: acknowledged?.delivery.id ?? null,
+        ...formatted(arrived)
+      }
     }
-  }
-  if (params.peek) {
-    const arrived = readPeek()
-    return {
-      ...mailboxIdentity,
-      messages: exposeMessages(arrived),
-      count: arrived.length,
-      acknowledged: acknowledged?.delivery.id ?? null,
-      ...(params.format || params.inject
-        ? { formatted: arrived.map(formatMessageBanner).join('\n\n') }
-        : {})
+    const key = wakeShareKey(address, workerMailbox.generation, typeFilter)
+    const batch = waitResult.share(key, () => takeDelivery(typeFilter))
+    if (batch) {
+      // A waiter that shares another's take has no take transaction, so it receipts the batch on arrival.
+      args.recordMutationReceipt?.(result(batch))
+      return result(batch)
     }
-  }
-  const arrived = readDelivery(typeFilter)
-  return {
-    ...mailboxIdentity,
-    deliveryId: arrived?.delivery.id ?? null,
-    messages: exposeMessages(arrived?.messages ?? []),
-    count: arrived?.messages.length ?? 0,
-    replayed: arrived?.replayed ?? false,
-    acknowledged: acknowledged?.delivery.id ?? null,
-    ...(params.format || params.inject
-      ? { formatted: arrived?.messages.map(formatMessageBanner).join('\n\n') ?? '' }
-      : {})
   }
 }

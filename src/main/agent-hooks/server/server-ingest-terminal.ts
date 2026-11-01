@@ -14,6 +14,7 @@ import { programStatusChildrenUnchanged } from '../../../shared/agent-status-sub
 import { AgentHookServerIngestNormalization } from './server-ingest-normalization'
 import { isHookObservationAt, programStatusHookYieldEndsAt } from './program-status/hook-precedence'
 import type { ProgramStatusFacet } from '../../../shared/program-status/facet'
+import { carryOverTerminalStatusIdentity } from './terminal-status-identity-carryover'
 
 const PROGRAM_STATUS_FACET_REPUBLISH_MS = 250
 
@@ -195,7 +196,7 @@ export abstract class AgentHookServerIngestTerminal extends AgentHookServerInges
     // Record ordering before removal, which also marks a program turn boundary.
     const workingSince =
       event.fromProgramStatus === true
-        ? this.programStatusFacets.noteState(paneKey, event.payload.state, now)
+        ? this.programStatusFacets.noteState(paneKey, event.payload, now)
         : undefined
     if (event.removesProgramStatusRow === true) {
       this.hookSilenceRechecks.cancel(paneKey)
@@ -243,6 +244,9 @@ export abstract class AgentHookServerIngestTerminal extends AgentHookServerInges
         this.commitStatusRowMutation(mutationBefore, previous)
         this.emitEnrichedStatus(previous)
       }
+      if (hookOwnsAgent && previous) {
+        this.settleClaudePromptBlocked(previous)
+      }
       return
     }
     const preserveActiveTurnStamp =
@@ -279,28 +283,11 @@ export abstract class AgentHookServerIngestTerminal extends AgentHookServerInges
       (sameHandle || previous.terminalHandle === undefined) &&
       terminalStatusPayloadMatchesHook(previous.payload, event.payload, true) &&
       programChildrenUnchanged
-    // Terminal status carries no provider session; retain eligible cached identity without treating unknown as a mismatch (#10630).
-    const claimedAgentType =
-      event.payload.agentType && event.payload.agentType !== 'unknown'
-        ? event.payload.agentType
-        : undefined
-    // Launch seeds are not completed turns; real completed sessions must not leak into reused panes.
-    const preservedProviderSession =
-      previous?.providerSession &&
-      (claimedAgentType === undefined || claimedAgentType === previous.payload.agentType) &&
-      (previous.payload.state !== 'done' ||
-        event.payload.state === 'done' ||
-        previous.observation?.origin === 'launch')
-        ? previous.providerSession
-        : undefined
-    // Without a new main-agent fact, preserve it only while the row's state and agent still match.
-    const preservedMainAgent =
-      event.payload.mainAgent ??
-      (previous?.payload.mainAgent &&
-      previous.payload.state === event.payload.state &&
-      (claimedAgentType === undefined || claimedAgentType === previous.payload.agentType)
-        ? previous.payload.mainAgent
-        : undefined)
+    const { preservedProviderSession, preservedMainAgent } = carryOverTerminalStatusIdentity(
+      previous,
+      event.payload,
+      newRun
+    )
     // Terminal observations cannot establish prompt-sent telemetry.
     this.applyNormalizedStatus(
       {
@@ -319,7 +306,8 @@ export abstract class AgentHookServerIngestTerminal extends AgentHookServerInges
       event.origin ?? 'osc',
       undefined,
       mutationBefore,
-      newRun
+      newRun,
+      !preservedProviderSession
     )
   }
 }

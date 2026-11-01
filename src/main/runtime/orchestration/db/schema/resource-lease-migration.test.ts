@@ -58,7 +58,7 @@ describe('resource lease schema migration (v47)', () => {
     raw.close()
 
     db = new OrchestrationDb(dbPath)
-    expect(db.db.pragma('user_version', { simple: true })).toBe(47)
+    expect(db.db.pragma('user_version', { simple: true })).toBe(SCHEMA_VERSION)
     expect({
       run: db.db.prepare('SELECT * FROM runs WHERE id = ?').get(run.id),
       task: db.db.prepare('SELECT * FROM tasks WHERE id = ?').get(task.id),

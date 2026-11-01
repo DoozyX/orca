@@ -26,7 +26,9 @@ const RemoteWorkerTerminalResourceSchema = z.object({
   recoveryAttemptCount: z.number(),
   lastRecoveryAt: z.string().nullable(),
   archive: z.object({ source: z.string().nullable(), status: z.string().nullable() }),
-  takeover: RemoteTakeoverEvidenceSchema.nullable()
+  // Hosts built before the auto-release deadline or takeover evidence omit them.
+  autoReleaseAt: z.string().nullable().default(null),
+  takeover: RemoteTakeoverEvidenceSchema.nullable().default(null)
 }) satisfies z.ZodType<ExposedWorkerTerminalResource>
 
 /** The execution host's terminal resource; undefined from a host that predates it or sent junk. */

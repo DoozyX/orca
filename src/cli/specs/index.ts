@@ -9,6 +9,7 @@ import { PROJECT_COMMAND_SPECS } from './project'
 import { ORCHESTRATION_COMMAND_SPECS } from './orchestration'
 import { ORCHESTRATION_LEASE_COMMAND_SPECS } from './orchestration-lease-specs'
 import { ORCHESTRATION_REVIEW_METRICS_COMMAND_SPECS } from './orchestration-review-metrics-specs'
+import { withFullRecordFlag } from './orchestration-full-record-flag'
 import { COMPUTER_COMMAND_SPECS } from './computer'
 import { ENVIRONMENT_COMMAND_SPECS } from './environment'
 import { MANAGED_SERVER_COMMAND_SPECS } from './managed-server'
@@ -29,6 +30,7 @@ import { SEARCH_COMMAND_SPECS } from './search'
 import { PROFILE_STATE_COMMAND_SPECS } from './profile-state'
 import { REFERENCE_COMMAND_SPECS } from './reference'
 import { PORTS_COMMAND_SPECS } from './ports'
+import { PLUGIN_AUTHORING_COMMAND_SPECS, PLUGIN_RUNTIME_COMMAND_SPECS } from './plugin'
 
 export const COMMAND_SPECS: CommandSpec[] = [
   ...CORE_COMMAND_SPECS,
@@ -40,7 +42,7 @@ export const COMMAND_SPECS: CommandSpec[] = [
   ...AUTOMATION_COMMAND_SPECS,
   ...BROWSER_BASIC_COMMAND_SPECS,
   ...BROWSER_ADVANCED_COMMAND_SPECS,
-  ...ORCHESTRATION_COMMAND_SPECS,
+  ...ORCHESTRATION_COMMAND_SPECS.map(withFullRecordFlag),
   ...ORCHESTRATION_LEASE_COMMAND_SPECS,
   ...ORCHESTRATION_REVIEW_METRICS_COMMAND_SPECS,
   ...COMPUTER_COMMAND_SPECS,
@@ -60,5 +62,7 @@ export const COMMAND_SPECS: CommandSpec[] = [
   ...SKILL_COMMAND_SPECS,
   ...SEARCH_COMMAND_SPECS,
   ...PROFILE_STATE_COMMAND_SPECS,
-  ...PORTS_COMMAND_SPECS
+  ...PORTS_COMMAND_SPECS,
+  ...PLUGIN_AUTHORING_COMMAND_SPECS,
+  ...PLUGIN_RUNTIME_COMMAND_SPECS
 ]

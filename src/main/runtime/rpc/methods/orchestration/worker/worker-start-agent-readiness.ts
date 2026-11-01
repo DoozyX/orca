@@ -1,6 +1,9 @@
 import type { RuntimeTerminalWait } from '../../../../../../shared/runtime-terminal-contracts'
 import type { TuiAgent } from '../../../../../../shared/tui-agent'
-import { waitForWorkerAgentReadyRebinding } from '../../../../launched-agent-composer-readiness'
+import {
+  waitForWorkerAgentReadyRebinding,
+  type TerminalReadinessCreation
+} from '../../../../launched-agent-composer-readiness'
 import type { OrcaRuntimeService } from '../../../../orca-runtime'
 import type { OrchestrationDb } from '../../../../orchestration/db'
 
@@ -12,7 +15,12 @@ import type { OrchestrationDb } from '../../../../orchestration/db'
 export async function waitForWorkerStartAgentReady(
   runtime: OrcaRuntimeService,
   stage: { db: OrchestrationDb; dispatchId: string; terminalHandle: string },
-  args: { agent: TuiAgent | undefined; reusesTerminal: boolean; timeoutMs: number }
+  args: {
+    agent: TuiAgent | undefined
+    reusesTerminal: boolean
+    timeoutMs: number
+    creation?: TerminalReadinessCreation
+  }
 ): Promise<RuntimeTerminalWait> {
   const fromHandle = stage.terminalHandle
   const processIncarnation = runtime.getTerminalProcessIncarnation(fromHandle)

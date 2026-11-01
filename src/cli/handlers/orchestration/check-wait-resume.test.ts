@@ -31,6 +31,7 @@ function waitFlags(
     ['terminal', 'term_coord'],
     ['wait', true],
     ['types', 'worker_done'],
+    ['full', true],
     ...(timeout === null ? [] : [['timeout-ms', timeout] as const]),
     ...extra
   ])

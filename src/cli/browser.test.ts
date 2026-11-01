@@ -1,3 +1,6 @@
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const callMock = vi.fn()
@@ -36,7 +39,6 @@ vi.mock('./runtime-client', () => {
 
 import { main } from './index'
 import { RuntimeClientError } from './runtime-client'
-import { RuntimeConnectionClosedError } from './runtime/transport'
 import { buildWorktree, okFixture, queueFixtures, worktreeListFixture } from './test-fixtures'
 
 describe('orca cli browser page targeting', () => {
@@ -66,6 +68,85 @@ describe('orca cli browser page targeting', () => {
 
     expect(callMock).toHaveBeenCalledTimes(1)
     expect(callMock).toHaveBeenCalledWith('browser.snapshot', { page: 'page-1' })
+  })
+
+  it('sends snapshot flags to the host and prints delta changes against the last tree', async () => {
+    queueFixtures(
+      callMock,
+      okFixture('req_snapshot', {
+        browserPageId: 'page-1',
+        snapshot: {
+          kind: 'delta',
+          revision: 3,
+          baseRevision: 2,
+          treeChange: { startLine: 4, deleteCount: 2, lines: ['- button "Save" [ref=e9]'] }
+        },
+        url: 'https://example.com',
+        title: 'Example'
+      })
+    )
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+    await main(
+      [
+        'snapshot',
+        '--page',
+        'page-1',
+        '--interactive',
+        '--depth',
+        '3',
+        '--selector',
+        'form',
+        '--delta'
+      ],
+      '/tmp/not-an-orca-worktree'
+    )
+
+    expect(callMock).toHaveBeenCalledWith('browser.snapshot', {
+      page: 'page-1',
+      interactive: true,
+      depth: 3,
+      selector: 'form',
+      delta: true
+    })
+    expect(log).toHaveBeenCalledWith(
+      [
+        'page: page-1',
+        'Example — https://example.com',
+        'revision 3: changes to revision 2; replace lines 5-6 with:',
+        '- button "Save" [ref=e9]'
+      ].join('\n')
+    )
+  })
+
+  it('saves screenshots where the CLI runs and prints the path instead of base64', async () => {
+    const screenshotDir = mkdtempSync(join(tmpdir(), 'orca-browser-shot-'))
+    vi.stubEnv('ORCA_BROWSER_SCREENSHOT_TMPDIR', screenshotDir)
+    queueFixtures(
+      callMock,
+      okFixture('req_shot', { data: Buffer.from('png-bytes').toString('base64'), format: 'png' }),
+      okFixture('req_unchanged', { data: '', format: 'png', changed: false })
+    )
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+    try {
+      await main(['screenshot', '--page', 'page-1', '--json'], '/tmp/not-an-orca-worktree')
+      await main(['screenshot', '--page', 'page-1', '--if-changed'], '/tmp/not-an-orca-worktree')
+
+      const saved = JSON.parse(String(log.mock.calls[0][0])).result
+      expect(saved.data).toBeUndefined()
+      expect(saved.path).toBe(join(screenshotDir, 'req_shot-screenshot.png'))
+      expect(readFileSync(saved.path, 'utf8')).toBe('png-bytes')
+      expect(callMock).toHaveBeenLastCalledWith('browser.screenshot', {
+        page: 'page-1',
+        ifChanged: true
+      })
+      expect(log).toHaveBeenLastCalledWith(
+        'Screenshot unchanged since the last --if-changed capture; nothing saved'
+      )
+    } finally {
+      rmSync(screenshotDir, { recursive: true, force: true })
+    }
   })
 
   it('resolves current worktree only when --page is combined with --worktree current', async () => {
@@ -172,6 +253,60 @@ describe('orca cli browser page targeting', () => {
       },
       { timeoutMs: 60_000 }
     )
+  })
+
+  it('asks for a split beside the calling terminal tab with --split', async () => {
+    vi.stubEnv('ORCA_TAB_ID', 'terminal-tab-1')
+    queueFixtures(callMock, okFixture('req_create', { browserPageId: 'page-4' }))
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+
+    await main(
+      ['tab', 'create', '--url', 'https://example.com', '--split', 'right', '--worktree', 'all'],
+      '/tmp/not-an-orca-worktree'
+    )
+
+    expect(callMock).toHaveBeenCalledWith(
+      'browser.tabCreate',
+      {
+        url: 'https://example.com',
+        worktree: undefined,
+        profileId: undefined,
+        split: 'right',
+        splitFromTabId: 'terminal-tab-1'
+      },
+      { timeoutMs: 60_000 }
+    )
+    vi.unstubAllEnvs()
+  })
+
+  it('leaves the caller tab out of a plain tab create', async () => {
+    vi.stubEnv('ORCA_TAB_ID', 'terminal-tab-1')
+    queueFixtures(callMock, okFixture('req_create', { browserPageId: 'page-5' }))
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+
+    await main(['tab', 'create', '--worktree', 'all'], '/tmp/not-an-orca-worktree')
+
+    expect(callMock.mock.calls[0][1]).not.toHaveProperty('split')
+    expect(callMock.mock.calls[0][1]).not.toHaveProperty('splitFromTabId')
+    vi.unstubAllEnvs()
+  })
+
+  it('rejects an unknown --split direction before calling the runtime', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    await main(['tab', 'create', '--split', 'sideways'], '/tmp/not-an-orca-worktree')
+
+    expect(callMock).not.toHaveBeenCalled()
+    expect(errorSpy).toHaveBeenCalledWith('--split must be right, left, down, or up')
+  })
+
+  it('rejects --split with no direction instead of opening a plain tab', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    await main(['tab', 'create', '--split='], '/tmp/not-an-orca-worktree')
+
+    expect(callMock).not.toHaveBeenCalled()
+    expect(errorSpy).toHaveBeenCalledWith('Missing value for --split')
   })
 
   it('opens browser-launch URLs on the client hosting the current worktree', async () => {
@@ -781,123 +916,5 @@ describe('orca cli browser waits and viewport flags', () => {
       mobile: true,
       worktree: undefined
     })
-  })
-})
-
-// #28: a hung page stalls a bridge call until the socket closes; the runtime itself is fine.
-describe('orca cli browser commands interrupted by a closed connection', () => {
-  const statusFixture = okFixture('req_status', { runtimeId: 'runtime-1' })
-  const snapshotFixture = okFixture('req_snapshot', {
-    browserPageId: 'page-1',
-    snapshot: 'tree',
-    refs: [],
-    url: 'https://example.com',
-    title: 'Example'
-  })
-
-  beforeEach(() => {
-    callMock.mockReset()
-    process.exitCode = undefined
-  })
-
-  afterEach(() => {
-    vi.restoreAllMocks()
-    process.exitCode = undefined
-  })
-
-  function jsonError(logSpy: { mock: { calls: unknown[][] } }): { code: string; message: string } {
-    const printed: unknown = JSON.parse(String(logSpy.mock.calls.at(-1)?.[0]))
-    if (!printed || typeof printed !== 'object' || !('error' in printed)) {
-      throw new TypeError('expected a JSON error envelope')
-    }
-    const { error } = printed
-    if (!error || typeof error !== 'object' || !('code' in error) || !('message' in error)) {
-      throw new TypeError('expected an error code and message')
-    }
-    return { code: String(error.code), message: String(error.message) }
-  }
-
-  it('retries a snapshot once after a close while the runtime still answers', async () => {
-    callMock
-      .mockRejectedValueOnce(new RuntimeConnectionClosedError())
-      .mockResolvedValueOnce(statusFixture)
-      .mockResolvedValueOnce(snapshotFixture)
-    vi.spyOn(console, 'log').mockImplementation(() => {})
-
-    await main(['snapshot', '--page', 'page-1', '--json'], '/tmp/not-an-orca-worktree')
-
-    expect(callMock.mock.calls.map((call) => call[0])).toEqual([
-      'browser.snapshot',
-      'status.get',
-      'browser.snapshot'
-    ])
-    expect(process.exitCode).toBeUndefined()
-  })
-
-  it('fails browser_command_interrupted after a second close', async () => {
-    callMock
-      .mockRejectedValueOnce(new RuntimeConnectionClosedError())
-      .mockResolvedValueOnce(statusFixture)
-      .mockRejectedValueOnce(new RuntimeConnectionClosedError())
-      .mockResolvedValueOnce(statusFixture)
-    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
-
-    await main(['snapshot', '--page', 'page-1', '--json'], '/tmp/not-an-orca-worktree')
-
-    expect(callMock.mock.calls.filter((call) => call[0] === 'browser.snapshot')).toHaveLength(2)
-    const error = jsonError(logSpy)
-    expect(error.code).toBe('browser_command_interrupted')
-    expect(error.message).toContain('page page-1')
-    expect(error.message).toContain('runtime is reachable')
-    expect(process.exitCode).toBe(1)
-  })
-
-  it('retries a selector wait once after a close while the runtime still answers', async () => {
-    callMock
-      .mockRejectedValueOnce(new RuntimeConnectionClosedError())
-      .mockResolvedValueOnce(statusFixture)
-      .mockResolvedValueOnce(okFixture('req_wait', { matched: true }))
-    vi.spyOn(console, 'log').mockImplementation(() => {})
-
-    await main(
-      ['wait', '--selector', '#ready', '--page', 'page-1', '--json'],
-      '/tmp/not-an-orca-worktree'
-    )
-
-    expect(callMock.mock.calls.map((call) => call[0])).toEqual([
-      'browser.wait',
-      'status.get',
-      'browser.wait'
-    ])
-    expect(process.exitCode).toBeUndefined()
-  })
-
-  it.each([
-    ['goto', ['goto', '--url', 'https://example.com'], 'browser.goto'],
-    ['viewport', ['viewport', '--width', '375', '--height', '812'], 'browser.viewport'],
-    // A --fn expression is arbitrary page JavaScript: running it twice can repeat its side effects.
-    ['wait --fn', ['wait', '--fn', '(++globalThis.effects, true)'], 'browser.wait']
-  ])('never retries %s', async (_label, argv, method) => {
-    callMock
-      .mockRejectedValueOnce(new RuntimeConnectionClosedError())
-      .mockResolvedValueOnce(statusFixture)
-    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
-
-    await main([...argv, '--page', 'page-1', '--json'], '/tmp/not-an-orca-worktree')
-
-    expect(callMock.mock.calls.map((call) => call[0])).toEqual([method, 'status.get'])
-    expect(jsonError(logSpy).code).toBe('browser_command_interrupted')
-  })
-
-  it('stays runtime_unavailable when the status probe also fails', async () => {
-    callMock
-      .mockRejectedValueOnce(new RuntimeConnectionClosedError())
-      .mockRejectedValueOnce(new RuntimeConnectionClosedError())
-    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
-
-    await main(['snapshot', '--page', 'page-1', '--json'], '/tmp/not-an-orca-worktree')
-
-    expect(callMock.mock.calls.map((call) => call[0])).toEqual(['browser.snapshot', 'status.get'])
-    expect(jsonError(logSpy).code).toBe('runtime_unavailable')
   })
 })

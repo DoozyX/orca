@@ -11,6 +11,7 @@ import {
   temporaryDirectories,
   TERMINAL_HANDLE
 } from './orchestration-mailbox-notification-test-harness'
+import { ackThenCheck } from './orchestration-mailbox-ack-then-check.test-fixture'
 import { createRootDispatch } from './orchestration/db/root-dispatch-test-fixture'
 
 describe('orchestration mailbox filtered waiters', () => {
@@ -44,10 +45,7 @@ describe('orchestration mailbox filtered waiters', () => {
     expect(checked.messages).toEqual([expect.objectContaining({ id: question.id })])
     expect(db.getMessageById(question.id)?.to_handle).toBe(`run:${run.id}`)
     expect(db.getUnreadRunMailbox(run.id, 100, ['status'])).toHaveLength(50)
-    const next = await checkBoundMailbox(harness.runtime, {
-      ack: checked.deliveryId!,
-      types: 'question'
-    })
+    const next = await ackThenCheck(harness.runtime, checked.deliveryId!)
     expect(next).toMatchObject({ count: 50 })
     expect(next.messages).not.toContainEqual(expect.objectContaining({ id: question.id }))
     db.close()

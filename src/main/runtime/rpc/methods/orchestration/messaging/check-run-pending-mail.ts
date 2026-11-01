@@ -2,6 +2,7 @@ import type { MessageType, OrchestrationDb, RunRow } from '../../../../orchestra
 import type { OrcaRuntimeService } from '../../../../orca-runtime'
 import { interruptedAcknowledgedCheck } from '../routing'
 import { checkWorkerMailbox } from './check-worker'
+import { acknowledgedOnlyReceipt, handsOverBatch } from './mailbox-message-receipt'
 import { currentDispatchAssigneeRun } from './recipient-routing'
 import { callerHoldsDispatchPane, dispatchFenced } from './dispatch-mailbox-fence'
 import { orchestrationCallerIdentity } from '../runs/run-scope'
@@ -68,6 +69,10 @@ export async function checkRunPendingMail(args: {
     }
   }
   recordAcknowledged()
+  if (acknowledged && !params.wait) {
+    const result = acknowledgedOnlyReceipt({ runId: run.id }, acknowledged.delivery.id)
+    return { acknowledged: acknowledged.delivery.id, result }
+  }
   const wakeTypes = params.wait ? typeFilter : undefined
   // A typed wait skips a nonmatching Run batch, so only a batch it would replay goes first.
   const runReplayPending = () => db.hasOutstandingMailboxDelivery(address, wakeTypes)
@@ -104,8 +109,13 @@ export async function checkRunPendingMail(args: {
           throw dispatchFenced()
         }
       },
-      recordMutationReceipt
+      recordMutationReceipt,
+      runAcknowledged: acknowledged?.delivery.id,
+      acknowledgeOnly: !params.wait
     })
+    if (handsOverBatch(result) || (residualAck && !params.wait)) {
+      return { acknowledged: result?.acknowledged ?? undefined, result }
+    }
     if (result?.acknowledged) {
       acknowledged = { delivery: { id: result.acknowledged } }
     }

@@ -4,6 +4,7 @@ import { OrcaRuntimeService } from '../../../../orca-runtime'
 import { OrchestrationDb } from '../../../../orchestration/db'
 import { ORCHESTRATION_METHODS } from '../../orchestration'
 import { eraseRpcMethods } from '../../../core'
+import { recordLegacyUserTakeover } from '../worker/legacy-user-takeover.test-support'
 
 const HOME_FINGERPRINT = 'home-peer'
 const PANE_KEY = 'tab_remote:bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
@@ -65,15 +66,26 @@ describe('federated worker release ownership', () => {
     expect(runtime.closeTerminal).not.toHaveBeenCalled()
   })
 
-  it('durably retains a user-taken-over remote worker terminal', async () => {
+  it('refuses the home a release of a remote worker the user kept open', async () => {
+    createAttachment('ctx_kept', 'created')
+    settleAttachment('ctx_kept')
+
+    await expect(
+      call('orchestration.workerKeepOpen', 'ctx_kept', { paneKey: PANE_KEY, keep: true })
+    ).resolves.toEqual({ autoClose: { kept: true } })
+    await expect(call('orchestration.federationRelease', 'ctx_kept')).resolves.toMatchObject({
+      state: 'retained',
+      reason: 'user_kept',
+      processAction: 'none'
+    })
+    expect(runtime.closeTerminal).not.toHaveBeenCalled()
+  })
+
+  it('durably retains a legacy user-taken-over remote worker terminal with its evidence', async () => {
     createAttachment('ctx_takeover', 'created')
     settleAttachment('ctx_takeover')
+    expect(recordLegacyUserTakeover(db, PANE_KEY, 'desktop_terminal_input')).toBe(1)
 
-    const changed = (await call('orchestration.workerTerminalUserInput', 'ctx_takeover', {
-      paneKey: PANE_KEY
-    })) as { changed: number }
-
-    expect(changed.changed).toBe(1)
     await expect(call('orchestration.federationRelease', 'ctx_takeover')).resolves.toMatchObject({
       state: 'retained',
       reason: 'user_takeover',
@@ -94,7 +106,7 @@ describe('federated worker release ownership', () => {
   it('names the user who holds a terminal a later Dispatch reused without owning it', async () => {
     createAttachment('ctx_held', 'created')
     settleAttachment('ctx_held')
-    await call('orchestration.workerTerminalUserInput', 'ctx_held', { paneKey: PANE_KEY })
+    recordLegacyUserTakeover(db, PANE_KEY, 'desktop_terminal_input')
     createAttachment('ctx_reuser', 'external')
     settleAttachment('ctx_reuser')
 

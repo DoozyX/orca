@@ -112,7 +112,8 @@ describe('orchestration gate commands carry caller identity', () => {
         '--question',
         'ship?',
         '--from',
-        'term_coord'
+        'term_coord',
+        '--full'
       ],
       '/tmp/repo'
     )

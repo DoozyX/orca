@@ -1,9 +1,13 @@
 import { OrchestrationError } from '../../../../orchestration/orchestration-error'
-import type { RemoteDispatchAttachmentRow } from '../../../../orchestration/types'
 import { defineMethod } from '../../../core'
+import { isUserKeptWorkerTerminalOwner } from '../../../../orchestration/db/worker-terminal/worker-terminal-user-keep'
 import { mapWithConcurrency } from '../../../../../../shared/map-with-concurrency'
 import { readExactWorkerOutput } from '../worker/worker-output'
-import { exposeWorkerTerminalResource } from '../worker/worker-terminal-resource-presentation'
+import {
+  exposeWorkerRetainReceipt,
+  exposeWorkerTerminalResource
+} from '../worker/worker-terminal-resource-presentation'
+import { archiveWorkerOutputBeforeStop } from '../worker/worker-stop-archive'
 import { describeUnconfirmedAgentStop } from '../../../../../../shared/pty-liveness-verdict'
 import {
   inspectRemoteAttachment,
@@ -12,6 +16,7 @@ import {
 } from './federation-attachment-observation'
 import { releaseRemoteAttachment } from './federated-worker-release-host'
 import { readRemoteAttachmentArchive } from './remote-attachment-archive-read'
+import { exposeRemoteAttachment } from './remote-attachment-presentation'
 import {
   FederationDispatchParams,
   FederationFleetSnapshotParams,
@@ -28,6 +33,8 @@ export const ORCHESTRATION_FEDERATION_CONTROL_METHODS = [
       const items = await mapWithConcurrency(params.dispatchIds, 16, async (dispatchId) => {
         requireHomeAttachment(runtime, dispatchId, authenticatedCallerFingerprint)
         const observation = await observeRemoteAttachmentLiveness(runtime, dispatchId)
+        const db = runtime.getOrchestrationDb()
+        const autoReleaseAt = db.getLiveWorkerTerminalAutoReleaseAt(dispatchId)
         return {
           dispatchId,
           observation: {
@@ -36,7 +43,11 @@ export const ORCHESTRATION_FEDERATION_CONTROL_METHODS = [
                 ? observation.status
                 : 'unverifiable',
             exactWorker: observation.exact,
-            ...(observation.reason ? { reason: observation.reason } : {})
+            ...(observation.reason ? { reason: observation.reason } : {}),
+            ...(db.getRemoteDispatchAttachment(dispatchId)?.stage === 'released'
+              ? { released: true }
+              : {}),
+            ...(autoReleaseAt ? { autoReleaseAt } : {})
           }
         }
       })
@@ -58,6 +69,18 @@ export const ORCHESTRATION_FEDERATION_CONTROL_METHODS = [
     }
   }),
   defineMethod({
+    name: 'orchestration.federationRetain',
+    permission: 'workspace',
+    params: FederationDispatchParams,
+    handler: (params, { runtime, authenticatedCallerFingerprint }) => {
+      requireHomeAttachment(runtime, params.dispatchId, authenticatedCallerFingerprint)
+      return exposeWorkerRetainReceipt(
+        params.dispatchId,
+        runtime.getOrchestrationDb().retainRemoteAttachmentTerminalResource(params.dispatchId)
+      )
+    }
+  }),
+  defineMethod({
     name: 'orchestration.federationShow',
     permission: 'workspace',
     params: FederationDispatchParams,
@@ -75,6 +98,10 @@ export const ORCHESTRATION_FEDERATION_CONTROL_METHODS = [
         dispatchId: params.dispatchId,
         runtimeEpoch: runtime.getRuntimeId(),
         attachment: exposeRemoteAttachment(attachment),
+        autoReleaseAt: runtime
+          .getOrchestrationDb()
+          .getLiveWorkerTerminalAutoReleaseAt(params.dispatchId),
+        keptOpen: isUserKeptWorkerTerminalOwner(runtime.getOrchestrationDb(), params.dispatchId),
         terminal: observation.exact ? observation.terminal : null,
         observation: {
           status: observation.status,
@@ -224,6 +251,13 @@ export const ORCHESTRATION_FEDERATION_CONTROL_METHODS = [
           lastError: attachment.last_error
         }
       }
+      await archiveWorkerOutputBeforeStop({
+        runtime,
+        db,
+        dispatchId: params.dispatchId,
+        terminalHandle: observation.terminal.handle,
+        attachedAt: begun.created_at
+      })
       try {
         const close = await runtime.closeTerminal(observation.terminal.handle)
         if (!close.ptyKilled) {
@@ -264,11 +298,3 @@ export const ORCHESTRATION_FEDERATION_CONTROL_METHODS = [
     }
   })
 ]
-
-function exposeRemoteAttachment(attachment: RemoteDispatchAttachmentRow) {
-  return {
-    ...attachment,
-    effects: JSON.parse(attachment.effects) as unknown[],
-    residualResources: JSON.parse(attachment.residual_resources) as unknown[]
-  }
-}

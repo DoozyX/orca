@@ -283,10 +283,18 @@ describe('federated transport safety', () => {
       recoveryAttemptCount: 0,
       lastRecoveryAt: null,
       archive: { source: null, status: null },
+      autoReleaseAt: '2026-10-16 09:00:00',
       takeover: { source: 'remote_terminal_input', at: '2026-10-16 08:00:00' }
     }
 
     expect(parseRemoteWorkerTerminalResource(resource)).toEqual(resource)
+    // Older hosts omit the deadline and the takeover evidence; neither fails the parse.
+    const { autoReleaseAt: _deadline, takeover: _takeover, ...older } = resource
+    expect(parseRemoteWorkerTerminalResource(older)).toEqual({
+      ...older,
+      autoReleaseAt: null,
+      takeover: null
+    })
     expect(
       parseRemoteWorkerTerminalResource({ ...resource, ownerDispatchId: null })
     ).toBeUndefined()
@@ -412,6 +420,8 @@ function federatedDispatch(): FederatedDispatchRow {
     remote_terminal_handle: null,
     to_home_imported_sequence: 0,
     to_home_acknowledged_sequence: 0,
+    home_auto_release_at: null,
+    home_auto_release_state: null,
     created_at: '2026-08-27 00:00:00',
     updated_at: '2026-08-27 00:00:00'
   }

@@ -4,6 +4,7 @@ import { parseArgs, validateCommandAndFlags } from '../../../../../../cli/args'
 import { ORCHESTRATION_WORKER_COMMAND_SPECS } from '../../../../../../cli/specs/orchestration-worker-specs'
 import type { OrcaRuntimeService } from '../../../../orca-runtime'
 import { createOrchestrationWorkerReleaseHarness } from './worker-release.test-support'
+import { recordLegacyUserTakeover } from './legacy-user-takeover.test-support'
 
 const SQLITE_UTC = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/
 
@@ -204,11 +205,11 @@ describe('orchestration worker release', () => {
     }
   )
 
-  it("points a user takeover of another Orca's remote worker terminal to that Orca", async () => {
+  it("points a legacy user takeover of another Orca's remote worker terminal to that Orca", async () => {
     h.setup()
     const first = await h.startSettledWorker('succeeded')
     const owner = attachRemoteOwner(first.dispatchId, true)
-    await h.call('orchestration.workerTerminalUserInput', { paneKey: h.workerPaneKey })
+    recordLegacyUserTakeover(h.db, h.workerPaneKey, 'desktop_terminal_input')
 
     const receipt = await h.call('orchestration.workerRelease', { dispatch: first.dispatchId })
     const recovery = recoveryOf(receipt)
@@ -326,41 +327,19 @@ describe('orchestration worker release', () => {
     expect(h.db.getWorkerTerminalResourceByOwner(dispatchId)?.release_state).not.toBe('released')
   })
 
-  it('retains a user-taken-over terminal durably', async () => {
+  it('retains a legacy user-taken-over terminal and shows its evidence', async () => {
     h.setup()
     const { dispatchId } = await h.startSettledWorker()
-    const changed = (await h.call('orchestration.workerTerminalUserInput', {
-      paneKey: h.workerPaneKey
-    })) as { changed: number }
-    expect(changed.changed).toBe(1)
-    const receipt = (await h.call('orchestration.workerRelease', { dispatch: dispatchId })) as {
-      state: string
-      reason?: string
-    }
+    expect(recordLegacyUserTakeover(h.db, h.workerPaneKey, 'desktop_terminal_input')).toBe(1)
     const takeover = { source: 'desktop_terminal_input', at: expect.stringMatching(SQLITE_UTC) }
-    expect(receipt).toMatchObject({ state: 'retained', reason: 'user_takeover', takeover })
+
+    await expect(
+      h.call('orchestration.workerRelease', { dispatch: dispatchId })
+    ).resolves.toMatchObject({ state: 'retained', reason: 'user_takeover', takeover })
     expect(h.runtime.closeTerminal).not.toHaveBeenCalled()
-    expect(h.db.getWorkerTerminalResourceByOwner(dispatchId)?.ownership_state).toBe('user_owned')
     await expect(
       h.call('orchestration.workerShow', { dispatch: dispatchId })
     ).resolves.toMatchObject({ terminalResource: { retainedReason: 'user_takeover', takeover } })
-  })
-
-  it('records a structured session takeover by its own source', async () => {
-    h.setup()
-    const { dispatchId } = await h.startSettledWorker()
-    vi.spyOn(h.runtime, 'getStructuredWorkerPaneKeyForSession').mockReturnValue(h.workerPaneKey)
-
-    await expect(
-      h.call('orchestration.workerTerminalUserInput', { sessionId: 'session_1' })
-    ).resolves.toEqual({ changed: 1 })
-    await expect(
-      h.call('orchestration.workerRelease', { dispatch: dispatchId })
-    ).resolves.toMatchObject({
-      state: 'retained',
-      reason: 'user_takeover',
-      takeover: { source: 'structured_session_input', at: expect.stringMatching(SQLITE_UTC) }
-    })
   })
 
   it('reports a takeover recorded before its evidence was kept as unrecorded', async () => {
@@ -369,10 +348,7 @@ describe('orchestration worker release', () => {
     await expect(
       h.call('orchestration.workerShow', { dispatch: dispatchId })
     ).resolves.toMatchObject({ terminalResource: { takeover: null } })
-    await h.call('orchestration.workerTerminalUserInput', { paneKey: h.workerPaneKey })
-    h.db.db
-      .prepare('UPDATE worker_terminal_resources SET takeover_source = NULL, takeover_at = NULL')
-      .run()
+    recordLegacyUserTakeover(h.db, h.workerPaneKey, null)
 
     const unrecorded = { source: 'unrecorded', at: null }
     await expect(
@@ -383,10 +359,10 @@ describe('orchestration worker release', () => {
     ).resolves.toMatchObject({ state: 'retained', reason: 'user_takeover', takeover: unrecorded })
   })
 
-  it('keeps a dead user-taken-over terminal in the user takeover', async () => {
+  it('keeps a dead legacy user-taken-over terminal in the user takeover', async () => {
     h.setup()
     const { dispatchId } = await h.startSettledWorker()
-    await h.call('orchestration.workerTerminalUserInput', { paneKey: h.workerPaneKey })
+    recordLegacyUserTakeover(h.db, h.workerPaneKey, 'desktop_terminal_input')
     h.inspectProcessLiveness.mockResolvedValue('exited')
 
     await expect(
@@ -433,6 +409,26 @@ describe('orchestration worker release', () => {
     }
   )
 
+  it.each([false, true])(
+    'keeps the output of a stopped worker (retained first: %s)',
+    async (retain) => {
+      h.setup()
+      const { dispatchId } = await h.startWorker()
+      await expect(
+        h.call('orchestration.workerStop', { dispatch: dispatchId })
+      ).resolves.toMatchObject({ state: 'stopped' })
+      if (retain) {
+        await h.call('orchestration.workerRetain', { dispatch: dispatchId })
+      }
+      h.inspectProcessLiveness.mockResolvedValue('exited')
+
+      await expect(
+        h.call('orchestration.workerRelease', { dispatch: dispatchId })
+      ).resolves.toMatchObject({ state: 'released', archive: { status: 'captured' } })
+      expect(h.db.getWorkerTerminalArchive(dispatchId)?.kind).toBe('terminal_tail')
+    }
+  )
+
   it.each(['stopped', 'abandoned'] as const)(
     'keeps a dead %s worker retained while its process is still unproven',
     async (state) => {
@@ -456,31 +452,6 @@ describe('orchestration worker release', () => {
       expect(h.db.getWorkerTerminalResourceByOwner(dispatchId)?.release_state).not.toBe('released')
     }
   )
-
-  it('lets user takeover cancel a release while output capture is pending', async () => {
-    h.setup()
-    const { dispatchId } = await h.startSettledWorker()
-    const pendingRead = h.deferred<Awaited<ReturnType<OrcaRuntimeService['readTerminal']>>>()
-    vi.mocked(h.runtime.readTerminal).mockReturnValue(pendingRead.promise)
-
-    const release = h.call('orchestration.workerRelease', { dispatch: dispatchId })
-    await vi.waitFor(() => expect(h.runtime.readTerminal).toHaveBeenCalledTimes(1))
-    const changed = (await h.call('orchestration.workerTerminalUserInput', {
-      paneKey: h.workerPaneKey
-    })) as { changed: number }
-    expect(changed.changed).toBe(1)
-    pendingRead.resolve({
-      handle: 'term_worker',
-      status: 'running',
-      tail: ['captured before takeover'],
-      truncated: false,
-      nextCursor: '1'
-    })
-
-    await expect(release).resolves.toMatchObject({ state: 'retained', reason: 'user_takeover' })
-    expect(h.runtime.closeTerminal).not.toHaveBeenCalled()
-    expect(h.db.getWorkerTerminalArchive(dispatchId)).toBeUndefined()
-  })
 
   it('lets an explicit retain cancel a release while output capture is pending', async () => {
     h.setup()
@@ -524,23 +495,19 @@ describe('orchestration worker release', () => {
     expect(h.db.getWorkerTerminalResourceByOwner(dispatchId)?.release_state).toBe('released')
   })
 
-  it('never marks takeover for panes without an owned resource', async () => {
-    h.setup()
-    const changed = (await h.call('orchestration.workerTerminalUserInput', {
-      paneKey: 'tab_other:cccccccc-cccc-4ccc-8ccc-cccccccccccc'
-    })) as { changed: number }
-    expect(changed.changed).toBe(0)
-  })
-
-  it('preserves takeover across a reminted tab key for the same pane leaf', async () => {
+  it('keeps open across a reminted tab key for the same pane leaf, and nothing without a worker', async () => {
     h.setup()
     const { dispatchId } = await h.startSettledWorker()
-    const changed = (await h.call('orchestration.workerTerminalUserInput', {
-      paneKey: 'tab_reminted:bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
-    })) as { changed: number }
+    const keep = (paneKey: string) =>
+      h.call('orchestration.workerKeepOpen', { paneKey, keep: true })
 
-    expect(changed.changed).toBe(1)
-    expect(h.db.getWorkerTerminalResourceByOwner(dispatchId)?.ownership_state).toBe('user_owned')
+    await expect(keep('tab_other:cccccccc-cccc-4ccc-8ccc-cccccccccccc')).resolves.toEqual({
+      autoClose: null
+    })
+    await expect(keep('tab_reminted:bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb')).resolves.toEqual({
+      autoClose: { kept: true }
+    })
+    expect(h.db.getWorkerTerminalResourceByOwner(dispatchId)?.retained_reason).toBe('user_kept')
   })
 
   it('keeps a resumed settled worker retained in worker-list without re-dispatch or release', async () => {

@@ -1,27 +1,23 @@
 # Coordinator loop
 
-Load this reference for expanded DAG waves, per-invocation launch preferences,
-same-terminal reuse, or review ownership. The compact guide remains the source
-of truth for the loop order and completion boundary.
-
 ## Change-driven observation
 
-Prefer the kernel's blocking `check --wait` over repeated immediate checks.
-Keep one consuming inbox; observe the same pending command until it returns.
-Batch independent reads and use existing brief task views and worker projections
-for routine status. Keep full receipts in session scratch and print the
-decision-relevant identities, verdicts, required actions and evidence paths.
+Let Orca's wake drive observation. When you must block instead, keep one
+consuming inbox and one pending `check --wait`, observed until it returns; never
+repeat immediate checks. Batch independent reads and use existing brief task
+views and worker projections for routine status. Keep full receipts in session
+scratch and print the decision-relevant identities, verdicts, required actions
+and evidence paths.
 
-Process every message in the FIFO Delivery before acknowledgment; never truncate
-or filter a Delivery to meet a size target. A projection is a view, not another
-status store, and never substitutes for current execution-host evidence at a
-decision boundary. Follow every page when a fleet enumeration is required.
+Process every message in a Delivery; never truncate or filter a Delivery to meet
+a size target. A projection is a view, not another status store, and never
+substitutes for current execution-host evidence at a decision boundary. Follow
+every page when a fleet enumeration is required.
 
 Update the manifest and current handoff only when phase, owner, revision,
-blocker, authority or accepted outcome changes. A heartbeat, unchanged live
-observation, or empty wait alone does not warrant a document rewrite. Preserve
-the kernel’s three-empty-wait inspection rule and liveness vocabulary; a timeout
-never proves exit or authorizes stopping, retrying or replacing a worker.
+blocker, authority or accepted outcome changes. An unchanged live observation or
+empty wait alone does not warrant a document rewrite. A timeout never proves
+exit or authorizes stopping, retrying or replacing a worker.
 
 Use bounded infrastructure recovery: diagnose the first failed boundary, reserve
 an attempt in the delivery unit's existing recovery ledger, and run one scoped
@@ -32,7 +28,7 @@ There is no universal waiver for budgets, authority, or custody.
 The coordinator queues checks that conflict over shared resources rather than
 launching duplicate suites or stopping another owner's process.
 Use Orca resource leases only for simulators. Before using a shared simulator,
-take `orca orchestration lease acquire --resource ios-sim-<udid prefix>`, treat
+take `ORCA orchestration lease acquire --resource ios-sim-<udid prefix>`, treat
 `queued` as wait, and release it after the last simulator job exits. Do not
 acquire or queue Orca leases for CPU, builds, validation suites, ports, or
 databases; isolate their mutable state and coordinate actual conflicts directly.
@@ -40,53 +36,32 @@ databases; isolate their mutable state and coordinate actual conflicts directly.
 Fleet waiting is a pending question or approval, separate from agent liveness.
 Read attention categories and available host-computed diagnostics: state age
 is time in the same state, checkpoint age dates artifact/report/ack evidence,
-and blocker age dates the oldest still-pending question or gate. Heartbeats and
-spinner output prove neither progress nor a reset of these clocks. Missing
-optional diagnostics from older hosts remain unknown; never turn remote absence
-into exit or compare wall clocks from different hosts.
+and blocker age dates the oldest still-pending question or gate. Spinner output
+proves neither progress nor a reset of these clocks. Missing optional
+diagnostics from older hosts remain unknown; never turn remote absence into exit
+or compare wall clocks from different hosts.
 
-## Ready waves
+## Task DAGs
 
-Create independent Tasks before the first wait. Encode only real dependencies,
-then use the ready view as external memory:
-
-```text
-ORCA orchestration task-create --spec "<dependent work>" --deps <json_array> --json
-ORCA orchestration task-list --ready --brief --json
-```
-
-`--brief` collapses whitespace and caps echoed specs at 160 characters;
-`spec_truncated` identifies shortened rows. Omit it when full specs are needed or
-when an older CLI rejects the flag. A nested worker must respect
-`nested_worker_depth_exceeded`; creating another Run does not reset depth.
-Helpers a worker starts appear in this Run's `worker-list` with their
-`creatorDispatchId`, and report to that worker rather than to you.
-
-## Launch preferences
-
-For a fresh Claude, Codex, Cursor, Antigravity, or Muse terminal, `--model`
-accepts an opaque provider model ID. Pass it only when the user named a model;
-otherwise omit it so the worker inherits the user's configured agent default.
-Add `--effort` only when that model supports it:
+A Task needs a Run, so create one first. Workers editing the same files at once
+need separate workspaces.
 
 ```text
-ORCA orchestration worker-start --task <task_id> --worktree current --agent claude --model opus --effort high --from <coordinator_handle> --json
-ORCA orchestration worker-start --task <task_id> --worktree current --agent muse --model muse-spark-1.3 --from <coordinator_handle> --json
+ORCA orchestration run-create --objective "<goal>" --from <coordinator_handle>
+ORCA orchestration task-create --spec "<dependent work>" --deps <json_array>
+ORCA orchestration task-list --ready --brief
+ORCA orchestration worker-start --task <task_id> --worktree current --agent codex --from <coordinator_handle>
 ```
 
-OpenCode also accepts `--model` in an existing worktree when the execution host
-verifies its CLI version and model availability. Creating a new worktree with an
-OpenCode model override is unsupported; use `--worktree current` or an existing
-worktree selector, or omit `--model`. OpenCode effort is unsupported. Omit the
-model to inherit its configuration; unsupported or unknown hosts refuse the
-override explicitly.
+On every wake, start the Tasks `task-list --ready` shows.
 
-`--effort` requires `--model`; neither option combines with `--terminal`. A
-connected worker server must advertise launch-preference support before Orca
-forwards either field. Compare `launch.requested` with `launch.effective`; never
-claim a model or effort from requested arguments alone.
+## Several Runs
 
-### Engine roles
+A later `run-create` keeps your earlier Runs: their mail still wakes you, but
+commands without `--run` use the newest Run, so pass `--run <id>` for an earlier
+one. `run-use` keeps only the Run it names.
+
+## Engine roles
 
 Before the first dispatch whose agent the user did not name, read the optional
 host-local `~/.orca/agent-roles.json` and the root worktree's
@@ -111,7 +86,7 @@ each present role is a non-empty ordered list of candidates. A candidate has a
 required `agent` accepted by `worker-start --agent`, optional `model` and
 `effort`, and optional `strong: { "model": "...", "effort": "..." }` for a strong
 dispatch tier. `model` is supported only for Claude, Codex, Cursor,
-Antigravity, and Muse. `effort` requires a model in the same candidate or
+Antigravity, Grok, and Muse. `effort` requires a model in the same candidate or
 strong override. For example:
 
 ```json
@@ -168,18 +143,18 @@ Select in this order for every dispatch:
    `unavailable` for this run and re-run selection on the next eligible
    candidate. After a worker's quota stop, re-run selection when the unit
    resumes; other units continue.
-7. Compare `launch.effective` with the requested agent, model, and effort before
-   reporting what actually started.
+7. Compare `launch.effective` (`worker-show --full`) with the requested agent,
+   model, and effort before reporting what actually started.
 
-## Reuse after settlement
+## Reusing a worker
 
-Choose the terminal's next owner before acknowledging the Delivery. When the
-same exact agent has immediate follow-up work, recover the proven handle and
-transfer cleanup ownership to the new Dispatch:
+To give a finished worker follow-up work, create the Task, then start it on the
+`terminal` and `workspace` from that worker's `worker-start` receipt or
+`worker-list` row:
 
 ```text
-ORCA orchestration worker-show --dispatch <dispatch_id> --json
-ORCA orchestration worker-start --task <next_task_id> --terminal <agent_terminal_handle> --from <coordinator_handle> --json
+ORCA orchestration task-create --spec "<follow-up>"
+ORCA orchestration worker-start --task <task_id> --terminal <agent_terminal_handle> --worktree <its_workspace> --from <coordinator_handle>
 ```
 
 A structured worker (a `structworker_` handle) has no terminal, so
@@ -189,20 +164,10 @@ preamble yourself:
 
 ```text
 ORCA orchestration dispatch --task <next_task_id> --to <structworker_handle> --from <coordinator_handle> --return-preamble --json
-ORCA orchestration send --to <structworker_handle> --from <coordinator_handle> --subject "<task title>" --body "<preamble>" --json
+ORCA orchestration send --to <structworker_handle> --from <coordinator_handle> --subject "<task title>" --body "<preamble>"
 ```
 
 That reuse is unsupervised: no readiness wait, input receipt, or turn
 observation backs it, so start a fresh worker when supervision matters.
 `worker-stop --dispatch <dispatch_id>` on that Dispatch fences it and interrupts
 the session's running turn; its `interrupt` field says whether it did.
-
-Otherwise explicitly retain or release the settled worker. Do not leave it live
-only to inspect output; archived output remains available through `worker-read`.
-
-## Review ownership
-
-A review-only `worker_done` authorizes synthesis of findings, not coordinator
-file edits. Dispatch or hand off fixes unless the user explicitly assigned them
-to the coordinator. If the user's plan names a next owner, post-review fixes and
-PR preparation remain with that owner; the coordinator routes and synthesizes.

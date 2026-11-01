@@ -84,6 +84,13 @@ export function retainedReleaseGuidance(
       recovery: `A user took this terminal over (${takeover.source}${at}); Orca will not close it.${inspectHolder(custody, holder.owner_dispatch_id)}`
     }
   }
+  // Releasing through a kept holder would be refused too, so name the hold instead.
+  if (holder?.retained_reason === 'user_kept') {
+    return {
+      ...named,
+      recovery: `The user kept this terminal open; Orca will not close it.${inspectHolder(custody, holder.owner_dispatch_id)}`
+    }
+  }
   if (currentOwner && currentOwner.owner_dispatch_id !== dispatchId) {
     return {
       ...named,

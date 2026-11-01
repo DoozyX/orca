@@ -5,6 +5,11 @@ import type { OrchestrationDb } from '../orchestration-db'
 import { exposeDeliveryTimestamps, exposeMessageListTimestamps } from '../utc-timestamp'
 import { requireMailboxConsumer } from './mailbox-consumer'
 import { ORCHESTRATION_DELIVERY_BATCH_LIMIT } from './mailbox-routing-page'
+import {
+  selectReplayableDelivery,
+  sqlPlaceholders,
+  typedWaitKey
+} from './mailbox-typed-wait-delivery'
 
 export function getDeliveryRaw(this: OrchestrationDb, id: string): DeliveryRow | undefined {
   return this.db.prepare('SELECT * FROM deliveries WHERE id = ?').get(id) as DeliveryRow | undefined
@@ -24,113 +29,112 @@ export function getDeliveryMessages(this: OrchestrationDb, delivery: DeliveryRow
   )
 }
 
-function sqlPlaceholders(count: number): string {
-  return Array.from({ length: count }, () => '?').join(',')
+type MailboxDeliveryParams = {
+  runId: string
+  mailboxHandle: string
+  consumerGeneration: number
+  consumerSource?: 'dispatch' | 'attachment'
+  limit?: number
+  wakeTypes?: MessageType[]
 }
 
-// A typed wait replays only a batch holding an unread row of its types; an untyped check, any batch.
-function selectReplayableDelivery(
-  db: OrchestrationDb,
-  mailboxHandle: string,
-  wakeTypes: MessageType[] | undefined
-): DeliveryRow | undefined {
-  if (!wakeTypes) {
-    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: outstanding_deliveries is SELECT * over deliveries, so its rows are DeliveryRow; the adapter exposes unknown.
-    return db.db
-      .prepare(
-        `SELECT * FROM outstanding_deliveries WHERE mailbox_handle = ?
-         ORDER BY created_at, id LIMIT 1`
-      )
-      .get(mailboxHandle) as DeliveryRow | undefined
-  }
-  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: outstanding_deliveries is SELECT * over deliveries, so its rows are DeliveryRow; the adapter exposes unknown.
-  return db.db
-    .prepare(
-      `SELECT * FROM outstanding_deliveries AS delivery
-       WHERE delivery.mailbox_handle = ? AND EXISTS (
-         SELECT 1 FROM json_each(delivery.message_ids) AS member
-         JOIN messages ON messages.id = member.value
-         WHERE messages.read = 0 AND messages.type IN (${sqlPlaceholders(wakeTypes.length)})
-       )
-       ORDER BY delivery.created_at, delivery.id LIMIT 1`
-    )
-    .get(mailboxHandle, ...wakeTypes) as DeliveryRow | undefined
-}
-
-// Sorted and de-duplicated, because the stored form is the one-outstanding trigger's key.
-function typedWaitKey(wakeTypes: MessageType[] | undefined): MessageType[] | undefined {
-  return wakeTypes?.length ? [...new Set(wakeTypes)].sort() : undefined
+export type MailboxDeliveryBatch = {
+  delivery: DeliveryRow
+  messages: MessageRow[]
+  replayed: boolean
 }
 
 export function getOrCreateMailboxDelivery(
   this: OrchestrationDb,
-  params: {
-    runId: string
-    mailboxHandle: string
-    consumerGeneration: number
-    consumerSource?: 'dispatch' | 'attachment'
-    limit?: number
-    wakeTypes?: MessageType[]
+  params: MailboxDeliveryParams
+): MailboxDeliveryBatch | undefined {
+  this.db.exec('BEGIN IMMEDIATE')
+  try {
+    requireMailboxConsumer(this, params)
+    const batch = selectMailboxDelivery(this, params)
+    this.db.exec('COMMIT')
+    return batch
+  } catch (error) {
+    this.db.exec('ROLLBACK')
+    throw error
   }
-): { delivery: DeliveryRow; messages: MessageRow[]; replayed: boolean } | undefined {
+}
+
+// A consuming read hands over its batch and records the caller's receipt in the same commit.
+export function takeMailboxDelivery(
+  this: OrchestrationDb,
+  params: MailboxDeliveryParams & { recordTaken?: (batch: MailboxDeliveryBatch) => void }
+): MailboxDeliveryBatch | undefined {
+  this.db.exec('BEGIN IMMEDIATE')
+  try {
+    requireMailboxConsumer(this, params)
+    const selected = selectMailboxDelivery(this, params)
+    const batch = selected && {
+      ...selected,
+      delivery: exposeDeliveryTimestamps(markDeliveryAcknowledged(this, selected.delivery))
+    }
+    if (batch) {
+      params.recordTaken?.(batch)
+    }
+    this.db.exec('COMMIT')
+    return batch
+  } catch (error) {
+    this.db.exec('ROLLBACK')
+    throw error
+  }
+}
+
+function selectMailboxDelivery(
+  db: OrchestrationDb,
+  params: MailboxDeliveryParams
+): MailboxDeliveryBatch | undefined {
   const limit = Math.min(
     Math.max(params.limit ?? ORCHESTRATION_DELIVERY_BATCH_LIMIT, 1),
     ORCHESTRATION_DELIVERY_BATCH_LIMIT
   )
   const wakeTypes = typedWaitKey(params.wakeTypes)
-  this.db.exec('BEGIN IMMEDIATE')
-  try {
-    requireMailboxConsumer(this, params)
-    const existing = selectReplayableDelivery(this, params.mailboxHandle, wakeTypes)
-    if (existing) {
-      if (existing.consumer_generation !== params.consumerGeneration) {
-        throw new OrchestrationError(
-          'consumer_fenced',
-          'This mailbox Delivery belongs to a fenced consumer generation.'
-        )
-      }
-      const messages = this.getDeliveryMessages(existing)
-      this.db.exec('COMMIT')
-      return { delivery: exposeDeliveryTimestamps(existing), messages, replayed: true }
-    }
-    const typeClause = wakeTypes ? `AND type IN (${sqlPlaceholders(wakeTypes.length)})` : ''
-    const messages = exposeMessageListTimestamps(
-      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: SELECT * FROM messages returns MessageRow columns; the adapter exposes unknown.
-      this.db
-        .prepare(
-          `SELECT * FROM messages
-           WHERE run_id = ? AND to_handle = ? AND read = 0
-             AND delivery_contract = 'current_delivery' ${typeClause}
-           ORDER BY sequence ASC LIMIT ?`
-        )
-        .all(params.runId, params.mailboxHandle, ...(wakeTypes ?? []), limit) as MessageRow[]
-    )
-    if (messages.length === 0) {
-      this.db.exec('COMMIT')
-      return undefined
-    }
-    const deliveryId = generateId('delivery')
-    this.db
-      .prepare(
-        `INSERT INTO deliveries (
-           id, run_id, mailbox_handle, consumer_generation, message_ids, wake_types
-         ) VALUES (?, ?, ?, ?, ?, ?)`
+  const existing = selectReplayableDelivery(db, params.mailboxHandle, wakeTypes)
+  if (existing) {
+    if (existing.consumer_generation !== params.consumerGeneration) {
+      throw new OrchestrationError(
+        'consumer_fenced',
+        'This mailbox Delivery belongs to a fenced consumer generation.'
       )
-      .run(
-        deliveryId,
-        params.runId,
-        params.mailboxHandle,
-        params.consumerGeneration,
-        JSON.stringify(messages.map((message) => message.id)),
-        wakeTypes ? JSON.stringify(wakeTypes) : null
-      )
-    const delivery = this.getDeliveryRaw(deliveryId) as DeliveryRow
-    this.db.exec('COMMIT')
-    return { delivery: exposeDeliveryTimestamps(delivery), messages, replayed: false }
-  } catch (error) {
-    this.db.exec('ROLLBACK')
-    throw error
+    }
+    const messages = db.getDeliveryMessages(existing)
+    return { delivery: exposeDeliveryTimestamps(existing), messages, replayed: true }
   }
+  const typeClause = wakeTypes ? `AND type IN (${sqlPlaceholders(wakeTypes.length)})` : ''
+  const messageIds = db.db
+    .prepare(
+      `SELECT id FROM messages
+       WHERE run_id = ? AND to_handle = ? AND read = 0
+         AND delivery_contract = 'current_delivery' ${typeClause}
+       ORDER BY sequence ASC LIMIT ?`
+    )
+    .all(params.runId, params.mailboxHandle, ...(wakeTypes ?? []), limit)
+    .flatMap((row) => (typeof row?.id === 'string' ? [row.id] : []))
+  if (messageIds.length === 0) {
+    return undefined
+  }
+  const deliveryId = generateId('delivery')
+  db.db
+    .prepare(
+      `INSERT INTO deliveries (
+         id, run_id, mailbox_handle, consumer_generation, message_ids, wake_types
+       ) VALUES (?, ?, ?, ?, ?, ?)`
+    )
+    .run(
+      deliveryId,
+      params.runId,
+      params.mailboxHandle,
+      params.consumerGeneration,
+      JSON.stringify(messageIds),
+      wakeTypes ? JSON.stringify(wakeTypes) : null
+    )
+  const delivery = requireDeliveryRaw(db, deliveryId)
+  const messages = db.getDeliveryMessages(delivery)
+  return { delivery: exposeDeliveryTimestamps(delivery), messages, replayed: false }
 }
 
 export function acknowledgeMailboxDelivery(
@@ -152,12 +156,7 @@ export function acknowledgeMailboxDelivery(
       delivery.run_id !== params.runId ||
       delivery.mailbox_handle !== params.mailboxHandle
     ) {
-      throw new OrchestrationError(
-        'stale_delivery',
-        !delivery && this.getMessageById(params.deliveryId)
-          ? `${params.deliveryId} is a message id, not a delivery id. Acknowledge the batch with the deliveryId field from the check response; process the entire batch before acknowledging.`
-          : `Delivery ${params.deliveryId} does not belong to this mailbox. --ack requires a delivery_* ID returned by orchestration check; process the entire batch before acknowledging.`
-      )
+      throw staleDelivery(this, params.deliveryId)
     }
     if (
       delivery.consumer_generation !== params.consumerGeneration ||
@@ -172,30 +171,51 @@ export function acknowledgeMailboxDelivery(
       this.db.exec('COMMIT')
       return { delivery: exposeDeliveryTimestamps(delivery), duplicate: true }
     }
-    const messageIds = JSON.parse(delivery.message_ids) as string[]
-    if (messageIds.length > 0) {
-      const placeholders = messageIds.map(() => '?').join(',')
-      this.db
-        .prepare(
-          `UPDATE messages
-           SET read = 1, pointer_enter_pending = 0, pointer_pty_id = NULL,
-               pointer_process_incarnation = NULL
-           WHERE id IN (${placeholders})`
-        )
-        .run(...messageIds)
-    }
-    this.db
-      .prepare(
-        "UPDATE deliveries SET status = 'acknowledged', acknowledged_at = datetime('now') WHERE id = ?"
-      )
-      .run(delivery.id)
-    const acknowledged = this.getDeliveryRaw(delivery.id) as DeliveryRow
+    const acknowledged = markDeliveryAcknowledged(this, delivery)
     this.db.exec('COMMIT')
     return { delivery: exposeDeliveryTimestamps(acknowledged), duplicate: false }
   } catch (error) {
     this.db.exec('ROLLBACK')
     throw error
   }
+}
+
+export function staleDelivery(db: OrchestrationDb, deliveryId: string): OrchestrationError {
+  return new OrchestrationError(
+    'stale_delivery',
+    !db.getDeliveryRaw(deliveryId) && db.getMessageById(deliveryId)
+      ? `${deliveryId} is a message id, not a delivery id. Acknowledge the batch with the deliveryId field from the check response; process the entire batch before acknowledging.`
+      : `Delivery ${deliveryId} does not belong to this mailbox. --ack requires a delivery_* ID returned by orchestration check; process the entire batch before acknowledging.`
+  )
+}
+
+function markDeliveryAcknowledged(db: OrchestrationDb, delivery: DeliveryRow): DeliveryRow {
+  const messageIds = JSON.parse(delivery.message_ids) as string[]
+  if (messageIds.length > 0) {
+    const placeholders = messageIds.map(() => '?').join(',')
+    db.db
+      .prepare(
+        `UPDATE messages
+         SET read = 1, pointer_enter_pending = 0, pointer_pty_id = NULL,
+             pointer_process_incarnation = NULL
+         WHERE id IN (${placeholders})`
+      )
+      .run(...messageIds)
+  }
+  db.db
+    .prepare(
+      "UPDATE deliveries SET status = 'acknowledged', acknowledged_at = datetime('now') WHERE id = ?"
+    )
+    .run(delivery.id)
+  return requireDeliveryRaw(db, delivery.id)
+}
+
+function requireDeliveryRaw(db: OrchestrationDb, id: string): DeliveryRow {
+  const delivery = db.getDeliveryRaw(id)
+  if (!delivery) {
+    throw new Error(`Delivery ${id} disappeared inside its transaction.`)
+  }
+  return delivery
 }
 
 /** With `wakeTypes`, only a batch that typed wait would replay counts. */
@@ -261,6 +281,7 @@ export type RoleMailboxDeliveryMethods = {
   getDeliveryMessages: typeof getDeliveryMessages
   getOrCreateMailboxDelivery: typeof getOrCreateMailboxDelivery
   acknowledgeMailboxDelivery: typeof acknowledgeMailboxDelivery
+  takeMailboxDelivery: typeof takeMailboxDelivery
   hasOutstandingMailboxDelivery: typeof hasOutstandingMailboxDelivery
   getOutstandingMailboxDelivery: typeof getOutstandingMailboxDelivery
   fenceUnacknowledgedMailboxDeliveries: typeof fenceUnacknowledgedMailboxDeliveries
@@ -272,6 +293,7 @@ export function attachRoleMailboxDelivery(ctor: { prototype: object }): void {
     getDeliveryMessages,
     getOrCreateMailboxDelivery,
     acknowledgeMailboxDelivery,
+    takeMailboxDelivery,
     hasOutstandingMailboxDelivery,
     getOutstandingMailboxDelivery,
     fenceUnacknowledgedMailboxDeliveries

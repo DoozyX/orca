@@ -2,7 +2,8 @@ import {
   decideWorkerTerminalRelease,
   WORKER_SETTLED_STATES,
   WORKER_TERMINAL_RELEASABLE_ROW_SQL,
-  type WorkerTerminalResourceRow
+  type WorkerTerminalResourceRow,
+  type WorkerTerminalRetainedReason
 } from '../../worker-terminal-ownership'
 import { OrchestrationError } from '../../orchestration-error'
 import type { RemoteDispatchAttachmentRow } from '../../types'
@@ -11,7 +12,9 @@ import type { WorkerTerminalReleaseRequest } from '../worker-terminal/worker-ter
 
 export function requestRemoteAttachmentTerminalRelease(
   this: OrchestrationDb,
-  dispatchId: string
+  dispatchId: string,
+  // Recovery resumes a committed request; it must not revive one a retain or takeover replaced.
+  mode: 'interactive' | 'recovery' = 'interactive'
 ): WorkerTerminalReleaseRequest {
   this.db.exec('BEGIN IMMEDIATE')
   try {
@@ -96,6 +99,20 @@ export function requestRemoteAttachmentTerminalRelease(
         ...(named ? { currentOwner: named } : {})
       }
     }
+    if (
+      mode === 'recovery' &&
+      resource.release_state !== 'requested' &&
+      resource.release_state !== 'releasing'
+    ) {
+      this.db.exec('COMMIT')
+      return {
+        disposition: 'retained',
+        resource,
+        // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: retained_reason is only ever written from WorkerTerminalRetainedReason values.
+        reason: (resource.retained_reason as WorkerTerminalRetainedReason) ?? 'identity_unproven',
+        ...resolved
+      }
+    }
     this.db
       .prepare(
         `UPDATE worker_terminal_resources
@@ -104,11 +121,12 @@ export function requestRemoteAttachmentTerminalRelease(
                ELSE 'requested'
              END,
              retained_reason = NULL,
+             auto_release_at = CASE WHEN ? THEN auto_release_at ELSE NULL END,
              release_requested_at = COALESCE(release_requested_at, datetime('now')),
              release_error = NULL, updated_at = datetime('now')
          WHERE id = ? AND ${WORKER_TERMINAL_RELEASABLE_ROW_SQL}`
       )
-      .run(resource.id)
+      .run(mode === 'recovery' ? 1 : 0, resource.id)
     this.db.exec('COMMIT')
     return {
       disposition: 'requested',

@@ -4,6 +4,7 @@ import { ORCHESTRATION_CONTRACT_VERSION } from '../../../../../../shared/protoco
 import type { OrchestrationDb } from '../../../../orchestration/db'
 import type { OrcaRuntimeService } from '../../../../orca-runtime'
 import type { RpcRequest } from '../../../core'
+import { recordLegacyUserTakeover } from '../worker/legacy-user-takeover.test-support'
 
 type CustodyScenarioHarness = {
   startSettledRemoteWorker: () => Promise<string>
@@ -13,14 +14,12 @@ type CustodyScenarioHarness = {
 }
 
 export function registerFederatedReleaseCustodyScenarios(harness: CustodyScenarioHarness): void {
-  it('carries the execution host takeover evidence home on release and show', async () => {
+  it('carries the execution host legacy takeover evidence home on release and show', async () => {
     const dispatchId = await harness.startSettledRemoteWorker()
     const paneKey = harness.workerDb().getWorkerTerminalResourceByOwner(dispatchId)?.pane_key
     expect(paneKey).toEqual(expect.any(String))
     expect(
-      harness
-        .workerDb()
-        .markWorkerTerminalUserOwned(paneKey ?? '', { source: 'remote_terminal_input' })
+      recordLegacyUserTakeover(harness.workerDb(), paneKey ?? '', 'remote_terminal_input')
     ).toBe(1)
     const takeover = { source: 'remote_terminal_input', at: expect.any(String) }
 

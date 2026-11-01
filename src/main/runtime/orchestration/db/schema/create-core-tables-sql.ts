@@ -214,6 +214,8 @@ CREATE TABLE IF NOT EXISTS worker_terminal_resources (
   archive_status           TEXT,
   takeover_source          TEXT,
   takeover_at              TEXT,
+  auto_release_at          TEXT,
+  auto_release_dispatch_id TEXT,
   created_at               TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at               TEXT NOT NULL DEFAULT (datetime('now'))
 );

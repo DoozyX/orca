@@ -118,11 +118,11 @@ describe('OrchestrationDb Run state', () => {
         return d.db.prepare('SELECT COUNT(*) AS count FROM deliveries').get()
       }
 
-      it('builds a delivery of only matching rows and leaves heartbeats unread', () => {
+      it('builds a delivery of only matching rows and leaves updates unread', () => {
         const d = createDb()
         const run = createBoundRun(d)
-        const heartbeats = Array.from({ length: 60 }, (_, index) =>
-          insert(d, run.id, `heartbeat ${index}`, 'heartbeat')
+        const updates = Array.from({ length: 60 }, (_, index) =>
+          insert(d, run.id, `update ${index}`, 'status')
         )
         const done = insert(d, run.id, 'done', 'worker_done')
 
@@ -134,8 +134,8 @@ describe('OrchestrationDb Run state', () => {
 
         expect(delivery?.messages.map((message) => message.id)).toEqual([done.id])
         expect(delivery?.replayed).toBe(false)
-        expect(heartbeats.map((heartbeat) => d.getMessageById(heartbeat.id)?.read)).toEqual(
-          heartbeats.map(() => 0)
+        expect(updates.map((update) => d.getMessageById(update.id)?.read)).toEqual(
+          updates.map(() => 0)
         )
       })
 
@@ -143,8 +143,8 @@ describe('OrchestrationDb Run state', () => {
         const d = createDb()
         const run = createBoundRun(d)
         const params = { runId: run.id, consumerGeneration: run.consumer_generation }
-        const heartbeats = [0, 1, 2].map((index) =>
-          insert(d, run.id, `heartbeat ${index}`, 'heartbeat')
+        const updates = [0, 1, 2].map((index) =>
+          insert(d, run.id, `update ${index}`, 'status')
         )
         const d1 = d.getOrCreateRunDelivery(params)!
         d.db
@@ -159,7 +159,7 @@ describe('OrchestrationDb Run state', () => {
         expect(d2?.messages.map((message) => message.id)).toEqual([question.id])
         expect(d2?.replayed).toBe(false)
         expect(d.getDeliveryRaw(d1.delivery.id)?.status).toBe('outstanding')
-        expect(heartbeats.map((heartbeat) => d.getMessageById(heartbeat.id)?.read)).toEqual([
+        expect(updates.map((update) => d.getMessageById(update.id)?.read)).toEqual([
           0, 0, 0
         ])
         // An untyped check keeps whole-FIFO replay: the oldest outstanding delivery first.
@@ -174,7 +174,7 @@ describe('OrchestrationDb Run state', () => {
         })
         d.acknowledgeRunDelivery({ ...params, deliveryId: d2!.delivery.id })
         const status = insert(d, run.id, 'status', 'status')
-        const later = insert(d, run.id, 'later heartbeat', 'heartbeat')
+        const later = insert(d, run.id, 'later update', 'status')
         expect(d.getOrCreateRunDelivery(params)?.messages.map((message) => message.id)).toEqual([
           status.id,
           later.id
@@ -198,7 +198,7 @@ describe('OrchestrationDb Run state', () => {
         const d = createDb()
         const run = createBoundRun(d)
         const params = { runId: run.id, consumerGeneration: run.consumer_generation }
-        const heartbeat = insert(d, run.id, 'heartbeat', 'heartbeat')
+        const update = insert(d, run.id, 'update', 'status')
         const done = insert(d, run.id, 'done', 'worker_done')
         const mixed = d.getOrCreateRunDelivery(params)!
         const before = deliveryCount(d)
@@ -207,7 +207,7 @@ describe('OrchestrationDb Run state', () => {
 
         expect(replay?.delivery.id).toBe(mixed.delivery.id)
         expect(replay?.replayed).toBe(true)
-        expect(replay?.messages.map((message) => message.id)).toEqual([heartbeat.id, done.id])
+        expect(replay?.messages.map((message) => message.id)).toEqual([update.id, done.id])
         expect(deliveryCount(d)).toEqual(before)
       })
     })
@@ -347,7 +347,7 @@ describe('OrchestrationDb Run state', () => {
       expect(d.getRun(parent.id)?.coordinator_handle).toBe('term_coord')
     })
 
-    it('binds creation to one pane and fences that pane when it creates another Run', () => {
+    it('binds creation to one pane and keeps that Run when the pane creates another', () => {
       const d = createDb()
       const first = d.createRun({
         objective: 'First objective',
@@ -365,9 +365,8 @@ describe('OrchestrationDb Run state', () => {
         coordinatorPaneKey: 'tab_b:11111111-1111-4111-8111-111111111111'
       })
       expect(d.getRun(first.id)).toMatchObject({
-        coordinator_handle: null,
-        coordinator_pane_key: null,
-        consumer_generation: 2
+        coordinator_handle: 'term_first',
+        consumer_generation: 1
       })
       expect(d.getCurrentRunForPane('tab_b:11111111-1111-4111-8111-111111111111')?.id).toBe(
         second.id

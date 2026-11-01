@@ -6,21 +6,24 @@ vi.mock('../selectors', () => ({ getTerminalHandle: vi.fn() }))
 
 import { printResult } from '../format'
 import { ORCHESTRATION_HANDLERS } from './orchestration'
+import { orchestrationTestContext } from './orchestration-handler-test-context'
 
 async function formatSend(result: unknown, json = false): Promise<string> {
   callMock.mockReset().mockResolvedValueOnce({ result })
   vi.mocked(printResult).mockClear()
-  await ORCHESTRATION_HANDLERS['orchestration send']({
-    flags: new Map([
-      ['from', 'term_sender'],
-      ['to', 'term_recipient'],
-      ['subject', 'ping']
-    ]),
-    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the send handler reads only `call`; a real RuntimeClient would open a socket.
-    client: { call: callMock } as never,
-    cwd: '/workspace',
-    json
-  })
+  await ORCHESTRATION_HANDLERS['orchestration send'](
+    orchestrationTestContext(
+      callMock,
+      new Map<string, string | boolean>([
+        ['full', true],
+        ['from', 'term_sender'],
+        ['to', 'term_recipient'],
+        ['subject', 'ping']
+      ]),
+      json,
+      '/workspace'
+    )
+  )
   expect(printResult).toHaveBeenCalledOnce()
   const printCall = vi.mocked(printResult).mock.calls[0]
   if (!printCall) {

@@ -1,6 +1,6 @@
 import {
   captureStructuredAgentCliSource,
-  structuredAgentCliSourcePathFromEvidence
+  structuredAgentCliSourceFromEvidence
 } from '../../native-chat/structured-agent-cli-source'
 import type { OrcaRuntimeWithRestoreStructuredAgentSessionTabsOnce as RestoreStructuredAgentSessionTabsOnceMethods } from './structured-session-tab-restoration'
 import { agentSessionRefusalError } from '../../../shared/agent-session-wire-refusals'
@@ -104,7 +104,11 @@ export abstract class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport exte
     const structuredAgentCliSourceEvidence =
       input.structuredAgentCliSourceEvidence ??
       (input.resumeFrom?.cliSource
-        ? captureStructuredAgentCliSource(() => this.getAgentProviderSessionRows())
+        ? captureStructuredAgentCliSource(
+            () => this.getAgentProviderSessionRows(),
+            input.resumeFrom.cliSource,
+            (source) => this.getStructuredAgentCliSourceRoute(source)
+          )
         : undefined)
     const hostLaunchDirectory = isFloatingWorkspaceSelector(input.worktree)
       ? (await this.resolveRuntimeFileTarget(input.worktree)).worktree.path
@@ -162,7 +166,13 @@ export abstract class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport exte
     await this.accounts.prepareHostAgentLaunch(input.agent)
     const settings = this.requireStore().getSettings()
     const launchEnv = this.structuredAgentLaunchEnv(input.agent, settings)
-    const options = this.structuredAgentSessionLaunchSeedOptions(input.agent)
+    const options = structuredLaunchSeedOptions(
+      {
+        ...settings,
+        agentLaunchChoices: input.resumeFrom ? undefined : settings.agentLaunchChoices
+      },
+      input.agent
+    )
     const location = await this.resolveStructuredAgentSessionLocation(input.worktree)
     const definition = this.requireRegisteredStructuredAgent(input.agent)
     const host = getStructuredAgentSessionHost()
@@ -195,8 +205,8 @@ export abstract class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport exte
             agent: input.agent,
             transcriptImport,
             providerSessionId: resumeFrom.providerSessionId,
-            resolveTranscriptPath: () =>
-              structuredAgentCliSourcePathFromEvidence({
+            resolveTranscriptSource: () =>
+              structuredAgentCliSourceFromEvidence({
                 agent: input.agent,
                 resumeFrom,
                 workspaceId: location.workspaceId,
@@ -225,6 +235,15 @@ export abstract class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport exte
             adopt: structuredAgentSessionAdoptAttach({
               definition,
               handleNamesTranscript: transcriptImport!.handleNamesTranscript,
+              ...(input.agent === 'codex'
+                ? {
+                    conversationStore:
+                      transcriptImport!.conversationStore({
+                        accountHome: adoption.accountHome,
+                        launchEnv
+                      }) ?? undefined
+                  }
+                : {}),
               transcriptPath: adoption.transcriptPath,
               providerSessionId: input.resumeFrom.providerSessionId,
               workspaceCwd

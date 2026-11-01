@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { recordLegacyUserTakeover } from './legacy-user-takeover.test-support'
 import { createOrchestrationWorkerReleaseHarness } from './worker-release.test-support'
 
 export function registerWorkerReleaseInventoryTests(): void {
@@ -65,10 +66,10 @@ export function registerWorkerReleaseInventoryTests(): void {
       })
     })
 
-    it('names the user takeover that keeps an external reuse from releasing', async () => {
+    it('names the legacy user takeover that keeps an external reuse from releasing', async () => {
       h.setup()
       const first = await h.startSettledWorker('succeeded')
-      await h.call('orchestration.workerTerminalUserInput', { paneKey: h.workerPaneKey })
+      expect(recordLegacyUserTakeover(h.db, h.workerPaneKey, 'desktop_terminal_input')).toBe(1)
       const second = await h.startSettledWorker('succeeded', { terminal: 'term_worker' })
       expect(h.db.getWorkerTerminalResourceByOwner(second.dispatchId)?.ownership_state).toBe(
         'external'

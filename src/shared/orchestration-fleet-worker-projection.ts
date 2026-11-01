@@ -131,6 +131,9 @@ export function projectFleetNextAction(
   if (worker.workerStage === 'released') {
     return { kind: 'none', argv: [] }
   }
+  if (worker.resource?.autoReleaseAt) {
+    return { kind: 'none', argv: [] }
+  }
   if (
     worker.resource &&
     isWorkerTerminalReclaimable({
@@ -153,8 +156,8 @@ export function projectFleetNextAction(
     return { kind: 'none', argv: [] }
   }
   // Settled workers whose terminal release was refused: worker-show and worker-release would only repeat it.
-  if (SETTLED_WORKER_STATES.has(worker.workerState) && worker.resource) {
-    const reason = heldTerminalReason(worker.resource)
+  if (SETTLED_WORKER_STATES.has(worker.workerState)) {
+    const reason = worker.resource ? heldTerminalReason(worker.resource) : null
     return reason ? { kind: 'none', argv: [], reason } : { kind: 'none', argv: [] }
   }
   // Unsettled workers with proven exits need transcript recovery, then stop/abandon; unverifiable absence cannot qualify.
@@ -203,7 +206,10 @@ function heldTerminalReason(
   if (resource.releaseState === 'requested' || resource.releaseState === 'releasing') {
     return 'release_pending'
   }
-  if (resource.releaseState === 'retained' && resource.retainedReason === 'user_requested') {
+  if (
+    resource.releaseState === 'retained' &&
+    (resource.retainedReason === 'user_requested' || resource.retainedReason === 'user_kept')
+  ) {
     return 'user_retained'
   }
   // Retained `identity_unproven`, or a stopped/abandoned worker that release always refuses so.
@@ -292,6 +298,7 @@ export function projectOrchestrationFleetWorker(
       blockerAgeMs: blockerAges.length ? Math.max(...blockerAges) : null
     },
     resource: projectResource(worker),
+    ...(worker.resource?.autoReleaseAt ? { autoReleaseAt: worker.resource.autoReleaseAt } : {}),
     nextAction: projectFleetNextAction({ ...worker, pendingInput }, liveness),
     attention: projectOrchestrationFleetAttention({
       isRoot: worker.parentTaskId === null,
