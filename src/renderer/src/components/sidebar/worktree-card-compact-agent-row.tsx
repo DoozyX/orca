@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef } from 'react'
 import { DashboardAgentChildDisclosure } from '@/components/dashboard/DashboardAgentChildDisclosure'
-import { AgentStateDot, agentStateLabel } from '@/components/AgentStateDot'
+import { AgentStateDot, agentStateLabel, type AgentDotState } from '@/components/AgentStateDot'
 import { AgentChildRowContent } from '@/components/AgentChildRowContent'
 import type { DashboardAgentRow as DashboardAgentRowData } from '@/components/dashboard/useDashboardData'
 import { AgentTypeIcon } from '@/lib/agent-type-icon'
@@ -14,7 +14,6 @@ import { formatAgentToolPreview } from '@/lib/agent-row-tool-preview'
 import { agentNoUpdateLabel } from '../../../../shared/agent-row-decay-state'
 import { useAgentRowConversationName } from '@/components/dashboard/use-agent-row-conversation-name'
 import { lastEnteredDoneAt } from '@/components/dashboard/agent-finished-timestamp'
-import { isDerivedChildRow } from '@/components/dashboard/derived-child-row'
 import CacheTimer, { usePromptCacheCountdownForPane } from './CacheTimer'
 import { formatShortTimeAgo } from '@/lib/short-time-ago'
 import { agentVerdictStatusLine } from '@/lib/agent-verdict-status-line'
@@ -40,10 +39,6 @@ export function getCompactAgentSecondary(
   lastAssistantMessageOverride?: string,
   presentation: ProgramStatusPresentation = resolveRowProgramStatus(agent).presentation
 ): string {
-  // The parent row already says Monitoring; each child is just its label and age.
-  if (agent.rowSource === 'monitored-work') {
-    return ''
-  }
   // Program-reported blocks need user attention before other row details.
   if (presentation.attention) {
     return programStatusAttentionLine(presentation.attention)
@@ -104,6 +99,8 @@ type CompactAgentRowProps = {
   onSendTargetClick?: (paneKey: string) => void
   childAgentCount?: number
   childAgentsExpanded?: boolean
+  // Shown beside the collapsed count so hidden sub-agent work stays visible.
+  collapsedChildAgentsState?: AgentDotState
   onToggleChildAgents?: () => void
   isFocusedPane?: boolean
   hideIdentityIcon?: boolean
@@ -122,6 +119,7 @@ export const CompactAgentRow = React.memo(function CompactAgentRow({
   onSendTargetClick,
   childAgentCount,
   childAgentsExpanded = false,
+  collapsedChildAgentsState,
   onToggleChildAgents,
   isFocusedPane = false,
   hideIdentityIcon = false,
@@ -134,8 +132,8 @@ export const CompactAgentRow = React.memo(function CompactAgentRow({
     typeof childAgentCount === 'number' &&
     childAgentCount > 0 &&
     typeof onToggleChildAgents === 'function'
-  // Child agentType contains its name or 'unknown', not a provider; nesting conveys identity without a misleading letter icon.
-  const hideIcon = hideIdentityIcon || isDerivedChildRow(agent)
+  // Child agentType contains its name, not a provider; nesting conveys identity without a misleading letter icon.
+  const hideIcon = hideIdentityIcon || agent.rowSource === 'subagent'
   const { presentation, dotStateOverride } = resolveRowProgramStatus(agent)
   const dotState = dotStateOverride ?? getAgentDotState(agent)
   const conversationName = useAgentRowConversationName(agent)
@@ -163,7 +161,7 @@ export const CompactAgentRow = React.memo(function CompactAgentRow({
     primary,
     secondary
   )
-  const rowTitle = agent.detail ?? `${leadingText}${trailingText ? ` - ${trailingText}` : ''}`
+  const rowTitle = `${leadingText}${trailingText ? ` - ${trailingText}` : ''}`
   const model = agent.entry.model?.trim() ?? ''
   const shortTime = getCompactAgentTime(agent, now)
   const cacheTimer = usePromptCacheCountdownForPane(agent.paneKey, cacheTimerActive)
@@ -271,10 +269,13 @@ export const CompactAgentRow = React.memo(function CompactAgentRow({
       {hasChildDisclosure && !childAgentsExpanded && (
         <span
           className={cn(
-            'shrink-0 text-[10px] tabular-nums',
+            'inline-flex shrink-0 items-center gap-0.5 text-[10px] tabular-nums',
             highlighted ? 'text-foreground/70' : 'text-muted-foreground/70'
           )}
         >
+          {collapsedChildAgentsState && (
+            <AgentStateDot state={collapsedChildAgentsState} size="sm" tooltipSide="right" />
+          )}
           +{childAgentCount}
         </span>
       )}

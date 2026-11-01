@@ -43,8 +43,8 @@ export async function deliverAndSettleWorkerStartReadiness(args: {
   mode: WorkerStartModeReceipt
   /** The caller's timeout, as the receipt reports it. */
   timeoutMs: number
-  /** When the readiness budget ends; a structured preamble waits on its agent, and a launched agent's brief settles its foreground, until then. */
-  readinessDeadlineMs: number
+  /** When the caller's timeout runs out; a structured preamble waits on its agent until then. */
+  readinessDeadline: number
   effects: WorkerEffect[]
   terminalRevealWarning: string | undefined
   /** Keeps the caller's failure receipt naming the stage that actually failed. */
@@ -68,7 +68,7 @@ export async function deliverAndSettleWorkerStartReadiness(args: {
     devMode: args.devMode,
     requestId: args.requestId,
     launchedAgent: args.launchedAgent,
-    readinessDeadlineMs: args.readinessDeadlineMs
+    readinessTimeoutMs: Math.max(0, args.readinessDeadline - Date.now())
   })
   effects.push({
     kind: 'dispatch_input',
@@ -104,7 +104,11 @@ export async function deliverAndSettleWorkerStartReadiness(args: {
   // A worker report can settle the dispatch while turn observation is outstanding.
   const currentWorker = db.getWorkerDispatch(args.dispatchId)
   const alreadySettled = currentWorker && currentWorker.state !== 'starting'
-  if (turnStart.verdict === 'unobserved' && !alreadySettled) {
+  // Only Orca's own worker chat queues behind its own turn, so its card is sure to run; a user's chat may drop it.
+  const queuedOnOwnWorker =
+    turnStart.queued === true &&
+    db.getWorkerTerminalResourceByOwner(args.dispatchId)?.ownership_state === 'owned'
+  if (turnStart.verdict === 'unobserved' && !queuedOnOwnWorker && !alreadySettled) {
     // Keep authority and terminal for recovery reports, but never claim ready for an unobserved turn.
     effects.push({
       kind: 'dispatch_input',
@@ -156,7 +160,7 @@ export async function deliverAndSettleWorkerStartReadiness(args: {
     state: reportedOutcome ? 'ready' : worker.state,
     stage: worker.stage,
     ...(reportedOutcome ? { workerOutcome: reportedOutcome } : {}),
-    turnStart: turnStart.verdict,
+    turnStart: queuedOnOwnWorker ? 'queued' : turnStart.verdict,
     setup: args.setupReceipt,
     launch: args.launchReceipt,
     mode: args.mode,

@@ -1,9 +1,8 @@
+import { parseWorkerTerminalHostScope } from '../../../../../../shared/worker-terminal-host-scope'
 import type { RuntimeTerminalInteractiveWait } from '../../../../../../shared/runtime-types'
 import type { WorkerTerminalReleaseRuntime } from '../../../../orchestration/worker-terminal-release-runtime'
 import type { OrchestrationDb } from '../../../../orchestration/db'
 import { OrchestrationError } from '../../../../orchestration/orchestration-error'
-import { isStartingWorkerTerminalCurrent } from './starting-worker-terminal-identity'
-import { parseWorkerTerminalHostScope } from '../../../../../../shared/worker-terminal-host-scope'
 import type { OrchestrationFleetWorker } from '../../../../../../shared/orchestration-fleet-projection'
 import { projectWorkerFleet } from './worker-list-projection'
 import { observeChatAssignee } from '../../../../orchestration/chat-assignee'
@@ -14,6 +13,7 @@ import type {
   WorkerDispatchRow
 } from '../../../../orchestration/types'
 import { ORCA_LAYOUT_OWNER_IS_MAIN } from '../../../../../../shared/layout-owner-switch'
+import { exposeDispatchContext } from './dispatch-context-exposure'
 
 /** Recover live handles by recorded process incarnation so stale durable handles cannot hide and leak running workers. */
 export async function inspectWorkerTerminal(
@@ -66,11 +66,11 @@ export async function inspectWorkerTerminal(
     // The re-mint above failed, so no live handle resolved; report the durable handle unresolved.
     return { terminal: null, exact: false, status: 'missing', terminalHandle: null }
   }
-  const paneKey = runtime.getTerminalPaneKey(effectiveHandle)
-  const processIncarnation = runtime.getTerminalProcessIncarnation(effectiveHandle)
-  const exact =
-    db.isDispatchProcessCurrent({ dispatchId, paneKey, processIncarnation }) ||
-    isStartingWorkerTerminalCurrent(db, dispatchId, paneKey, processIncarnation)
+  const exact = db.isDispatchProcessCurrent({
+    dispatchId,
+    paneKey: runtime.getTerminalPaneKey(effectiveHandle),
+    processIncarnation: runtime.getTerminalProcessIncarnation(effectiveHandle)
+  })
   if (!exact) {
     return { terminal, exact, status: 'identity_changed', terminalHandle: effectiveHandle }
   }
@@ -93,9 +93,7 @@ export async function inspectWorkerTerminal(
   }
   if (!verdict) {
     const dispatch = db.getDispatchContextById?.(dispatchId)
-    const persistedHostScope = parseWorkerTerminalHostScope(
-      dispatch?.host_scope ?? db.getWorkerTerminalResourceByOwner(dispatchId)?.host_scope ?? null
-    )
+    const persistedHostScope = parseWorkerTerminalHostScope(dispatch?.host_scope ?? null)
     const currentHostScope = runtime.getOrchestrationDispatchAuthority?.(effectiveHandle)?.hostScope
     if (persistedHostScope?.kind === 'ssh' || currentHostScope?.kind === 'ssh') {
       return {
@@ -131,7 +129,13 @@ export async function inspectWorkerTerminal(
       terminalHandle: effectiveHandle
     }
   }
-  return { terminal, exact, status: 'exited', agentWait, terminalHandle: effectiveHandle }
+  return {
+    terminal,
+    exact,
+    status: 'exited',
+    agentWait,
+    terminalHandle: effectiveHandle
+  }
 }
 
 /** Emit agentWait:null only after checking the exact worker; absence means unknown. Name lost contact when liveness is unverifiable. */
@@ -161,34 +165,6 @@ function exposeContextOnlyWorker(dispatch: DispatchContextRow) {
     lastError: dispatch.last_failure,
     createdAt: dispatch.created_at,
     updatedAt: dispatch.completed_at ?? dispatch.created_at
-  }
-}
-
-// Hide authority hashes and decode host_scope; emit one camelCase shape matching exposeWorker.
-export function exposeDispatchContext(dispatch: DispatchContextRow) {
-  return {
-    id: dispatch.id,
-    runId: dispatch.run_id,
-    taskId: dispatch.task_id,
-    // Keep dispatch.task_id beside the rename because shipped CLIs still read it.
-    task_id: dispatch.task_id,
-    contractVersion: dispatch.contract_version,
-    assigneeHandle: dispatch.assignee_handle,
-    assigneePaneKey: dispatch.assignee_pane_key,
-    processIncarnation: dispatch.process_incarnation,
-    capabilityRevokedAt: dispatch.capability_revoked_at,
-    retryOfDispatchId: dispatch.retry_of_dispatch_id,
-    creatorDispatchId: dispatch.creator_dispatch_id,
-    hostScope: parseWorkerTerminalHostScope(dispatch.host_scope),
-    status: dispatch.status,
-    failureCount: dispatch.failure_count,
-    lastFailure: dispatch.last_failure,
-    terminationReason: dispatch.termination_reason,
-    depth: dispatch.depth,
-    dispatchedAt: dispatch.dispatched_at,
-    completedAt: dispatch.completed_at,
-    createdAt: dispatch.created_at,
-    lastHeartbeatAt: dispatch.last_heartbeat_at
   }
 }
 
@@ -315,8 +291,6 @@ export async function callFederatedWorkerShow(
     /** Absent from servers that predate the field; absence is unknown, not "not waiting". */
     agentWait?: RuntimeTerminalInteractiveWait | null
   }
-  /** Unvalidated; absent from servers that predate it. */
-  terminalResource?: unknown
 }> {
   const server = resolvePinnedFederatedServer(runtime, federated)
   return (await runtime.callOrchestrationWorkerServer(

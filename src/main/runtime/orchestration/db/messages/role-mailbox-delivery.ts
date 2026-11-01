@@ -5,11 +5,6 @@ import type { OrchestrationDb } from '../orchestration-db'
 import { exposeDeliveryTimestamps, exposeMessageListTimestamps } from '../utc-timestamp'
 import { requireMailboxConsumer } from './mailbox-consumer'
 import { ORCHESTRATION_DELIVERY_BATCH_LIMIT } from './mailbox-routing-page'
-import {
-  selectReplayableDelivery,
-  sqlPlaceholders,
-  typedWaitKey
-} from './mailbox-typed-wait-delivery'
 
 export function getDeliveryRaw(this: OrchestrationDb, id: string): DeliveryRow | undefined {
   return this.db.prepare('SELECT * FROM deliveries WHERE id = ?').get(id) as DeliveryRow | undefined
@@ -92,9 +87,11 @@ function selectMailboxDelivery(
     Math.max(params.limit ?? ORCHESTRATION_DELIVERY_BATCH_LIMIT, 1),
     ORCHESTRATION_DELIVERY_BATCH_LIMIT
   )
-  const wakeTypes = typedWaitKey(params.wakeTypes)
-  const existing = selectReplayableDelivery(db, params.mailboxHandle, wakeTypes)
-  if (existing) {
+  const outstanding = db.db
+    .prepare('SELECT id FROM outstanding_deliveries WHERE mailbox_handle = ?')
+    .get(params.mailboxHandle)
+  if (typeof outstanding?.id === 'string') {
+    const existing = requireDeliveryRaw(db, outstanding.id)
     if (existing.consumer_generation !== params.consumerGeneration) {
       throw new OrchestrationError(
         'consumer_fenced',
@@ -104,15 +101,28 @@ function selectMailboxDelivery(
     const messages = db.getDeliveryMessages(existing)
     return { delivery: exposeDeliveryTimestamps(existing), messages, replayed: true }
   }
-  const typeClause = wakeTypes ? `AND type IN (${sqlPlaceholders(wakeTypes.length)})` : ''
+  if (params.wakeTypes?.length) {
+    const placeholders = params.wakeTypes.map(() => '?').join(',')
+    const matching = db.db
+      .prepare(
+        `SELECT 1 FROM messages
+         WHERE run_id = ? AND to_handle = ? AND read = 0
+           AND delivery_contract = 'current_delivery'
+           AND type IN (${placeholders}) LIMIT 1`
+      )
+      .get(params.runId, params.mailboxHandle, ...params.wakeTypes)
+    if (!matching) {
+      return undefined
+    }
+  }
   const messageIds = db.db
     .prepare(
       `SELECT id FROM messages
        WHERE run_id = ? AND to_handle = ? AND read = 0
-         AND delivery_contract = 'current_delivery' ${typeClause}
+         AND delivery_contract = 'current_delivery'
        ORDER BY sequence ASC LIMIT ?`
     )
-    .all(params.runId, params.mailboxHandle, ...(wakeTypes ?? []), limit)
+    .all(params.runId, params.mailboxHandle, limit)
     .flatMap((row) => (typeof row?.id === 'string' ? [row.id] : []))
   if (messageIds.length === 0) {
     return undefined
@@ -121,16 +131,15 @@ function selectMailboxDelivery(
   db.db
     .prepare(
       `INSERT INTO deliveries (
-         id, run_id, mailbox_handle, consumer_generation, message_ids, wake_types
-       ) VALUES (?, ?, ?, ?, ?, ?)`
+         id, run_id, mailbox_handle, consumer_generation, message_ids
+       ) VALUES (?, ?, ?, ?, ?)`
     )
     .run(
       deliveryId,
       params.runId,
       params.mailboxHandle,
       params.consumerGeneration,
-      JSON.stringify(messageIds),
-      wakeTypes ? JSON.stringify(wakeTypes) : null
+      JSON.stringify(messageIds)
     )
   const delivery = requireDeliveryRaw(db, deliveryId)
   const messages = db.getDeliveryMessages(delivery)
@@ -218,16 +227,10 @@ function requireDeliveryRaw(db: OrchestrationDb, id: string): DeliveryRow {
   return delivery
 }
 
-/** With `wakeTypes`, only a batch that typed wait would replay counts. */
 export function hasOutstandingMailboxDelivery(
   this: OrchestrationDb,
-  mailboxHandle: string,
-  wakeTypes?: MessageType[]
+  mailboxHandle: string
 ): boolean {
-  const typed = typedWaitKey(wakeTypes)
-  if (typed) {
-    return selectReplayableDelivery(this, mailboxHandle, typed) !== undefined
-  }
   return Boolean(
     this.db
       .prepare('SELECT 1 FROM outstanding_deliveries WHERE mailbox_handle = ? LIMIT 1')
@@ -235,34 +238,20 @@ export function hasOutstandingMailboxDelivery(
   )
 }
 
-/** Typed waits keep one batch per `--types`; `id` is the batch an untyped check replays, `messageIds` spans every held batch. */
 export function getOutstandingMailboxDelivery(
   this: OrchestrationDb,
   mailboxHandle: string
 ): { id: string; messageIds: string[] } | undefined {
-  const rows = this.db
-    .prepare(
-      `SELECT id, message_ids FROM outstanding_deliveries WHERE mailbox_handle = ?
-       ORDER BY created_at, id`
-    )
-    .all(mailboxHandle)
-  let id: string | undefined
-  const messageIds: string[] = []
-  for (const row of rows) {
-    if (typeof row.id !== 'string' || typeof row.message_ids !== 'string') {
-      continue
-    }
-    const held: unknown = JSON.parse(row.message_ids)
-    if (
-      !Array.isArray(held) ||
-      !held.every((member): member is string => typeof member === 'string')
-    ) {
-      continue
-    }
-    id ??= row.id
-    messageIds.push(...held)
+  const row = this.db
+    .prepare('SELECT id, message_ids FROM outstanding_deliveries WHERE mailbox_handle = ? LIMIT 1')
+    .get(mailboxHandle)
+  if (typeof row?.id !== 'string' || typeof row.message_ids !== 'string') {
+    return undefined
   }
-  return id === undefined ? undefined : { id, messageIds }
+  const messageIds: unknown = JSON.parse(row.message_ids)
+  return Array.isArray(messageIds) && messageIds.every((id): id is string => typeof id === 'string')
+    ? { id: row.id, messageIds }
+    : undefined
 }
 
 export function fenceUnacknowledgedMailboxDeliveries(

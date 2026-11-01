@@ -31,9 +31,6 @@ export type FleetDurableWorker = {
   terminalState: FleetTerminalState | null
   pendingInput?: boolean
   pendingApproval?: boolean
-  pendingInputAgeMs?: number | null
-  pendingApprovalAgeMs?: number | null
-  checkpointAgeMs?: number | null
   terminationReason?: 'operator_close' | 'signaled' | 'exited' | 'unknown' | null
   outcome?: 'in_progress' | 'succeeded' | 'failed' | 'outcome_unknown' | 'finished_unverified'
   resource: {
@@ -47,7 +44,6 @@ export type FleetDurableWorker = {
     hostScope: string | null
     ownershipState: string
     releaseState: string
-    retainedReason: string | null
     /** A scheduled automatic release; the coordinator owes no release of its own. */
     autoReleaseAt?: string | null
     updatedAt: string
@@ -92,16 +88,7 @@ export type FleetNextAction = {
   /** `recover` = proven exit with no worker outcome; read the transcript, then stop or abandon. */
   kind: 'inspect' | 'release' | 'recover' | 'none'
   argv: string[]
-  /** Why a settled worker's held terminal earns no release; report it, never act on it. */
-  reason?: FleetHeldTerminalReason
 }
-
-export type FleetHeldTerminalReason =
-  | 'user_retained'
-  | 'identity_unproven'
-  | 'release_unknown'
-  | 'release_pending'
-  | 'not_owned'
 
 export type OrchestrationFleetWorker = {
   id: string
@@ -125,12 +112,6 @@ export type OrchestrationFleetWorker = {
     durable: true
     liveStatus: 'fresh' | 'stale' | 'unavailable' | 'redacted_restore'
     lastObservedAt: number | null
-  }
-  /** Host-computed durations; absent on older hosts, null when the source clock is unknown. */
-  diagnostics?: {
-    stateAgeMs: number | null
-    checkpointAgeMs: number | null
-    blockerAgeMs: number | null
   }
   resource: FleetResourceProjection
   /** When Orca releases this settled worker's terminal on its own, from the host that owns it. */

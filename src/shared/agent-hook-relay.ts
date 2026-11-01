@@ -10,7 +10,7 @@ import type {
   TurnEndDisposition
 } from './agent-status-types'
 import type { AgentMonitoredWorkSnapshot } from './agent-monitored-work'
-import type { AgentProviderSessionMetadata } from './agent-session-resume'
+import type { AgentProviderSessionMetadata } from './agent-session/lifecycle/agent-session-resume'
 
 // The relay must retain the URL-derived source discriminator for CLI attribution.
 const AGENT_HOOK_SOURCES = [

@@ -1,6 +1,6 @@
 import type { OrchestrationDb } from './db'
 import { OrchestrationError } from './orchestration-error'
-import type { DecisionGateRow, MessageRow } from './types'
+import type { MessageRow } from './types'
 
 export function openDecisionGateFromMessage(
   db: OrchestrationDb,
@@ -23,9 +23,8 @@ export function openDecisionGateFromMessage(
     return
   }
 
-  let gate: DecisionGateRow
   try {
-    gate = db.createGate({
+    db.createGate({
       taskId: payload.taskId,
       question: payload.question,
       options: payload.options,
@@ -46,20 +45,13 @@ export function openDecisionGateFromMessage(
     throw error
   }
 
-  onLog(
-    gate.preserved_dispatch_id === null
-      ? `Task ${payload.taskId} blocked on decision gate`
-      : `Decision gate recorded for Task ${payload.taskId}; supervised Dispatch ${gate.preserved_dispatch_id} keeps running`
-  )
+  onLog(`Task ${payload.taskId} blocked on decision gate`)
 }
 
 export function reblockTasksWithPendingGates(db: OrchestrationDb): void {
   // Only explicit human gate resolution may unblock these approval checkpoints.
   const pendingGates = db.listGates({ status: 'pending' })
   for (const gate of pendingGates) {
-    if (gate.preserved_dispatch_id !== null) {
-      continue
-    }
     const task = db.getTask(gate.task_id)
     if (task && task.status !== 'blocked') {
       db.updateTaskStatus(gate.task_id, 'blocked')

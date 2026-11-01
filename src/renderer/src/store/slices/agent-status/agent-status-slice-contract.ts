@@ -28,7 +28,7 @@ import type {
   ResumableTuiAgent,
   SleepingAgentLaunchConfig,
   SleepingAgentSessionRecord
-} from '../../../../../shared/agent-session-resume'
+} from '../../../../../shared/agent-session/lifecycle/agent-session-resume'
 import type { AgentPaneConversationIdentity } from '../agent-pane-conversation'
 import type { AgentStatusStateUpdate } from './agent-status-runtime'
 import type { ProgramStatusFacet } from '../../../../../shared/program-status/facet'
@@ -44,8 +44,6 @@ export type AgentStatusSlice = {
   updateAgentStatusState: (update: AgentStatusStateUpdate) => void
   /** Main-synced dispatch metadata for live panes that may only have title-derived status in the renderer. */
   runtimeAgentOrchestrationByPaneKey: Record<string, AgentStatusOrchestrationContext>
-  /** Main-synced panes past the orchestration display window whose run is still coordinated. */
-  runtimeAgentRunWorkerPaneKeys: Record<string, true>
   /** PTYs still reporting legacy numeric pane keys but with registry-backed UUID proof; stored separately from normal hook-reported status. */
   migrationUnsupportedByPtyId: Record<string, MigrationUnsupportedPtyEntry>
   /** Monotonic tick that advances when agent-status freshness boundaries pass. */
@@ -129,7 +127,6 @@ export type AgentStatusSlice = {
     entries: Record<string, AgentStatusOrchestrationContext>,
     producerHost?: string
   ) => void
-  setRuntimeAgentRunWorkerPaneKeys: (paneKeys: string[]) => void
 
   setMigrationUnsupportedPty: (entry: MigrationUnsupportedPtyEntry) => void
   clearMigrationUnsupportedPty: (ptyId: string) => void

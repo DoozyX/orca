@@ -3,13 +3,7 @@ import type { MailboxDeliveryBatch } from '../../../../orchestration/db/messages
 import type { OrcaRuntimeService } from '../../../../orca-runtime'
 import { OrchestrationError } from '../../../../orchestration/orchestration-error'
 import { formatMessageBanner } from '../../../../orchestration/formatter'
-import { ORCHESTRATION_MESSAGE_WAIT_DEFAULT_TIMEOUT_MS } from '../../../../../../shared/orchestration-message-wait-timeout'
-import {
-  acknowledgedOnlyReceipt,
-  deliveryReceipt,
-  exposeMessages,
-  wakeShareKey
-} from './mailbox-message-receipt'
+import { acknowledgedOnlyReceipt, deliveryReceipt, exposeMessages } from './mailbox-message-receipt'
 import { routeAllMailboxPages } from '../schemas'
 import { asDispatchFence, callerHoldsDispatchPane, dispatchFenced } from './dispatch-mailbox-fence'
 import { interruptedAcknowledgedCheck } from '../routing'
@@ -263,46 +257,40 @@ export async function checkWorkerMailbox(args: {
       return result(current)
     }
   }
-  const deadline = Date.now() + (params.timeoutMs ?? ORCHESTRATION_MESSAGE_WAIT_DEFAULT_TIMEOUT_MS)
-  // A co-woken waiter of other types may take this wake's mail; an empty take waits on until the deadline.
-  for (;;) {
-    // Binding can happen during recovery, before run-create/run-use can cancel this wait.
-    const waitResult =
-      activeDispatch && currentDispatchAssigneeRun(runtime, db, activeDispatch)
-        ? 'cancelled'
-        : await runtime.waitForMessage(address, {
-            typeFilter: typeFilter as string[] | undefined,
-            timeoutMs: Math.max(deadline - Date.now(), 0),
-            signal
-          })
-    await revalidateWorkerMailbox()
-    if (readCurrentGeneration() !== workerMailbox.generation) {
-      throw dispatchFenced()
-    }
-    if (waitResult === 'timed_out' || waitResult === 'cancelled') {
-      return {
-        ...result(undefined),
-        timedOut: waitResult === 'timed_out',
-        cancelled: waitResult === 'cancelled',
-        connectionLost: waitResult === 'cancelled' && signal?.aborted === true
-      }
-    }
-    if (params.peek) {
-      const arrived = readPeek()
-      return {
-        ...mailboxIdentity,
-        messages: exposeMessages(arrived),
-        count: arrived.length,
-        acknowledged: acknowledged?.delivery.id ?? null,
-        ...formatted(arrived)
-      }
-    }
-    const key = wakeShareKey(address, workerMailbox.generation, typeFilter)
-    const batch = waitResult.share(key, () => takeDelivery(typeFilter))
-    if (batch) {
-      // A waiter that shares another's take has no take transaction, so it receipts the batch on arrival.
-      args.recordMutationReceipt?.(result(batch))
-      return result(batch)
+  // Binding can happen during recovery, before run-create/run-use can cancel this wait.
+  const waitResult =
+    activeDispatch && currentDispatchAssigneeRun(runtime, db, activeDispatch)
+      ? 'cancelled'
+      : await runtime.waitForMessage(address, {
+          typeFilter: typeFilter as string[] | undefined,
+          timeoutMs: params.timeoutMs ?? undefined,
+          signal
+        })
+  await revalidateWorkerMailbox()
+  if (readCurrentGeneration() !== workerMailbox.generation) {
+    throw dispatchFenced()
+  }
+  if (waitResult === 'timed_out' || waitResult === 'cancelled') {
+    return {
+      ...result(undefined),
+      timedOut: waitResult === 'timed_out',
+      cancelled: waitResult === 'cancelled',
+      connectionLost: waitResult === 'cancelled' && signal?.aborted === true
     }
   }
+  if (params.peek) {
+    const arrived = readPeek()
+    return {
+      ...mailboxIdentity,
+      messages: exposeMessages(arrived),
+      count: arrived.length,
+      acknowledged: acknowledged?.delivery.id ?? null,
+      ...formatted(arrived)
+    }
+  }
+  const key = `${address}:${workerMailbox.generation}`
+  const batch = waitResult.share(key, () => takeDelivery(typeFilter))
+  // A waiter that shares another's take has no take transaction, so it receipts the batch on arrival.
+  args.recordMutationReceipt?.(result(batch))
+  return result(batch)
 }

@@ -1,4 +1,3 @@
-import { isWorkerTerminalReclaimable } from '../../../shared/worker-terminal-reclaimable'
 import type { FederatedDispatchRow, WorkerDispatchState } from './types'
 import { exposeUtcTimestamp } from './db/utc-timestamp'
 
@@ -31,21 +30,6 @@ export type WorkerTerminalRetainedReason =
 
 export type WorkerTerminalArchiveStatus = 'captured' | 'empty' | 'unavailable'
 
-export const WORKER_TERMINAL_TAKEOVER_SOURCES = [
-  'desktop_terminal_input',
-  'structured_session_input',
-  'remote_terminal_input'
-] as const
-
-/** The input path whose real keystrokes took a worker terminal over. */
-export type WorkerTerminalTakeoverSource = (typeof WORKER_TERMINAL_TAKEOVER_SOURCES)[number]
-
-/** `unrecorded` for a row taken over before v45 kept the evidence. */
-export type WorkerTerminalTakeoverEvidence = {
-  source: WorkerTerminalTakeoverSource | 'unrecorded'
-  at: string | null
-}
-
 export type WorkerTerminalResourceRow = {
   id: string
   origin_dispatch_id: string
@@ -68,13 +52,12 @@ export type WorkerTerminalResourceRow = {
   last_recovery_at: string | null
   archive_source: string | null
   archive_status: WorkerTerminalArchiveStatus | null
-  /** NULL for a row taken over before v45 recorded the evidence. */
-  takeover_source: WorkerTerminalTakeoverSource | null
-  takeover_at: string | null
   auto_release_at: string | null
   auto_release_dispatch_id: string | null
   created_at: string
   updated_at: string
+  /** JSON WorkerResumeSession: the conversation a closed terminal worker reopens in. */
+  resume_session: string | null
 }
 
 // Terminal state exposed by worker-list; process accounting, never Task/Dispatch outcome.
@@ -137,11 +120,8 @@ export function deriveWorkerTerminalListState(params: {
     return 'retained'
   }
   if (
-    isWorkerTerminalReclaimable({
-      workerState: params.workerState,
-      ownershipState: resource.ownership_state,
-      releaseState: resource.release_state
-    })
+    params.workerState !== 'unsupervised' &&
+    WORKER_RELEASABLE_STATES.includes(params.workerState)
   ) {
     return 'reclaimable'
   }

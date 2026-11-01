@@ -1,10 +1,9 @@
 import type { OrchestrationDb } from '../../../../orchestration/db'
 import {
   liveWorkerTerminalAutoReleaseAt,
-  type WorkerTerminalResourceRow,
-  type WorkerTerminalTakeoverEvidence
+  type WorkerTerminalResourceRow
 } from '../../../../orchestration/worker-terminal-ownership'
-import type { WorkerReleaseReceipt } from './worker-release-receipt'
+import type { WorkerReleaseReceipt } from './worker-release-completion'
 
 export function exposeWorkerTerminalResource(resource: WorkerTerminalResourceRow): {
   id: string
@@ -24,7 +23,6 @@ export function exposeWorkerTerminalResource(resource: WorkerTerminalResourceRow
   lastRecoveryAt: string | null
   autoReleaseAt: string | null
   archive: { source: string | null; status: string | null }
-  takeover: WorkerTerminalTakeoverEvidence | null
 } {
   return {
     id: resource.id,
@@ -43,28 +41,8 @@ export function exposeWorkerTerminalResource(resource: WorkerTerminalResourceRow
     recoveryAttemptCount: resource.recovery_attempt_count,
     lastRecoveryAt: resource.last_recovery_at,
     autoReleaseAt: liveWorkerTerminalAutoReleaseAt(resource),
-    archive: { source: resource.archive_source, status: resource.archive_status },
-    takeover: workerTerminalTakeoverEvidence(resource)
+    archive: { source: resource.archive_source, status: resource.archive_status }
   }
-}
-
-/** The signal behind a user takeover; null for a row retained for any other reason. */
-export function workerTerminalTakeoverEvidence(
-  resource: WorkerTerminalResourceRow
-): WorkerTerminalTakeoverEvidence | null {
-  if (resource.retained_reason !== 'user_takeover') {
-    return null
-  }
-  return resource.takeover_source
-    ? { source: resource.takeover_source, at: resource.takeover_at }
-    : { source: 'unrecorded', at: null }
-}
-
-export function takeoverReceiptField(resource: WorkerTerminalResourceRow): {
-  takeover?: WorkerTerminalTakeoverEvidence
-} {
-  const takeover = workerTerminalTakeoverEvidence(resource)
-  return takeover ? { takeover } : {}
 }
 
 export function archiveSummary(

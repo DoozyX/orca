@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import { OrchestrationDb } from './db/orchestration-db'
 import {
   selectOrchestrationPointerBatch,
-  shouldReleaseOrchestrationPointer,
   type OrchestrationMessageWaiter
 } from './mailbox-pointer-eligibility'
 
@@ -130,63 +129,6 @@ describe('selectOrchestrationPointerBatch', () => {
         heldDeliveryId: second.id,
         messages: [expect.objectContaining({ id: later.id })]
       })
-    } finally {
-      db.close()
-    }
-  })
-
-  it('holds the mail of every unacked batch when typed and untyped batches coexist', () => {
-    const db = new OrchestrationDb(':memory:')
-    try {
-      const run = db.createRun({
-        objective: 'Typed and untyped batches',
-        coordinatorHandle: 'term_coord',
-        coordinatorPaneKey: 'tab:11111111-1111-4111-8111-111111111111'
-      })
-      const mailbox = `run:${run.id}`
-      const params = {
-        runId: run.id,
-        mailboxHandle: mailbox,
-        consumerGeneration: run.consumer_generation
-      }
-      const heartbeat = db.insertMessage({
-        runId: run.id,
-        from: 'worker',
-        to: mailbox,
-        subject: 'heartbeat',
-        type: 'heartbeat'
-      })
-      db.getOrCreateMailboxDelivery(params)
-      const done = db.insertMessage({
-        runId: run.id,
-        from: 'worker',
-        to: mailbox,
-        subject: 'done',
-        type: 'worker_done'
-      })
-      db.getOrCreateMailboxDelivery({ ...params, wakeTypes: ['worker_done'] })
-      const newer = db.insertMessage({ runId: run.id, from: 'worker', to: mailbox, subject: 'new' })
-
-      const batch = selectOrchestrationPointerBatch({
-        db,
-        mailboxHandle: mailbox,
-        waiters: undefined,
-        reservedTypes: undefined
-      })
-      const replay = db.getOrCreateMailboxDelivery(params)!
-      expect(replay.replayed).toBe(true)
-      expect(batch.heldDeliveryId).toBe(replay.delivery.id)
-      expect(batch.messages.map((message) => message.id)).toEqual([newer.id])
-      for (const held of [heartbeat, done]) {
-        expect(
-          shouldReleaseOrchestrationPointer(
-            db,
-            mailbox,
-            [{ id: held.id, type: held.type }],
-            undefined
-          )
-        ).toBe(true)
-      }
     } finally {
       db.close()
     }

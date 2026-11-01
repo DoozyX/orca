@@ -37,7 +37,6 @@ import type { MutationReceiptStoreMethods } from './mutation-receipts/mutation-r
 import type { LifecycleTransitionMethods } from './lifecycle-transition'
 import type { QuestionThreadsMethods } from './questions/question-threads'
 import type { OrchestrationResetMethods } from './reset/orchestration-reset'
-import type { ResourceLeaseStoreMethods } from './resource-lease/resource-lease-store'
 import type { RunBindingMethods } from './runs/run-binding'
 import type { RunCoordinatorMailRoutingMethods } from './runs/run-coordinator-mail-routing'
 import type { RunCreateMethods } from './runs/run-create'
@@ -67,7 +66,6 @@ import type { WorkerTerminalReleaseMethods } from './worker-terminal/worker-term
 import type { StructuredPointerOperationStoreMethods } from './messages/structured-pointer-operation-store'
 import type { WorkerTerminalResourceStoreMethods } from './worker-terminal/worker-terminal-resource-store'
 import type { WorkerTerminalTransferMethods } from './worker-terminal/worker-terminal-transfer'
-import type { WorkerTerminalHandleRebindMethods } from './worker-terminal/worker-terminal-handle-rebind'
 
 export type OrchestrationDbMethods = AttemptObservationStoreMethods &
   CreateTablesMethods &
@@ -124,9 +122,7 @@ export type OrchestrationDbMethods = AttemptObservationStoreMethods &
   FederationRelayItemMethods &
   StructuredPointerOperationStoreMethods &
   WorkerTerminalResourceStoreMethods &
-  ResourceLeaseStoreMethods &
   WorkerTerminalTransferMethods &
-  WorkerTerminalHandleRebindMethods &
   WorkerTerminalReleaseMethods &
   WorkerTerminalArchiveMethods &
   WorkerTerminalAutoReleaseMethods &

@@ -1,6 +1,6 @@
 import type { CommandHandler } from '../../dispatch'
 import { printResult } from '../../format'
-import { formatAgentFieldsText, printOrchestrationResult } from './agent-view'
+import { printOrchestrationResult } from './agent-view'
 import { getOptionalJsonFlag, getOptionalStringFlag, getRequiredStringFlag } from '../../flags'
 import { callOrchestrationMutation } from './mutation-request'
 import { resolveCoordinatorTerminalHandle, runScopedSessionCaller } from './terminal-identity'
@@ -9,7 +9,6 @@ export const ORCHESTRATION_GATE_HANDLERS: Record<string, CommandHandler> = {
   'orchestration gate-create': async ({ flags, client, cwd, json }) => {
     const result = await callOrchestrationMutation<{
       gate: { id: string; task_id: string; status: string }
-      preservedDispatchId?: string
     }>(client, flags, 'orchestration.gateCreate', {
       task: getRequiredStringFlag(flags, 'task'),
       question: getRequiredStringFlag(flags, 'question'),
@@ -18,24 +17,15 @@ export const ORCHESTRATION_GATE_HANDLERS: Record<string, CommandHandler> = {
     })
     // The row echoes the question and options the caller just sent.
     if (!flags.has('full')) {
-      printOrchestrationResult(result, json, {
-        fields: (value) => ({
-          ...gateReceipt(value.gate),
-          preservedDispatchId: value.preservedDispatchId
-        }),
-        text: (fields) =>
-          fields.preservedDispatchId === undefined
-            ? formatAgentFieldsText(fields)
-            : `${formatAgentFieldsText(fields)}\n${preservedDispatchText(fields.preservedDispatchId)}`
-      })
+      printOrchestrationResult(result, json, { fields: (value) => gateReceipt(value.gate) })
       return
     }
-    printResult(result, json, (value) => {
-      const created = `Gate ${value.gate.id} created for task ${value.gate.task_id} [${value.gate.status}]`
-      return value.preservedDispatchId === undefined
-        ? created
-        : `${created}; ${preservedDispatchText(value.preservedDispatchId)}`
-    })
+    printResult(
+      result,
+      json,
+      (value) =>
+        `Gate ${value.gate.id} created for task ${value.gate.task_id} [${value.gate.status}]`
+    )
   },
 
   'orchestration gate-resolve': async ({ flags, client, cwd, json }) => {
@@ -60,7 +50,7 @@ export const ORCHESTRATION_GATE_HANDLERS: Record<string, CommandHandler> = {
       ? runScopedSessionCaller(flags)
       : await resolveCoordinatorTerminalHandle(flags, cwd, client)
     const result = await client.call<{
-      gates: { id: string; task_id: string; question: string; status: string }[]
+      gates: { id: string; task_id: string; question: string; options?: string; status: string }[]
       count: number
       runId?: string
     }>('orchestration.gateList', {
@@ -70,7 +60,19 @@ export const ORCHESTRATION_GATE_HANDLERS: Record<string, CommandHandler> = {
       from
     })
     if (!flags.has('full')) {
-      printOrchestrationResult(result, json, { fields: (value) => value })
+      // Rows also carry resolutions and timestamps that no next command takes.
+      printOrchestrationResult(result, json, {
+        fields: (value) => ({
+          gates: value.gates.map((gate) => ({
+            id: gate.id,
+            taskId: gate.task_id,
+            status: gate.status,
+            question: gate.question,
+            options: gate.options && gate.options !== '[]' ? gate.options : undefined
+          })),
+          runId: value.runId
+        })
+      })
       return
     }
     printResult(result, json, (value) => {
@@ -86,8 +88,4 @@ export const ORCHESTRATION_GATE_HANDLERS: Record<string, CommandHandler> = {
 
 function gateReceipt(gate: { id: string; task_id: string; status: string }) {
   return { gateId: gate.id, taskId: gate.task_id, status: gate.status }
-}
-
-function preservedDispatchText(dispatchId: string): string {
-  return `worker Dispatch ${dispatchId} keeps running and the Task is not blocked.`
 }

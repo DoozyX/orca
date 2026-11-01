@@ -5,7 +5,7 @@ import type {
   NativeChatBlock,
   NativeChatMessage,
   NativeChatSubagentEntry
-} from '../../../shared/native-chat-types'
+} from '../../../shared/native-chat/native-chat-types'
 import type { OrchestrationWorkerReadResult } from '../../../shared/orchestration-worker-output'
 import { formatWorkerRead, formatWorkerRelease, formatWorkerStart } from './worker-output'
 
@@ -486,20 +486,6 @@ describe('formatWorkerRead', () => {
 
     expect(output).toContain('[assistant] before\n[unsupported block]\nafter')
   })
-})
-
-it('prints host-computed diagnostics and preserves unknown ages for older hosts', () => {
-  const result = transcriptRead([])
-  result.projection = fleetProjection('live')
-  const projection = fleetProjection('live')
-  projection.diagnostics = { stateAgeMs: 9_000, checkpointAgeMs: null, blockerAgeMs: 3_000 }
-  const value = { ...result, projection }
-  expect(formatWorkerRead(value)).toContain(
-    'State age: 9000ms; checkpoint age: unknown; blocker age: 3000ms'
-  )
-  expect(formatWorkerRead(result)).toContain(
-    'State age: unknown; checkpoint age: unknown; blocker age: unknown'
-  )
 })
 
 describe('worker output compatibility and release receipts', () => {

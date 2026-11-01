@@ -73,9 +73,6 @@ export async function checkRunPendingMail(args: {
     const result = acknowledgedOnlyReceipt({ runId: run.id }, acknowledged.delivery.id)
     return { acknowledged: acknowledged.delivery.id, result }
   }
-  const wakeTypes = params.wait ? typeFilter : undefined
-  // A typed wait skips a nonmatching Run batch, so only a batch it would replay goes first.
-  const runReplayPending = () => db.hasOutstandingMailboxDelivery(address, wakeTypes)
   if (
     residual &&
     residual.run_id !== run.id &&
@@ -83,7 +80,7 @@ export async function checkRunPendingMail(args: {
       residual.assignee_orca_session_id === caller.orcaSessionId) &&
     callerHoldsDispatchPane(residual, paneKey) &&
     currentDispatchAssigneeRun(runtime, db, residual)?.id === run.id &&
-    (residualAck || !runReplayPending())
+    (residualAck || !db.hasOutstandingMailboxDelivery(address))
   ) {
     const result = await checkWorkerMailbox({
       params: { ...params, ack: residualAck, wait: false },
@@ -95,9 +92,9 @@ export async function checkRunPendingMail(args: {
       signal,
       activeDispatch: residual,
       remoteAttachment: undefined,
-      wakeTypes,
+      wakeTypes: params.wait ? typeFilter : undefined,
       // Accept the original owner's ack without creating a batch ahead of Run replay.
-      deferDelivery: runReplayPending,
+      deferDelivery: () => db.hasOutstandingMailboxDelivery(address),
       revalidateConsumer: () => {
         revalidateConsumer()
         const current = db.getActiveDispatchForIdentity(handle, paneKey)

@@ -214,7 +214,7 @@ describe('review loop v2 guide contract', () => {
     )
     expect(closing).toContain('| Review metrics ')
     expect(closing).toContain(
-      '`orca orchestration review-metrics --run <this run> --run <previous v2 run>`'
+      '`orca orchestration review-metrics --run <this run dir> --run <previous v2 run dir>`'
     )
     expect(closing).toContain('| Escapes ')
     expect(closing).toContain(

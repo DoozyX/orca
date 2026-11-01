@@ -29,11 +29,12 @@ import { replaceRuntimeEnvironmentRevisions } from '@/runtime/runtime-environmen
 import { recordHostModelCatalogSnapshot } from '@/runtime/host-model-catalog-snapshots'
 import { useStructuredAgentSessionOptions } from '@/components/native-chat/use-structured-agent-session-options'
 import { useNativeChatProvisionalLaunch } from '@/components/native-chat/use-native-chat-provisional-launch'
-import { structuredAgentSessionMessageSelection } from '../../src/shared/structured-agent-session-option-view'
-import { structuredAgentSessionModelId } from '../../src/shared/structured-agent-session-option-state'
+import { structuredAgentSessionMessageSelection } from '../../src/shared/agent-session/options/structured-agent-session-option-view'
+import { structuredAgentSessionModelId } from '../../src/shared/agent-session/options/structured-agent-session-option-state'
 import { createGlobalSettingsFixture } from '../../src/shared/global-settings-test-fixture'
 import { CreateIntentParams } from '../../src/shared/rpc-contract/structured-agent-session-params'
-import { structuredAgentSessionCreateFingerprint } from '../../src/shared/structured-agent-session-mutation'
+import { EMPTY_CLAUDE_HOME_BINDING_CATALOG } from '../../src/main/claude/claude-home-binding-empty-catalog.test-fixture'
+import { structuredAgentSessionCreateFingerprint } from '../../src/shared/agent-session/lifecycle/structured-agent-session-mutation'
 import {
   retryStructuredAgentSessionLaunchIntent,
   restoreStructuredAgentSessionLaunchIntent
@@ -101,7 +102,7 @@ it.each(['claude', 'codex'] as const)(
       }
     })
     Object.assign(mocks.settings, settings)
-    const store = { getSettings: () => settings }
+    const store = { getSettings: () => settings, ...EMPTY_CLAUDE_HOME_BINDING_CATALOG }
     // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: create-intent resolution only reads this runtime store's settings.
     const runtime = new OrcaRuntimeService(store as never, undefined, {
       prepareCodexStructuredLaunch: () => home

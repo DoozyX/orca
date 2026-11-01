@@ -41,7 +41,10 @@ ORCA orchestration worker-start --spec "<task>" --worktree current --agent codex
   asks or sharing would conflict: `--worktree new-child --setup run` nests it
   under yours so one run stays one tree; work that belongs to no run uses
   `--worktree new-top-level --repo id:<repoId> --name <short-name>`
-  (`ORCA repo list --json` gives the id).
+  (`ORCA repo list --json` gives the id). If nothing needs to come back to you
+  (the user will work in those chats), don't start workers; per workspace run
+  `ORCA worktree create --name <name> --no-parent --agent <agent> --prompt "<brief>" --json`
+  and end your turn.
 - Add `--model` only if the user named one or the Engine roles in
   `references/coordinator-loop.md` select one; consult them before an
   unpinned launch.
@@ -49,13 +52,15 @@ ORCA orchestration worker-start --spec "<task>" --worktree current --agent codex
   blocking"): `worker-start` per agent, then `worker-list` to poll and the
   waiting `check` below to settle. `worker-list` is one read per progress
   question; it takes no mail.
-- Outside your own Orca terminal, name yourself with
-  `--from <coordinator_handle>` on every coordinator verb and with
-  `--terminal <handle>` on a consuming `check`.
 - If `worker-start` fails, do not rerun it; read `failedStage` and load
   `references/recovery-and-cleanup.md`.
-- To steer a worker, use
-  `ORCA orchestration send --to dispatch:<dispatch_id> --subject "<topic>" --body "<guidance>"`.
+- To talk to a worker, use
+  `ORCA orchestration send --to dispatch:<dispatch_id> --subject "<topic>" --body "<message>"`
+  in any state: a working worker reads it now; a finished or closed one gets it
+  as a follow-up Task and reports with `worker_done`. The receipt says which.
+  Except on a paired server: a finished worker there refuses `send`, so start
+  new work there with `worker-start --on <server>` (load
+  `references/placement-and-remote.md` first).
 
 Never:
 
@@ -87,15 +92,12 @@ Never:
   Delivery left by an older Orca that already holds one of those types replays
   whole.
 
-Finished workers close on their own unless the user chose Keep open. To keep one
-for a follow-up, run `ORCA orchestration worker-retain --dispatch <dispatch_id>`.
-If `worker-list` shows no `autoReleaseAt` for a finished worker, release it yourself.
-Before the final report, run
-`ORCA orchestration worker-list --run <run_id> --terminal-state reclaimable` until
-it returns none, and report its `counts.release_unknown` and
-`counts.release_pending`. For a `release_unknown` row, run one `worker-show`; run
-`worker-release` again only if it shows the terminal resolving, otherwise record
-it as unresolved ownership. Absence is not exit.
+Finished workers close on their own unless `worker-list` gives one a `next`; follow
+it. `send` reopens a closed worker when you need it again.
+Start a worker in your workspace with `--keep-open` when the user will keep using
+its chat after it reports: they want to watch it or talk to it. To keep one already
+started, run
+`ORCA orchestration worker-keep-open --dispatch <dispatch_id>`.
 
 ## Task spec
 
@@ -120,9 +122,9 @@ assignment does not prove its agent stopped.
 
 | Situation                                      | Reference                                 |
 | ---------------------------------------------- | ----------------------------------------- |
-| Task DAGs, several Runs, reusing a worker      | `references/coordinator-loop.md`          |
+| Task DAGs, several Runs                        | `references/coordinator-loop.md`          |
 | Child worktrees, SSH, WSL, a connected server  | `references/placement-and-remote.md`      |
-| Group messages, inbox scripts                  | `references/messaging-and-gates.md`       |
+| Group messages                                 | `references/messaging-and-gates.md`       |
 | A failed or unknown worker; retry, stop, reset | `references/recovery-and-cleanup.md`      |
 | Custom argv or terminal layout                 | `references/low-level-topology.md`        |
 | Legacy labels, adopted Runs, takeover          | `references/legacy-contract-migration.md` |

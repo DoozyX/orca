@@ -29,6 +29,7 @@ function createController() {
     },
     notifyReposChanged: vi.fn(),
     resolveFolderConnectionId: () => null,
+    acquireFileWatcherRemoval: async () => ({ finish: async () => undefined }),
     teardownFolderWorkspacePtys: async () => undefined,
     cleanupRemovedFolderWorkspaceState: vi.fn(),
     onClaudeHomeBindingChanged,

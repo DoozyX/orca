@@ -23,7 +23,7 @@ import { resolveDecayedAgentRowState } from '../../../../shared/agent-row-decay-
 import { tabHasLivePty } from '../../../../shared/tab-has-live-pty'
 import { buildTitleDerivedAgentRows } from './worktree-title-derived-agent-rows'
 import type { TitleDerivedPaneForeground } from './title-derived-pane-agent-identity'
-import { buildDerivedChildRows } from './worktree-monitored-work-child-rows'
+import { buildSubagentChildRows } from './worktree-subagent-child-rows'
 import { compareWorktreeAgentRows } from './worktree-agent-row-order'
 import {
   effectiveWorktreeAgentRowStartedAt,
@@ -185,24 +185,16 @@ export function buildWorktreeAgentRows(args: {
           rowEntry.state === 'blocked' ||
           rowEntry.state === 'waiting')
       const startedAt = effectiveWorktreeAgentRowStartedAt(rowEntry)
-      const state = shouldDecay ? resolveDecayedAgentRowState(rowEntry, hasLivePty) : rowEntry.state
       rows.push({
         paneKey: rowEntry.paneKey,
         entry: rowEntry,
         tab,
         agentType: resolveRowAgentType(rowEntry, tab),
         rowSource: 'live',
-        state,
+        state: shouldDecay ? resolveDecayedAgentRowState(rowEntry, hasLivePty) : rowEntry.state,
         startedAt
       })
-      rows.push(
-        ...buildDerivedChildRows({
-          parentEntry: rowEntry,
-          parentState: state,
-          tab,
-          parentIsFresh: isFresh
-        })
-      )
+      rows.push(...buildSubagentChildRows({ parentEntry: rowEntry, tab, parentIsFresh: isFresh }))
       seenPaneKeys.add(rowEntry.paneKey)
     }
   }
@@ -237,27 +229,19 @@ export function buildWorktreeAgentRows(args: {
     const shouldDecay =
       !isFresh &&
       (rowEntry.state === 'working' || rowEntry.state === 'blocked' || rowEntry.state === 'waiting')
-    // Even synthesized tabs use available PTY evidence to distinguish idle from unverifiable decay.
-    const state = shouldDecay
-      ? resolveDecayedAgentRowState(rowEntry, tabHasLivePty(ptyIdsByTabId, tab.id))
-      : rowEntry.state
     rows.push({
       paneKey: rowEntry.paneKey,
       entry: rowEntry,
       tab,
       agentType: resolveRowAgentType(rowEntry, tab),
       rowSource: 'live',
-      state,
+      // Even synthesized tabs use available PTY evidence to distinguish idle from unverifiable decay.
+      state: shouldDecay
+        ? resolveDecayedAgentRowState(rowEntry, tabHasLivePty(ptyIdsByTabId, tab.id))
+        : rowEntry.state,
       startedAt
     })
-    rows.push(
-      ...buildDerivedChildRows({
-        parentEntry: rowEntry,
-        parentState: state,
-        tab,
-        parentIsFresh: isFresh
-      })
-    )
+    rows.push(...buildSubagentChildRows({ parentEntry: rowEntry, tab, parentIsFresh: isFresh }))
     seenPaneKeys.add(rowEntry.paneKey)
   }
 

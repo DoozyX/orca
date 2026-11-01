@@ -193,8 +193,6 @@ export type RuntimeNativeChatLaunchDraftResolution = {
 
 export type RuntimeSyncWindowGraphResult = RuntimeStatus & {
   agentOrchestrationByPaneKey?: Record<string, AgentStatusOrchestrationContext>
-  /** Panes past the orchestration display window that still belong to a coordinated run. */
-  agentRunWorkerPaneKeys?: string[]
   nativeChatLaunchDraftResolutions?: RuntimeNativeChatLaunchDraftResolution[]
   mobileSessionResyncWorktrees?: string[]
 }

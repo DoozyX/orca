@@ -98,19 +98,6 @@ export function shouldObserveCompletedMutation(
   return Array.isArray(stages) && !stages.includes('turn_started')
 }
 
-/** A send's `delivery` is the lane's live answer; a same-id replay must not repeat it as new. */
-export function durableMutationReceipt(method: string, receipt: unknown): unknown {
-  if (
-    method !== 'orchestration.send' ||
-    typeof receipt !== 'object' ||
-    receipt === null ||
-    !('delivery' in receipt)
-  ) {
-    return receipt
-  }
-  return Object.fromEntries(Object.entries(receipt).filter(([key]) => key !== 'delivery'))
-}
-
 export function attachMutationReplayNudge(
   receipt: unknown,
   replayNudge: MutationReplayNudge
@@ -207,7 +194,8 @@ export function getPendingWorkerStartRecovery(
   method: string,
   receipt: string | null
 ): { dispatchId: string } | undefined {
-  if (method !== 'orchestration.workerStart' || !receipt) {
+  // A send to a finished worker accepts a follow-up worker-start the same way.
+  if ((method !== 'orchestration.workerStart' && method !== 'orchestration.send') || !receipt) {
     return undefined
   }
   try {

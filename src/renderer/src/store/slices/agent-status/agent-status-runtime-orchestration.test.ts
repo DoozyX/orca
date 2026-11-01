@@ -540,19 +540,4 @@ import { resolveAttention } from '../../../../../shared/sidebar-list/smart-atten
       expect(store.getState().agentStatusByPaneKey[PANE_KEY]?.observation).toBeUndefined()
     })
   })
-
-  it('replaces run worker pane keys and keeps the reference for an identical publish', () => {
-    const store = createTestStore()
-    const workerPaneKey = 'tab-worker:11111111-1111-4111-8111-111111111111'
-
-    store.getState().setRuntimeAgentRunWorkerPaneKeys([workerPaneKey])
-    const published = store.getState().runtimeAgentRunWorkerPaneKeys
-    store.getState().setRuntimeAgentRunWorkerPaneKeys([workerPaneKey])
-
-    expect(published).toEqual({ [workerPaneKey]: true })
-    expect(store.getState().runtimeAgentRunWorkerPaneKeys).toBe(published)
-
-    store.getState().setRuntimeAgentRunWorkerPaneKeys([])
-    expect(store.getState().runtimeAgentRunWorkerPaneKeys).toEqual({})
-  })
 }

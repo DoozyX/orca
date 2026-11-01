@@ -34,9 +34,6 @@ export type FleetAgentActivity = {
   paneKey: string
   connectionId: string | null
   state: AgentStatusState
-  waiting?: boolean
-  pendingInput?: boolean
-  stateStartedAt?: number
   agentType: AgentType | null
   model: string | null
   worktreeId: string | null
@@ -80,25 +77,17 @@ export function mintFleetAgentStatusEvidence(
   status: AgentStatusIpcPayload,
   binding: FleetEvidenceBinding
 ): FleetAgentStatusEvidence {
-  // Why: a repaint renews `evidenceObservedAt` with no word from the agent, so it must not keep a worker live (#17).
-  const observedAt =
-    status.observation?.kind === 'snapshot' && status.agentEvidenceObservedAt !== undefined
-      ? status.agentEvidenceObservedAt
-      : status.evidenceObservedAt
   return {
     binding,
     clock:
-      observedAt !== undefined
-        ? { kind: 'observed', at: observedAt }
+      status.evidenceObservedAt !== undefined
+        ? { kind: 'observed', at: status.evidenceObservedAt }
         : { kind: 'delivery', at: status.receivedAt },
     deliveredAt: status.receivedAt,
     activity: {
       paneKey: status.paneKey,
       connectionId: status.connectionId,
       state: status.state,
-      pendingInput: Boolean(status.interactivePrompt),
-      waiting: (status.mainAgent ? status.mainAgent.state : status.state) === 'blocked',
-      stateStartedAt: status.mainAgent ? status.mainAgent.stateStartedAt : status.stateStartedAt,
       agentType: status.agentType ?? null,
       model: status.model ?? null,
       worktreeId: status.worktreeId ?? null,

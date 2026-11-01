@@ -318,6 +318,10 @@ export type DispatchContextRow = {
   completed_at: string | null
   created_at: string
   last_heartbeat_at: string | null
+  /** The settled Dispatch whose worker this follow-up continues. */
+  follow_up_of_dispatch_id: string | null
+  /** When its worker reported with coordinator mail unread, until that mail continues it. */
+  follow_up_mail_at: string | null
 }
 
 export type DecisionGateRow = {
@@ -330,8 +334,6 @@ export type DecisionGateRow = {
   resolution: string | null
   created_at: string
   resolved_at: string | null
-  /** Set on a recording-only gate: the supervised Dispatch it was opened under and left running. */
-  preserved_dispatch_id: string | null
 }
 
 export type CoordinatorRun = {

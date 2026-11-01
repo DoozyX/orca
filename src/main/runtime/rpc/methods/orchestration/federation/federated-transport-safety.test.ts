@@ -6,11 +6,10 @@ import {
   ORCHESTRATION_WORKER_STOP_VERDICT_RUNTIME_CAPABILITY
 } from '../../../../../../shared/protocol-version'
 import { OrcaRuntimeService } from '../../../../orca-runtime'
-import { OrchestrationDb } from '../../../../orchestration/db'
+import type { OrchestrationDb } from '../../../../orchestration/db'
 import type { FederatedDispatchRow } from '../../../../orchestration/types'
 import { readFederatedWorkerOutput } from './federated-worker-read'
 import { parseRemoteReleaseReceipt, releaseFederatedWorker } from './federated-worker-release'
-import { parseRemoteWorkerTerminalResource } from './federated-terminal-custody-wire'
 import { callFederatedWorkerShow } from '../worker/worker-observation'
 import { syncFederatedDispatch } from '../../../../orchestration/federation-sync'
 import { ORCHESTRATION_WORKER_STOP_METHODS } from '../worker/worker-stop'
@@ -190,115 +189,6 @@ describe('federated transport safety', () => {
     for (const call of callOrchestrationWorkerServer.mock.calls) {
       expect((call as unknown[])[5]).toEqual({ expectedEnvironmentPairingRevision: 73 })
     }
-  })
-
-  it.each([
-    [
-      'a retained terminal whose holder it names',
-      {
-        state: 'retained',
-        reason: 'external_terminal',
-        processAction: 'none',
-        currentOwnerDispatchId: 'dispatch-holder',
-        takeover: { source: 'remote_terminal_input', at: '2026-10-16 08:00:00' }
-      }
-    ],
-    [
-      'a release it acted on through the current owner',
-      {
-        state: 'released',
-        processAction: 'closed_agent_terminal',
-        resolvedDispatchId: 'dispatch-owner'
-      }
-    ]
-  ])('carries the execution host custody evidence home on %s', async (_label, evidence) => {
-    const db = new OrchestrationDb(':memory:')
-    const runtime = new OrcaRuntimeService(null, undefined, {
-      orchestrationEnvironmentTransport: {
-        resolve: () => server,
-        call: async (_selector, method: string) => ({
-          id: method,
-          ok: true as const,
-          result:
-            method === 'status.get'
-              ? runtimeStatus([
-                  ORCHESTRATION_CONTRACT_RUNTIME_CAPABILITY,
-                  ORCHESTRATION_FEDERATION_RELEASE_ARCHIVE_RUNTIME_CAPABILITY
-                ])
-              : { dispatchId: 'dispatch-worker', archive: null, ...evidence },
-          _meta: { runtimeId: 'epoch-worker' }
-        })
-      }
-    })
-    runtime.setOrchestrationDb(db)
-    try {
-      await expect(
-        releaseFederatedWorker({
-          runtime,
-          server,
-          federated: federatedDispatch(),
-          dispatchId: 'dispatch-worker',
-          requestId: 'release-request'
-        })
-      ).resolves.toMatchObject({ dispatchId: 'dispatch-worker', ...evidence })
-    } finally {
-      db.close()
-    }
-  })
-
-  it('drops custody evidence it cannot validate instead of the receipt', () => {
-    const receipt = { dispatchId: 'dispatch-worker', state: 'retained', processAction: 'none' }
-    const parsed = parseRemoteReleaseReceipt(
-      {
-        ...receipt,
-        reason: 'user_takeover',
-        takeover: { source: 'future_input', at: null },
-        currentOwnerDispatchId: 42
-      },
-      'dispatch-worker'
-    )
-
-    expect(parsed).toMatchObject({ state: 'retained', reason: 'user_takeover' })
-    expect(parsed.takeover).toBeUndefined()
-    expect(parsed.currentOwnerDispatchId).toBeUndefined()
-    // An older host sends none of it.
-    expect(parseRemoteReleaseReceipt(receipt, 'dispatch-worker')).toMatchObject(receipt)
-  })
-
-  it('shows a remote terminal resource only when it is well formed', () => {
-    const resource = {
-      id: 'wtr_remote',
-      ownershipState: 'user_owned',
-      releaseState: 'retained',
-      retainedReason: 'user_takeover',
-      terminalHandle: 'term_remote',
-      worktreeId: null,
-      endpointId: 'epoch-worker',
-      endpointIncarnation: 'runtime:pty:7',
-      originDispatchId: 'dispatch-worker',
-      ownerDispatchId: 'dispatch-worker',
-      releaseRequestedAt: null,
-      releaseCompletedAt: null,
-      releaseError: null,
-      recoveryAttemptCount: 0,
-      lastRecoveryAt: null,
-      archive: { source: null, status: null },
-      autoReleaseAt: '2026-10-16 09:00:00',
-      takeover: { source: 'remote_terminal_input', at: '2026-10-16 08:00:00' }
-    }
-
-    expect(parseRemoteWorkerTerminalResource(resource)).toEqual(resource)
-    // Older hosts omit the deadline and the takeover evidence; neither fails the parse.
-    const { autoReleaseAt: _deadline, takeover: _takeover, ...older } = resource
-    expect(parseRemoteWorkerTerminalResource(older)).toEqual({
-      ...older,
-      autoReleaseAt: null,
-      takeover: null
-    })
-    expect(
-      parseRemoteWorkerTerminalResource({ ...resource, ownerDispatchId: null })
-    ).toBeUndefined()
-    expect(parseRemoteWorkerTerminalResource(undefined)).toBeUndefined()
   })
 
   it('rejects malformed affirmative release receipts', () => {

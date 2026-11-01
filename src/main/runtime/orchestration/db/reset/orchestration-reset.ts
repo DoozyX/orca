@@ -29,8 +29,6 @@ export function resetAll(this: OrchestrationDb): void {
   // Keep receipts so a lost reset reply cannot replay the mutation.
   this.runResetTransaction(`
     DELETE FROM coordinator_runs;
-    DELETE FROM resource_lease_waiters;
-    DELETE FROM resource_leases;
     DELETE FROM decision_gates;
     DELETE FROM remote_questions;
     DELETE FROM question_threads;

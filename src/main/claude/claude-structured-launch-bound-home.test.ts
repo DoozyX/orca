@@ -1,12 +1,12 @@
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { AgentSessionRecord } from '../../shared/agent-session-record'
+import type { AgentSessionRecord } from '../../shared/agent-session/lifecycle/agent-session-record'
 import { LOCAL_EXECUTION_HOST_ID } from '../../shared/execution-host'
 import { createClaudeStructuredLaunchResolver } from '../runtime/structured-agent-launch-composition.test-support'
 import type { ClaudeStructuredLaunchPartDeps } from './claude-structured-launch-resolution'
 import { ClaudeBoundHomeRefusalError } from './claude-bound-home-refusal'
-import { claudeProviderHandle } from '../../shared/agent-session-provider-handle-encoding'
+import { claudeProviderHandle } from '../../shared/agent-session/lifecycle/agent-session-provider-handle-encoding'
 
 const SESSION_ID = 'orca-session-1'
 // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the resolver reads only the identity's session id.

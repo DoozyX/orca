@@ -6,7 +6,7 @@ import { okFixture } from '../../test-fixtures'
 const client = new RuntimeClient('/tmp/orca-implicit-coordinator', 60_000, null, null)
 const COORDINATOR_WORKTREE = { id: 'repo::/tmp/coord', repoId: 'repo', path: '/tmp/coord' }
 
-describe('worker-start takes its coordinator from the caller, never the worker placement (#33579)', () => {
+describe('worker-start infers its coordinator from the caller, not the worker placement (#33579)', () => {
   const calls: { method: string; params: unknown }[] = []
 
   beforeEach(() => {
@@ -29,9 +29,6 @@ describe('worker-start takes its coordinator from the caller, never the worker p
         }
         return okFixture('req_active', { handle: 'term_coord' })
       }
-      if (method === 'terminal.resolveIdentity') {
-        return okFixture('req_identity', { identity: { live: true } })
-      }
       if (method === 'orchestration.workerStart') {
         return okFixture('req_start', { state: 'ready', effects: [], residualResources: [] })
       }
@@ -51,20 +48,7 @@ describe('worker-start takes its coordinator from the caller, never the worker p
     ['a reused worker terminal', { worktree: 'id:repo::/tmp/other', terminal: 'term_worker' }]
   ]
 
-  it.each(placements)('refuses to guess for %s', async (_label, placement) => {
-    await expect(
-      ORCHESTRATION_HANDLERS['orchestration worker-start']({
-        flags: new Map<string, string | boolean>([['spec', 'audit'], ...Object.entries(placement)]),
-        client,
-        cwd: '/tmp/coord/src',
-        json: true
-      })
-    ).rejects.toMatchObject({ code: 'no_active_sender_terminal' })
-    expect(calls.map((call) => call.method)).not.toContain('orchestration.workerStart')
-  })
-
-  it.each(placements)('binds the caller terminal for %s', async (_label, placement) => {
-    vi.stubEnv('ORCA_TERMINAL_HANDLE', 'term_coord')
+  it.each(placements)('for %s', async (_label, placement) => {
     await ORCHESTRATION_HANDLERS['orchestration worker-start']({
       flags: new Map<string, string | boolean>([['spec', 'audit'], ...Object.entries(placement)]),
       client,
@@ -75,6 +59,5 @@ describe('worker-start takes its coordinator from the caller, never the worker p
     expect(calls.find((call) => call.method === 'orchestration.workerStart')?.params).toMatchObject(
       { from: 'term_coord', ...placement }
     )
-    expect(calls.map((call) => call.method)).not.toContain('terminal.resolveActive')
   })
 })

@@ -6,18 +6,15 @@ import {
 } from '../federation/federated-worker-release'
 import { ORCHESTRATION_WORKER_LIST_METHOD } from './worker-list-method'
 import { resolvePinnedFederatedServer } from './worker-observation'
-import { completeWorkerTerminalRelease } from './worker-release-completion'
 import { archiveSummary, exposeWorkerRetainReceipt } from './worker-terminal-resource-presentation'
 import {
-  localReleaseCustody,
-  retainedReleaseGuidance,
+  completeWorkerTerminalRelease,
   type WorkerReleaseReceipt
-} from './worker-release-receipt'
+} from './worker-release-completion'
 import {
   WorkerDispatchParams,
   WorkerRetainParams
 } from '../../../../../../shared/rpc-contract/orchestration-worker-release-schemas-params'
-import { assertWorkerDispatchInRun } from './worker-dispatch-run-guard'
 import { ORCHESTRATION_WORKER_KEEP_OPEN_METHODS } from './worker-keep-open'
 
 export const ORCHESTRATION_WORKER_RELEASE_METHODS = [
@@ -27,7 +24,6 @@ export const ORCHESTRATION_WORKER_RELEASE_METHODS = [
     params: WorkerDispatchParams,
     handler: async (params, { runtime, orchestrationMutation }): Promise<WorkerReleaseReceipt> => {
       const db = runtime.getOrchestrationDb()
-      assertWorkerDispatchInRun(db, params.dispatch, params.run)
       const federated = db.getFederatedDispatch(params.dispatch)
       if (federated) {
         if (!orchestrationMutation) {
@@ -46,18 +42,12 @@ export const ORCHESTRATION_WORKER_RELEASE_METHODS = [
         })
       }
       const requested = db.requestWorkerTerminalRelease(params.dispatch)
-      // A former owner's release acts through the Dispatch that owns the terminal now.
-      const actingDispatchId = requested.resolvedDispatchId ?? params.dispatch
-      const resolved = requested.resolvedDispatchId
-        ? { resolvedDispatchId: requested.resolvedDispatchId }
-        : {}
       if (requested.disposition === 'already_released') {
         return {
           dispatchId: params.dispatch,
           state: 'already_released',
           processAction: 'none',
-          archive: archiveSummary(requested.resource),
-          ...resolved
+          archive: archiveSummary(requested.resource)
         }
       }
       if (requested.disposition === 'retained') {
@@ -71,18 +61,17 @@ export const ORCHESTRATION_WORKER_RELEASE_METHODS = [
           )) === 'exited'
         ) {
           const reconciled = db.settleDeadWorkerTerminalRelease({
-            requestingDispatchId: actingDispatchId,
+            requestingDispatchId: params.dispatch,
             resourceId: resource.id,
             processIncarnation
           })
           if (reconciled.disposition === 'released') {
-            runtime.notifyMessageArrived(`dispatch:${actingDispatchId}`, 'status')
+            runtime.notifyMessageArrived(`dispatch:${params.dispatch}`, 'status')
             return {
               dispatchId: params.dispatch,
               state: 'released',
               processAction: 'none',
-              archive: archiveSummary(reconciled.resource),
-              ...resolved
+              archive: archiveSummary(reconciled.resource)
             }
           }
         }
@@ -91,23 +80,15 @@ export const ORCHESTRATION_WORKER_RELEASE_METHODS = [
           state: 'retained',
           reason: requested.reason,
           processAction: 'none',
-          archive: archiveSummary(resource),
-          ...resolved,
-          ...retainedReleaseGuidance(localReleaseCustody(db), {
-            dispatchId: params.dispatch,
-            reason: requested.reason,
-            resource,
-            currentOwner: requested.currentOwner
-          })
+          archive: archiveSummary(resource)
         }
       }
-      const receipt = await completeWorkerTerminalRelease({
+      return completeWorkerTerminalRelease({
         runtime,
         db,
-        dispatchId: actingDispatchId,
+        dispatchId: params.dispatch,
         resource: requested.resource
       })
-      return { ...receipt, dispatchId: params.dispatch, ...resolved }
     }
   }),
   defineMethod({
@@ -121,7 +102,7 @@ export const ORCHESTRATION_WORKER_RELEASE_METHODS = [
         if (!orchestrationMutation) {
           throw new OrchestrationError(
             'invalid_argument',
-            'Remote worker-retain requires a durable retry request.'
+            'Remote worker-keep-open requires a durable retry request.'
           )
         }
         db.endFederatedHomeAutoRelease(params.dispatch)

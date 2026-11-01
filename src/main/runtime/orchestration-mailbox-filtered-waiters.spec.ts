@@ -22,7 +22,7 @@ describe('orchestration mailbox filtered waiters', () => {
     }
   })
 
-  it('drains persisted Run pages and delivers only the filtered type', async () => {
+  it('drains persisted Run pages before installing a filtered waiter', async () => {
     const db = createDatabase('orca-mailbox-filtered-run-backlog-')
     const harness = createRuntime(db)
     const run = createBoundRun(db, 'Filtered Run backlog')
@@ -41,17 +41,17 @@ describe('orchestration mailbox filtered waiters', () => {
       .run(TERMINAL_HANDLE, question.id)
 
     const checked = await checkBoundMailbox(harness.runtime, { wait: true, types: 'question' })
-    expect(checked).toMatchObject({ runId: run.id, count: 1 })
-    expect(checked.messages).toEqual([expect.objectContaining({ id: question.id })])
+    expect(checked).toMatchObject({ runId: run.id, count: 50 })
+    expect(checked.messages).not.toContainEqual(expect.objectContaining({ id: question.id }))
     expect(db.getMessageById(question.id)?.to_handle).toBe(`run:${run.id}`)
-    expect(db.getUnreadRunMailbox(run.id, 100, ['status'])).toHaveLength(50)
-    const next = await ackThenCheck(harness.runtime, checked.deliveryId!)
-    expect(next).toMatchObject({ count: 50 })
-    expect(next.messages).not.toContainEqual(expect.objectContaining({ id: question.id }))
+    const next = await ackThenCheck(harness.runtime, checked.deliveryId!, { types: 'question' })
+    expect(next.messages).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: question.id })])
+    )
     db.close()
   })
 
-  it('wakes a filtered waiter for its type moved on a later page and delivers only it', async () => {
+  it('wakes a filtered waiter when reconciliation moves its type on a later page', async () => {
     const db = createDatabase('orca-mailbox-filtered-reconciliation-wake-')
     const harness = createRuntime(db)
     const run = createBoundRun(db, 'Filtered reconciliation wake')
@@ -79,18 +79,17 @@ describe('orchestration mailbox filtered waiters', () => {
 
     harness.runtime.notifyMessageArrived(TERMINAL_HANDLE, arrivingStatus.type)
     const checked = await waiting
-    expect(checked).toMatchObject({ runId: run.id, count: 1 })
-    expect(checked.messages).toEqual([expect.objectContaining({ id: question.id })])
+    expect(checked).toMatchObject({ runId: run.id, count: 50 })
+    expect(checked.messages).not.toContainEqual(expect.objectContaining({ id: question.id }))
     expect(db.getMessageById(question.id)?.to_handle).toBe(`run:${run.id}`)
-    expect(
-      sqliteFor(db)
-        .prepare("SELECT COUNT(*) AS count FROM messages WHERE type = 'status' AND read = 1")
-        .get()
-    ).toEqual({ count: 0 })
+    const next = await ackThenCheck(harness.runtime, checked.deliveryId!, { types: 'question' })
+    expect(next.messages).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: question.id })])
+    )
     db.close()
   })
 
-  it('drains persisted Dispatch pages and delivers only the filtered type', async () => {
+  it('drains persisted Dispatch pages before installing a filtered waiter', async () => {
     const db = createDatabase('orca-mailbox-filtered-dispatch-backlog-')
     const harness = createRuntime(db)
     const run = db.createRun({
@@ -113,10 +112,11 @@ describe('orchestration mailbox filtered waiters', () => {
     })
 
     const checked = await checkBoundMailbox(harness.runtime, { wait: true, types: 'question' })
-    expect(checked).toMatchObject({ runId: run.id, dispatchId: dispatch.id, count: 1 })
-    expect(checked.messages).toEqual([expect.objectContaining({ id: question.id })])
+    expect(checked).toMatchObject({ runId: run.id, dispatchId: dispatch.id, count: 50 })
+    expect(checked.messages).not.toContainEqual(expect.objectContaining({ id: question.id }))
     expect(db.getMessageById(question.id)?.to_handle).toBe(`dispatch:${dispatch.id}`)
-    expect(db.getUnreadMessages(`dispatch:${dispatch.id}`, ['status'])).toHaveLength(50)
+    const next = await ackThenCheck(harness.runtime, checked.deliveryId!, { types: 'question' })
+    expect(next.messages).toEqual([expect.objectContaining({ id: question.id })])
     db.close()
   })
 })

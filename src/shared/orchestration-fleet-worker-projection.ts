@@ -6,10 +6,8 @@ import {
   resolveFleetWorkerOutcome
 } from './orchestration-fleet-outcome-resolution'
 import { readWorkerTerminalHostScope } from './worker-terminal-host-scope'
-import { isWorkerTerminalReclaimable } from './worker-terminal-reclaimable'
 import type {
   FleetDurableWorker,
-  FleetHeldTerminalReason,
   FleetLiveness,
   FleetNextAction,
   FleetResourceProjection,
@@ -134,14 +132,7 @@ export function projectFleetNextAction(
   if (worker.resource?.autoReleaseAt) {
     return { kind: 'none', argv: [] }
   }
-  if (
-    worker.resource &&
-    isWorkerTerminalReclaimable({
-      workerState: worker.workerState,
-      ownershipState: worker.resource.ownershipState,
-      releaseState: worker.resource.releaseState
-    })
-  ) {
+  if (worker.terminalState === 'reclaimable') {
     return {
       kind: 'release',
       argv: ['orchestration', 'worker-release', '--dispatch', worker.dispatchId]
@@ -155,10 +146,16 @@ export function projectFleetNextAction(
   ) {
     return { kind: 'none', argv: [] }
   }
-  // Settled workers whose terminal release was refused: worker-show and worker-release would only repeat it.
+  // Settled workers owe only the release of a terminal they still own and nobody kept open; worker-show would repeat the settlement.
   if (SETTLED_WORKER_STATES.has(worker.workerState)) {
-    const reason = worker.resource ? heldTerminalReason(worker.resource) : null
-    return reason ? { kind: 'none', argv: [], reason } : { kind: 'none', argv: [] }
+    return worker.resource?.ownershipState === 'owned' &&
+      worker.resource.releaseState !== 'released' &&
+      worker.resource.releaseState !== 'retained'
+      ? {
+          kind: 'release',
+          argv: ['orchestration', 'worker-release', '--dispatch', worker.dispatchId]
+        }
+      : { kind: 'none', argv: [] }
   }
   // Unsettled workers with proven exits need transcript recovery, then stop/abandon; unverifiable absence cannot qualify.
   if (
@@ -191,31 +188,6 @@ export function projectFleetNextAction(
   }
 }
 
-function heldTerminalReason(
-  resource: NonNullable<FleetDurableWorker['resource']>
-): FleetHeldTerminalReason | null {
-  if (resource.releaseState === 'released' || resource.ownershipState === 'released') {
-    return null
-  }
-  if (resource.ownershipState !== 'owned') {
-    return 'not_owned'
-  }
-  if (resource.releaseState === 'unknown') {
-    return 'release_unknown'
-  }
-  if (resource.releaseState === 'requested' || resource.releaseState === 'releasing') {
-    return 'release_pending'
-  }
-  if (
-    resource.releaseState === 'retained' &&
-    (resource.retainedReason === 'user_requested' || resource.retainedReason === 'user_kept')
-  ) {
-    return 'user_retained'
-  }
-  // Retained `identity_unproven`, or a stopped/abandoned worker that release always refuses so.
-  return 'identity_unproven'
-}
-
 function projectHost(
   connectionId: string | null,
   hostScope: string | null | undefined
@@ -245,14 +217,6 @@ export function projectOrchestrationFleetWorker(
   const liveness = projectLiveness(worker, evidence, now)
   const fresh = liveness.verdict === 'live'
   const activity = evidence?.activity
-  const pendingInput = worker.pendingInput || (fresh && activity?.pendingInput === true)
-  const waiting = pendingInput || worker.pendingApproval || (fresh && activity?.waiting === true)
-  const blockerAges = [worker.pendingInputAgeMs, worker.pendingApprovalAgeMs].filter(
-    (age): age is number => typeof age === 'number' && Number.isFinite(age) && age >= 0
-  )
-  // Relay main-agent clocks and receipt-derived starts do not prove a local state boundary.
-  const stateStartedAt =
-    fresh && activity?.connectionId === null ? activity.stateStartedAt : undefined
   const workspaceId =
     activity?.worktreeId ?? worker.worktreeId ?? worker.resource?.worktreeId ?? null
   const outcome = resolveFleetWorkerOutcome({
@@ -274,7 +238,7 @@ export function projectOrchestrationFleetWorker(
       worker: worker.workerState,
       dispatch: worker.dispatchStatus,
       detail: worker.workerStage,
-      activity: waiting ? 'waiting' : fresh && activity ? activity.state : 'unknown'
+      activity: fresh && activity ? activity.state : 'unknown'
     },
     outcome,
     liveness,
@@ -289,21 +253,13 @@ export function projectOrchestrationFleetWorker(
             : 'stale',
       lastObservedAt: evidence ? evidence.clock.at : null
     },
-    diagnostics: {
-      stateAgeMs:
-        stateStartedAt !== undefined && Number.isFinite(stateStartedAt) && stateStartedAt <= now
-          ? now - stateStartedAt
-          : null,
-      checkpointAgeMs: worker.checkpointAgeMs ?? null,
-      blockerAgeMs: blockerAges.length ? Math.max(...blockerAges) : null
-    },
     resource: projectResource(worker),
     ...(worker.resource?.autoReleaseAt ? { autoReleaseAt: worker.resource.autoReleaseAt } : {}),
-    nextAction: projectFleetNextAction({ ...worker, pendingInput }, liveness),
+    nextAction: projectFleetNextAction(worker, liveness),
     attention: projectOrchestrationFleetAttention({
       isRoot: worker.parentTaskId === null,
       outcome,
-      pendingInput,
+      pendingInput: worker.pendingInput,
       pendingApproval: worker.pendingApproval,
       interrupted:
         worker.workerState === 'abandoned' ||

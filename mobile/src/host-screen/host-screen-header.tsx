@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import {
+  CalendarClock,
   ChevronLeft,
   List,
   MoreHorizontal,
@@ -15,7 +16,7 @@ import { NavBarButton } from '../components/nav-bar/NavBarButton'
 import { PullDownMenu } from '../components/nav-bar/PullDownMenu'
 import { StatusDot } from '../components/StatusDot'
 import { useMobileTranslation } from '../i18n/use-mobile-translation'
-import { colors } from '../theme/mobile-theme'
+import { colors, pressedStyle } from '../theme/mobile-theme'
 import { themedStyleSheet } from '../theme/themed-styles'
 import { useMobileColorScheme } from '../theme/use-mobile-color-scheme'
 import { useCalmConnectionState } from '../transport/calm-connection-state'
@@ -55,6 +56,7 @@ export function HostConnectionStatus({ controller }: { controller: HostScreenCon
       {/* auth-failed has its own banner; the page cannot re-dial the connection the shell owns. */}
       {isConnectionOutage(connectionVerdict) && hostId && forceReconnectHost !== null ? (
         <Pressable
+          style={({ pressed }) => pressed && pressedStyle}
           onPress={() => void forceReconnectHost(hostId)}
           accessibilityRole="button"
           accessibilityLabel={t('hostScreen.hostScreenHeader.reconnect', 'Reconnect')}
@@ -101,6 +103,14 @@ export function HostScreenHeader({
       disabled: disconnected,
       closeBeforePress: true,
       onPress: () => actions.navigateFromHostList(`${hostPath}/tasks`)
+    },
+    {
+      id: 'automations',
+      label: t('hostScreen.hostScreenHeader.automations', 'Automations'),
+      icon: CalendarClock,
+      disabled: disconnected,
+      closeBeforePress: true,
+      onPress: () => actions.navigateFromHostList(`${hostPath}/automations`)
     },
     {
       id: 'accounts',

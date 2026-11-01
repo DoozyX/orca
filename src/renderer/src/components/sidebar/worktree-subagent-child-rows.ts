@@ -12,9 +12,9 @@ import {
 import { buildRunningAgentChildRowModels } from '../../../../shared/running-agent-child-rows'
 import type { TerminalTab } from '../../../../shared/terminal-tab-types'
 
-/** Row key for a derived child row (subagent or monitored work). NUL prevents collision with real pane keys; synthetic keys are never parsed for activation, which uses the parent pane. */
-export function derivedChildRowKey(parentPaneKey: string, childKey: string): string {
-  return `${parentPaneKey}\u0000${childKey}`
+/** NUL prevents collision with real pane keys; synthetic keys are never parsed for activation, which uses the parent pane. */
+function subagentRowKey(parentPaneKey: string, subagentId: string): string {
+  return `${parentPaneKey}\u0000subagent:${subagentId}`
 }
 
 function agentRowStateFor(displayState: AgentChildDisplayState): AgentRowState {
@@ -30,7 +30,7 @@ function childDashboardRow(
 ): DashboardAgentRow {
   const state = agentRowStateFor(row.displayState)
   const startedAt = row.firstObservedAt > 0 ? row.firstObservedAt : parentEntry.stateStartedAt
-  const paneKey = derivedChildRowKey(parentEntry.paneKey, `subagent:${row.id}`)
+  const paneKey = subagentRowKey(parentEntry.paneKey, row.id)
   const detail = row.detail
   const entry: AgentStatusEntry = {
     state: state === 'idle' || state === 'unverifiable' ? 'done' : state,

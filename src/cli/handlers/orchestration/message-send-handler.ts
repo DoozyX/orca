@@ -1,10 +1,13 @@
 import type { CommandHandler } from '../../dispatch'
 import { printResult } from '../../format'
-import { formatAgentFieldsText, printOrchestrationResult } from './agent-view'
+import { printOrchestrationResult } from './agent-view'
 import { withReceiptNext } from './receipt-next-text'
+import { formatWorkerStart } from './worker-output'
+import { WORKER_FOLLOW_UP_VIEW, type WorkerFollowUpReceipt } from './worker-start-agent-view'
+import { withResolvedNextCommands } from '../../orchestration-mutation-recovery'
 import { getOptionalStringFlag, getRequiredStringFlag } from '../../flags'
 import { RuntimeClientError } from '../../runtime-client'
-import { readInjectedAgentSessionId } from '../../../shared/agent-session-caller-env'
+import { readInjectedAgentSessionId } from '../../../shared/agent-session/lifecycle/agent-session-caller-env'
 import { requireWorkerDoneSettlement } from '../orchestration-worker-settlement'
 import { getOptionalStructuredMessagePayload } from './message-payload'
 import { callOrchestrationMutation } from './mutation-request'
@@ -33,17 +36,16 @@ type SendRecipientWarning = {
 
 type OrchestrationSendResult = { next?: string } & (
   | {
-      message: { id: string; run_id?: string; to_handle: string }
+      message: { id: string; run_id?: string }
       lifecycle?: LifecycleSendResult
       warnings?: SendRecipientWarning[]
-      /** The structured worker's answer: `queued` holds the pointer until its current turn ends. */
-      delivery?: 'queued' | 'injected'
     }
   | {
       messages: { id: string }[]
       recipients: number
       warnings?: SendRecipientWarning[]
     }
+  | (WorkerFollowUpReceipt & { warnings?: SendRecipientWarning[] })
   | {
       relay: {
         messageId: string
@@ -126,21 +128,22 @@ export const ORCHESTRATION_SEND_HANDLER: Record<string, CommandHandler> = {
       throw new RuntimeClientError(result.result.lifecycle.code, result.result.lifecycle.reason)
     }
     if (!flags.has('full')) {
-      printOrchestrationResult(result, json, {
-        fields: sendFields,
-        text: (fields, value) => {
-          const text = formatAgentFieldsText({ ...fields, next: undefined })
-          return withReceiptNext(
-            'message' in value && value.delivery === 'queued'
-              ? `${text}\n${queuedPointerLine(value.message.to_handle)}`
-              : text,
-            fields
-          )
-        }
-      })
+      if ('delivery' in result.result) {
+        const followUp = withResolvedNextCommands(result.result)
+        printOrchestrationResult({ ...result, result: followUp }, json, WORKER_FOLLOW_UP_VIEW)
+      } else {
+        printOrchestrationResult({ ...result, result: result.result }, json, { fields: sendFields })
+      }
       return
     }
-    printResult(result, json, (value) => {
+    if ('delivery' in result.result && result.result.state !== 'ready') {
+      process.exitCode = 1
+    }
+    const rendered =
+      'delivery' in result.result
+        ? { ...result, result: withResolvedNextCommands(result.result) }
+        : result
+    printResult(rendered, json, (value) => {
       const warnings = 'warnings' in value ? (value.warnings ?? []) : []
       const withWarnings = (line: string): string =>
         withReceiptNext(
@@ -153,11 +156,14 @@ export const ORCHESTRATION_SEND_HANDLER: Record<string, CommandHandler> = {
           lifecycle && 'autoReleaseAt' in lifecycle && lifecycle.autoReleaseAt
             ? ` (terminal auto-release at ${lifecycle.autoReleaseAt})`
             : ''
-        const sent = `Sent ${value.message.id}${autoRelease}`
+        return withWarnings(`Sent ${value.message.id}${autoRelease}`)
+      }
+      if ('delivery' in value) {
         return withWarnings(
-          value.delivery === 'queued'
-            ? `${sent}\n${queuedPointerLine(value.message.to_handle)}`
-            : sent
+          `Follow-up of ${value.followUpOf} (${value.delivery})\n${formatWorkerStart(
+            // The mode line describes a new launch; only a fresh start is one.
+            value.delivery === 'started_fresh' ? value : { ...value, mode: undefined }
+          )}`
         )
       }
       if ('relay' in value) {
@@ -179,7 +185,6 @@ export const ORCHESTRATION_SEND_HANDLER: Record<string, CommandHandler> = {
 
 type SendFields = {
   messageId?: string
-  delivery?: 'queued' | 'injected'
   messageIds?: string[]
   recipients?: number
   dispatchId?: string
@@ -191,7 +196,7 @@ type SendFields = {
 }
 
 // The message row echoes what the caller just sent; only its id is new.
-function sendFields(value: OrchestrationSendResult): SendFields {
+function sendFields(value: Exclude<OrchestrationSendResult, { delivery: string }>): SendFields {
   const lifecycle = 'lifecycle' in value ? value.lifecycle : undefined
   const common = {
     lifecycle: lifecycle?.action,
@@ -200,7 +205,7 @@ function sendFields(value: OrchestrationSendResult): SendFields {
     next: value.next
   }
   if ('message' in value) {
-    return { messageId: value.message.id, delivery: value.delivery, ...common }
+    return { messageId: value.message.id, ...common }
   }
   if ('relay' in value) {
     return {
@@ -215,8 +220,4 @@ function sendFields(value: OrchestrationSendResult): SendFields {
     recipients: value.recipients,
     ...common
   }
-}
-
-function queuedPointerLine(toHandle: string): string {
-  return `Queued: ${toHandle} is mid-turn; its chat holds the pointer and sends it when the current turn ends.`
 }

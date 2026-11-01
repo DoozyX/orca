@@ -10,11 +10,7 @@ import {
 } from '../../flags'
 import { RuntimeClientError } from '../../runtime-client'
 import { callOrchestrationMutation } from './mutation-request'
-import {
-  formatFleetDiagnostics,
-  formatWorkerRelease,
-  type WorkerReleaseReceipt
-} from './worker-output'
+import { formatWorkerRelease, type WorkerReleaseReceipt } from './worker-output'
 import { formatWorkerListScope, resolveWorkerListRunScope } from './worker-list-run-scope'
 
 const WORKER_TERMINAL_LIST_STATES = [
@@ -26,13 +22,21 @@ const WORKER_TERMINAL_LIST_STATES = [
   'released'
 ] as const
 
-// Why: `run` only when given, so an unscoped call stays byte-identical for older hosts.
-function runScopedDispatchParams(flags: Map<string, string | boolean>): {
-  dispatch: string
-  run?: string
-} {
-  const run = getOptionalStringFlag(flags, 'run')
-  return { dispatch: getRequiredStringFlag(flags, 'dispatch'), ...(run ? { run } : {}) }
+const keepWorkerOpen: CommandHandler = async ({ flags, client, json }) => {
+  const result = await callOrchestrationMutation<WorkerReleaseReceipt>(
+    client,
+    flags,
+    'orchestration.workerRetain',
+    { dispatch: getRequiredStringFlag(flags, 'dispatch') }
+  )
+  if (!flags.has('full')) {
+    printOrchestrationResult(result, json, WORKER_RELEASE_VIEW)
+    return
+  }
+  if (result.result.state === 'release_unknown') {
+    process.exitCode = 1
+  }
+  printResult(result, json, formatWorkerRelease)
 }
 
 export const ORCHESTRATION_WORKER_TERMINAL_HANDLERS: Record<string, CommandHandler> = {
@@ -43,7 +47,9 @@ export const ORCHESTRATION_WORKER_TERMINAL_HANDLERS: Record<string, CommandHandl
       processAction: string
       lastError?: string
       warning?: string
-    }>(client, flags, 'orchestration.workerStop', runScopedDispatchParams(flags))
+    }>(client, flags, 'orchestration.workerStop', {
+      dispatch: getRequiredStringFlag(flags, 'dispatch')
+    })
     if (!flags.has('full')) {
       printOrchestrationResult(result, json, {
         fields: (value) => value,
@@ -86,7 +92,7 @@ export const ORCHESTRATION_WORKER_TERMINAL_HANDLERS: Record<string, CommandHandl
       client,
       flags,
       'orchestration.workerRelease',
-      runScopedDispatchParams(flags)
+      { dispatch: getRequiredStringFlag(flags, 'dispatch') }
     )
     if (!flags.has('full')) {
       printOrchestrationResult(result, json, WORKER_RELEASE_VIEW)
@@ -99,22 +105,8 @@ export const ORCHESTRATION_WORKER_TERMINAL_HANDLERS: Record<string, CommandHandl
     printResult(result, json, formatWorkerRelease)
   },
 
-  'orchestration worker-retain': async ({ flags, client, json }) => {
-    const result = await callOrchestrationMutation<WorkerReleaseReceipt>(
-      client,
-      flags,
-      'orchestration.workerRetain',
-      { dispatch: getRequiredStringFlag(flags, 'dispatch') }
-    )
-    if (!flags.has('full')) {
-      printOrchestrationResult(result, json, WORKER_RELEASE_VIEW)
-      return
-    }
-    if (result.result.state === 'release_unknown') {
-      process.exitCode = 1
-    }
-    printResult(result, json, formatWorkerRelease)
-  },
+  'orchestration worker-keep-open': keepWorkerOpen,
+  'orchestration worker-retain': keepWorkerOpen,
 
   'orchestration worker-list': async ({ flags, client, cwd, json }) => {
     const terminalState = getOptionalStringFlag(flags, 'terminal-state')
@@ -172,7 +164,7 @@ export const ORCHESTRATION_WORKER_TERMINAL_HANDLERS: Record<string, CommandHandl
                   ? `/${stage}] attention=${attention} liveness=${liveness} provider=${provider} host=${projection.host.id} workspace=${workspace}`
                   : `]`
                 const next = projection
-                  ? ` next=${projection.nextAction.argv.join(' ') || 'none'} ${formatFleetDiagnostics(projection)}`
+                  ? ` next=${projection.nextAction.argv.join(' ') || 'none'}`
                   : ''
                 const autoRelease = projection?.autoReleaseAt
                   ? ` auto-release=${projection.autoReleaseAt}`

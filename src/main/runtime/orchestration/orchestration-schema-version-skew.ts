@@ -48,16 +48,13 @@ const VERSIONED_POST_V6_COLUMNS = [
   { version: 42, table: 'runs', column: 'coordinator_orca_session_id_generation' },
   { version: 42, table: 'dispatch_contexts', column: 'assignee_orca_session_id' },
   { version: 42, table: 'dispatch_contexts', column: 'creator_orca_session_id' },
-  { version: 44, table: 'deliveries', column: 'wake_types' },
-  { version: 45, table: 'worker_terminal_resources', column: 'takeover_source' },
-  { version: 45, table: 'worker_terminal_resources', column: 'takeover_at' },
-  { version: 46, table: 'decision_gates', column: 'preserved_dispatch_id' },
-  { version: 47, table: 'resource_leases', column: 'holder_run_id' },
-  { version: 47, table: 'resource_lease_waiters', column: 'ttl_ms' },
-  { version: 48, table: 'worker_terminal_resources', column: 'auto_release_at' },
-  { version: 48, table: 'worker_terminal_resources', column: 'auto_release_dispatch_id' },
-  { version: 49, table: 'federated_dispatches', column: 'home_auto_release_at' },
-  { version: 49, table: 'federated_dispatches', column: 'home_auto_release_state' }
+  { version: 44, table: 'worker_terminal_resources', column: 'auto_release_at' },
+  { version: 44, table: 'worker_terminal_resources', column: 'auto_release_dispatch_id' },
+  { version: 45, table: 'federated_dispatches', column: 'home_auto_release_at' },
+  { version: 45, table: 'federated_dispatches', column: 'home_auto_release_state' },
+  { version: 46, table: 'dispatch_contexts', column: 'follow_up_of_dispatch_id' },
+  { version: 46, table: 'dispatch_contexts', column: 'follow_up_mail_at' },
+  { version: 46, table: 'worker_terminal_resources', column: 'resume_session' }
 ] as const
 
 // v34 stamps can lack these repairs; v35 probes must verify their stored defaults.

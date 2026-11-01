@@ -1,16 +1,17 @@
 import type { OrchestrationDb } from '../orchestration-db'
 
-/**
- * Typed-wait deliveries: `wake_types` records the type set a typed `check --wait` built the batch
- * for (NULL for an untyped batch), and the one-outstanding trigger is keyed by it, so a typed wait
- * builds a batch of only its types while a nonmatching batch stays outstanding.
- */
+/** Settled workers' automatic release deadline; rows settled before this step keep none. */
 export function migrateV44(this: OrchestrationDb, current: number): void {
   if (current >= 44) {
     return
   }
-  // Guarded because createTables runs first on every open and already gives a fresh database this.
-  if (!this.hasColumn('deliveries', 'wake_types')) {
-    this.db.exec('ALTER TABLE deliveries ADD COLUMN wake_types TEXT')
+  for (const column of ['auto_release_at', 'auto_release_dispatch_id']) {
+    if (!this.hasColumn('worker_terminal_resources', column)) {
+      this.db.exec(`ALTER TABLE worker_terminal_resources ADD COLUMN ${column} TEXT`)
+    }
   }
+  this.db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_worker_terminal_resources_auto_release
+      ON worker_terminal_resources(auto_release_at) WHERE auto_release_at IS NOT NULL;
+  `)
 }

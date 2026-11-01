@@ -1,19 +1,18 @@
 import type { OrchestrationFleetWorker } from '../../../../../../shared/orchestration-fleet-projection'
 import type { OrchestrationDb } from '../../../../orchestration/db'
+import { exposeDispatchContext } from '../worker/dispatch-context-exposure'
 import { OrchestrationError } from '../../../../orchestration/orchestration-error'
 import { liveFederatedHomeAutoReleaseAt } from '../../../../orchestration/worker-terminal-ownership'
 import type { DispatchContextRow, FederatedDispatchRow } from '../../../../orchestration/types'
 import type { OrcaRuntimeService } from '../../../../orca-runtime'
 import {
   callFederatedWorkerShow,
-  exposeDispatchContext,
   exposeFederatedWorkerObservation,
   exposeWorker,
   projectFleetWorkerPage,
   resolvePinnedFederatedServer
 } from '../worker/worker-observation'
 import { applyFederatedFleetObservations } from './federated-fleet-snapshot'
-import { parseRemoteWorkerTerminalResource } from './federated-terminal-custody-wire'
 import { applyConfirmedFederatedReleaseHomeProjection } from './federated-worker-release'
 
 /** Query host evidence: push-fed fleet snapshots cover only local panes and would fabricate unverifiable for federated workers. */
@@ -98,9 +97,6 @@ export async function showFederatedWorker(args: {
     )
   }
   const observation = exposeFederatedWorkerObservation(remote.observation, observationProjected)
-  const terminalResource = observationProjected
-    ? parseRemoteWorkerTerminalResource(remote.terminalResource)
-    : undefined
   // A deadline from an observation the fence rejected is as stale as the observation.
   const autoReleaseAt =
     (observationProjected ? remote.autoReleaseAt : null) ??
@@ -122,9 +118,7 @@ export async function showFederatedWorker(args: {
       (observationProjected ? remote.runtimeEpoch : null),
     terminal: observationProjected ? remote.terminal : null,
     observation,
-    autoReleaseAt,
-    // Absent when the host predates it: unknown, not "no terminal resource".
-    ...(terminalResource ? { terminalResource } : {})
+    autoReleaseAt
   }
 }
 

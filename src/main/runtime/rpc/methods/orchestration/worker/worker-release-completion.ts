@@ -10,8 +10,7 @@ import type { WorkerTerminalReleaseRuntime } from '../../../../orchestration/wor
 import { describeUnconfirmedAgentStop } from '../../../../../../shared/pty-liveness-verdict'
 import { inspectWorkerTerminal } from './worker-observation'
 import { orchestrationTimestampToMs } from './worker-output'
-import { archiveSummary, takeoverReceiptField } from './worker-terminal-resource-presentation'
-import type { WorkerReleaseReceipt } from './worker-release-receipt'
+import { archiveSummary } from './worker-terminal-resource-presentation'
 import { classifyWorkerTerminalCloseError } from './worker-release-close-error'
 import { workerTerminalLeaseIsCurrent } from './worker-terminal-release-lease'
 import { resolveStructuredWorkerForDispatch } from '../../orchestration-structured-worker-lifecycle'
@@ -20,6 +19,16 @@ import { isStructuredWorkerHandle } from '../../../../../../shared/structured-wo
 import { captureWorkerReleaseArchive } from './worker-release-archive-capture'
 import { WorkerTerminalReleaseSingleFlight } from './worker-terminal-release-single-flight'
 import { yieldAutoReleaseToWorkingAgent } from '../../../../orchestration/worker-terminal-auto-release-working-yield'
+
+export type WorkerReleaseReceipt = {
+  dispatchId: string
+  state: 'released' | 'already_released' | 'retained' | 'release_pending' | 'release_unknown'
+  reason?: WorkerTerminalRetainedReason
+  processAction: 'closed_agent_terminal' | 'closed_exited_terminal' | 'none'
+  archive: { source: string | null; status: string | null } | null
+  recovery?: string
+  lastError?: string
+}
 
 type WorkerTerminalReleaseArgs = {
   runtime: WorkerTerminalReleaseRuntime
@@ -191,8 +200,7 @@ async function completeWorkerTerminalReleaseOnce(
       state: 'retained',
       reason: retainedReason(releasing),
       processAction: 'none',
-      archive: archiveSummary(releasing),
-      ...takeoverReceiptField(releasing)
+      archive: archiveSummary(releasing)
     }
   }
   try {

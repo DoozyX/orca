@@ -12,27 +12,17 @@ import { OrchestrationError } from '../../orchestration-error'
 import { parseWorkerTerminalPriorOwnerIds } from '../pane-key-match'
 import type { OrchestrationDb } from '../orchestration-db'
 
-/** `resolvedDispatchId` is the current owner a former owner's release acted through. */
-export type WorkerTerminalReleaseRequest =
-  | { disposition: 'requested'; resource: WorkerTerminalResourceRow; resolvedDispatchId?: string }
-  | {
-      disposition: 'already_released'
-      resource: WorkerTerminalResourceRow
-      resolvedDispatchId?: string
-    }
+export function requestWorkerTerminalRelease(
+  this: OrchestrationDb,
+  dispatchId: string
+):
+  | { disposition: 'requested'; resource: WorkerTerminalResourceRow }
+  | { disposition: 'already_released'; resource: WorkerTerminalResourceRow }
   | {
       disposition: 'retained'
       resource: WorkerTerminalResourceRow | null
       reason: WorkerTerminalRetainedReason
-      resolvedDispatchId?: string
-      /** The row whose owner holds this terminal, when that is not the requesting Dispatch. */
-      currentOwner?: WorkerTerminalResourceRow
-    }
-
-export function requestWorkerTerminalRelease(
-  this: OrchestrationDb,
-  dispatchId: string
-): WorkerTerminalReleaseRequest {
+    } {
   this.db.exec('BEGIN IMMEDIATE')
   try {
     const dispatch = this.getDispatchContextById(dispatchId)
@@ -57,72 +47,29 @@ export function requestWorkerTerminalRelease(
         `Dispatch ${dispatchId} is ${worker.state}; only a settled worker can release. Use worker-stop to cancel an active worker.`
       )
     }
-    let resource = this.getWorkerTerminalResourceByOwner(dispatchId)
-    let owner = { dispatchId, state: worker.state }
-    let chain: { resolvedDispatchId: string; currentOwner: WorkerTerminalResourceRow } | undefined
+    const resource = this.getWorkerTerminalResourceByOwner(dispatchId)
     if (!resource) {
       const transferred = this.getWorkerTerminalResourceFormerlyOwnedBy(dispatchId)
-      if (!transferred) {
-        this.db.exec('COMMIT')
-        return { disposition: 'retained', resource: null, reason: 'no_owned_resource' }
-      }
-      const ownerId = transferred.owner_dispatch_id
-      if (decideWorkerTerminalRelease(transferred).action === 'already_released') {
-        this.db.exec('COMMIT')
-        return {
-          disposition: 'already_released',
-          resource: transferred,
-          resolvedDispatchId: ownerId
-        }
-      }
-      const ownerWorker = this.getWorkerDispatch(ownerId)
-      // Why: a former owner acts through the current owner only once it settled in the same Run;
-      // otherwise it names that owner instead of closing a terminal another worker or Run holds.
-      if (
-        !ownerWorker ||
-        !WORKER_SETTLED_STATES.includes(ownerWorker.state) ||
-        this.getDispatchContextById(ownerId)?.run_id !== dispatch.run_id
-      ) {
-        this.db.exec('COMMIT')
-        return {
-          disposition: 'retained',
-          resource: transferred,
-          reason: 'ownership_transferred',
-          currentOwner: transferred
-        }
-      }
-      resource = transferred
-      owner = { dispatchId: ownerId, state: ownerWorker.state }
-      chain = { resolvedDispatchId: ownerId, currentOwner: transferred }
+      this.db.exec('COMMIT')
+      return transferred
+        ? { disposition: 'retained', resource: transferred, reason: 'ownership_transferred' }
+        : { disposition: 'retained', resource: null, reason: 'no_owned_resource' }
     }
-    const resolved = chain ? { resolvedDispatchId: chain.resolvedDispatchId } : {}
     const decision = decideWorkerTerminalRelease(resource)
     if (decision.action === 'already_released') {
       this.db.exec('COMMIT')
-      return { disposition: 'already_released', resource, ...resolved }
+      return { disposition: 'already_released', resource }
     }
-    if (owner.state === 'stopped' || owner.state === 'abandoned') {
+    if (worker.state === 'stopped' || worker.state === 'abandoned') {
       this.db.exec('COMMIT')
-      return { disposition: 'retained', resource, reason: 'identity_unproven', ...chain }
+      return { disposition: 'retained', resource, reason: 'identity_unproven' }
     }
     if (decision.action === 'retained') {
-      const custodian =
-        resource.ownership_state === 'external'
-          ? this.findWorkerTerminalCustodian(resource)
-          : chain?.currentOwner
       this.db.exec('COMMIT')
-      return {
-        disposition: 'retained',
-        resource,
-        reason: decision.reason,
-        ...resolved,
-        ...(custodian ? { currentOwner: custodian } : {})
-      }
+      return { disposition: 'retained', resource, reason: decision.reason }
     }
     if (resource.release_state === 'retained' && resource.retained_reason === 'user_requested') {
-      this.db
-        .prepare('DELETE FROM worker_terminal_archives WHERE dispatch_id = ?')
-        .run(owner.dispatchId)
+      this.db.prepare('DELETE FROM worker_terminal_archives WHERE dispatch_id = ?').run(dispatchId)
     }
     this.db
       .prepare(
@@ -140,7 +87,6 @@ export function requestWorkerTerminalRelease(
     this.db.exec('COMMIT')
     return {
       disposition: 'requested',
-      ...resolved,
       resource: this.getWorkerTerminalResource(resource.id) as WorkerTerminalResourceRow
     }
   } catch (error) {

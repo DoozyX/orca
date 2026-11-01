@@ -50,7 +50,6 @@ export function publicLineageFixture(worktreeId = 'repo::/workspace') {
     makePaneKey: () => '',
     getWorktreeId: () => null,
     getHandleForPaneKey: () => null,
-    isPaneConnected: () => false,
     getPaneKey: () => null,
     getDispatchAuthority: () => null,
     getAgentStatusSnapshot: () => []

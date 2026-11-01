@@ -316,14 +316,14 @@ export abstract class OrcaRuntimeWithSyncWindowGraph extends OrcaRuntimeWithAtta
       cb()
     }
 
-    const orchestration = this.agentOrchestrationProjection.buildPublication()
+    const agentOrchestrationByPaneKey = this.agentOrchestrationProjection.buildByPaneKey()
     const nativeChatLaunchDraftResolutions =
       this.getNativeChatLaunchDraftResolutionClientEventSnapshot().map(
         ({ tabId, text, createdAt }) => ({ tabId, text, createdAt })
       )
     return {
       ...this.getStatus(),
-      ...orchestration,
+      ...(agentOrchestrationByPaneKey ? { agentOrchestrationByPaneKey } : {}),
       ...(nativeChatLaunchDraftResolutions.length > 0 ? { nativeChatLaunchDraftResolutions } : {}),
       ...(mobileSessionResyncWorktrees.size > 0
         ? { mobileSessionResyncWorktrees: [...mobileSessionResyncWorktrees] }

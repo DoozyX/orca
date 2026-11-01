@@ -1,24 +1,5 @@
 import { LEGACY_RUN_ID } from '../contract-constants'
 
-// v47. A waiter keeps the TTL it asked for, so its lease can be minted when it is promoted.
-export const RESOURCE_LEASE_TABLES_SQL = `
-CREATE TABLE IF NOT EXISTS resource_leases (
-  resource_key   TEXT PRIMARY KEY,
-  holder_run_id  TEXT NOT NULL,
-  acquired_at    INTEGER NOT NULL,
-  expires_at     INTEGER NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS resource_lease_waiters (
-  resource_key  TEXT NOT NULL,
-  run_id        TEXT NOT NULL,
-  position      INTEGER NOT NULL,
-  ttl_ms        INTEGER NOT NULL,
-  enqueued_at   INTEGER NOT NULL,
-  PRIMARY KEY (resource_key, run_id)
-);
-`
-
 export function createCoreTablesSql(): string {
   return `
 CREATE TABLE IF NOT EXISTS runs (
@@ -116,9 +97,7 @@ CREATE TABLE IF NOT EXISTS deliveries (
   status                TEXT NOT NULL DEFAULT 'outstanding'
     CHECK(status IN ('outstanding', 'acknowledged', 'fenced')),
   created_at            TEXT NOT NULL DEFAULT (datetime('now')),
-  acknowledged_at       TEXT,
-  -- NULL for an untyped batch; else the sorted JSON array of the typed wait's types.
-  wake_types            TEXT
+  acknowledged_at       TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_deliveries_run_created
@@ -212,12 +191,12 @@ CREATE TABLE IF NOT EXISTS worker_terminal_resources (
   last_recovery_at         TEXT,
   archive_source           TEXT,
   archive_status           TEXT,
-  takeover_source          TEXT,
-  takeover_at              TEXT,
   auto_release_at          TEXT,
   auto_release_dispatch_id TEXT,
   created_at               TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at               TEXT NOT NULL DEFAULT (datetime('now'))
+  updated_at               TEXT NOT NULL DEFAULT (datetime('now')),
+  -- JSON: the agent conversation a closed worker reopens in (WorkerResumeSession).
+  resume_session           TEXT
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_worker_terminal_resources_owner
@@ -249,6 +228,6 @@ CREATE TABLE IF NOT EXISTS worker_terminal_archives (
   content       TEXT NOT NULL,
   created_at    TEXT NOT NULL DEFAULT (datetime('now'))
 );
-${RESOURCE_LEASE_TABLES_SQL}
+
   `
 }

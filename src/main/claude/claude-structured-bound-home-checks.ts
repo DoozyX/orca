@@ -1,6 +1,6 @@
-import type { AgentSessionExecutionLocation } from '../../shared/agent-session-record'
+import type { AgentSessionExecutionLocation } from '../../shared/agent-session/lifecycle/agent-session-record'
 import type { ExecutionHostId } from '../../shared/execution-host'
-import type { LegacyAgentSessionAccountHome } from '../../shared/agent-session-account-home'
+import type { LegacyAgentSessionAccountHome } from '../../shared/agent-session/lifecycle/agent-session-account-home'
 import type { ResolvedClaudeHomeBinding } from '../../shared/claude-home-binding'
 import { ClaudeBoundHomeRefusalError } from './claude-bound-home-refusal'
 import { sameClaudeConfigDir } from './claude-config-dir-identity'

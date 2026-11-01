@@ -126,6 +126,7 @@ export abstract class RuntimeConstructionServices {
     leaf: RuntimeLeafRecord
   }
   protected abstract getTerminalPtyForHandle(handle: string): { pty: RuntimePtyWorktreeRecord }
+  protected abstract getExitWaitPtyForHandle(handle: string): { pty: RuntimePtyWorktreeRecord }
   protected abstract getRetainedHandlePty(handle: string): RuntimePtyWorktreeRecord | undefined
   protected abstract getOrchestrationMailboxTerminal(
     ptyId: string
@@ -165,7 +166,6 @@ export abstract class RuntimeConstructionServices {
   abstract getTerminalWorktreeIdForHandle(handle: string): string | null
   abstract getTerminalHandleForPaneKey(paneKey: string): string | null
   protected abstract getPaneKeyForTerminalHandle(handle: string): string | null
-  protected abstract getPtyRecordForPaneKey(paneKey: string): RuntimePtyWorktreeRecord | null
   abstract getOrchestrationDispatchAuthority(
     terminalHandle: string
   ): OrchestrationCompatibilityTerminalAuthority | null
@@ -277,10 +277,13 @@ export abstract class RuntimeConstructionServices {
   protected abstract getTrackedDisplayTitleForPty(ptyId: string): string | null
   protected abstract getLeavesForPty(ptyId: string): RuntimeLeafRecord[]
   abstract notifyMessageArrived(handle: string, messageType?: string): void
-  protected abstract resolveGitWorktreeSelector(selector: string): Promise<ResolvedWorktree>
+  protected abstract resolveGitWorktreeSelector(
+    selector: string,
+    requiredHostId?: ExecutionHostId
+  ): Promise<ResolvedWorktree>
   protected abstract resolveWorkspaceSelector(
     selector: string,
-    options?: { requireUsableFolderPath?: boolean }
+    options?: { requireUsableFolderPath?: boolean; requiredHostId?: ExecutionHostId }
   ): Promise<ResolvedWorktree>
   protected abstract refreshPtyWorktreeRecordsWithControllerInventory(
     resolvedWorktrees: ResolvedWorktree[],

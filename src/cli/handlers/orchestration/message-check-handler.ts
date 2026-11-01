@@ -13,8 +13,6 @@ import {
   type OrchestrationMessageSummary as MessageSummary
 } from '../../../shared/orchestration-check-output'
 import { startCheckKeepalive } from './check-keepalive'
-import { startCheckWaitParentWatch } from './check-wait-parent-watch'
-import { callCheckWaitWithResume, type OrchestrationCheckParams } from './check-wait-resume'
 import { callOrchestrationMutation } from './mutation-request'
 import { getOptionalPositiveIntegerValueFlag } from './numeric-flags'
 import { flushOrchestrationStdout, resolveCompatibilityCliCommand } from './runtime-compatibility'
@@ -51,34 +49,27 @@ export const ORCHESTRATION_CHECK_HANDLER: Record<string, CommandHandler> = {
     const paneKey =
       explicitTerminal || terminal === undefined ? undefined : process.env.ORCA_PANE_KEY
     const callerLabel = orchestrationCallerLabel(terminal)
-    const params: OrchestrationCheckParams = {
-      terminal,
-      terminalPaneKey: paneKey || undefined,
-      // Why: old runtimes degrade peek to non-consuming all mode instead of destructive mark-read.
-      unread: flags.has('unread') ? true : peek ? false : undefined,
-      peek: peek ? true : undefined,
-      all: flags.has('all') ? true : undefined,
-      types: getOptionalStringFlag(flags, 'types'),
-      format: flags.has('format') ? true : undefined,
-      inject: flags.has('inject') ? true : undefined,
-      compatibilityCliCommand: resolveCompatibilityCliCommand(),
-      run: getOptionalStringFlag(flags, 'run'),
-      ack: getOptionalStringFlag(flags, 'ack'),
-      wait: wait ? true : undefined,
-      timeoutMs
-    }
     const stopKeepalive = wait ? startCheckKeepalive(timeoutMs) : null
-    const stopParentWatch = wait
-      ? startCheckWaitParentWatch({ onOrphaned: exitOrphanedWait })
-      : null
     let result: Awaited<ReturnType<typeof client.call<CheckResult>>>
     try {
-      result = wait
-        ? await callCheckWaitWithResume<CheckResult>(client, flags, params, timeoutMs)
-        : await callOrchestrationMutation<CheckResult>(client, flags, 'orchestration.check', params)
+      result = await callOrchestrationMutation<CheckResult>(client, flags, 'orchestration.check', {
+        terminal,
+        terminalPaneKey: paneKey || undefined,
+        // unread:false makes hosts that ignore peek fall back to non-consuming all mode.
+        unread: flags.has('unread') ? true : peek ? false : undefined,
+        peek: peek ? true : undefined,
+        all: flags.has('all') ? true : undefined,
+        types: getOptionalStringFlag(flags, 'types'),
+        format: flags.has('format') ? true : undefined,
+        inject: flags.has('inject') ? true : undefined,
+        compatibilityCliCommand: resolveCompatibilityCliCommand(),
+        run: getOptionalStringFlag(flags, 'run'),
+        ack: getOptionalStringFlag(flags, 'ack'),
+        wait: wait ? true : undefined,
+        timeoutMs
+      })
     } finally {
       stopKeepalive?.()
-      stopParentWatch?.()
     }
     if (peek) {
       result = filterLegacyPeekResult(result, wait)
@@ -109,13 +100,6 @@ export const ORCHESTRATION_CHECK_HANDLER: Record<string, CommandHandler> = {
       })
     }
   }
-}
-
-// Why: exiting closes the socket, which is what frees the Run's exclusive waiter on the host.
-function exitOrphanedWait(): void {
-  const message = 'The process that started this check --wait exited; stopping the orphaned wait.'
-  process.stderr.write(`${JSON.stringify({ error: { code: 'parent_exited', message } })}\n`)
-  process.exit(1)
 }
 
 function filterLegacyPeekResult(

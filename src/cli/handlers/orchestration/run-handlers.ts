@@ -1,3 +1,4 @@
+import { abbreviateOrchestrationText } from '../../../shared/orchestration-task-summary'
 import type { CommandHandler } from '../../dispatch'
 import { printResult } from '../../format'
 import { printOrchestrationResult } from './agent-view'
@@ -10,7 +11,7 @@ import { ORCHESTRATION_RUN_PAGE_LIMIT } from '../../../shared/orchestration-run-
 import type { RunRemovedWork } from '../../../shared/orchestration-removed-work'
 import { callOrchestrationMutation } from './mutation-request'
 import { formatRemovedWorkListing, formatRunRemovedWorkLine } from './removed-work-format'
-import { orchestrationCallerLabel, resolveCoordinatorTerminalHandle } from './terminal-identity'
+import { resolveCoordinatorTerminalHandle } from './terminal-identity'
 import { withReceiptNext } from './receipt-next-text'
 import {
   findRunOlderRuntimeWillUnbind,
@@ -21,7 +22,7 @@ const RUN_LIST_DEFAULT_LIMIT = 10
 
 export const ORCHESTRATION_RUN_HANDLERS: Record<string, CommandHandler> = {
   'orchestration run-create': async ({ flags, client, cwd, json }) => {
-    const from = await resolveCoordinatorTerminalHandle(flags, cwd, client, { refuseGuess: true })
+    const from = await resolveCoordinatorTerminalHandle(flags, cwd, client)
     const unboundRunId = await findRunOlderRuntimeWillUnbind(client, from).catch(() => null)
     const result = await callOrchestrationMutation<{
       run: { id: string; objective: string; consumer_generation: number }
@@ -35,24 +36,17 @@ export const ORCHESTRATION_RUN_HANDLERS: Record<string, CommandHandler> = {
     }
     if (!flags.has('full')) {
       printOrchestrationResult(result, json, {
-        fields: (r) => ({
-          ...runFields(r.run),
-          boundTo: orchestrationCallerLabel(from),
-          next: r.next
-        })
+        fields: (r) => ({ ...runFields(r.run), next: r.next })
       })
       return
     }
     printResult(result, json, (r) =>
-      withReceiptNext(
-        `Run ${r.run.id} created and bound to ${orchestrationCallerLabel(from)}: ${r.run.objective}`,
-        r
-      )
+      withReceiptNext(`Run ${r.run.id} created and bound: ${r.run.objective}`, r)
     )
   },
 
   'orchestration run-use': async ({ flags, client, cwd, json }) => {
-    const from = await resolveCoordinatorTerminalHandle(flags, cwd, client, { refuseGuess: true })
+    const from = await resolveCoordinatorTerminalHandle(flags, cwd, client)
     const result = await callOrchestrationMutation<{
       run: { id: string; objective: string; consumer_generation: number }
     }>(client, flags, 'orchestration.runUse', {
@@ -61,16 +55,10 @@ export const ORCHESTRATION_RUN_HANDLERS: Record<string, CommandHandler> = {
       ...(flags.has('takeover-legacy') ? { takeoverLegacy: true } : {})
     })
     if (!flags.has('full')) {
-      printOrchestrationResult(result, json, {
-        fields: (r) => ({ ...runFields(r.run), boundTo: orchestrationCallerLabel(from) })
-      })
+      printOrchestrationResult(result, json, { fields: (r) => runFields(r.run) })
       return
     }
-    printResult(
-      result,
-      json,
-      (r) => `Using Run ${r.run.id}, bound to ${orchestrationCallerLabel(from)}: ${r.run.objective}`
-    )
+    printResult(result, json, (r) => `Using Run ${r.run.id}: ${r.run.objective}`)
   },
 
   'orchestration run-current': async ({ flags, client, cwd, json }) => {
@@ -107,7 +95,8 @@ export const ORCHESTRATION_RUN_HANDLERS: Record<string, CommandHandler> = {
         fields: (r) => ({
           runs: r.runs.map((run) => {
             const { runId, ...rest } = runFields(run)
-            return { id: runId, ...rest }
+            // Objectives are caller-written and unbounded; --full prints them whole.
+            return { id: runId, ...rest, objective: abbreviateOrchestrationText(run.objective) }
           }),
           nextCursor: r.nextCursor ?? undefined
         })

@@ -42,8 +42,8 @@ export async function deliverWorkerDispatchPreamble(args: {
   requestId: string
   /** The agent this worker start launched into `terminalHandle`; absent for a caller's terminal. */
   launchedAgent?: string | null
-  /** When the readiness budget ends; a structured worker's start and a launched agent's brief both count against it. */
-  readinessDeadlineMs: number
+  /** The caller's readiness budget; a structured worker's start counts against it. */
+  readinessTimeoutMs?: number
 }): Promise<{
   prompt?: RuntimeTerminalSend['prompt']
   structuredTurnStart?: WorkerTurnStartObservation
@@ -68,7 +68,8 @@ export async function deliverWorkerDispatchPreamble(args: {
           ? formatOrcaSessionAddress(chat)
           : terminalHandle,
     devMode: args.devMode,
-    cliCommand: runtime.getTerminalOrchestrationCliCommand(terminalHandle)
+    cliCommand: runtime.getTerminalOrchestrationCliCommand(terminalHandle),
+    unreadMail: args.db.getLatestUnreadMessageSequence(`dispatch:${args.dispatchId}`) !== undefined
   })
   if (chat) {
     const dispatch = args.db.getDispatchContextById(args.dispatchId)
@@ -89,7 +90,7 @@ export async function deliverWorkerDispatchPreamble(args: {
       dispatchId: args.dispatchId,
       preamble,
       from: workerTaskSource(args),
-      budgetMs: Math.max(0, args.readinessDeadlineMs - Date.now())
+      ...(args.readinessTimeoutMs === undefined ? {} : { budgetMs: args.readinessTimeoutMs })
     })
     return {
       structuredTurnStart:
@@ -105,12 +106,7 @@ export async function deliverWorkerDispatchPreamble(args: {
     }
   }
   // A shell back at its prompt also reads as ready, so the brief needs the agent found in front.
-  const briefGuard = createWorkerBriefWriteGuard(
-    runtime,
-    args.launchedAgent,
-    !!args.launchedAgent,
-    args.readinessDeadlineMs
-  )
+  const briefGuard = createWorkerBriefWriteGuard(runtime, args.launchedAgent, !!args.launchedAgent)
   try {
     const sent = await sendAgentTurn({
       kind: 'terminal',
@@ -139,6 +135,7 @@ function chatTaskTurnStart(delivery: ChatTaskDelivery): WorkerTurnStartObservati
     case 'queued':
       return {
         verdict: 'unobserved',
+        queued: true,
         reason:
           "The task is waiting as a card in the chat's queue and is sent when the queue reaches " +
           'it. If the worker then reports, this Dispatch settles normally. worker-abandon ' +
@@ -160,6 +157,7 @@ function workerTaskSource(args: {
     db: args.db,
     dispatch: { id: args.dispatchId, run_id: args.runId, task_id: args.taskId },
     from: args.coordinatorHandle,
-    senderName: (party, reported) => args.runtime.orchestrationSenderNames.nameOf(party, reported)
+    senderSnapshot: (party, reported) =>
+      args.runtime.orchestrationSenderNames.snapshotOf(party, reported)
   })
 }

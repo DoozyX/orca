@@ -4,7 +4,6 @@ import { OrcaRuntimeService } from '../../../../orca-runtime'
 import { OrchestrationDb } from '../../../../orchestration/db'
 import { ORCHESTRATION_METHODS } from '../../orchestration'
 import { eraseRpcMethods } from '../../../core'
-import { recordLegacyUserTakeover } from '../worker/legacy-user-takeover.test-support'
 
 const HOME_FINGERPRINT = 'home-peer'
 const PANE_KEY = 'tab_remote:bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
@@ -81,142 +80,6 @@ describe('federated worker release ownership', () => {
     expect(runtime.closeTerminal).not.toHaveBeenCalled()
   })
 
-  it('durably retains a legacy user-taken-over remote worker terminal with its evidence', async () => {
-    createAttachment('ctx_takeover', 'created')
-    settleAttachment('ctx_takeover')
-    expect(recordLegacyUserTakeover(db, PANE_KEY, 'desktop_terminal_input')).toBe(1)
-
-    await expect(call('orchestration.federationRelease', 'ctx_takeover')).resolves.toMatchObject({
-      state: 'retained',
-      reason: 'user_takeover',
-      processAction: 'none',
-      takeover: { source: 'desktop_terminal_input', at: expect.any(String) },
-      recovery: expect.stringContaining('worker-show --dispatch ctx_takeover')
-    })
-    await expect(call('orchestration.federationShow', 'ctx_takeover')).resolves.toMatchObject({
-      terminalResource: {
-        ownerDispatchId: 'ctx_takeover',
-        ownershipState: 'user_owned',
-        takeover: { source: 'desktop_terminal_input', at: expect.any(String) }
-      }
-    })
-    expect(runtime.closeTerminal).not.toHaveBeenCalled()
-  })
-
-  it('names the user who holds a terminal a later Dispatch reused without owning it', async () => {
-    createAttachment('ctx_held', 'created')
-    settleAttachment('ctx_held')
-    recordLegacyUserTakeover(db, PANE_KEY, 'desktop_terminal_input')
-    createAttachment('ctx_reuser', 'external')
-    settleAttachment('ctx_reuser')
-
-    await expect(call('orchestration.federationRelease', 'ctx_reuser')).resolves.toMatchObject({
-      state: 'retained',
-      reason: 'external_terminal',
-      currentOwnerDispatchId: 'ctx_held',
-      takeover: { source: 'desktop_terminal_input' }
-    })
-    expect(runtime.closeTerminal).not.toHaveBeenCalled()
-  })
-
-  describe('a former owner of a reused terminal', () => {
-    function reuseTerminal(custody: AttachmentCustody = {}): void {
-      createAttachment('ctx_old', 'created')
-      settleAttachment('ctx_old')
-      createAttachment('ctx_new', 'external', custody)
-    }
-
-    function mockClosableExitedTerminal(): void {
-      mockExitedRemoteTerminal()
-      vi.mocked(runtime.closeTerminal).mockResolvedValue({
-        handle: TERMINAL_HANDLE,
-        tabId: 'tab-remote',
-        ptyKilled: true
-      })
-    }
-
-    it('names the active successor and how to release through it', async () => {
-      reuseTerminal()
-
-      await expect(call('orchestration.federationRelease', 'ctx_old')).resolves.toMatchObject({
-        dispatchId: 'ctx_old',
-        state: 'retained',
-        reason: 'ownership_transferred',
-        currentOwnerDispatchId: 'ctx_new',
-        recovery: expect.stringMatching(
-          /once it settles \(it is ready\): orca orchestration worker-release --dispatch ctx_new --json/
-        )
-      })
-      expect(runtime.closeTerminal).not.toHaveBeenCalled()
-    })
-
-    it('releases through the successor once it settled, which then reads released', async () => {
-      mockClosableExitedTerminal()
-      reuseTerminal()
-      settleAttachment('ctx_new')
-
-      await expect(call('orchestration.federationRelease', 'ctx_old')).resolves.toMatchObject({
-        dispatchId: 'ctx_old',
-        state: 'released',
-        resolvedDispatchId: 'ctx_new',
-        processAction: 'closed_exited_terminal'
-      })
-      expect(db.getRemoteDispatchAttachment('ctx_new')?.stage).toBe('released')
-      await expect(call('orchestration.federationRelease', 'ctx_new')).resolves.toMatchObject({
-        state: 'already_released'
-      })
-      expect(runtime.closeTerminal).toHaveBeenCalledTimes(1)
-    })
-
-    it('reports already released once the successor released first', async () => {
-      mockClosableExitedTerminal()
-      reuseTerminal()
-      settleAttachment('ctx_new')
-      await expect(call('orchestration.federationRelease', 'ctx_new')).resolves.toMatchObject({
-        state: 'released'
-      })
-
-      await expect(call('orchestration.federationRelease', 'ctx_old')).resolves.toMatchObject({
-        dispatchId: 'ctx_old',
-        state: 'already_released',
-        resolvedDispatchId: 'ctx_new',
-        processAction: 'none'
-      })
-      expect(runtime.closeTerminal).toHaveBeenCalledTimes(1)
-    })
-
-    it('names a successor in another Run together with that Run', async () => {
-      reuseTerminal({ runId: 'run-other' })
-      settleAttachment('ctx_new')
-
-      await expect(call('orchestration.federationRelease', 'ctx_old')).resolves.toMatchObject({
-        state: 'retained',
-        reason: 'ownership_transferred',
-        currentOwnerDispatchId: 'ctx_new',
-        recovery: expect.stringContaining(
-          'worker-release --dispatch ctx_new --run run-other --json'
-        )
-      })
-      expect(runtime.closeTerminal).not.toHaveBeenCalled()
-    })
-
-    it('neither acts through nor names a successor of another home', async () => {
-      mockClosableExitedTerminal()
-      reuseTerminal({ homePeer: 'other-home' })
-      settleAttachment('ctx_new')
-
-      const receipt = await call('orchestration.federationRelease', 'ctx_old')
-
-      expect(receipt).toMatchObject({
-        state: 'retained',
-        reason: 'ownership_transferred',
-        recovery: expect.any(String)
-      })
-      expect(JSON.stringify(receipt)).not.toContain('ctx_new')
-      expect(runtime.closeTerminal).not.toHaveBeenCalled()
-    })
-  })
-
   // Host-owned evidence: the execution host certifies this PTY exited.
   function mockExitedRemoteTerminal(): void {
     vi.mocked(runtime.showTerminal).mockResolvedValue({
@@ -286,22 +149,16 @@ describe('federated worker release ownership', () => {
     expect(runtime.closeTerminal).not.toHaveBeenCalled()
   })
 
-  type AttachmentCustody = { runId?: string; homePeer?: string }
-
-  function createAttachment(
-    dispatchId: string,
-    terminalOwnership?: 'created' | 'external',
-    custody: AttachmentCustody = {}
-  ): void {
+  function createAttachment(dispatchId: string, terminalOwnership?: 'created' | 'external'): void {
     db.createRemoteDispatchAttachment({
-      runId: custody.runId ?? 'run-home',
+      runId: 'run-home',
       dispatchId,
       taskId: `task_${dispatchId}`,
-      homePeerFingerprint: custody.homePeer ?? HOME_FINGERPRINT,
+      homePeerFingerprint: HOME_FINGERPRINT,
       protocolVersion: ORCHESTRATION_CONTRACT_VERSION,
       runtimeEpoch: runtime.getRuntimeId(),
       mutationReceipt: {
-        callerFingerprint: custody.homePeer ?? HOME_FINGERPRINT,
+        callerFingerprint: HOME_FINGERPRINT,
         requestId: `request_${dispatchId}`,
         method: 'orchestration.federationAttachStart',
         payloadHash: `hash_${dispatchId}`

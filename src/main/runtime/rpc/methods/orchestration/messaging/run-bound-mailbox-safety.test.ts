@@ -435,72 +435,17 @@ describe('Run-bound lead mailbox boundaries', () => {
     expect(state.db.getMessageById(privateMail.id)).toMatchObject({ read: 0, run_id: foreign.id })
   })
 
-  it('filters a typed wait to matching residual rows and leaves the rest unread', async () => {
-    const status = residual('older status')
+  it('treats types as a wake condition and returns the entire residual FIFO batch', async () => {
+    residual('older status')
     residual('decision needed', 'question')
     runMail()
     const first = await check({ wait: true, types: 'question' })
-    expect(first).toMatchObject({ messages: [{ subject: 'decision needed' }], count: 1 })
-    expect(state.db.getMessageById(status.id)?.read).toBe(0)
-    expect(await check()).toMatchObject({ messages: [{ subject: 'older status' }] })
-  })
-
-  it('drains matching residual mail past a nonmatching outstanding Run batch', async () => {
-    state.db.insertMessage({
-      from: 'term_child',
-      to: `run:${leadRun.id}`,
+    expect(first).toMatchObject({
+      messages: [{ subject: 'older status' }, { subject: 'decision needed' }]
+    })
+    expect(await check()).toMatchObject({
       runId: leadRun.id,
-      subject: 'Run status',
-      type: 'status'
-    })
-    // An un-acked batch an older client left behind; current checks take theirs.
-    expect(
-      state.db.getOrCreateRunDelivery({
-        runId: leadRun.id,
-        consumerGeneration: leadRun.consumer_generation
-      })
-    ).toMatchObject({ messages: [{ subject: 'Run status' }] })
-    residual('decision needed', 'question')
-    expect(await check({ wait: true, types: 'question', timeoutMs: 50 })).toMatchObject({
-      timedOut: false,
-      messages: [{ subject: 'decision needed' }]
-    })
-  })
-
-  it('gives each typed waiter one notification wakes its own types, not a co-waiter batch', async () => {
-    const waits = vi.spyOn(state.runtime, 'waitForMessage')
-    const questions = check({ wait: true, types: 'question', timeoutMs: 1_000 })
-    const statuses = check({ wait: true, types: 'status', timeoutMs: 1_000 })
-    await vi.waitFor(() => expect(waits).toHaveBeenCalledTimes(2))
-    runMail('Run question')
-    state.db.insertMessage({
-      from: 'term_child',
-      to: `run:${leadRun.id}`,
-      runId: leadRun.id,
-      subject: 'Run status',
-      type: 'status'
-    })
-    state.runtime.notifyMessageWaiters(`run:${leadRun.id}`)
-
-    expect(await questions).toMatchObject({ messages: [{ subject: 'Run question' }], count: 1 })
-    expect(await statuses).toMatchObject({ messages: [{ subject: 'Run status' }], count: 1 })
-  })
-
-  it('keeps a typed waiter waiting when a co-woken plain waiter took the mail', async () => {
-    const waits = vi.spyOn(state.runtime, 'waitForMessage')
-    const plain = check({ wait: true, timeoutMs: 1_000 })
-    const typed = check({ wait: true, types: 'question', timeoutMs: 1_000 })
-    await vi.waitFor(() => expect(waits).toHaveBeenCalledTimes(2))
-    runMail('first question')
-    state.runtime.notifyMessageWaiters(`run:${leadRun.id}`)
-    expect(await plain).toMatchObject({ messages: [{ subject: 'first question' }] })
-
-    await vi.waitFor(() => expect(waits).toHaveBeenCalledTimes(3))
-    runMail('second question')
-    state.runtime.notifyMessageWaiters(`run:${leadRun.id}`)
-    expect(await typed).toMatchObject({
-      timedOut: false,
-      messages: [{ subject: 'second question' }]
+      messages: [{ subject: 'Run report' }]
     })
   })
 

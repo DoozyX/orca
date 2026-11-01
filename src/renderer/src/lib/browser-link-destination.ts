@@ -11,8 +11,10 @@ import type { ExecutionHostId } from '../../../shared/execution-host'
 import { normalizeBrowserNavigationUrl, redactKagiSessionToken } from '../../../shared/browser-url'
 import { browserPageDocLocationsEqual } from '../../../shared/browser-page-doc-location'
 import { findVisibleBrowserLinkTarget } from './visible-browser-link-target'
+import type { TabSplitTarget } from '@/store/slices/tabs/tabs-slice-contract'
 import { isLiveLinkOpenGroup, liveLinkOpenGroupIds, type LinkOpenIntent } from './link-open-intent'
 import { runtimeEnvironmentIdOrLocalUnlessTwin } from './worktree-runtime-owner'
+import { resolveLinkOpenSidePlacement } from './adjacent-link-open-group'
 
 export type BrowserLinkDestination = {
   worktreeId: string
@@ -189,7 +191,9 @@ export function selectBrowserLinkDestination(
   state: AppState,
   destination: BrowserLinkDestination,
   intent: LinkOpenIntent | null
-): { status: 'ready'; groupId?: string; match: BrowserOpenResult | null } | { status: 'refused' } {
+):
+  | { status: 'ready'; groupId?: string; split?: TabSplitTarget; match: BrowserOpenResult | null }
+  | { status: 'refused' } {
   const { worktreeId, executionHostId } = destination
   const groups = state.groupsByWorktree[worktreeId] ?? []
   const matchesHost = createBrowserLinkHostMatcher(state, worktreeId, executionHostId)
@@ -284,7 +288,12 @@ export function selectBrowserLinkDestination(
         : focusedGroupId && liveGroups.has(focusedGroupId)
           ? focusedGroupId
           : [...liveGroups][0]
-    groupId = sourceGroupId
+    const placement = resolveLinkOpenSidePlacement({
+      layout: state.layoutByWorktree[worktreeId],
+      groups,
+      sourceGroupId
+    })
+    return { status: 'ready', ...placement, match: null }
   }
   const group = groups.find((item) => item.id === groupId)
   const ids = group ? [group.activeTabId, ...group.tabOrder] : []

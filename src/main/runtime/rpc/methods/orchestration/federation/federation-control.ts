@@ -1,12 +1,10 @@
 import { OrchestrationError } from '../../../../orchestration/orchestration-error'
+import type { RemoteDispatchAttachmentRow } from '../../../../orchestration/types'
 import { defineMethod } from '../../../core'
 import { isUserKeptWorkerTerminalOwner } from '../../../../orchestration/db/worker-terminal/worker-terminal-user-keep'
 import { mapWithConcurrency } from '../../../../../../shared/map-with-concurrency'
 import { readExactWorkerOutput } from '../worker/worker-output'
-import {
-  exposeWorkerRetainReceipt,
-  exposeWorkerTerminalResource
-} from '../worker/worker-terminal-resource-presentation'
+import { exposeWorkerRetainReceipt } from '../worker/worker-terminal-resource-presentation'
 import { archiveWorkerOutputBeforeStop } from '../worker/worker-stop-archive'
 import { describeUnconfirmedAgentStop } from '../../../../../../shared/pty-liveness-verdict'
 import {
@@ -16,7 +14,6 @@ import {
 } from './federation-attachment-observation'
 import { releaseRemoteAttachment } from './federated-worker-release-host'
 import { readRemoteAttachmentArchive } from './remote-attachment-archive-read'
-import { exposeRemoteAttachment } from './remote-attachment-presentation'
 import {
   FederationDispatchParams,
   FederationFleetSnapshotParams,
@@ -91,9 +88,6 @@ export const ORCHESTRATION_FEDERATION_CONTROL_METHODS = [
         authenticatedCallerFingerprint
       )
       const observation = await observeRemoteAttachmentLiveness(runtime, params.dispatchId)
-      const resource = runtime
-        .getOrchestrationDb()
-        .getWorkerTerminalResourceByOwner(params.dispatchId)
       return {
         dispatchId: params.dispatchId,
         runtimeEpoch: runtime.getRuntimeId(),
@@ -108,8 +102,7 @@ export const ORCHESTRATION_FEDERATION_CONTROL_METHODS = [
           exactWorker: observation.exact,
           ...(observation.reason ? { reason: observation.reason } : {}),
           ...(observation.agentWait !== undefined ? { agentWait: observation.agentWait } : {})
-        },
-        terminalResource: resource ? exposeWorkerTerminalResource(resource) : null
+        }
       }
     }
   }),
@@ -298,3 +291,11 @@ export const ORCHESTRATION_FEDERATION_CONTROL_METHODS = [
     }
   })
 ]
+
+function exposeRemoteAttachment(attachment: RemoteDispatchAttachmentRow) {
+  return {
+    ...attachment,
+    effects: JSON.parse(attachment.effects) as unknown[],
+    residualResources: JSON.parse(attachment.residual_resources) as unknown[]
+  }
+}

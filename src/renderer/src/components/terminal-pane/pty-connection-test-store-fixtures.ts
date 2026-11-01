@@ -4,9 +4,9 @@ import { LEAF_1 } from './pty-connection-test-pane-fixtures'
 import type { StoreState } from './pty-connection-test-store-state'
 
 export function createInitialStoreState(getState: () => StoreState): StoreState {
-  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: pty-connection tests read only the slices listed here.
   return {
     activeWorktreeId: 'wt-1',
+    unifiedTabsByWorktree: {},
     tabsByWorktree: {
       'wt-1': [{ id: 'tab-1', ptyId: 'tab-pty' }]
     },
@@ -49,8 +49,6 @@ export function createInitialStoreState(getState: () => StoreState): StoreState 
     consumePendingSnapshot: vi.fn(() => null),
     runtimePaneTitlesByTabId: {},
     agentStatusByPaneKey: {},
-    runtimeAgentOrchestrationByPaneKey: {},
-    runtimeAgentRunWorkerPaneKeys: {},
     retainedAgentsByPaneKey: {},
     paneForegroundAgentByPaneKey: {},
     sleepingAgentSessionsByPaneKey: {},

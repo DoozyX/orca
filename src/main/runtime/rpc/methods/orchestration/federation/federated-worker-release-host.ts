@@ -2,7 +2,8 @@ import { describeUnconfirmedAgentStop } from '../../../../../../shared/pty-liven
 import type { RemoteDispatchAttachmentRow } from '../../../../orchestration/types'
 import type {
   WorkerTerminalArchiveRow,
-  WorkerTerminalResourceRow
+  WorkerTerminalResourceRow,
+  WorkerTerminalRetainedReason
 } from '../../../../orchestration/worker-terminal-ownership'
 import {
   captureWorkerOutputArchive,
@@ -11,28 +12,16 @@ import {
   summarizeWorkerOutputArchive
 } from '../../../../orchestration/worker-output-archive'
 import type { WorkerTerminalReleaseRuntime } from '../../../../orchestration/worker-terminal-release-runtime'
-import { releaseUnknownRecovery } from '../worker/worker-release-completion'
-import { OrchestrationError } from '../../../../orchestration/orchestration-error'
+import { readRemoteAttachmentArchive } from './remote-attachment-archive-read'
 import { WorkerTerminalReleaseSingleFlight } from '../worker/worker-terminal-release-single-flight'
 import { yieldAutoReleaseToWorkingAgent } from '../../../../orchestration/worker-terminal-auto-release-working-yield'
+import { archiveSummary } from '../worker/worker-terminal-resource-presentation'
 import {
-  remoteAttachmentReleaseCustody,
-  retainedReleaseGuidance,
+  releaseUnknownRecovery,
   type WorkerReleaseReceipt
-} from '../worker/worker-release-receipt'
-import {
-  archiveSummary,
-  takeoverReceiptField
-} from '../worker/worker-terminal-resource-presentation'
+} from '../worker/worker-release-completion'
 import { orchestrationTimestampToMs } from '../worker/worker-output'
-import { inspectRemoteAttachment } from './federation-attachment-observation'
-import { readRemoteAttachmentArchive } from './remote-attachment-archive-read'
-import { remoteAttachmentLeaseIsCurrent } from './remote-attachment-release-lease'
-import {
-  isStillReleasing,
-  projectArchivedOutputLiveness,
-  retainedReason
-} from './remote-attachment-release-projection'
+import type { inspectRemoteAttachment } from './federation-attachment-observation'
 import {
   classifyWorkerTerminalCloseError,
   TRANSIENT_WORKER_RELEASE_RECOVERY
@@ -97,16 +86,12 @@ async function requestRemoteAttachmentRelease(
     }
   }
   const requested = db.requestRemoteAttachmentTerminalRelease(attachment.dispatch_id, args.mode)
-  const resolved = requested.resolvedDispatchId
-    ? { resolvedDispatchId: requested.resolvedDispatchId }
-    : {}
   if (requested.disposition === 'already_released') {
     return {
       dispatchId: attachment.dispatch_id,
       state: 'already_released',
       processAction: 'none',
-      archive: archiveSummary(requested.resource),
-      ...resolved
+      archive: archiveSummary(requested.resource)
     }
   }
   if (requested.disposition === 'retained') {
@@ -115,18 +100,8 @@ async function requestRemoteAttachmentRelease(
       state: 'retained',
       reason: requested.reason,
       processAction: 'none',
-      archive: archiveSummary(requested.resource),
-      ...resolved,
-      ...retainedReleaseGuidance(remoteAttachmentReleaseCustody(db), {
-        dispatchId: attachment.dispatch_id,
-        reason: requested.reason,
-        resource: requested.resource,
-        currentOwner: requested.currentOwner
-      })
+      archive: archiveSummary(requested.resource)
     }
-  }
-  if (requested.resolvedDispatchId) {
-    return releaseThroughCurrentOwner(args, requested.resolvedDispatchId)
   }
   return { resource: requested.resource, storedArchive: storedArchive ?? null }
 }
@@ -225,8 +200,7 @@ async function completeRemoteAttachmentRelease(
       state: 'retained',
       reason: retainedReason(releasing),
       processAction: 'none',
-      archive: archiveSummary(releasing),
-      ...takeoverReceiptField(releasing)
+      archive: archiveSummary(releasing)
     }
   }
   // Close the exited worker's remaining record/tab before reporting closed_exited_terminal, as local release does.
@@ -284,28 +258,51 @@ async function completeRemoteAttachmentRelease(
   }
 }
 
-/** A former owner's release, run as the release of the settled Dispatch that holds the terminal now. */
-async function releaseThroughCurrentOwner(
-  args: RemoteAttachmentReleaseArgs,
-  ownerDispatchId: string
-): Promise<RemoteReleaseReceipt> {
-  const owner = args.runtime.getOrchestrationDb().getRemoteDispatchAttachment(ownerDispatchId)
-  if (!owner) {
-    throw new OrchestrationError(
-      'dispatch_not_found',
-      `Remote Dispatch ${ownerDispatchId} was not found.`
-    )
+function remoteAttachmentLeaseIsCurrent(
+  runtime: WorkerTerminalReleaseRuntime,
+  attachment: RemoteDispatchAttachmentRow,
+  observation: Awaited<ReturnType<typeof inspectRemoteAttachment>>,
+  resource: WorkerTerminalResourceRow
+): boolean {
+  const db = runtime.getOrchestrationDb()
+  return Boolean(
+    observation.exact &&
+    observation.terminal?.handle === resource.terminal_handle &&
+    attachment.terminal_handle === resource.terminal_handle &&
+    resource.owner_dispatch_id === attachment.dispatch_id &&
+    resource.ownership_state === 'owned' &&
+    db.isRemoteAttachmentProcessCurrent({
+      dispatchId: attachment.dispatch_id,
+      paneKey: runtime.getTerminalPaneKey(resource.terminal_handle),
+      processIncarnation: runtime.getTerminalProcessIncarnation(resource.terminal_handle)
+    }) &&
+    !db.workerTerminalResourceHasIdentityConflict(resource.id)
+  )
+}
+
+function retainedReason(resource: WorkerTerminalResourceRow): WorkerTerminalRetainedReason {
+  if (resource.retained_reason) {
+    return resource.retained_reason as WorkerTerminalRetainedReason
   }
-  // Why its own pass: the archive, lease and close all belong to the Dispatch holding the terminal.
-  const receipt = await releaseRemoteAttachment({
-    runtime: args.runtime,
-    attachment: owner,
-    observation: await inspectRemoteAttachment(args.runtime, ownerDispatchId),
-    mode: args.mode
-  })
+  if (resource.ownership_state === 'user_owned') {
+    return 'user_takeover'
+  }
+  return 'identity_unproven'
+}
+
+function projectArchivedOutputLiveness<
+  T extends { status: { terminal: string; liveness: string } }
+>(output: T, liveness: 'live' | 'unverifiable' | 'exited'): T {
   return {
-    ...receipt,
-    dispatchId: args.attachment.dispatch_id,
-    resolvedDispatchId: ownerDispatchId
+    ...output,
+    status: {
+      ...output.status,
+      terminal: liveness === 'live' ? 'running' : liveness === 'exited' ? 'exited' : 'unknown',
+      liveness
+    }
   }
+}
+
+function isStillReleasing(resource: WorkerTerminalResourceRow): boolean {
+  return resource.ownership_state === 'owned' && resource.release_state === 'releasing'
 }

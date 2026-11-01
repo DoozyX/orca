@@ -26,7 +26,6 @@ type CompactAgentSummaryButtonProps = {
   subjectLabel: string
   expanded: boolean
   onToggle: () => void
-  placement?: 'body' | 'header'
 }
 
 type CompactAgentExpansionProps = {
@@ -77,8 +76,7 @@ export function CompactAgentSummaryButton({
   agents,
   subjectLabel,
   expanded,
-  onToggle,
-  placement = 'body'
+  onToggle
 }: CompactAgentSummaryButtonProps): React.JSX.Element {
   const summary = summarizeAgents(agents, subjectLabel)
   const groups = buildSummaryAgentGroups(agents)
@@ -103,7 +101,7 @@ export function CompactAgentSummaryButton({
       type="button"
       draggable={false}
       className={cn(
-        'compact-agent-summary-button group/agent-summary flex min-w-0 items-center gap-1 rounded-sm',
+        'compact-agent-summary-button group/agent-summary flex h-6 w-full min-w-0 items-center gap-1 rounded-sm',
         'px-1 text-left text-[11px] leading-none text-muted-foreground',
         'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-worktree-sidebar-ring',
         // The sidebar accent reverses brightness across themes; use the matching hover token mix.
@@ -111,8 +109,7 @@ export function CompactAgentSummaryButton({
         // Only the collapsed pill needs a resting surface; expanded summaries are tree headers.
         expanded
           ? 'compact-agent-summary-button-expanded'
-          : 'border border-worktree-sidebar-border/70 bg-worktree-sidebar-accent/35',
-        placement === 'header' ? 'h-[18px] w-auto max-w-24 shrink-0 px-1.5' : 'h-6 w-full'
+          : 'border border-worktree-sidebar-border/70 bg-worktree-sidebar-accent/35'
       )}
       aria-label={
         expanded
@@ -134,7 +131,7 @@ export function CompactAgentSummaryButton({
       onPointerDown={stopPointerPropagation}
       onDragStart={stopPointerPropagation}
     >
-      {expanded || placement === 'header' ? (
+      {expanded ? (
         <span className="min-w-0 flex-1 truncate px-1 font-medium text-muted-foreground">
           {subjectLabel}
         </span>

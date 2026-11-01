@@ -1,14 +1,12 @@
 import type { vi } from 'vitest'
-import type {
-  AgentStatusOrchestrationContext,
-  AgentType
-} from '../../../../shared/agent-status-types'
+import type { AgentType } from '../../../../shared/agent-status-types'
 import type { TerminalLayoutSnapshot } from '../../../../shared/terminal-tab-types'
 import { resolveWindowsShiftEnterEncodingForPane } from './terminal-windows-shift-enter'
 import type { PaneForegroundAgentEntry } from '@/store/slices/pane-foreground-agent'
 import type { AppState } from '@/store/types'
 
 export type StoreState = {
+  unifiedTabsByWorktree: AppState['unifiedTabsByWorktree']
   activeWorktreeId: string | null
   tabsByWorktree: Record<
     string,
@@ -108,8 +106,6 @@ export type StoreState = {
   consumeTabStartupCommand?: ReturnType<typeof vi.fn>
   runtimePaneTitlesByTabId: Record<string, Record<number, string>>
   agentStatusByPaneKey: Record<string, unknown>
-  runtimeAgentOrchestrationByPaneKey: Record<string, AgentStatusOrchestrationContext>
-  runtimeAgentRunWorkerPaneKeys: Record<string, true>
   retainedAgentsByPaneKey: Record<string, { agentType: AgentType }>
   paneForegroundAgentByPaneKey: Record<string, PaneForegroundAgentEntry>
   sleepingAgentSessionsByPaneKey: Record<string, unknown>

@@ -13,20 +13,14 @@ import {
 } from '../../orchestration-structured-worker-lifecycle'
 import { isStructuredWorkerHandle } from '../../../../../../shared/structured-worker-handle'
 import { WorkerDispatchParams } from '../../../../../../shared/rpc-contract/orchestration-worker-stop-params'
-import { assertWorkerDispatchInRun } from './worker-dispatch-run-guard'
-import {
-  contextOnlyStopWarning,
-  interruptContextOnlyStructuredWorker
-} from './context-only-dispatch-interrupt'
 
 export const ORCHESTRATION_WORKER_STOP_METHODS = [
   defineMethod({
     name: 'orchestration.workerStop',
     permission: 'workspace',
     params: WorkerDispatchParams,
-    handler: async (params, { runtime, orchestrationMutation }) => {
-      assertWorkerDispatchInRun(runtime.getOrchestrationDb(), params.dispatch, params.run)
-      return dedupeWorkerStop(runtime, params.dispatch, async () => {
+    handler: (params, { runtime, orchestrationMutation }) =>
+      dedupeWorkerStop(runtime, params.dispatch, async () => {
         const db = runtime.getOrchestrationDb()
         const federated = db.getFederatedDispatch(params.dispatch)
         if (federated) {
@@ -119,18 +113,12 @@ export const ORCHESTRATION_WORKER_STOP_METHODS = [
           if (!begun.alreadySettled) {
             runtime.notifyMessageArrived(`dispatch:${params.dispatch}`, 'status')
           }
-          const dispatch = db.getDispatchContextById(params.dispatch)
-          const interrupt =
-            dispatch && !begun.alreadySettled
-              ? await interruptContextOnlyStructuredWorker(runtime, dispatch)
-              : undefined
           return {
             dispatchId: params.dispatch,
             state: begun.state,
             alreadySettled: begun.alreadySettled,
             processAction: 'none' as const,
-            warning: contextOnlyStopWarning(begun, interrupt),
-            ...(interrupt ? { interrupt } : {})
+            warning: contextOnlyStopWarning(begun)
           }
         }
         const handle = begun.worker.agent_terminal_handle
@@ -256,7 +244,6 @@ export const ORCHESTRATION_WORKER_STOP_METHODS = [
           ...('close' in closed ? { close: closed.close } : {})
         }
       })
-    }
   })
 ]
 
@@ -296,6 +283,19 @@ type RemoteStopReceipt = {
 
 function settledReceipt(dispatchId: string, state: string) {
   return { dispatchId, state, alreadySettled: true, processAction: 'none' }
+}
+
+function contextOnlyStopWarning(result: {
+  state: string
+  alreadySettled: boolean
+  releasedCurrentTask: boolean
+}): string {
+  if (result.alreadySettled) {
+    return `Dispatch was already ${result.state}; no terminal process changed.`
+  }
+  return result.releasedCurrentTask
+    ? 'The assignment was stopped without closing its unsupervised terminal process.'
+    : 'The superseded assignment was stopped without changing the current Task or terminal process.'
 }
 
 function unknownReceipt(

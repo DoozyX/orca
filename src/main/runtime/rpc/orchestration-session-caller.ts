@@ -4,9 +4,9 @@
 import {
   agentSessionLeaseAdmitsWriter,
   agentSessionLeaseIsReleased
-} from '../../../shared/agent-session-lease-adjudication'
-import type { AgentSessionRecord } from '../../../shared/agent-session-record'
-import { ORCA_AGENT_SESSION_ID_ENV } from '../../../shared/agent-session-caller-env'
+} from '../../../shared/agent-session/lifecycle/agent-session-lease-adjudication'
+import type { AgentSessionRecord } from '../../../shared/agent-session/lifecycle/agent-session-record'
+import { ORCA_AGENT_SESSION_ID_ENV } from '../../../shared/agent-session/lifecycle/agent-session-caller-env'
 import {
   ORCA_SESSION_ADDRESS_PREFIX,
   isOrcaSessionId,
@@ -45,9 +45,6 @@ export const ORCHESTRATION_CALLER_PARAM: Readonly<Record<string, CallerParam>> =
   'orchestration.gateCreate': 'from',
   'orchestration.gateResolve': 'from',
   'orchestration.gateList': 'from',
-  'orchestration.leaseAcquire': 'from',
-  'orchestration.leaseRelease': 'from',
-  'orchestration.leaseShow': 'from',
   'orchestration.taskCreate': 'callerTerminalHandle',
   'orchestration.taskList': 'callerTerminalHandle',
   'orchestration.taskUpdate': 'callerTerminalHandle',

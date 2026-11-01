@@ -8,7 +8,7 @@ import { printResult } from '../format'
 import { ORCHESTRATION_HANDLERS } from './orchestration'
 import { orchestrationTestContext } from './orchestration-handler-test-context'
 
-async function formatSend(result: unknown, json = false): Promise<string> {
+async function formatSend(result: unknown): Promise<string> {
   callMock.mockReset().mockResolvedValueOnce({ result })
   vi.mocked(printResult).mockClear()
   await ORCHESTRATION_HANDLERS['orchestration send'](
@@ -20,7 +20,7 @@ async function formatSend(result: unknown, json = false): Promise<string> {
         ['to', 'term_recipient'],
         ['subject', 'ping']
       ]),
-      json,
+      false,
       '/workspace'
     )
   )
@@ -30,7 +30,7 @@ async function formatSend(result: unknown, json = false): Promise<string> {
     throw new Error('send did not print its receipt')
   }
   expect(printCall[0]).toEqual({ result })
-  expect(printCall[1]).toBe(json)
+  expect(printCall[1]).toBe(false)
   return printCall[2](printCall[0].result)
 }
 
@@ -94,28 +94,4 @@ it('prints delivery limitations on relayed receipts', async () => {
 
 it('leaves a canonical receipt unchanged', async () => {
   await expect(formatSend({ message: { id: 'msg_1' } })).resolves.toBe('Sent msg_1')
-})
-
-it('says a structured worker`s chat holds a queued pointer until its turn ends', async () => {
-  await expect(
-    formatSend({ message: { id: 'msg_1', to_handle: 'dispatch:ctx_1' }, delivery: 'queued' })
-  ).resolves.toBe(
-    'Sent msg_1\nQueued: dispatch:ctx_1 is mid-turn; its chat holds the pointer and sends it when the current turn ends.'
-  )
-})
-
-it('leaves an injected receipt unchanged', async () => {
-  await expect(
-    formatSend({ message: { id: 'msg_1', to_handle: 'dispatch:ctx_1' }, delivery: 'injected' })
-  ).resolves.toBe('Sent msg_1')
-})
-
-it('passes delivery through to JSON output', async () => {
-  await formatSend(
-    { message: { id: 'msg_1', to_handle: 'dispatch:ctx_1' }, delivery: 'queued' },
-    true
-  )
-  expect(vi.mocked(printResult).mock.calls.at(-1)?.[0]).toMatchObject({
-    result: { delivery: 'queued' }
-  })
 })

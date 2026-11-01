@@ -2,7 +2,7 @@ import type { DashboardAgentRow as DashboardAgentRowData } from '@/components/da
 import { agentRowStoppingLabel } from '@/lib/agent-row-stopping-label'
 import type { getAgentDotState } from './worktree-card-agent-summary'
 
-/** Lead with statuses the dot cannot express so truncation cuts the prompt instead; monitored-work rows keep their command first. */
+/** Lead with statuses the dot cannot express so truncation cuts the prompt instead. */
 export function getCompactAgentLineOrder(
   agent: DashboardAgentRowData,
   dotState: ReturnType<typeof getAgentDotState>,
@@ -10,8 +10,7 @@ export function getCompactAgentLineOrder(
   secondary: string
 ): { leadingText: string; trailingText: string } {
   const statusLeads =
-    (dotState === 'monitoring' && agent.rowSource !== 'monitored-work') ||
-    secondary === agentRowStoppingLabel(agent.entry, agent.state)
+    dotState === 'monitoring' || secondary === agentRowStoppingLabel(agent.entry, agent.state)
   if (!statusLeads) {
     return { leadingText: primary, trailingText: secondary }
   }

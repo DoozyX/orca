@@ -38,7 +38,6 @@ import { attachMutationReceiptStore } from './mutation-receipts/mutation-receipt
 import { attachLifecycleTransition } from './lifecycle-transition'
 import { attachQuestionThreads } from './questions/question-threads'
 import { attachOrchestrationReset } from './reset/orchestration-reset'
-import { attachResourceLeaseStore } from './resource-lease/resource-lease-store'
 import { attachRunBinding } from './runs/run-binding'
 import { attachRunCoordinatorMailRouting } from './runs/run-coordinator-mail-routing'
 import { attachRunCreate } from './runs/run-create'
@@ -67,7 +66,6 @@ import { attachWorkerTerminalListing } from './worker-terminal/worker-terminal-l
 import { attachWorkerTerminalRelease } from './worker-terminal/worker-terminal-release'
 import { attachWorkerTerminalResourceStore } from './worker-terminal/worker-terminal-resource-store'
 import { attachWorkerTerminalTransfer } from './worker-terminal/worker-terminal-transfer'
-import { attachWorkerTerminalHandleRebind } from './worker-terminal/worker-terminal-handle-rebind'
 
 export function attachOrchestrationDbMethods(ctor: { prototype: object }): void {
   attachAttemptObservationStore(ctor)
@@ -125,9 +123,7 @@ export function attachOrchestrationDbMethods(ctor: { prototype: object }): void 
   attachRemoteQuestionStore(ctor)
   attachFederationRelayItem(ctor)
   attachWorkerTerminalResourceStore(ctor)
-  attachResourceLeaseStore(ctor)
   attachWorkerTerminalTransfer(ctor)
-  attachWorkerTerminalHandleRebind(ctor)
   attachWorkerTerminalRelease(ctor)
   attachWorkerTerminalArchive(ctor)
   attachWorkerTerminalAutoRelease(ctor)

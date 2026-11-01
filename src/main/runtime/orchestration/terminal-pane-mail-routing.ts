@@ -20,7 +20,6 @@ import {
   structuredSessionIdleEdgeMailboxes
 } from './structured-session-mail-target'
 import { exitedChatDispatchesForSession } from './chat-assignee'
-import { recordStructuredTurnEndedWithoutReport } from './structured-turn-settlement-watch'
 import { OPERATOR_CLOSE_EXIT_CAUSE } from '../../../shared/terminal-exit-cause'
 import { resolveTerminalIdentityFromProbes } from '../terminal-identity-probe'
 
@@ -78,7 +77,10 @@ export abstract class OrcaRuntimeWithGetPtyRecordForPaneKey extends OrcaRuntimeW
       return livePty.pty.worktreeId
     }
     const record = this.handles.get(handle)
-    return record && record.runtimeId === this.runtimeId ? record.worktreeId : null
+    if (!record || record.runtimeId !== this.runtimeId) {
+      return null
+    }
+    return record.worktreeId
   }
 
   protected setPtyManagementTitleFromObservedTitle(
@@ -170,7 +172,6 @@ export abstract class OrcaRuntimeWithGetPtyRecordForPaneKey extends OrcaRuntimeW
   onStructuredSessionStatusForMail(summary: {
     sessionId: string
     status: 'working' | 'attention' | 'idle' | null
-    statusStartedAt?: number
   }): void {
     if (summary.status === 'attention') {
       return
@@ -185,7 +186,6 @@ export abstract class OrcaRuntimeWithGetPtyRecordForPaneKey extends OrcaRuntimeW
       const openDb = () => this.getExistingOrchestrationDb()
       const deliver = (mailbox: string) => this.deliverPendingMessagesForHandle(mailbox)
       structuredSessionIdleEdgeMailboxes(summary.sessionId, openDb).forEach(deliver)
-      recordStructuredTurnEndedWithoutReport(openDb(), summary)
     } catch (error) {
       console.warn('[orchestration] structured session mail redrive failed', {
         sessionId: summary.sessionId,
@@ -196,7 +196,6 @@ export abstract class OrcaRuntimeWithGetPtyRecordForPaneKey extends OrcaRuntimeW
 
   /** Settle ended chat Dispatches on tab hide; /clear successors retain their work. */
   onStructuredSessionTabHidden(sessionId: string): void {
-    this.removeWindowlessAgentSessionTab(sessionId)
     try {
       const db = this.getExistingOrchestrationDb()
       for (const dispatch of db ? exitedChatDispatchesForSession(sessionId, db) : []) {

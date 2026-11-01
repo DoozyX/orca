@@ -1,19 +1,17 @@
 import type { OrchestrationDb } from '../orchestration-db'
 
-/**
- * Takeover evidence: `takeover_source` names the input path that marked a worker terminal
- * user-owned and `takeover_at` when, so a genuine takeover can be told from a misclassification.
- * Rows taken over before v45 keep both NULL and report as unrecorded.
- */
+/** The home's release deadline for hosts that cannot release settled workers themselves. */
 export function migrateV45(this: OrchestrationDb, current: number): void {
   if (current >= 45) {
     return
   }
-  // Guarded because createTables runs first on every open and already gives a fresh database these.
-  if (!this.hasColumn('worker_terminal_resources', 'takeover_source')) {
-    this.db.exec('ALTER TABLE worker_terminal_resources ADD COLUMN takeover_source TEXT')
+  for (const column of ['home_auto_release_at', 'home_auto_release_state']) {
+    if (!this.hasColumn('federated_dispatches', column)) {
+      this.db.exec(`ALTER TABLE federated_dispatches ADD COLUMN ${column} TEXT`)
+    }
   }
-  if (!this.hasColumn('worker_terminal_resources', 'takeover_at')) {
-    this.db.exec('ALTER TABLE worker_terminal_resources ADD COLUMN takeover_at TEXT')
-  }
+  this.db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_federated_dispatches_home_auto_release
+      ON federated_dispatches(home_auto_release_at) WHERE home_auto_release_at IS NOT NULL;
+  `)
 }

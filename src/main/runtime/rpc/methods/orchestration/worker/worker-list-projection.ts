@@ -43,9 +43,6 @@ export function projectWorkerFleet(args: {
   const workers: FleetDurableWorker[] = args.rows.map((row) => {
     return {
       ...row,
-      pendingInputAgeMs: args.attentionFacts.get(row.dispatchId)?.pendingInputAgeMs,
-      pendingApprovalAgeMs: args.attentionFacts.get(row.dispatchId)?.pendingApprovalAgeMs,
-      checkpointAgeMs: args.attentionFacts.get(row.dispatchId)?.checkpointAgeMs,
       outcome: resolveFleetWorkerOutcome({
         attemptOutcome: args.attentionFacts.get(row.dispatchId)?.outcome ?? 'outcome_unknown',
         workerState: row.workerState,
@@ -63,7 +60,6 @@ export function projectWorkerFleet(args: {
             hostScope: row.resource.host_scope,
             ownershipState: row.resource.ownership_state,
             releaseState: row.resource.release_state,
-            retainedReason: row.resource.retained_reason,
             autoReleaseAt: liveWorkerTerminalAutoReleaseAt(row.resource),
             updatedAt: row.resource.updated_at
           }

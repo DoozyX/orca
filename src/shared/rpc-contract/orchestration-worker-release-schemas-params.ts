@@ -2,14 +2,9 @@ import { z } from 'zod'
 import { requiredString } from './rpc-param-primitives'
 import { ORCHESTRATION_FLEET_PAGE_MAX } from '../orchestration-fleet-projection'
 
-export const WorkerDispatchParams = z.object({
-  dispatch: requiredString('Missing --dispatch'),
-  run: z.string().min(1).optional()
-})
+export const WorkerDispatchParams = z.object({ dispatch: requiredString('Missing --dispatch') })
 
-export const WorkerRetainParams = z
-  .object({ dispatch: requiredString('Missing --dispatch') })
-  .strict()
+export const WorkerRetainParams = WorkerDispatchParams.strict()
 
 export const WORKER_TERMINAL_LIST_STATES = [
   'active',

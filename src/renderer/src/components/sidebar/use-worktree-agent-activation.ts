@@ -6,13 +6,9 @@ import { activateTerminalTabOnOwner } from '@/lib/terminal-tab-owner-activation'
 import { parsePaneKey } from '../../../../shared/stable-pane-id'
 import { dismissStaleAgentRowByKey } from '../terminal-pane/stale-agent-row'
 import { activateStructuredAgentSessionTab } from '@/lib/agent-session/structured-agent-session-tab-activation'
-import { activateRetainedAgentRow } from './activate-retained-agent-row'
 
-export function useWorktreeAgentActivation(worktreeId: string): {
-  handleActivateAgentTab: (tabId: string, paneKey: string) => void
-  handleActivateRetainedAgent: (tabId: string, paneKey: string) => void
-} {
-  const handleActivateAgentTab = useCallback(
+export function useWorktreeAgentActivation(worktreeId: string) {
+  return useCallback(
     (tabId: string, paneKey: string) => {
       const parsed = parsePaneKey(paneKey)
       if (!parsed) {
@@ -51,9 +47,4 @@ export function useWorktreeAgentActivation(worktreeId: string): {
     },
     [worktreeId]
   )
-  const handleActivateRetainedAgent = useCallback(
-    (tabId: string, paneKey: string) => activateRetainedAgentRow(worktreeId, tabId, paneKey),
-    [worktreeId]
-  )
-  return { handleActivateAgentTab, handleActivateRetainedAgent }
 }

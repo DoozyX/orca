@@ -1,7 +1,6 @@
 import type { OrcaRuntimeService } from '../../../../orca-runtime'
 import { OrchestrationError } from '../../../../orchestration/orchestration-error'
 import { isStructuredWorkerHandle } from '../../../../../../shared/structured-worker-handle'
-import { AGENT_SESSION_HAS_NO_TERMINAL } from '../../../../structured-worker-terminal-refusal'
 import type { OrchestrationCallerIdentity } from '../../../../orchestration/orchestration-caller-identity'
 import type { OrchestrationDb } from '../../../../orchestration/db'
 import type { OrcaSessionId } from '../../../../../../shared/orca-session-address'
@@ -22,9 +21,7 @@ export async function assertExplicitWorkerTerminalUsable(args: {
   resolvedWorktreeId: string | undefined
 }): Promise<void> {
   const { runtime, terminal, from, coordinator, resolvedWorktreeId } = args
-  const explicitTerminal = await runtime.showTerminal(terminal).catch((error: unknown) => {
-    throw isAgentSessionRefusal(error) ? structuredWorkerReuseRefusal(terminal, from) : error
-  })
+  const explicitTerminal = await runtime.showTerminal(terminal)
   const targetPane = runtime.getTerminalPaneKey(terminal)
   const callerPane = coordinator?.paneKey ?? runtime.getTerminalPaneKey(from)
   // Structured coordinators may have no showable terminal; compare their handle/pane identity, or session address for handle-less callers.
@@ -55,29 +52,6 @@ export async function assertExplicitWorkerTerminalUsable(args: {
       `Terminal ${terminal} is not running a recognized agent.`
     )
   }
-}
-
-function isAgentSessionRefusal(error: unknown): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    error.code === AGENT_SESSION_HAS_NO_TERMINAL
-  )
-}
-
-/** worker-start's refusal for a live structured worker: the reuse route that exists, and its limit (#20). */
-function structuredWorkerReuseRefusal(terminal: string, from: string): OrchestrationError {
-  return new OrchestrationError(
-    AGENT_SESSION_HAS_NO_TERMINAL,
-    `${terminal} is a structured agent session, so worker-start --terminal cannot reuse it. ` +
-      `To give it another Task, run \`orca orchestration dispatch --task <task_id> --to ${terminal} --from ${from} --return-preamble --json\` ` +
-      `and send it the returned preamble with \`orca orchestration send --to ${terminal} --from ${from} --subject <subject> --body <preamble>\`. ` +
-      'That reuse is unsupervised: no readiness wait, input receipt or turn observation backs it. ' +
-      '`orca orchestration worker-stop --dispatch <dispatch_id>` fences that Dispatch and interrupts ' +
-      "the session's running turn; its `interrupt` field says whether it did. For a supervised " +
-      'start, omit --terminal so worker-start creates a fresh worker.'
-  )
 }
 
 /** A `--terminal` party: a terminal pane, or a chat named by its Orca session ID. */

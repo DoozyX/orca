@@ -73,13 +73,3 @@ export function handsOverBatch(result: unknown): boolean {
     result.deliveryAcknowledged === true
   )
 }
-
-/** A typed wait takes only its types, so woken waiters share a batch only with the same type set. */
-export function wakeShareKey(
-  address: string,
-  generation: number,
-  typeFilter: readonly string[] | undefined
-): string {
-  const types = typeFilter?.length ? [...new Set(typeFilter)].sort().join(',') : '*'
-  return `${address}:${generation}:${types}`
-}

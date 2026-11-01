@@ -94,36 +94,6 @@ describe('orchestration gate commands carry caller identity', () => {
     )
   })
 
-  it('says a gate recorded under a live worker keeps it running and leaves the Task unblocked', async () => {
-    queueFixtures(
-      callMock,
-      okFixture('req_gate', {
-        gate: { id: 'gate_1', task_id: 'task_1', status: 'pending' },
-        preservedDispatchId: 'ctx_live'
-      })
-    )
-
-    await main(
-      [
-        'orchestration',
-        'gate-create',
-        '--task',
-        'task_1',
-        '--question',
-        'ship?',
-        '--from',
-        'term_coord',
-        '--full'
-      ],
-      '/tmp/repo'
-    )
-
-    expect(process.exitCode).toBe(0)
-    expect(logSpy.mock.calls.map((call) => String(call[0])).join('\n')).toBe(
-      'Gate gate_1 created for task task_1 [pending]; worker Dispatch ctx_live keeps running and the Task is not blocked.'
-    )
-  })
-
   it('remints a stale environment handle before authorizing gateCreate', async () => {
     process.env.ORCA_TERMINAL_HANDLE = 'term_stale'
     process.env.ORCA_PANE_KEY = 'tab_coord:leaf_coord'
@@ -202,7 +172,17 @@ describe('orchestration gate commands carry caller identity', () => {
     queueFixtures(
       callMock,
       okFixture('req_list', {
-        gates: [{ id: 'gate_1', task_id: 'task_1', question: 'ship?', status: 'pending' }],
+        gates: [
+          {
+            id: 'gate_1',
+            task_id: 'task_1',
+            question: 'ship?',
+            options: '["yes","no"]',
+            status: 'pending',
+            resolution: null,
+            created_at: '2026-10-31 00:00:00'
+          }
+        ],
         count: 1
       })
     )
@@ -210,6 +190,15 @@ describe('orchestration gate commands carry caller identity', () => {
     await main(['orchestration', 'gate-list', '--run', 'run_adopted', '--json'], '/tmp/repo')
 
     expect(process.exitCode).toBe(0)
+    expect(JSON.parse(String(logSpy.mock.calls[0]?.[0])).result.gates).toEqual([
+      {
+        id: 'gate_1',
+        taskId: 'task_1',
+        status: 'pending',
+        question: 'ship?',
+        options: '["yes","no"]'
+      }
+    ])
     expect(getTerminalHandleMock).not.toHaveBeenCalled()
     expect(paramsFor('orchestration.gateList')).toEqual(
       expect.objectContaining({ run: 'run_adopted', from: undefined })

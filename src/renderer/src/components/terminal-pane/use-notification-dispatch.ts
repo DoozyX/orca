@@ -30,11 +30,6 @@ import {
   resolveAgentAttention,
   type AgentAttentionDeliveryRequest
 } from '@/attention/agent-attention-policy'
-import { resolveOrchestrationCompletionBanner } from '@/attention/orchestration-completion-quieting'
-import {
-  getAnnouncedOrchestrationFailures,
-  recordOrchestrationFailureAnnouncement
-} from '@/attention/orchestration-failure-announcement-ledger'
 import {
   deliverAgentAttentionNotification,
   readAgentAttentionNotificationSound
@@ -165,24 +160,9 @@ export function dispatchTerminalNotification(
         })
       : null
 
-  // Why: unread markers stay, so a quiet completion is still visible in the sidebar.
-  const completionBanner = resolveOrchestrationCompletionBanner({
-    paneKey: event.paneKey,
-    agentState: agentStatus?.state,
-    orchestrationByPaneKey: state.runtimeAgentOrchestrationByPaneKey,
-    runWorkerPaneKeys: state.runtimeAgentRunWorkerPaneKeys,
-    announcedFailedDispatchIds: getAnnouncedOrchestrationFailures()
-  })
-
   let requested = false
   const requestDelivery = (request: AgentAttentionDeliveryRequest): void => {
-    if (completionBanner.quiet) {
-      return
-    }
     requested = true
-    if (completionBanner.announcesFailedDispatchId) {
-      recordOrchestrationFailureAnnouncement(completionBanner.announcesFailedDispatchId)
-    }
     const owner = resolveTerminalNotificationOwner(state, worktreeId, event)
     const executionHost = notificationExecutionHostForOwner(owner)
     deliverAgentAttentionNotification(

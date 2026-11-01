@@ -70,7 +70,6 @@ describe('orchestration fleet projection', () => {
             hostScope: JSON.stringify({ kind: 'wsl', hostId: 'local', distro: 'Ubuntu' }),
             ownershipState: 'owned',
             releaseState: 'not_requested',
-            retainedReason: null,
             updatedAt: ''
           }
         })
@@ -96,7 +95,6 @@ describe('orchestration fleet projection', () => {
             hostScope: '{"kind":"local","hostId":"local"}',
             ownershipState: 'owned',
             releaseState: 'not_requested',
-            retainedReason: null,
             updatedAt: '2026-01-01T00:00:00Z'
           }
         })
@@ -153,7 +151,6 @@ describe('orchestration fleet projection', () => {
             hostScope: null,
             ownershipState: 'owned',
             releaseState: 'not_requested',
-            retainedReason: null,
             updatedAt: '2026-01-01T00:00:00Z'
           }
         })
@@ -230,77 +227,19 @@ describe('orchestration fleet projection', () => {
     expect(second.workers.at(-1)?.id).toBe('dispatch-109')
   })
 
-  // Cleanup still earns a command when liveness is unverifiable: accepted settlement proves it.
-  it.each(['live', 'unverifiable'] as const)(
-    'suggests release for a reclaimable owned terminal under %s liveness',
-    (verdict) => {
-      const now = 10_000
-      const result = projectOrchestrationFleet({
-        workers: [
-          worker('done', {
-            workerState: 'succeeded',
-            terminalState: 'reclaimable',
-            resource: ownedResource('done')
-          })
-        ],
-        statuses: verdict === 'live' ? [status('done', now - 1)] : [],
-        now
-      })
-
-      expect(result.workers[0]?.liveness.verdict).toBe(verdict)
-      expect(result.workers[0]?.nextAction).toEqual({
-        kind: 'release',
-        argv: ['orchestration', 'worker-release', '--dispatch', 'done']
-      })
-    }
-  )
-
-  // #32: a user-retained row offered `release` while `--terminal-state reclaimable` was empty.
-  it.each(['live', 'unverifiable'] as const)(
-    'asks nothing of a user-retained terminal under %s liveness',
-    (verdict) => {
-      const now = 10_000
-      const result = projectOrchestrationFleet({
-        workers: [
-          worker('kept', {
-            workerState: 'succeeded',
-            terminalState: 'retained',
-            resource: ownedResource('kept', {
-              releaseState: 'retained',
-              retainedReason: 'user_requested'
-            })
-          })
-        ],
-        statuses: verdict === 'live' ? [status('kept', now - 1)] : [],
-        now
-      })
-
-      expect(result.workers[0]?.liveness.verdict).toBe(verdict)
-      expect(result.workers[0]?.nextAction).toEqual({
-        kind: 'none',
-        argv: [],
-        reason: 'user_retained'
-      })
-    }
-  )
-
-  // #16: worker-release answers release_unknown again while the terminal does not resolve.
-  it('reports an unresolved release instead of advising another release', () => {
+  // Cleanup still earns a command when liveness is unverifiable.
+  it('suggests release only for reclaimable ownership', () => {
     const result = projectOrchestrationFleet({
-      workers: [
-        worker('lost', {
-          workerState: 'succeeded',
-          terminalState: 'release_unknown',
-          resource: ownedResource('lost', { releaseState: 'unknown' })
-        })
-      ],
+      workers: [worker('done', { terminalState: 'reclaimable' })],
       statuses: [],
-      now: 10_000
+      now: 1
     })
-    const row = result.workers[0]!
 
-    expect(row.nextAction).toEqual({ kind: 'none', argv: [], reason: 'release_unknown' })
-    expect(row.attention.categories).toContain('unverifiable')
+    expect(result.workers[0]?.liveness.verdict).toBe('unverifiable')
+    expect(result.workers[0]?.nextAction).toEqual({
+      kind: 'release',
+      argv: ['orchestration', 'worker-release', '--dispatch', 'done']
+    })
   })
 
   it('does not join a status carrying another Dispatch onto a reused pane', () => {
@@ -338,7 +277,6 @@ describe('orchestration fleet projection', () => {
         hostScope: '{"kind":"local","hostId":"local"}',
         ownershipState: 'owned',
         releaseState: 'not_requested',
-        retainedReason: null,
         updatedAt: '2026-01-01T00:00:00Z'
       }
     })
@@ -397,7 +335,6 @@ describe('orchestration fleet projection', () => {
             hostScope: '{"kind":"local","hostId":"local"}',
             ownershipState: 'owned',
             releaseState: 'not_requested',
-            retainedReason: null,
             updatedAt: '2026-01-01T00:00:00Z'
           }
         })
@@ -433,7 +370,6 @@ describe('orchestration fleet projection', () => {
             hostScope: '{"kind":"federated","targetId":"host-unknown"}',
             ownershipState: 'owned',
             releaseState: 'not_requested',
-            retainedReason: null,
             updatedAt: '2026-01-01T00:00:00Z'
           }
         })
@@ -467,38 +403,6 @@ describe('fleet liveness and attention after a host verdict', () => {
     expect(replayed.workers[0]?.attention.categories).toContain('stale')
   })
 
-  it('does not keep a repainted working row live past the agent evidence window', () => {
-    const now = 10 * AGENT_STATUS_STALE_AFTER_MS
-    const agentEvidenceObservedAt = now - 31 * 60_000
-    const projected = projectOrchestrationFleet({
-      workers: [worker('repaint')],
-      // A matching OSC repaint renews the row's evidence clock; the agent last reported 31 min ago.
-      statuses: [
-        status('repaint', now, {
-          evidenceObservedAt: now,
-          agentEvidenceObservedAt,
-          observation: {
-            origin: 'osc',
-            authorityId: 'main:repaint',
-            incarnation: 0,
-            revision: 2,
-            observedAt: now,
-            kind: 'snapshot'
-          }
-        })
-      ],
-      now
-    }).workers[0]
-
-    expect(projected?.liveness).toEqual({
-      verdict: 'unverifiable',
-      reason: 'stale_status',
-      observedAt: agentEvidenceObservedAt
-    })
-    expect(projected?.stage.activity).toBe('unknown')
-    expect(projected?.evidence.liveStatus).toBe('stale')
-  })
-
   it('keeps an unproven outcome unverifiable after the host reports live', () => {
     const now = 10_000
     const projected = projectOrchestrationFleet({
@@ -515,20 +419,6 @@ describe('fleet liveness and attention after a host verdict', () => {
 
     expect(subject.attention.categories).toContain('unverifiable')
     expect(subject.attention.requiresAction).toBe(true)
-  })
-
-  it('asks for action on a live worker whose turn ended without a report, never release', () => {
-    const now = 10_000
-    const subject = projectOrchestrationFleet({
-      workers: [worker('1', { outcome: 'finished_unverified' })],
-      statuses: [status('1', now - 1, { state: 'done' })],
-      now
-    }).workers[0]!
-
-    expect(subject.liveness.verdict).toBe('live')
-    expect(subject.attention.categories).toContain('unverifiable')
-    expect(subject.attention.requiresAction).toBe(true)
-    expect(subject.nextAction.kind).not.toBe('release')
   })
 
   it('drops a stale category the host verdict disproves', () => {
@@ -668,7 +558,7 @@ describe('fleet liveness and attention after a host verdict', () => {
     }
   )
 
-  // The stopped worker’s receipt previously proved exit, called it absence and pointed back to itself; release always refuses it.
+  // The stopped worker’s receipt previously proved exit, called it absence and pointed back to itself.
   it('never contradicts a proven exit on a stopped worker still owning its terminal', () => {
     const projected = projectOrchestrationFleet({
       workers: [
@@ -678,7 +568,16 @@ describe('fleet liveness and attention after a host verdict', () => {
           workerStage: 'process_stopped',
           outcome: 'outcome_unknown',
           terminalState: 'retained',
-          resource: ownedResource('1')
+          resource: {
+            id: 'resource-1',
+            ownerDispatchId: '1',
+            worktreeId: 'workspace-1',
+            paneKey: 'tab-1:leaf-1',
+            hostScope: null,
+            ownershipState: 'owned',
+            releaseState: 'active',
+            updatedAt: '2026-09-04T00:00:00.000Z'
+          }
         })
       ],
       statuses: [],
@@ -689,10 +588,13 @@ describe('fleet liveness and attention after a host verdict', () => {
     expect(row.liveness.verdict).toBe('exited')
     expect(row.attention.categories).not.toContain('unverifiable')
     expect(row.attention.requiresAction).toBe(false)
-    expect(row.nextAction).toEqual({ kind: 'none', argv: [], reason: 'identity_unproven' })
+    expect(row.nextAction).toEqual({
+      kind: 'release',
+      argv: ['orchestration', 'worker-release', '--dispatch', '1']
+    })
   })
 
-  it('asks nothing more of a settled worker whose terminal the user took over', () => {
+  it('asks nothing more of a settled worker whose terminal is already released', () => {
     const projected = projectOrchestrationFleet({
       workers: [
         worker('1', {
@@ -700,18 +602,50 @@ describe('fleet liveness and attention after a host verdict', () => {
           dispatchStatus: 'completed',
           outcome: 'outcome_unknown',
           terminalState: 'retained',
-          resource: ownedResource('1', { ownershipState: 'user_owned' })
+          resource: {
+            id: 'resource-1',
+            ownerDispatchId: '1',
+            worktreeId: 'workspace-1',
+            paneKey: 'tab-1:leaf-1',
+            hostScope: null,
+            ownershipState: 'user_owned',
+            releaseState: 'active',
+            updatedAt: '2026-09-04T00:00:00.000Z'
+          }
         })
       ],
       statuses: [],
       now: 10_000
     })
 
-    expect(projected.workers[0]!.nextAction).toEqual({
-      kind: 'none',
-      argv: [],
-      reason: 'not_owned'
+    expect(projected.workers[0]!.nextAction).toEqual({ kind: 'none', argv: [] })
+  })
+
+  // Keep open, --keep-open and new-workspace workers stay open on purpose; a release hint would close them.
+  it('asks nothing of a finished worker kept open', () => {
+    const projected = projectOrchestrationFleet({
+      workers: [
+        worker('1', {
+          workerState: 'succeeded',
+          dispatchStatus: 'completed',
+          terminalState: 'retained',
+          resource: {
+            id: 'resource-1',
+            ownerDispatchId: '1',
+            worktreeId: 'workspace-1',
+            paneKey: 'tab-1:leaf-1',
+            hostScope: null,
+            ownershipState: 'owned',
+            releaseState: 'retained',
+            updatedAt: '2026-09-04T00:00:00.000Z'
+          }
+        })
+      ],
+      statuses: [],
+      now: 10_000
     })
+
+    expect(projected.workers[0]!.nextAction).toEqual({ kind: 'none', argv: [] })
   })
 
   // A follow-up reuses the terminal while the pane still reports the earlier Dispatch's turn.
@@ -729,139 +663,3 @@ describe('fleet liveness and attention after a host verdict', () => {
     expect(projected.workers[0]!.nextAction).toEqual({ kind: 'none', argv: [] })
   })
 })
-
-function ownedResource(
-  id: string,
-  overrides: Partial<NonNullable<FleetDurableWorker['resource']>> = {}
-): NonNullable<FleetDurableWorker['resource']> {
-  return {
-    id: `resource-${id}`,
-    ownerDispatchId: id,
-    worktreeId: `workspace-${id}`,
-    paneKey: `tab-${id}:leaf-${id}`,
-    hostScope: null,
-    ownershipState: 'owned',
-    releaseState: 'active',
-    retainedReason: null,
-    updatedAt: '2026-09-04T00:00:00.000Z',
-    ...overrides
-  }
-}
-
-describe('fleet waiting and checkpoint diagnostics', () => {
-  it.each([{ pendingInput: true }, { pendingApproval: true }])(
-    'shows durable pending work as waiting independently of liveness: %j',
-    (pending) => {
-      const row = projectOrchestrationFleet({
-        workers: [worker('wait', pending)],
-        statuses: [status('wait', 10_000)],
-        now: 10_000
-      }).workers[0]!
-      expect(row.stage.activity).toBe('waiting')
-      expect(row.liveness.verdict).toBe('live')
-    }
-  )
-
-  it('uses the canonical interactive prompt even while children keep the combined state working', () => {
-    const row = projectOrchestrationFleet({
-      workers: [worker('wait')],
-      statuses: [
-        status('wait', 10_000, {
-          interactivePrompt: '{"questions":[]}',
-          mainAgent: { state: 'blocked', stateStartedAt: 1_000 }
-        })
-      ],
-      now: 10_000
-    }).workers[0]!
-    expect(row.stage.activity).toBe('waiting')
-    expect(row.attention.categories).toContain('input')
-    expect(row.diagnostics?.stateAgeMs).toBe(9_000)
-  })
-
-  it('repeated delivery and spinner snapshots do not advance the state checkpoint age', () => {
-    const project = (receivedAt: number) =>
-      projectOrchestrationFleet({
-        workers: [worker('clock')],
-        statuses: [status('clock', receivedAt, { stateStartedAt: 1_000 })],
-        now: 20_000
-      }).workers[0]!
-    expect(project(10_000).diagnostics?.stateAgeMs).toBe(19_000)
-    expect(project(20_000).diagnostics?.stateAgeMs).toBe(19_000)
-  })
-
-  it('remote missing status stays unknown and never becomes an exit or a synthetic checkpoint', () => {
-    const row = projectOrchestrationFleet({
-      workers: [
-        worker('remote', {
-          resource: {
-            id: 'r-remote',
-            ownerDispatchId: 'remote',
-            worktreeId: 'folder-remote',
-            paneKey: null,
-            hostScope: '{"kind":"ssh","targetId":"offline"}',
-            ownershipState: 'owned',
-            releaseState: 'active',
-            retainedReason: null,
-            updatedAt: '2026-10-06T00:00:00Z'
-          }
-        })
-      ],
-      statuses: [],
-      now: 20_000
-    }).workers[0]!
-    expect(row.stage.activity).toBe('unknown')
-    expect(row.liveness.verdict).toBe('unverifiable')
-    expect(row.diagnostics?.stateAgeMs).toBeNull()
-  })
-})
-
-it('shows canonical approval blocking as waiting while preserving the unknown approval kind', () => {
-  const row = projectOrchestrationFleet({
-    workers: [worker('approval')],
-    statuses: [
-      status('approval', 10_000, { mainAgent: { state: 'blocked', stateStartedAt: 1_000 } })
-    ],
-    now: 10_000
-  }).workers[0]!
-  expect(row.stage.activity).toBe('waiting')
-  expect(row.attention.categories).not.toContain('approval')
-})
-
-it.each(['stale boundary', 'restored', 'released', 'certified exit'])(
-  'rejects canonical interactive input from %s evidence while retaining durable input',
-  (kind) => {
-    const now = 10 * AGENT_STATUS_STALE_AFTER_MS
-    const project = (pendingInput: boolean) =>
-      projectOrchestrationFleet({
-        workers: [
-          worker('prompt', {
-            pendingInput,
-            ...(kind === 'released' ? { workerStage: 'released' } : {}),
-            ...(kind === 'certified exit' ? { terminationReason: 'exited' } : {})
-          })
-        ],
-        statuses: [
-          status('prompt', now, {
-            interactivePrompt: '{"questions":[]}',
-            mainAgent: { state: 'blocked', stateStartedAt: now - 100 },
-            ...(kind === 'stale boundary'
-              ? { evidenceObservedAt: now - AGENT_STATUS_STALE_AFTER_MS - 1 }
-              : {}),
-            ...(kind === 'restored' ? { restoredUnconfirmed: true } : {})
-          })
-        ],
-        now
-      }).workers[0]!
-    const row = project(false)
-    expect(row.liveness.verdict).toBe(
-      kind === 'released' || kind === 'certified exit' ? 'exited' : 'unverifiable'
-    )
-    expect(row.stage.activity).toBe('unknown')
-    expect(row.attention.categories).not.toContain('input')
-    expect(row.diagnostics?.stateAgeMs).toBeNull()
-    const durable = project(true)
-    expect(durable.stage.activity).toBe('waiting')
-    expect(durable.attention.categories).toContain('input')
-    expect(durable.nextAction.kind).toBe(kind === 'released' ? 'none' : 'inspect')
-  }
-)

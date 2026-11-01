@@ -241,7 +241,7 @@ export async function openWorkspaceBrowserTab(
       url: request.url,
       ...resolveWebRuntimeBrowserClientTargetGroup(
         state,
-        { ...request, targetGroupId },
+        { ...request, targetGroupId, ...(destination ? { split: placement.split } : {}) },
         environmentId
       ),
       ...(destination ? { profileId: destination.sessionProfileId } : {}),

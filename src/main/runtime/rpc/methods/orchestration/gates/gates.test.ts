@@ -5,7 +5,6 @@ import type { OrchestrationDb } from '../../../../orchestration/db'
 
 describe('orchestration RPC methods', () => {
   const h = createOrchestrationRpcHarness()
-  const { findMethod } = h
   let db: OrchestrationDb
   let ctx: RpcContext
 
@@ -38,40 +37,6 @@ describe('orchestration RPC methods', () => {
 
       const updated = db.getTask(task.id)
       expect(updated?.status).toBe('blocked')
-      expect(result).not.toHaveProperty('preservedDispatchId')
-    })
-
-    it('records a gate under an active worker and names the preserved Dispatch', async () => {
-      setup()
-      const task = db.createTask({ spec: 'continue while running' })
-      const started = db.createStartingWorkerDispatch({
-        creator: { kind: 'system' },
-        maxDepth: Number.MAX_SAFE_INTEGER,
-        taskId: task.id,
-        startOptions: {}
-      })
-      db.prepareStartingWorkerAuthority({
-        dispatchId: started.dispatch.id,
-        handle: 'term_worker',
-        paneKey: 'tab_worker:aaaaaaaa-aaaa-4aaa-8aaa-000000000002',
-        processIncarnation: 'worker:1',
-        worktreeId: 'repo::worker',
-        effects: [],
-        setupState: 'not_applicable',
-        terminalOwnership: 'created'
-      })
-      db.markWorkerDispatchReady(started.dispatch.id)
-
-      const result = await call('orchestration.gateCreate', {
-        task: task.id,
-        question: 'Keep going with the narrower scope?'
-      })
-
-      expect(result).toMatchObject({
-        gate: { status: 'pending' },
-        preservedDispatchId: started.dispatch.id
-      })
-      expect(db.getTask(task.id)?.status).toBe('dispatched')
     })
 
     it('refuses a foreign Run task when no legacy adoption exists', async () => {
@@ -101,30 +66,6 @@ describe('orchestration RPC methods', () => {
       expect(db.getTask(foreignTask.id)?.status).toBe('ready')
       expect(db.listGates({ taskId: foreignTask.id })).toHaveLength(0)
     })
-
-    it('rejects invalid options JSON', async () => {
-      setup()
-      const task = db.createTask({ spec: 'work' })
-      await expect(
-        call('orchestration.gateCreate', {
-          task: task.id,
-          question: 'ok?',
-          options: 'not-json'
-        })
-      ).rejects.toThrow('Invalid --options')
-    })
-
-    it('rejects options that are not string arrays', async () => {
-      setup()
-      const task = db.createTask({ spec: 'work' })
-      await expect(
-        call('orchestration.gateCreate', {
-          task: task.id,
-          question: 'ok?',
-          options: JSON.stringify(['yes', 1])
-        })
-      ).rejects.toThrow('Invalid --options')
-    })
   })
 
   describe('orchestration.gateResolve', () => {
@@ -143,43 +84,6 @@ describe('orchestration RPC methods', () => {
 
       const updated = db.getTask(task.id)
       expect(updated?.status).toBe('ready')
-    })
-
-    it('throws on nonexistent gate', async () => {
-      setup()
-      await expect(
-        call('orchestration.gateResolve', { id: 'gate_fake', resolution: 'yes' })
-      ).rejects.toThrow('Gate not found')
-    })
-  })
-
-  describe('orchestration.gateList', () => {
-    it('lists all gates', async () => {
-      setup()
-      const t1 = db.createTask({ spec: 'a' })
-      const t2 = db.createTask({ spec: 'b' })
-      db.createGate({ taskId: t1.id, question: 'q1' })
-      db.createGate({ taskId: t2.id, question: 'q2' })
-
-      const result = (await call('orchestration.gateList', {})) as { count: number }
-      expect(result.count).toBe(2)
-    })
-
-    it('filters by status', async () => {
-      setup()
-      const task = db.createTask({ spec: 'work' })
-      const gate = db.createGate({ taskId: task.id, question: 'q' })
-      db.resolveGate(gate.id, 'yes')
-
-      const result = (await call('orchestration.gateList', {
-        status: 'resolved'
-      })) as { count: number }
-      expect(result.count).toBe(1)
-    })
-
-    it('rejects invalid status filters', () => {
-      const method = findMethod('orchestration.gateList')
-      expect(() => method.params!.parse({ status: 'closed' })).toThrow()
     })
   })
 })

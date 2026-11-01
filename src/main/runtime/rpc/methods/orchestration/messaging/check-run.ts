@@ -4,13 +4,7 @@ import type { OrcaRuntimeService } from '../../../../orca-runtime'
 import type { RpcContext } from '../../../core'
 import { OrchestrationError } from '../../../../orchestration/orchestration-error'
 import { formatMessageBanner } from '../../../../orchestration/formatter'
-import { ORCHESTRATION_MESSAGE_WAIT_DEFAULT_TIMEOUT_MS } from '../../../../../../shared/orchestration-message-wait-timeout'
-import {
-  deliveryReceipt,
-  exposeMessages,
-  handsOverBatch,
-  wakeShareKey
-} from './mailbox-message-receipt'
+import { deliveryReceipt, exposeMessages, handsOverBatch } from './mailbox-message-receipt'
 import { interruptedAcknowledgedCheck } from '../routing'
 import { routeAllMailboxPages } from '../schemas'
 import { resolveRunScope } from '../runs/run-scope'
@@ -169,50 +163,42 @@ export async function checkRunMailbox(args: {
     }
   }
 
-  const deadline = Date.now() + (params.timeoutMs ?? ORCHESTRATION_MESSAGE_WAIT_DEFAULT_TIMEOUT_MS)
-  // A co-woken waiter of other types may take this wake's mail; an empty take waits on until the deadline.
-  for (;;) {
-    const waitResult = await runtime.waitForMessage(address, {
-      typeFilter: typeFilter as string[] | undefined,
-      timeoutMs: Math.max(deadline - Date.now(), 0),
-      signal
-    })
-    try {
-      revalidateConsumer()
-    } catch (error) {
-      if (!acknowledged) {
-        throw error
-      }
+  const waitResult = await runtime.waitForMessage(address, {
+    typeFilter: typeFilter as string[] | undefined,
+    timeoutMs: params.timeoutMs ?? undefined,
+    signal
+  })
+  try {
+    revalidateConsumer()
+  } catch (error) {
+    if (!acknowledged) {
+      throw error
+    }
+    return interruptedAcknowledgedCheck(run.id, acknowledged, 'consumer_fenced')
+  }
+  const latestRun = db.getRun(run.id)
+  if (!latestRun || latestRun.consumer_generation !== generation) {
+    if (acknowledged) {
       return interruptedAcknowledgedCheck(run.id, acknowledged, 'consumer_fenced')
     }
-    const latestRun = db.getRun(run.id)
-    if (!latestRun || latestRun.consumer_generation !== generation) {
-      if (acknowledged) {
-        return interruptedAcknowledgedCheck(run.id, acknowledged, 'consumer_fenced')
-      }
-      throw new OrchestrationError(
-        'consumer_fenced',
-        'This mailbox consumer was replaced while waiting.'
-      )
-    }
-    if (waitResult === 'timed_out' || waitResult === 'cancelled') {
-      const ended = {
-        timedOut: waitResult === 'timed_out',
-        cancelled: waitResult === 'cancelled',
-        connectionLost: waitResult === 'cancelled' && signal?.aborted === true
-      }
-      return params.peek ? { ...peekResult([]), ...ended } : { ...result(undefined), ...ended }
-    }
-    if (params.peek) {
-      return { ...peekResult(readPeek()), timedOut: false, cancelled: false, connectionLost: false }
-    }
-    const batch = waitResult.share(wakeShareKey(address, generation, typeFilter), () =>
-      takeDelivery(typeFilter)
+    throw new OrchestrationError(
+      'consumer_fenced',
+      'This mailbox consumer was replaced while waiting.'
     )
-    if (batch) {
-      // A waiter that shares another's take has no take transaction, so it receipts the batch on arrival.
-      args.recordMutationReceipt?.(result(batch))
-      return result(batch)
-    }
   }
+  if (waitResult === 'timed_out' || waitResult === 'cancelled') {
+    const ended = {
+      timedOut: waitResult === 'timed_out',
+      cancelled: waitResult === 'cancelled',
+      connectionLost: waitResult === 'cancelled' && signal?.aborted === true
+    }
+    return params.peek ? { ...peekResult([]), ...ended } : { ...result(undefined), ...ended }
+  }
+  if (params.peek) {
+    return { ...peekResult(readPeek()), timedOut: false, cancelled: false, connectionLost: false }
+  }
+  const batch = waitResult.share(`${address}:${generation}`, () => takeDelivery(typeFilter))
+  // A waiter that shares another's take has no take transaction, so it receipts the batch on arrival.
+  args.recordMutationReceipt?.(result(batch))
+  return result(batch)
 }

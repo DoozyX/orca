@@ -63,7 +63,6 @@ export const createAgentStatusSlice: StateCreator<AppState, [], [], AgentStatusS
     agentStatusByPaneKey: {},
     agentConversationsByPaneKey: {},
     runtimeAgentOrchestrationByPaneKey: {},
-    runtimeAgentRunWorkerPaneKeys: {},
     migrationUnsupportedByPtyId: {},
     agentStatusEpoch: 0,
     transientClearedAgentStatusConnectionIds: {},

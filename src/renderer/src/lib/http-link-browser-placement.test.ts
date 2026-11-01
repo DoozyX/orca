@@ -45,7 +45,7 @@ describe('resolveHttpLinkBrowserPlacement', () => {
     ).toEqual({ targetGroupId: 'right' })
   })
 
-  it('ignores a browser hidden behind another tab and opens in the source group instead', () => {
+  it('reuses the neighboring group when its browser is hidden behind another tab', () => {
     const editor = { id: 'editor', contentType: 'editor' } as const
     expect(
       resolveHttpLinkBrowserPlacement(
@@ -56,6 +56,17 @@ describe('resolveHttpLinkBrowserPlacement', () => {
         }),
         WT
       )
-    ).toEqual({ targetGroupId: 'left' })
+    ).toEqual({
+      targetGroupId: 'right'
+    })
+  })
+
+  it('fills an empty source pane rather than splitting beside it', () => {
+    expect(
+      resolveHttpLinkBrowserPlacement(
+        state({ rightActiveTabId: '', activeGroupId: 'right', tabs: [terminal] }),
+        WT
+      )
+    ).toEqual({ targetGroupId: 'right' })
   })
 })

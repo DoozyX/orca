@@ -9,17 +9,16 @@ import { OrchestrationError } from '../../../../orchestration/orchestration-erro
 import type { OrchestrationDb } from '../../../../orchestration/db'
 import type { FederatedDispatchRow } from '../../../../orchestration/types'
 import type { WorkerTerminalReleaseRuntime } from '../../../../orchestration/worker-terminal-release-runtime'
-import { releaseUnknownRecovery } from '../worker/worker-release-completion'
-import type { WorkerReleaseReceipt } from '../worker/worker-release-receipt'
+import {
+  releaseUnknownRecovery,
+  type WorkerReleaseReceipt
+} from '../worker/worker-release-completion'
 import type { resolvePinnedFederatedServer } from '../worker/worker-observation'
-import { RemoteTakeoverEvidenceSchema } from './federated-terminal-custody-wire'
 
 type RemoteReleaseReceipt = Omit<WorkerReleaseReceipt, 'archive'> & {
   archive?: WorkerReleaseReceipt['archive']
   output?: { source?: string }
 }
-
-const RemoteDispatchIdSchema = z.string().min(1).optional().catch(undefined)
 
 const RemoteReleaseReceiptSchema = z
   .object({
@@ -39,11 +38,7 @@ const RemoteReleaseReceiptSchema = z
       .optional(),
     recovery: z.string().optional(),
     lastError: z.string().optional(),
-    output: z.unknown().optional(),
-    // Custody evidence a newer host adds; one this build cannot validate is dropped, not fatal.
-    resolvedDispatchId: RemoteDispatchIdSchema,
-    currentOwnerDispatchId: RemoteDispatchIdSchema,
-    takeover: RemoteTakeoverEvidenceSchema.optional().catch(undefined)
+    output: z.unknown().optional()
   })
   .passthrough()
 
@@ -176,11 +171,6 @@ export async function releaseFederatedWorker(
     archive: remote.archive ?? null,
     recovery: remote.recovery,
     lastError: remote.lastError,
-    ...(remote.resolvedDispatchId ? { resolvedDispatchId: remote.resolvedDispatchId } : {}),
-    ...(remote.currentOwnerDispatchId
-      ? { currentOwnerDispatchId: remote.currentOwnerDispatchId }
-      : {}),
-    ...(remote.takeover ? { takeover: remote.takeover } : {}),
     ...(remote.output ? { remoteOutput: remote.output } : {})
   }
   if (remote.state !== 'released' && remote.state !== 'already_released') {

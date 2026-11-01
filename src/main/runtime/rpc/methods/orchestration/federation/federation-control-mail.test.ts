@@ -272,7 +272,7 @@ describe('orchestration federation control mail', () => {
     })
   })
 
-  it('uses imported types for waiter eligibility and returns only the matching rows', async () => {
+  it('uses imported types for waiter eligibility and returns the oldest full batch', async () => {
     vi.useFakeTimers()
     await dispatchImport(importRequest('import-merge-ready', 1, 'relay-merge-ready', 'merge_ready'))
 
@@ -286,7 +286,13 @@ describe('orchestration federation control mail', () => {
 
     await expect(escalationWaiter).resolves.toMatchObject({
       ok: true,
-      result: { count: 1, messages: [{ id: 'relay-escalation', type: 'escalation' }] }
+      result: {
+        count: 2,
+        messages: [
+          { id: 'relay-merge-ready', type: 'merge_ready' },
+          { id: 'relay-escalation', type: 'escalation' }
+        ]
+      }
     })
     await waitForDispatchWaiterCount(1)
     await vi.advanceTimersByTimeAsync(30)

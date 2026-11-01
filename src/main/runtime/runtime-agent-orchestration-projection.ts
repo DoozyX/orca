@@ -12,7 +12,7 @@ import {
 import { worktreeIdsEqual } from '../../shared/worktree/id'
 import type { AgentSessionRecordReader } from './orchestration/structured-session-lineage'
 import { createOrchestrationProjectionScope } from './runtime-agent-orchestration-scope'
-import { filterLiveRunMembers, getRecentTerminalDispatch } from './runtime-agent-run-membership'
+import { isRecentPresentationDispatch } from './orchestration/db/dispatch-context/dispatch-lookup'
 import { currentRunCoordinatorOrcaSessionId } from './orchestration/db/runs/run-coordinator-orca-session'
 import type { DispatchContextRow } from './orchestration/types'
 import type { PtyPaneOf } from './terminal/surface/pty-pane-query'
@@ -27,54 +27,28 @@ export type RuntimeAgentOrchestrationDependencies = {
   makePaneKey(leaf: RuntimeLeafRecord): string
   getWorktreeId(handle: string): string | null
   getHandleForPaneKey(paneKey: string): string | null
-  /** True only while the pane's PTY runs; an exited PTY keeps its record. */
-  isPaneConnected(paneKey: string): boolean
   getPaneKey(handle: string): string | null
   getDispatchAuthority(handle: string): OrchestrationCompatibilityTerminalAuthority | null
   getAgentStatusSnapshot(): readonly FleetAgentStatusEvidence[]
   getSessionRecords(): AgentSessionRecordReader | null
 }
 
-export type RuntimeAgentOrchestrationPublication = {
-  agentOrchestrationByPaneKey?: Record<string, AgentStatusOrchestrationContext>
-  /** Live panes past the display window whose latest dispatch's run is still coordinated. */
-  agentRunWorkerPaneKeys?: string[]
-}
-
 export class RuntimeAgentOrchestrationProjection {
   constructor(private readonly deps: RuntimeAgentOrchestrationDependencies) {}
 
   buildByPaneKey(): Record<string, AgentStatusOrchestrationContext> | undefined {
-    return this.buildPublication().agentOrchestrationByPaneKey
-  }
-
-  buildPublication(): RuntimeAgentOrchestrationPublication {
     const db = this.deps.getDb()
     if (!db || db.hasAnyDispatchContexts?.() === false) {
-      return {}
+      return undefined
     }
     const scope = createOrchestrationProjectionScope(db, this.deps)
     const contexts: Record<string, AgentStatusOrchestrationContext> = {}
-    const settledRunIdByPaneKey = new Map<string, string>()
     const evidenceByPaneKey = new Map(
       this.deps.getAgentStatusSnapshot().map((evidence) => [evidence.activity.paneKey, evidence])
     )
     // Batch attention queries below; per-pane reads would repeat every 16ms publication.
     const batchAttention = typeof db.getWorkerAttentionFactsForDispatches === 'function'
     const queriedHandles = new Set<string>()
-    const contextFor = (handle: string, paneKey: string) =>
-      this.getForHandle(
-        handle,
-        db,
-        {
-          paneKey,
-          evidence: evidenceByPaneKey.get(paneKey),
-          deferAttention: batchAttention,
-          onSettledPastDisplayWindow: (dispatch) =>
-            settledRunIdByPaneKey.set(paneKey, dispatch.run_id)
-        },
-        scope
-      )
     for (const leaf of this.deps.getLeaves()) {
       if (!leaf.ptyId) {
         continue
@@ -82,7 +56,16 @@ export class RuntimeAgentOrchestrationProjection {
       const handle = this.deps.issueLeafHandle(leaf)
       queriedHandles.add(handle)
       const paneKey = this.deps.makePaneKey(leaf)
-      const context = contextFor(handle, paneKey)
+      const context = this.getForHandle(
+        handle,
+        db,
+        {
+          paneKey,
+          evidence: evidenceByPaneKey.get(paneKey),
+          deferAttention: batchAttention
+        },
+        scope
+      )
       if (context) {
         contexts[paneKey] = context
       }
@@ -97,7 +80,16 @@ export class RuntimeAgentOrchestrationProjection {
         continue
       }
       queriedHandles.add(handle)
-      const context = contextFor(handle, paneKey)
+      const context = this.getForHandle(
+        handle,
+        db,
+        {
+          paneKey,
+          evidence: evidenceByPaneKey.get(paneKey),
+          deferAttention: batchAttention
+        },
+        scope
+      )
       if (context) {
         contexts[paneKey] = context
       }
@@ -117,16 +109,9 @@ export class RuntimeAgentOrchestrationProjection {
         )
       }
     }
-    const runWorkerPaneKeys = filterLiveRunMembers(
-      scope.run,
-      (paneKey) => this.deps.isPaneConnected(paneKey),
-      settledRunIdByPaneKey
-    )
-    const membership =
-      runWorkerPaneKeys.length > 0 ? { agentRunWorkerPaneKeys: runWorkerPaneKeys } : {}
     const entries = Object.entries(contexts)
     if (entries.length === 0) {
-      return membership
+      return undefined
     }
     if (batchAttention) {
       const now = scope.now
@@ -149,7 +134,7 @@ export class RuntimeAgentOrchestrationProjection {
         }
       }
     }
-    return { agentOrchestrationByPaneKey: contexts, ...membership }
+    return contexts
   }
 
   getForHandle(
@@ -160,15 +145,12 @@ export class RuntimeAgentOrchestrationProjection {
       paneKey?: string
       evidence?: FleetAgentStatusEvidence
       deferAttention?: boolean
-      /** Receives a settled dispatch too old for the display window, so run membership survives it. */
-      onSettledPastDisplayWindow?: (dispatch: DispatchContextRow) => void
     } = {},
     scope = createOrchestrationProjectionScope(db, this.deps)
   ): AgentStatusOrchestrationContext | undefined {
-    const { paneKey, onSettledPastDisplayWindow } = options
+    const { paneKey } = options
     const dispatch =
-      db?.getActiveDispatchForTerminal?.(handle, paneKey) ??
-      getRecentTerminalDispatch(handle, db, scope.now, onSettledPastDisplayWindow)
+      db?.getActiveDispatchForTerminal?.(handle, paneKey) ?? this.getRecent(handle, db, scope.now)
     if (!dispatch) {
       return undefined
     }
@@ -309,5 +291,10 @@ export class RuntimeAgentOrchestrationProjection {
       ...(orchestrationRunId ? { orchestrationRunId } : {}),
       ...(attention ? { attention } : {})
     }
+  }
+
+  private getRecent(handle: string, db: OrchestrationDb | null, now: number) {
+    const dispatch = db?.getLatestDispatchForTerminal?.(handle)
+    return dispatch && isRecentPresentationDispatch(dispatch, now) ? dispatch : undefined
   }
 }

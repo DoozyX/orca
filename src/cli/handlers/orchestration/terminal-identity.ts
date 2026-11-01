@@ -1,12 +1,11 @@
-import type { RuntimeClient } from '../../runtime-client'
 import { getOptionalStringFlag, getPresentStringFlag } from '../../flags'
-import { RuntimeClientError } from '../../runtime-client'
+import { type RuntimeClient, RuntimeClientError } from '../../runtime-client'
 import { getTerminalHandle } from '../../selectors'
 import { hasStructuredSessionMarker } from '../../../shared/structured-session-marker'
 import {
   injectedSessionAddress,
   readInjectedAgentSessionId
-} from '../../../shared/agent-session-caller-env'
+} from '../../../shared/agent-session/lifecycle/agent-session-caller-env'
 import { sessionAddressForHost } from '../../session-caller-flags'
 
 // --worktree/--terminal name the command's target, possibly on another host; only the caller's cwd scopes inference.
@@ -18,7 +17,7 @@ export async function resolveOrchestrationTerminalHandle(
   cwd: string,
   client: RuntimeClient,
   flagName: 'from' | 'terminal',
-  options: { validateEnvHandle?: boolean; refuseGuess?: boolean } = {}
+  options: { validateEnvHandle?: boolean } = {}
 ): Promise<string | undefined> {
   // CLI entry already fences caller flags using the command spec.
   const explicit = getPresentStringFlag(flags, flagName)
@@ -49,9 +48,6 @@ export async function resolveOrchestrationTerminalHandle(
     throw structuredSessionRefusal(flagName)
   }
   if (flagName === 'from') {
-    if (options.refuseGuess) {
-      throwNoActiveSenderTerminal()
-    }
     return await resolveImplicitOrchestrationSender(cwd, client)
   }
   return await getTerminalHandle(callerScopeFlags(), cwd, client)
@@ -172,20 +168,13 @@ export function runScopedSessionCaller(flags: Map<string, string | boolean>): st
   return declared && sessionId ? sessionAddressForHost(declared, sessionId) : undefined
 }
 
-/**
- * `refuseGuess` is for verbs that bind a Run or bake the coordinator into a worker preamble: the cwd
- * guess sees only the worktree's pane leaves, so it can bind an idle shell in place of a live
- * coordinator it cannot see (#30). Read-only and host-fenced verbs keep the guess.
- */
 export async function resolveCoordinatorTerminalHandle(
   flags: Map<string, string | boolean>,
   cwd: string,
-  client: RuntimeClient,
-  options: { refuseGuess?: boolean } = {}
+  client: RuntimeClient
 ): Promise<string | undefined> {
   return await resolveOrchestrationTerminalHandle(flags, cwd, client, 'from', {
-    validateEnvHandle: true,
-    ...options
+    validateEnvHandle: true
   })
 }
 

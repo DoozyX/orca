@@ -27,11 +27,6 @@ blocked arm. Already-authorized recovery does not need another confirmation.
 There is no universal waiver for budgets, authority, or custody.
 The coordinator queues checks that conflict over shared resources rather than
 launching duplicate suites or stopping another owner's process.
-Use Orca resource leases only for simulators. Before using a shared simulator,
-take `ORCA orchestration lease acquire --resource ios-sim-<udid prefix>`, treat
-`queued` as wait, and release it after the last simulator job exits. Do not
-acquire or queue Orca leases for CPU, builds, validation suites, ports, or
-databases; isolate their mutable state and coordinate actual conflicts directly.
 
 Fleet waiting is a pending question or approval, separate from agent liveness.
 Read attention categories and available host-computed diagnostics: state age

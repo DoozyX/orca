@@ -1,35 +1,17 @@
 # Recovery and cleanup
 
 Act only on proof. `worker-list --run <run_id> --include-remote` gives
-each worker's liveness and `next`; follow it. A `none` next action with a
-`reason` (`user_retained`, `identity_unproven`, `release_unknown`,
-`release_pending`, or `not_owned`) names a terminal no release can settle:
-report it, never act on it. `unverifiable` liveness alone never earns stop,
-abandon, or retry, but a `release` on a `reclaimable` row is authorized by the
-accepted settlement, not by liveness, so it stands under `unverifiable`.
-
-A structured worker whose turn ended without `worker_done` shows outcome
-`finished_unverified` with attention `unverifiable`. Read its transcript, then
-choose `worker-abandon` or a retry explicitly; nothing is closed for you.
+each worker's liveness and `next`; follow it.
 
 Retry a failed or stopped attempt on the same Task; `--spec` would create a new
 one. Placement is not inherited:
 
 ```text
-ORCA orchestration worker-start --task <task_id> --retry-of <dispatch_id> --worktree <placement> --agent <agent> --from <coordinator_handle>
+ORCA orchestration worker-start --task <task_id> --retry-of <dispatch_id> --worktree <placement> --agent <agent>
 ```
 
 `worker-stop` exits 1 with `stop_unknown` when it cannot prove the agent
 stopped; check `worker-show` before acting again.
-
-Both `worker-stop` and `worker-release` accept `--run <run_id>`: a Dispatch in
-another Run is refused with `dispatch_run_mismatch` and nothing changes.
-
-For `release_pending`, follow the receipt's exact recovery action. For
-`release_unknown`, run one `worker-show`; run `worker-release` again only if its
-`observation.status` shows the terminal resolving (`live` or `exited`),
-otherwise record the row as unresolved ownership in the final report. Never
-substitute `terminal close`.
 
 `orchestration reset` deletes coordination state; run it only when the user
 gives that state up.
@@ -71,10 +53,12 @@ is settled; never reuse an unproven or still-busy predecessor.
 
 An already-failed start can still own a live terminal; stop/abandon does not close
 it. For reclaimable failed-start terminals you are replacing, use
-`ORCA orchestration worker-release --dispatch <dispatch_id>`; handle
-`release_pending` and `release_unknown` as above, never `terminal close`. Preserve the selected proven reusable agent with `worker-retain`
-by its Dispatch ID; preserve user-taken-over and unproven terminals. A fresh start
-without `--retry-of` does not clean up its predecessor's terminal.
+`ORCA orchestration worker-release --dispatch <dispatch_id>`; follow the
+receipt's exact recovery action for `release_pending` or `release_unknown`, never
+`terminal close`. Preserve the selected proven reusable agent with
+`worker-keep-open` by its Dispatch ID; preserve user-taken-over and unproven
+terminals. A fresh start without `--retry-of` does not clean up its
+predecessor's terminal.
 
 Reopen and start the same Task in its owning Run:
 

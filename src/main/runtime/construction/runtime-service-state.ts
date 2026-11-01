@@ -1,5 +1,4 @@
 import { OrchestrationStructuredMailboxPointerDelivery } from '../orchestration/structured-mailbox-pointer-delivery'
-import { StructuredPointerOutcomeWatch } from '../orchestration/structured-pointer-outcome-watch'
 
 import { createStructuredMailboxPointerHost } from '../orchestration/structured-mailbox-pointer-host'
 import { localOrchestrationCliCommand } from '../orchestration/cli-command'
@@ -46,7 +45,9 @@ import { ORCA_LAYOUT_OWNER_IS_MAIN } from '../../../shared/layout-owner-switch'
 import { mainListsEveryPane } from '../terminal/surface/main-terminal-surfaces'
 import { TUI_IDLE_QUIESCENCE_MS } from '../orca-runtime-postlude'
 import { screenClearsBlockedTail } from '../blocked-tail-screen-clear'
-import { openedSessionRecordReader } from '../opened-session-record-reader'
+import { conversationRecordReader } from '../orchestration/structured-session-lineage'
+import { getStructuredAgentSessionHost } from '../../native-chat/agent-session-wire/structured-agent-session-registry'
+import { peekOpenedAgentSessionRecordStore } from '../agent-session-record-store-slot'
 
 export abstract class OrcaRuntimeWithStopRequestedPtyIds extends OrcaRuntimeWithRuntimeId {
   protected readonly stopRequestedPtyIds = new Set<string>()
@@ -125,11 +126,14 @@ export abstract class OrcaRuntimeWithStopRequestedPtyIds extends OrcaRuntimeWith
     makePaneKey: (leaf) => this.makeRuntimePaneKey(leaf),
     getWorktreeId: (handle) => this.getTerminalWorktreeIdForHandle(handle),
     getHandleForPaneKey: (paneKey) => this.getTerminalHandleForPaneKey(paneKey),
-    isPaneConnected: (paneKey) => this.getPtyRecordForPaneKey(paneKey)?.connected === true,
     getPaneKey: (handle) => this.getPaneKeyForTerminalHandle(handle),
     getDispatchAuthority: (handle) => this.getOrchestrationDispatchAuthority(handle),
     getAgentStatusSnapshot: () => this.getOrchestrationFleetAgentStatusSnapshot(),
-    getSessionRecords: openedSessionRecordReader
+    getSessionRecords: () => {
+      const store =
+        getStructuredAgentSessionHost()?.deps.store ?? peekOpenedAgentSessionRecordStore()
+      return store ? conversationRecordReader(store) : null
+    }
   })
 
   protected readonly terminalList = new RuntimeTerminalList({
@@ -274,11 +278,6 @@ export abstract class OrcaRuntimeWithStopRequestedPtyIds extends OrcaRuntimeWith
     writePty: (ptyId, data) => this.writeOrchestrationPointerPty(ptyId, data)
   })
 
-  /** The structured lane's answer for one sent message; public for the send receipt. */
-  readonly structuredSendDeliveryWatch = new StructuredPointerOutcomeWatch({
-    isStructuredMailbox: (handle) => this.resolveStructuredMailboxTarget(handle) !== null
-  })
-
   protected readonly orchestrationStructuredMailboxPointerDelivery =
     new OrchestrationStructuredMailboxPointerDelivery<RuntimeMessageWaiter>({
       getDb: () => this._orchestrationDb,
@@ -286,10 +285,9 @@ export abstract class OrcaRuntimeWithStopRequestedPtyIds extends OrcaRuntimeWith
       resolveStructuredTarget: (mailboxHandle) =>
         this.resolveStructuredMailboxTarget(mailboxHandle),
       getCliCommand: localOrchestrationCliCommand,
-      senderName: (party, reportedDispatchId) =>
-        this.orchestrationSenderNames.nameOf(party, reportedDispatchId),
-      host: createStructuredMailboxPointerHost(),
-      onAttemptSettled: (input) => this.structuredSendDeliveryWatch.settle(input)
+      senderSnapshot: (party, reportedDispatchId) =>
+        this.orchestrationSenderNames.snapshotOf(party, reportedDispatchId),
+      host: createStructuredMailboxPointerHost()
     })
 
   readonly orchestrationSenderNames = new RuntimeOrchestrationSenderNames({

@@ -5,28 +5,32 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { translate } from '@/i18n/i18n'
 import { LinearAgentSkillSetupPrompt } from './LinearAgentSkillSetupPrompt'
 import WorktreeCardAgents from './WorktreeCardAgents'
-import type { WorktreeAgentExpansionControls } from './worktree-card-agents-expansion-state'
+import { WorktreeLineageToggle } from './WorktreeLineageToggle'
 import type { WorktreeCardPresentation } from './worktree-card-presentation'
 import type { WorktreeCardController } from './use-worktree-card-controller'
 
 export function WorktreeCardSecondaryRows({
   card,
-  presentation,
-  agentExpansion
+  presentation
 }: {
   card: WorktreeCardController
   presentation: WorktreeCardPresentation
-  agentExpansion: WorktreeAgentExpansionControls
 }): React.JSX.Element {
   const {
     worktree,
     repo,
     settings,
     isActive,
+    lineageCollapsed,
+    lineageChildWorktreeIds,
+    onLineageToggle,
     remoteBranchConflict,
     showInlineAgentList,
     agentActivityDisplayMode,
     compactInlineAgentRows,
+    showLineageChildChip,
+    lineageChildAriaLabel,
+    childWorkspaceShortLabel,
     isDeleting
   } = card
   const { hasMetaRow } = presentation
@@ -84,8 +88,17 @@ export function WorktreeCardSecondaryRows({
           worktreeId={worktree.id}
           agents={agentActivityDisplayMode === 'compact' ? compactInlineAgentRows : undefined}
           className={hasMetaRow || remoteBranchConflict ? 'mt-0' : '-mt-1'}
-          expansionControls={agentExpansion}
-          compactSummaryInHeader={agentActivityDisplayMode === 'compact'}
+        />
+      )}
+
+      {showLineageChildChip && (
+        <WorktreeLineageToggle
+          childWorktreeIds={lineageChildWorktreeIds}
+          collapsed={lineageCollapsed}
+          ariaLabel={lineageChildAriaLabel}
+          label={childWorkspaceShortLabel}
+          count={card.lineageChildCount}
+          onToggle={onLineageToggle}
         />
       )}
     </>

@@ -133,6 +133,7 @@ export async function resolveClaudeStructuredAccountHome(input: {
   launchEnv: NodeJS.ProcessEnv
   /** The account selector's answer for this runtime, when it has one. */
   getClaudeConfigDirectory: StructuredClaudeAccountHomeDeps['getClaudeConfigDirectory']
+  purpose?: StructuredClaudeAccountHomeDeps['purpose']
   assertBoundHomeUsable?: AssertClaudeBoundHomeUsable
 }): Promise<ClaudeStructuredAccountHome> {
   const { location } = input
@@ -165,6 +166,7 @@ export async function resolveClaudeStructuredAccountHome(input: {
     path: resolveStructuredClaudeAccountHomePath({
       launchEnv: input.launchEnv,
       wslDistro: location?.wslDistro ?? null,
+      ...(input.purpose ? { purpose: input.purpose } : {}),
       getClaudeConfigDirectory: input.getClaudeConfigDirectory
     })
   }

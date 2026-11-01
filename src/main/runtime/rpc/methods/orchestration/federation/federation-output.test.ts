@@ -12,7 +12,6 @@ import type { RpcRequest } from '../../../core'
 import { RpcDispatcher } from '../../../dispatcher'
 import { ORCHESTRATION_METHODS } from '../../orchestration'
 import { registerFederatedReleaseRecoveryScenarios } from './federation-release-recovery-scenarios.test-support'
-import { registerFederatedReleaseCustodyScenarios } from './federation-release-custody-scenarios.test-support'
 import { registerFederatedAutoReleaseScenarios } from './federation-auto-release-scenarios.test-support'
 import { olderPeerStatusResponse } from './federation-peer-capabilities.test-support'
 
@@ -679,13 +678,6 @@ describe('orchestration federated worker output', () => {
       workerTerminalAvailable = available
     },
     restartWorkerRuntime
-  })
-
-  registerFederatedReleaseCustodyScenarios({
-    startSettledRemoteWorker,
-    dispatch: (request) => homeDispatcher.dispatch(request),
-    runtime: () => workerRuntime,
-    workerDb: () => workerDb
   })
 
   it('does not report a captured remote archive or close when persistence fails', async () => {
