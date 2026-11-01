@@ -51,6 +51,9 @@ An injected Task/Dispatch uses its assigned workspace; these rules are for coord
   flow before opening the Run or launching workers. When already there, continue.
   Pass the approved inputs, workspace record, and this placement policy in the
   handoff. Do not relocate or restart an existing live coordinator.
+- Coordinator agent: use the one the user named, else the current session's own
+  agent. The `--agent codex` in the `orca-cli` handoff examples is a placeholder;
+  never copy it as a default.
 - Verify the coordinator's workspace before dispatch. Local worker checkouts use
   `--worktree new-child`; workers sharing an existing checkout use its exact selector
   within this effort. Reuse existing safe checkouts; not every reviewer needs a new
