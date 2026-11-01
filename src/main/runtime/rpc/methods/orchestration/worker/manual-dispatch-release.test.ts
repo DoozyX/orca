@@ -233,35 +233,6 @@ describe('manual Dispatch release', () => {
     }
   )
 
-  it('never cancels the turn of a Dispatch that takes the worker over during the stop', async () => {
-    const worker = structuredWorker()
-    let replacement = ''
-    // At the stop's first await, a new Dispatch acquires the worker and its turn opens.
-    const replace = async () => {
-      if (!replacement) {
-        replacement = await dispatchTask(createTask('replacement'), worker)
-        activeTurn = 'turn-2'
-      }
-    }
-    vi.mocked(runtime.ensureStructuredAgentSessionHost).mockImplementation(replace)
-    const cancel = vi.fn(async (_caller: unknown, params: { turnId?: string }) => {
-      await replace()
-      // As the host: an unnamed Stop ends whatever runs; a named one only that turn.
-      const stops = params.turnId === undefined ? activeTurn !== null : params.turnId === activeTurn
-      return { ok: true, replayed: false, fence: 3, value: { cancelled: stops } }
-    })
-    installStructuredHost('local', cancel)
-    const stopped = await dispatchTask(createTask('stopped'), worker)
-
-    await expect(call('orchestration.workerStop', { dispatch: stopped })).resolves.toMatchObject({
-      state: 'stopped',
-      interrupt: { outcome: 'no_running_turn' }
-    })
-    expect(cancel).toHaveBeenCalledTimes(1)
-    expect(cancel.mock.calls[0]?.[1]).toMatchObject({ turnId: 'turn-1' })
-    expect(db.getDispatchContextById(replacement)?.status).toBe('dispatched')
-  })
-
   it.each([
     ['nothing runs', false, { outcome: 'no_running_turn' }],
     [

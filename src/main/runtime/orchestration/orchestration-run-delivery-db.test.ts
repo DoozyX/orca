@@ -143,9 +143,7 @@ describe('OrchestrationDb Run state', () => {
         const d = createDb()
         const run = createBoundRun(d)
         const params = { runId: run.id, consumerGeneration: run.consumer_generation }
-        const updates = [0, 1, 2].map((index) =>
-          insert(d, run.id, `update ${index}`, 'status')
-        )
+        const updates = [0, 1, 2].map((index) => insert(d, run.id, `update ${index}`, 'status'))
         const d1 = d.getOrCreateRunDelivery(params)!
         d.db
           .prepare("UPDATE deliveries SET created_at = '2026-01-01 00:00:00' WHERE id = ?")
@@ -159,9 +157,7 @@ describe('OrchestrationDb Run state', () => {
         expect(d2?.messages.map((message) => message.id)).toEqual([question.id])
         expect(d2?.replayed).toBe(false)
         expect(d.getDeliveryRaw(d1.delivery.id)?.status).toBe('outstanding')
-        expect(updates.map((update) => d.getMessageById(update.id)?.read)).toEqual([
-          0, 0, 0
-        ])
+        expect(updates.map((update) => d.getMessageById(update.id)?.read)).toEqual([0, 0, 0])
         // An untyped check keeps whole-FIFO replay: the oldest outstanding delivery first.
         expect(d.getOrCreateRunDelivery(params)).toMatchObject({
           delivery: { id: d1.delivery.id },

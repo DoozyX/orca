@@ -236,11 +236,10 @@ describe('a helper whose creator settles between it and the Run', () => {
     const { parked } = await parkRunQuestionCheck(runId)
 
     await helperSend('worker_done', 'Middle done', middle)
-    const woke = await answerFromRun(parked, ['Question'])
+    await answerFromRun(parked, ['Question'])
     expect(await asked).toMatchObject({ answer: 'the TOML one' })
-    const rest = await check(COORDINATOR, woke.deliveryId)
-    expect(rest.messages.map((message) => message.subject)).toEqual(['Unread status'])
-    expect(await subjects(COORDINATOR, rest.deliveryId)).toEqual([])
+    expect(await subjects(COORDINATOR)).toEqual(['Unread status'])
+    expect(await subjects(COORDINATOR)).toEqual([])
     expect(await subjects(PEER_CHAT)).toEqual(['Middle done'])
   })
 

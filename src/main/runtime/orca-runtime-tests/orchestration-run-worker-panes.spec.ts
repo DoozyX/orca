@@ -93,7 +93,7 @@ describe('OrcaRuntimeService run worker panes', () => {
     }
   })
 
-  it('drops the worker once its coordinator moves on to another run', () => {
+  it('keeps the worker on its run when its coordinator starts another run', () => {
     const { runtime, db, coordinatorHandle } = settleWorkerPastDisplayWindow()
     try {
       db.createRun({
@@ -104,7 +104,7 @@ describe('OrcaRuntimeService run worker panes', () => {
 
       const result = runtime.syncWindowGraph(1, graphOf([COORDINATOR, WORKER]))
 
-      expect(result.agentRunWorkerPaneKeys).toBeUndefined()
+      expect(result.agentRunWorkerPaneKeys).toEqual([WORKER_PANE_KEY])
     } finally {
       db.close()
     }
