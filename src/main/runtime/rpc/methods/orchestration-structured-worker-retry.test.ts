@@ -103,7 +103,8 @@ async function createWorker() {
       coordinatorHandle: 'term_coordinator',
       devMode: false,
       requestId: 'request-retry',
-      readinessTimeoutMs: 2000
+      readinessTimeoutMs: 2000,
+      readinessDeadline: Date.now() + 2000
     })
   return { runtime, created, workerRuntime, deliverPreamble }
 }
