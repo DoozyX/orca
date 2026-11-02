@@ -3,10 +3,13 @@
 Folder workspaces are valid. `new-child` and `new-top-level` make Git worktrees
 and do not apply to folders; never `git init` a user's folder.
 
-When a local worker does need its own worktree, `new-child` is the form to use:
-it keeps the worker in the coordinator's project, nested under the coordinator's
-worktree, so one run stays one tree. `new-top-level` is for work that genuinely
-belongs to no run — and for remote placement, where `new-child` is invalid.
+Local `current`, `new-child` and `new-top-level` stay in the caller's project;
+`new-child` also uses the caller's workspace as its parent. Omit `--repo` for
+same-project work. Pass it only to deliberately target another project, or for
+the connected-server creation described below. The project visible in the app
+is not the caller's project. For direct `worktree create`, likewise omit
+`--repo`/`--project` for same-project work and use `--parent-worktree active`
+when requesting a child of the current workspace.
 
 ```text
 # Child of the current worktree.

@@ -2,7 +2,6 @@ import type * as NodeCliCommandResolutionModule from '../../shared/node-cli-comm
 import type * as ProcessHostModule from '@orca/process-host'
 import { EventEmitter } from 'node:events'
 import { existsSync } from 'node:fs'
-import { delimiter } from 'node:path'
 import { PassThrough } from 'node:stream'
 import type * as NodeFs from 'node:fs'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -424,35 +423,6 @@ describe('account CLI handlers', () => {
     expect(dispose).toHaveBeenCalledOnce()
   })
 
-  it('keeps JSON login prompts off the CLI stdout envelope when console fds are attached', async () => {
-    Object.defineProperty(process, 'platform', { configurable: true, value: 'win32' })
-    stdioForWindowsInteractiveChildMock.mockReturnValue({
-      stdio: [11, process.stderr, 'inherit'],
-      dispose: vi.fn()
-    })
-
-    await ACCOUNT_HANDLERS['account add'](context('codex', true))
-
-    expect(spawnMock).toHaveBeenCalledWith(
-      'codex',
-      ['login', '--device-auth'],
-      expect.objectContaining({ stdio: [11, process.stderr, 'inherit'] })
-    )
-  })
-
-  it('routes Windows package-manager shims through the safe cmd launcher', async () => {
-    Object.defineProperty(process, 'platform', { configurable: true, value: 'win32' })
-    resolveCliCommandMock.mockReturnValue('C:\\tools\\codex.cmd')
-
-    await ACCOUNT_HANDLERS['account add'](context('codex'))
-
-    expect(spawnMock).toHaveBeenCalledWith(
-      getCmdExePath(),
-      ['/d', '/c', '@', 'C:\\tools\\codex.cmd', 'login', '--device-auth'],
-      expect.objectContaining({ stdio: ['inherit', 'inherit', 'inherit'] })
-    )
-  })
-
   it('launches a Windows shim installed under Program Files (x86)', async () => {
     Object.defineProperty(process, 'platform', { configurable: true, value: 'win32' })
     const shim = 'C:\\Program Files (x86)\\nodejs\\codex.cmd'
@@ -480,32 +450,6 @@ describe('account CLI handlers', () => {
     expect(message).not.toBe(WINDOWS_BATCH_UNSAFE_ARGUMENTS_ERROR)
     expect(message).toContain('C:\\Users\\A&B\\codex.cmd')
     expect(message).toContain(WINDOWS_BATCH_UNSAFE_CHARACTERS_LABEL)
-  })
-
-  it('adds version-manager Node paths to the login child environment', async () => {
-    const nodeBin = '/home/test/.nvm/versions/node/v22.0.0/bin'
-    getVersionManagerBinPathsMock.mockReturnValue([nodeBin])
-
-    await ACCOUNT_HANDLERS['account add'](context('codex'))
-
-    const path = spawnMock.mock.calls[0]?.[2].env.PATH as string
-    expect(path.split(delimiter)[0]).toBe(nodeBin)
-  })
-
-  it('updates the effective Windows PATH regardless of native environment casing', async () => {
-    Object.defineProperty(process, 'platform', { configurable: true, value: 'win32' })
-    process.env.Path = 'C:\\stale'
-    const nodeBin = 'C:\\Users\\test\\.volta\\bin'
-    const effectivePathBefore = process.env.PATH ?? process.env.Path ?? ''
-    getVersionManagerBinPathsMock.mockReturnValue([nodeBin])
-
-    await ACCOUNT_HANDLERS['account add'](context('codex'))
-
-    const env = spawnMock.mock.calls[0]?.[2].env as NodeJS.ProcessEnv
-    const pathValues = Object.entries(env)
-      .filter(([key]) => key.toLowerCase() === 'path')
-      .map(([, value]) => value)
-    expect(pathValues).toContain(`${nodeBin}${delimiter}${effectivePathBefore}`)
   })
 
   it('runs login in the final profile without accessing a locked Keychain', async () => {

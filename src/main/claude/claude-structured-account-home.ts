@@ -163,7 +163,7 @@ export async function resolveClaudeStructuredAccountHome(input: {
     }
   }
   return {
-    path: resolveStructuredClaudeAccountHomePath({
+    path: await resolveStructuredClaudeAccountHomePath({
       launchEnv: input.launchEnv,
       wslDistro: location?.wslDistro ?? null,
       ...(input.purpose ? { purpose: input.purpose } : {}),

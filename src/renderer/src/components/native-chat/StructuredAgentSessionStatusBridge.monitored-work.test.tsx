@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
   AgentSessionStatusEvent,
   AgentSessionStatusSummary
-} from '../../../../shared/agent-session-wire'
+} from '../../../../shared/agent-session/agent-session-wire'
 import type { AgentStatusEntry } from '../../../../shared/agent-status-types'
 import type { AgentChildWorkView } from '../../../../shared/agent-status-child-work-view'
 import type { Tab } from '../../../../shared/tab-types'

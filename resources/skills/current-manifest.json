@@ -194,6 +194,22 @@
       ]
     },
     {
+      "name": "orca-plugin-authoring",
+      "sourcePath": "skills/orca-plugin-authoring",
+      "packageDigest": "8bc40895e0655c24014699ff0f311752814b0ba6b18a8428768cb42f9b54264e",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "size": 2320,
+          "executable": false,
+          "classification": "text",
+          "exactSha256": "633d9b8dd17a7406a77541633e10391d95dfe10a0c25fcd0e04d6a248ea2f597",
+          "textNormalizedSha256": "633d9b8dd17a7406a77541633e10391d95dfe10a0c25fcd0e04d6a248ea2f597",
+          "identitySha256": "633d9b8dd17a7406a77541633e10391d95dfe10a0c25fcd0e04d6a248ea2f597"
+        }
+      ]
+    },
+    {
       "name": "orchestration",
       "sourcePath": "skills/orchestration",
       "packageDigest": "a339a31f05a2f9ec1c521335e2e2c07dc3812d22dc65717b0a479afd7d88e9ca",

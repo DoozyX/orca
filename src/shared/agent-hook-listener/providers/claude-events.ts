@@ -1,10 +1,10 @@
 import type { ParsedAgentStatusPayload } from '../../agent-status-types'
-import { isAgentStatusHeldOpenByChildWork } from '../../agent-lead-status-fold'
-import { isAskUserQuestionTool } from '../../agent-question-answered-intent'
 import {
-  readClaudeBackgroundAgentTasks,
-  readClaudeSessionCrons
-} from '../../claude-background-task-inventory'
+  heldTurnCountsAsFinished,
+  isAgentStatusHeldOpenByChildWork
+} from '../../agent-lead-status-fold'
+import { isAskUserQuestionTool } from '../../agent-question-answered-intent'
+import { readClaudeBackgroundAgentTasks } from '../../claude-background-task-inventory'
 import {
   claudeRosterHasRestoredSnapshotSubagent,
   claudeRosterHasRuntimeWorkingSubagent,
@@ -25,7 +25,7 @@ import {
   getOrCreateClaudeSubagentRoster,
   resolveClaudePaneStatus,
   setClaudeMainAgentTurnState,
-  updateClaudeRunningNonAgentTask,
+  recordClaudeBackgroundTasks,
   voidClaimsOfReplacedClaudeSession
 } from './claude-roster-state'
 import {
@@ -33,7 +33,7 @@ import {
   claudeRowHasUnlistedLiveWork
 } from './claude-pane-hold-evidence'
 import { buildClaudeStatusPayload } from './claude-status-build'
-import { replaceClaudeMonitoredCrons, replaceClaudeMonitoredTasks } from './claude-monitored-work'
+import { syncClaudeMonitoredCrons } from './claude-monitored-work'
 import { trackClaudeTaskNotificationDelivery } from './claude-task-notification-delivery'
 import { recordClaudeTeammateSpawn } from './claude-teammate-spawn'
 
@@ -147,8 +147,7 @@ export function normalizeClaudeEvent(
     return null
   }
   if (backgroundTasks.present && eventAgentId === undefined) {
-    updateClaudeRunningNonAgentTask(state, paneKey, backgroundTasks.hasRunningNonAgentTask)
-    replaceClaudeMonitoredTasks(state, paneKey, backgroundTasks.monitoredWork)
+    recordClaudeBackgroundTasks(state, paneKey, backgroundTasks)
   }
   if (sessionCronInventoryPresent && eventAgentId === undefined) {
     if (hasActiveSessionCron) {
@@ -156,11 +155,11 @@ export function normalizeClaudeEvent(
     } else {
       state.claudeActiveSessionCronPaneKeys.delete(paneKey)
     }
-    replaceClaudeMonitoredCrons(state, paneKey, readClaudeSessionCrons(hookPayload).crons)
+    syncClaudeMonitoredCrons(state, paneKey, hookPayload)
   } else if (eventAgentId === undefined && isTurnBoundary && backgroundTasks.present) {
     // Why: current Claude may omit an empty cron inventory while still emitting background_tasks.
     state.claudeActiveSessionCronPaneKeys.delete(paneKey)
-    replaceClaudeMonitoredCrons(state, paneKey, [])
+    syncClaudeMonitoredCrons(state, paneKey, null)
   }
 
   const eventToolUseId = readFirstString(hookPayload, ['tool_use_id', 'toolUseId'])
@@ -289,7 +288,8 @@ export function normalizeClaudeEvent(
   })
   // Reuse resolved state for compact ownership instead of folding twice (#15202).
   const effectiveState = resolvedStatus.stateName
-  // Pin held turn identity by end time for later all-clear pairing; cancelled turns earn no completion stamp.
+  const ownPreviousLead = previousLead?.waitingAgentId ? previousLead.stateBeforeWait : previousLead
+  // Stamp (announce now, pair the later all-clear) only a held turn that already counts as finished; cancelled turns earn none.
   const turnCompletedAt =
     eventAgentId === undefined &&
     isTurnBoundary &&
@@ -298,6 +298,7 @@ export function normalizeClaudeEvent(
       state: resolvedStatus.stateName,
       mainAgent: { state: reportedStateName }
     }) &&
+    heldTurnCountsAsFinished(resolvedStatus, outcome, ownPreviousLead?.taskWakeupTurn === true) &&
     // Owed notifications wake the lead within ~100ms; announcing first would duplicate completion.
     claudePaneHasRunningChildWork(state, paneKey)
       ? Date.now()

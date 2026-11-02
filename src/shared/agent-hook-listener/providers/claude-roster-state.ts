@@ -5,10 +5,11 @@ import type {
   AgentWorkingMode
 } from '../../agent-status-types'
 import { continueMainAgentStatus, mainAgentTurnInterrupted } from '../../agent-lead-status-fold'
+import type { ClaudeMonitoredWorkObservation } from '../../claude-background-task-inventory'
 import type { ClaudeSubagentRoster } from '../../claude-subagent-roster'
 import type { AgentHookEventPayload } from '../listener-event'
 import type { ClaudeLeadTurnState, HookListenerState } from '../listener-state'
-import { replaceClaudeMonitoredCrons } from './claude-monitored-work'
+import { replaceClaudeMonitoredCrons, replaceClaudeMonitoredTasks } from './claude-monitored-work'
 import { readString } from '../tool-input-preview'
 import { resolveClaudePaneStatus } from './claude-pane-hold-evidence'
 export {
@@ -108,6 +109,19 @@ export function updateClaudeRunningNonAgentTask(
   } else {
     state.claudeRunningNonAgentTaskPaneKeys.delete(paneKey)
   }
+}
+
+/** A present `background_tasks` inventory sets both the running-shell flag and the listed shells. */
+export function recordClaudeBackgroundTasks(
+  state: HookListenerState,
+  paneKey: string,
+  tasks: {
+    hasRunningNonAgentTask: boolean
+    monitoredWork: readonly ClaudeMonitoredWorkObservation[]
+  }
+): void {
+  updateClaudeRunningNonAgentTask(state, paneKey, tasks.hasRunningNonAgentTask)
+  replaceClaudeMonitoredTasks(state, paneKey, tasks.monitoredWork)
 }
 
 /** Keep same-state lead clocks continuous; explicit restored stash times take precedence. */

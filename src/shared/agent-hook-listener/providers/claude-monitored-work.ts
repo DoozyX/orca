@@ -2,7 +2,10 @@ import {
   AGENT_STATUS_MAX_MONITORED_WORK,
   type AgentMonitoredWorkSnapshot
 } from '../../agent-monitored-work'
-import type { ClaudeMonitoredWorkObservation } from '../../claude-background-task-inventory'
+import {
+  readClaudeSessionCrons,
+  type ClaudeMonitoredWorkObservation
+} from '../../claude-background-task-inventory'
 import type { HookListenerState } from '../listener-state'
 
 /** Shells and crons arrive in separate inventories and retire separately (a session-owner change
@@ -63,6 +66,19 @@ export function replaceClaudeMonitoredCrons(
     tasks: current?.tasks ?? [],
     crons: dated(observed, current?.crons ?? [], now)
   })
+}
+
+/** Replace the cron half from the payload's `session_crons`; null clears it. */
+export function syncClaudeMonitoredCrons(
+  state: HookListenerState,
+  paneKey: string,
+  hookPayload: Record<string, unknown> | null
+): void {
+  replaceClaudeMonitoredCrons(
+    state,
+    paneKey,
+    hookPayload ? readClaudeSessionCrons(hookPayload).crons : []
+  )
 }
 
 export function claudeMonitoredWorkForPayload(

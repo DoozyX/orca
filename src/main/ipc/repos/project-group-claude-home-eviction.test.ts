@@ -7,7 +7,7 @@ import { RateLimitService } from '../../rate-limits/service'
 import { deferred, okProvider } from '../../rate-limits/rate-limit-service-test-harness'
 import type { BoundClaudeHomeUsageResult } from '../../rate-limits/claude-bound-home-usage'
 import type { RateLimitState } from '../../../shared/rate-limit-types'
-import type { Store } from '../../persistence'
+import type { Store } from '../../persistence/loading-store/store'
 import { registerProjectGroupHandlers } from './project-group-handlers'
 
 vi.mock('../../rate-limits/claude-bound-home-usage', () => ({

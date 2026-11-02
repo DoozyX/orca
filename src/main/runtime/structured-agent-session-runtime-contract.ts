@@ -1,22 +1,20 @@
 import type { StructuredAgentSessionHostDeps } from '../native-chat/agent-session-wire/structured-agent-session-host'
-import type { AgentSessionAccountKind } from '../../shared/agent-session-availability'
-import type { StructuredAgentSessionTransportOverrides } from './structured-agent-session-transport-overrides'
+import type { AgentSessionAccountKind } from '../../shared/agent-session/agent-session-availability'
+import type { StructuredAgentSessionTransportOverrides } from './agent-session/structured-agent-session-transport-overrides'
 import type { AgentSessionRecord } from '../../shared/agent-session/lifecycle/agent-session-record'
-import type { StructuredAttentionMobileDelivery } from './structured-agent-session-mobile-attention'
+import type { StructuredAttentionMobileDelivery } from './agent-session/structured-agent-session-mobile-attention'
 import type {
   StructuredAgentCommand,
   StructuredAgentCommandSettings
 } from '../native-chat/structured-agent-command-resolution'
 import type { NativeChatShellEnvironmentPolicy } from '../../shared/native-chat/native-chat-shell-environment'
 import type { ClaudeStructuredAuthPolicy } from '../claude-accounts/claude-structured-auth-policy'
-import type { ClaudeStructuredLaunchPartDeps } from '../claude/claude-structured-launch-resolution'
+import type { ClaudeStructuredLaunchPartDeps } from '../claude/structured/launch/claude-structured-launch-resolution'
 import type { RuntimeAgentAccountHomeResolver } from './structured-agent-model-catalog-wiring'
 import type { ClaudeCliFlagSupport } from '../claude/claude-cli-flag-support'
 import type { StructuredAgentSessionLogger } from '../native-chat/agent-session-wire/structured-agent-session-logger'
-import type {
-  AgentSessionStatusSummary,
-  AgentSessionTurnCompletionEvent
-} from '../../shared/agent-session-wire'
+import type { AgentSessionStatusSummary } from '../../shared/agent-session/agent-session-wire'
+import type { AgentSessionTurnCompletionEvent } from '../../shared/agent-session/view/agent-session-turn-completion-wire'
 
 export type StructuredAgentSessionRuntimeDeps = StructuredAgentSessionTransportOverrides & {
   /** Host state root. The record store and the journal database both hang off it. */
@@ -87,5 +85,4 @@ export type StructuredAgentSessionRuntimeDeps = StructuredAgentSessionTransportO
   resolveAgentAccountHome?: RuntimeAgentAccountHomeResolver
   /** See `StructuredAgentSessionHostDeps.launchAccountHome`. */
   launchAccountHome?: StructuredAgentSessionHostDeps['launchAccountHome']
-  parentAccountWork?: StructuredAgentSessionHostDeps['parentAccountWork']
 } & Pick<StructuredAgentSessionHostDeps, 'onRequestFailure' | 'statusSink'>
