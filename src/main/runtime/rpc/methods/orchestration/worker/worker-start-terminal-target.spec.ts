@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { LaunchedAgentForeground } from '../../../../launched-agent-foreground'
 import type { RuntimeTerminalWait } from '../../../../../../shared/runtime-terminal-contracts'
+import {
+  LAUNCHED_AGENT_FOREGROUND_SAMPLE_MS,
+  LAUNCHED_AGENT_FOREGROUND_SETTLE_MS
+} from '../../../../../../shared/orchestration-timing-budgets'
 import { createOrchestrationWorkerReleaseHarness } from './worker-release.test-support'
 
 export function registerWorkerStartTerminalTargetTests(): void {
@@ -170,7 +174,10 @@ export function registerWorkerStartTerminalTargetTests(): void {
   // A returned shell also reads ready; prove the launched agent is in front before writing the brief.
   describe('a worker start writes its brief only into the agent it launched', () => {
     const h = createOrchestrationWorkerReleaseHarness()
-    afterEach(() => h.cleanup())
+    afterEach(() => {
+      vi.useRealTimers()
+      h.cleanup()
+    })
 
     function launchedPane(foreground: LaunchedAgentForeground): string[] {
       h.setup()
@@ -190,9 +197,37 @@ export function registerWorkerStartTerminalTargetTests(): void {
 
     it('types nothing when the agent exited and its shell is in front', async () => {
       const writes = launchedPane('shell')
+      vi.useFakeTimers()
 
-      await expect(h.startWorker({ agent: 'claude' })).rejects.toThrow()
+      const refused = expect(h.startWorker({ agent: 'claude' })).rejects.toThrow()
+      await vi.advanceTimersByTimeAsync(LAUNCHED_AGENT_FOREGROUND_SETTLE_MS)
+      await refused
       expect(writes).toEqual([])
+    })
+
+    // #18: the read right after readiness can still find the launcher in front, or cannot tell.
+    it('waits out a first read that cannot tell, then writes into the agent', async () => {
+      const writes = launchedPane('agent')
+      vi.mocked(h.runtime.readLaunchedAgentForeground)
+        .mockResolvedValueOnce('unknown')
+        .mockResolvedValueOnce('agent')
+      const task = h.db.createTask({ spec: 'settling foreground', runId: h.activeRunId })
+      vi.useFakeTimers()
+
+      const pending = h.call('orchestration.workerStart', {
+        task: task.id,
+        from: 'term_coord',
+        agent: 'claude'
+      })
+      await vi.advanceTimersByTimeAsync(LAUNCHED_AGENT_FOREGROUND_SAMPLE_MS)
+
+      expect(await pending).toMatchObject({
+        state: 'ready',
+        stage: 'input_accepted',
+        residualResources: []
+      })
+      expect(h.runtime.readLaunchedAgentForeground).toHaveBeenCalledTimes(2)
+      expect(writes).toHaveLength(1)
     })
 
     it('writes the brief once into the agent found in front', async () => {

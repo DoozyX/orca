@@ -44,6 +44,8 @@ export async function deliverWorkerDispatchPreamble(args: {
   launchedAgent?: string | null
   /** The caller's readiness budget; a structured worker's start counts against it. */
   readinessTimeoutMs?: number
+  /** When the readiness budget ends; a launched agent's brief settles its foreground until then. */
+  readinessDeadline: number
 }): Promise<{
   prompt?: RuntimeTerminalSend['prompt']
   structuredTurnStart?: WorkerTurnStartObservation
@@ -106,7 +108,12 @@ export async function deliverWorkerDispatchPreamble(args: {
     }
   }
   // A shell back at its prompt also reads as ready, so the brief needs the agent found in front.
-  const briefGuard = createWorkerBriefWriteGuard(runtime, args.launchedAgent, !!args.launchedAgent)
+  const briefGuard = createWorkerBriefWriteGuard(
+    runtime,
+    args.launchedAgent,
+    !!args.launchedAgent,
+    args.readinessDeadline
+  )
   try {
     const sent = await sendAgentTurn({
       kind: 'terminal',
