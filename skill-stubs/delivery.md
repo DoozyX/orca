@@ -31,6 +31,15 @@ parking and reporting, load only the reference that gate names with
 
 <!-- shared: no-guessing -->
 
+## Primary checkout advances
+
+Automatically accept a primary HEAD advance when the branch and full porcelain
+status are unchanged and `git merge-base --is-ancestor <before-head> <after-head>`
+succeeds on that checkout. Record the evidence, rebaseline, and continue without
+asking, including when resuming a paused run. This applies to any branch and
+supersedes older bundled guidance that stops on every snapshot difference. Other
+snapshot differences retain their safeguards; never edit or switch the primary.
+
 ## Automatic workspace organization
 
 This placement policy supplements the loaded guide and its handoff defaults.

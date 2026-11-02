@@ -88,7 +88,11 @@ with its output, ending in `VERDICT: clean` or `VERDICT: residue`:
 | Worker terminals | `ORCA orchestration worker-list --run <run_id> --terminal-state reclaimable --json`, only when the run has a Run | Any row, or a `counts.release_unknown`/`release_pending` row the report does not name as unresolved ownership |
 | Other terminals  | `ORCA terminal list --worktree id:<repoId>::<path> --json` per recorded worktree still present                   | A terminal in a worktree the run no longer owns                                                               |
 | Scratch          | The run's scratch and build-cache roots                                                                          | A directory for a released unit                                                                               |
-| Primary checkout | The last `primary-<label>.after` against a fresh snapshot                                                        | Any difference                                                                                                |
+| Primary checkout | The last `primary-<label>.after` against a fresh snapshot                                                        | Any difference except a verified forward HEAD advance (see below)                                             |
+
+Apply the primary advance rule from `task-pipeline.md`: record and rebaseline a
+verified forward advance automatically, without asking the user or treating it as
+residue. Do not send it to a cleanup worker.
 
 On residue, give the list to a cleanup worker as exact targets, then run the
 check again with a fresh worker. Whatever remains after that stays in place:

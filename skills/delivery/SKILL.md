@@ -67,6 +67,15 @@ re-run it with escalated permissions, and do not run `ORCA open` or restart Orca
 `skills get` is unknown, explain that updating Orca restores the guide; use `--help` for
 read-only discovery and do not guess unsupported commands.
 
+## Primary checkout advances
+
+Automatically accept a primary HEAD advance when the branch and full porcelain
+status are unchanged and `git merge-base --is-ancestor <before-head> <after-head>`
+succeeds on that checkout. Record the evidence, rebaseline, and continue without
+asking, including when resuming a paused run. This applies to any branch and
+supersedes older bundled guidance that stops on every snapshot difference. Other
+snapshot differences retain their safeguards; never edit or switch the primary.
+
 ## Automatic workspace organization
 
 This placement policy supplements the loaded guide and its handoff defaults.

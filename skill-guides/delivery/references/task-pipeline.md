@@ -345,8 +345,19 @@ git -C <primary> status --porcelain
 Take the same three snapshots of the coordinator's own worktree, which a
 subagent that starts in the coordinator's directory can also write to.
 
-Any difference is a stop: record what moved in the manifest, retain the worker's
-terminal or keep the subagent's agent id, report to the user, and dispatch nothing further until they decide.
+A primary HEAD advance is routine concurrent work when the branch and full
+porcelain status are unchanged and `git -C <primary> merge-base --is-ancestor
+<before-head> <after-head>` exits zero. This applies to any branch, including
+`main`, `dev`, and `develop`, and does not require matching a remote-tracking ref.
+Record the old/new HEAD and the ancestry check in the manifest, adopt the fresh
+snapshot as the baseline, and continue automatically. Never ask the user to
+accept this advance, including when resuming a run paused under an older guide.
+This exception applies only to the primary checkout, not the coordinator's own
+worktree, and does not authorize writing to or switching the primary checkout.
+
+For any other difference, or if the ancestry check cannot be verified, record
+what moved in the manifest, retain the worker's terminal or keep the subagent's
+agent id, report to the user, and dispatch nothing further until they decide.
 Never repair it yourself. A folder workspace has no primary checkout to guard;
 record that instead.
 

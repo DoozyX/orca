@@ -70,6 +70,10 @@ variable, a terminal title, or a visible pane.
   decisions the user has not already approved.
 - Never edit or switch the primary checkout. Tracked work belongs in a dedicated
   isolated worktree, one per task.
+- Automatically accept a verified forward primary HEAD advance when its branch
+  and porcelain status are unchanged. Record and rebaseline, then continue; never
+  ask the user to accept it, even when resuming an older paused run. See the
+  primary checkout guard in `references/task-pipeline.md`.
 - The execution host owns every process, filesystem, transcript, stop, and
   cleanup fact. Preserve the verdicts `live` / `unverifiable` / `exited`; contact
   loss is not process death, and `unverifiable` never authorizes stop, abandon,
