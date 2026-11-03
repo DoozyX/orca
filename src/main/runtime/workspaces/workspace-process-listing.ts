@@ -2,7 +2,7 @@ import { getRepoHostIdentityForParts } from '../../../shared/repo-host-identity'
 import { createRepoRowExecutionHostLookup } from '../../../shared/worktree-execution-host-resolution'
 import { resolveWorktreeHostRouting } from '../worktree-launch-host-repo'
 import { resolveHostStructuredAgentLaunchEnvironment } from '../structured-agent-launch-support'
-import { resolveStructuredCodexAccountKind } from '../structured-agent-account-home'
+import { structuredAgentAccountResolvers } from '../structured-agent-account-resolvers'
 import { getStructuredAgentSessionHost } from '../../native-chat/agent-session-wire/structured-agent-session-registry'
 import { collectRuntimeWorktreeAgentSources } from '../runtime-worktree-agent-sources'
 import { OrcaRuntimeWithWorktreePsDependencies } from './workspace-process-listing-dependencies'
@@ -50,8 +50,6 @@ import {
 import { preModeChatGetsFullAccess } from '../../../shared/agent-chat-permission-mode'
 import { isTuiAgent } from '../../../shared/tui-agent-config'
 import { nativeChatShellEnvironmentPolicy } from '../../../shared/native-chat/native-chat-shell-environment'
-import { claudeHomeBindingReader } from '../../claude/claude-structured-account-home'
-import { claudeStructuredAuthPolicyForSettings } from '../../claude-accounts/claude-structured-auth-policy'
 import { resolveStructuredAgentCommand } from '../../native-chat/structured-agent-command-resolution'
 import { structuredAgentConfiguredArgs } from '../../native-chat/structured-agent-configured-args'
 import { claudeCliFlagSupport } from '../../claude/claude-cli-flag-support'
@@ -256,13 +254,12 @@ export abstract class OrcaRuntimeWithGetWorktreePs extends OrcaRuntimeWithWorktr
         structuredAgentConfiguredArgs(agent, this.requireStore().getSettings()),
       // Production-only wiring prevents test runtimes from probing a real Claude CLI.
       claudeCliFlags: claudeCliFlagSupport,
+      usageLimitAutoContinue: this.usageLimitAutoContinueHostDeps(),
       nativeChatVisuals: {
         isEnabled: () => this.requireStore().getSettings().nativeChatInlineVisuals !== false
       },
       resolveShellEnvironmentPolicy: () =>
         nativeChatShellEnvironmentPolicy(this.requireStore().getSettings()),
-      resolveClaudeAuthPolicy: () =>
-        claudeStructuredAuthPolicyForSettings(this.requireStore().getSettings()),
       resolveAgentFullAccess: (agent) =>
         isTuiAgent(agent) &&
         preModeChatGetsFullAccess(agent, this.requireStore().getSettings(), process.platform),
@@ -271,11 +268,10 @@ export abstract class OrcaRuntimeWithGetWorktreePs extends OrcaRuntimeWithWorktr
           ? this.structuredAgentLaunchEnv(agent, this.requireStore().getSettings())
           : {},
       resolveAgentCommandSettings: () => this.requireStore().getSettings(),
-      resolveCodexAccountKind: (home) =>
-        resolveStructuredCodexAccountKind(home, this.requireStore().getSettings()),
-      // Read per acquisition from the same catalog the create path reads, so a chat created before
-      // its group was bound is told rather than left running on the old account.
-      readClaudeHomeBinding: claudeHomeBindingReader(() => this.store ?? null),
+      ...structuredAgentAccountResolvers(
+        () => this.requireStore().getSettings(),
+        () => this.store ?? null
+      ),
       resolveAgentAccountHome: (agent) => this.resolveStructuredAgentAccountHome(agent),
       launchAccountHome: (record, purpose) =>
         this.resolveStructuredAgentLaunchAccountHome(record, purpose),
@@ -298,6 +294,8 @@ export abstract class OrcaRuntimeWithGetWorktreePs extends OrcaRuntimeWithWorktr
       ...(this.structuredAgentStatusSinkFn ? { statusSink: this.structuredAgentStatusSinkFn } : {}),
       conversationNaming: nameChat,
       onSessionTabHidden: (sessionId) => this.onStructuredSessionTabHidden(sessionId),
+      queuedAgentMessageOwed: (sessionId, from, peek) =>
+        this.structuredChatMailOwed(sessionId, from, peek),
       assertNoTerminalWriter: (record) => this.assertStructuredChatAcquireAdmissible(record),
       attentionDelivery: createStructuredAttentionMobileDelivery({
         readNotificationSettings: () => this.requireStore().getSettings().notifications,

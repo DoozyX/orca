@@ -15,7 +15,7 @@ import { isComputerSidecarDiagnostic, logComputerDiagnostic } from './computer-s
 import { validateComputerSidecarPasteText } from './computer-sidecar-paste-validation'
 import { parseLiveHelperIdentity } from './macos-native-helper-identity'
 import { RuntimeClientError } from './runtime-client-error'
-import { getForkedChildEntryPath } from '../forked-child-entry-path'
+import { getForkedChildEntryPath } from '../worker-threads/forked-child-entry-path'
 
 // Bundled beside orcad.js on servers and under out/main on desktop.
 export const COMPUTER_SIDECAR_ENTRY_FILENAME = 'computer-sidecar.js'

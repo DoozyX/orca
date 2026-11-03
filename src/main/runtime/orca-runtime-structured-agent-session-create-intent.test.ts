@@ -8,7 +8,7 @@ import { dirname, join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const applyAgentWorkspaceTrust = vi.hoisted(() => vi.fn(async () => ({})))
-vi.mock('../agent-workspace-trust', () => ({ applyAgentWorkspaceTrust }))
+vi.mock('../agent-launch/trust/agent-workspace-trust', () => ({ applyAgentWorkspaceTrust }))
 
 import { OrcaRuntimeService } from './orca-runtime'
 import type { AssertClaudeBoundHomeUsable } from '../claude/claude-bound-home-refusal'
