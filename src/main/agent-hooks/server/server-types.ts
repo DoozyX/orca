@@ -17,6 +17,8 @@ export type IncomingAgentHookEvent = AgentHookEventPayload & {
   codexRosterAuthority?: CodexRemoteRosterAuthority
   /** The event repeats the stored row unchanged, so it is no word from the agent. */
   restatesRow?: true
+  /** The relay echoed this link's current binding for the pane on the owner it proved. */
+  rooted?: true
 }
 
 export type EnrichedAgentHookEventPayload = AgentHookEventPayload & {

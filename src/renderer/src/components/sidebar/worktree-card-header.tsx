@@ -13,6 +13,8 @@ import { formatSparseDirectoryPreview, shouldBeginWorktreeRename } from './workt
 import type { WorktreeCardPresentation } from './worktree-card-presentation'
 import { WorktreeCardSshHostControl } from './WorktreeCardSshHostControl'
 import { WorktreeHostContextBadge } from './WorktreeHostContextBadge'
+import { useWslHostDistro, WslHostMark } from '@/components/wsl-host-mark/WslHostMark'
+import { getWorktreeExecutionHostId } from '../../../../shared/execution-host'
 import { WorktreeTitleInlineRename } from './WorktreeTitleInlineRename'
 import type { WorktreeCardController } from './use-worktree-card-controller'
 
@@ -97,6 +99,9 @@ export function WorktreeCardHeader({
     titleRowIndicators,
     titleWrapper
   } = presentation
+  const wslDistro = useWslHostDistro(
+    showHostContextBadge ? getWorktreeExecutionHostId(worktree, repo) : null
+  )
 
   return (
     <div className="flex min-w-0 items-center justify-between gap-2">
@@ -239,7 +244,12 @@ export function WorktreeCardHeader({
           </Tooltip>
         )}
 
-        {showHostContextBadge && <WorktreeHostContextBadge label={hostContextLabel!} />}
+        {showHostContextBadge &&
+          (wslDistro ? (
+            <WslHostMark distro={wslDistro} />
+          ) : (
+            <WorktreeHostContextBadge label={hostContextLabel!} />
+          ))}
 
         {worktree.isSparse && (
           <Tooltip>

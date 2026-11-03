@@ -175,7 +175,9 @@ vi.mock('node-pty', () => ratchet.forbiddenModule('node-pty', ['spawn', 'open'])
 // Why: `asar-transparent-fs` resolves its `rm` through `createRequire(__filename)('original-fs')`,
 // Electron's unpatched, fully write-capable fs. A recursive delete through it touches no `node:fs*`
 // specifier.
-vi.mock('../asar-transparent-fs', () => ratchet.forbiddenModule('asar-transparent-fs', ['rm']))
+vi.mock('../filesystem/asar-transparent-fs', () =>
+  ratchet.forbiddenModule('asar-transparent-fs', ['rm'])
+)
 
 // Why: `createRequire` is the general form of that escape — it resolves outside vitest's registry,
 // so `createRequire(__filename)('fs').writeFileSync` and `('original-fs')` alike land on the real
@@ -524,7 +526,7 @@ describe('the D9 ratchet itself', () => {
   })
 
   it("fails a delete reached through Electron's unpatched `original-fs`", async () => {
-    const asarFs = await import('../asar-transparent-fs')
+    const asarFs = await import('../filesystem/asar-transparent-fs')
 
     expect(() => asarFs.rm(fixtureDir('valid'), { recursive: true })).toThrow('D9 violation')
   })

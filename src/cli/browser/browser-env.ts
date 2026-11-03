@@ -13,7 +13,7 @@ import {
 } from '../flags'
 import { RuntimeClientError } from '../runtime/types'
 import { withBrowserInterruptRecovery } from '../runtime/browser-interrupted-retry'
-import { getBrowserCommandTarget } from '../selectors'
+import { getBrowserCommandTarget } from './browser-command-target'
 
 export const BROWSER_ENV_HANDLERS: Record<string, CommandHandler> = {
   viewport: async ({ flags, client, cwd, json }) => {
