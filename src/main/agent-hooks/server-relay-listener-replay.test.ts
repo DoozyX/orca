@@ -4,11 +4,11 @@ import {
   createHookListenerState,
   type HookListenerState
 } from '../../shared/agent-hook-listener/listener-state'
-import { normalizeHookPayload } from '../../shared/agent-hook-listener'
+import { normalizeHookPayload } from '../../shared/agent-hook-listener/normalization/normalize-hook-payload'
 import {
   createShedMonitoredWorkField,
   createShedSubagentsField
-} from '../../shared/agent-hook-relay'
+} from '../../shared/agent-hook-listener/transport/agent-hook-relay'
 import { buildBody, PANE } from './server.test-fixtures'
 
 const { getCohortAtEmitMock, trackMock } = vi.hoisted(() => ({

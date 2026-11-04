@@ -4,7 +4,8 @@ import {
   agentMonitoredWorkEqual,
   type AgentMonitoredWorkSnapshot
 } from './agent-monitored-work'
-import { normalizeAgentStatusPayload, pickParsedAgentStatusPayload } from './agent-status-types'
+import { normalizeAgentStatusPayload } from './agent-status/contracts/agent-status-types'
+import { pickParsedAgentStatusPayload } from './agent-status/contracts/agent-status-payload-pick'
 
 const SHELL: AgentMonitoredWorkSnapshot = {
   id: 'b727cb698',

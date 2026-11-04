@@ -18,22 +18,6 @@
       ]
     },
     {
-      "name": "computer-use",
-      "sourcePath": "skills/computer-use",
-      "packageDigest": "425634e3ebf27690cc613eaf17b6337b36769153ec6bca85dc4ebf65d4d6b8b4",
-      "files": [
-        {
-          "path": "SKILL.md",
-          "size": 2211,
-          "executable": false,
-          "classification": "text",
-          "exactSha256": "2839933fd35216845461466403e6061488005f6df57126d0cd0f769ea45753f3",
-          "textNormalizedSha256": "2839933fd35216845461466403e6061488005f6df57126d0cd0f769ea45753f3",
-          "identitySha256": "2839933fd35216845461466403e6061488005f6df57126d0cd0f769ea45753f3"
-        }
-      ]
-    },
-    {
       "name": "debug",
       "sourcePath": "skills/debug",
       "packageDigest": "fd4278b018c9e390b6c024d5a205df225c9f83a2616a5b2a8f9e21473523b6fe",
@@ -110,6 +94,22 @@
           "exactSha256": "42c881addc607449d17615e9487647e34945d27ec00b587bffd2fc78c1b14f40",
           "textNormalizedSha256": "42c881addc607449d17615e9487647e34945d27ec00b587bffd2fc78c1b14f40",
           "identitySha256": "42c881addc607449d17615e9487647e34945d27ec00b587bffd2fc78c1b14f40"
+        }
+      ]
+    },
+    {
+      "name": "orca-computer-use",
+      "sourcePath": "skills/orca-computer-use",
+      "packageDigest": "aeffe31ab2ee7f23ca0d271402578dd538c5ae7a61bd46b4559aa86e08ed2eaf",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "size": 2221,
+          "executable": false,
+          "classification": "text",
+          "exactSha256": "69376456185483ea494eb354be09bce5b8bde9d1c792e8cb1ce7687691d1a021",
+          "textNormalizedSha256": "69376456185483ea494eb354be09bce5b8bde9d1c792e8cb1ce7687691d1a021",
+          "identitySha256": "69376456185483ea494eb354be09bce5b8bde9d1c792e8cb1ce7687691d1a021"
         }
       ]
     },

@@ -2,7 +2,7 @@ import type { ClaudeRuntimeAuthPreparation } from '../claude-accounts/runtime-au
 import { applyClaudeEnvPatch } from '../claude-accounts/environment'
 import type { ClaudeLaunchScope } from '../claude-accounts/claude-bound-home-route'
 import { ClaudeBoundHomeRefusalError } from '../claude/claude-bound-home-refusal'
-import { readShellStartupEnvVar } from '../pty/shell-startup-env'
+import { readShellStartupEnvVar } from '../pty/shell-startup/shell-startup-env'
 import { parseWslUncPath } from '../../shared/wsl-paths'
 
 export type CommitMessageAgentEnvironmentResolvers = {
