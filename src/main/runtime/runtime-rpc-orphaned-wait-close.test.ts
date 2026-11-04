@@ -10,7 +10,7 @@ import { createLongPollServer } from './runtime-rpc-long-poll-server.test-fixtur
 import { openFramedSession, sleep, waitFor, type FramedSession } from './runtime-rpc-test-harness'
 import { COORDINATOR_PANE_KEY } from './rpc/methods/orchestration/rpc-test-harness'
 
-vi.mock('../git/worktree', () => ({
+vi.mock('../git/worktrees/catalog/worktree-listing', () => ({
   listWorktrees: vi.fn().mockResolvedValue([]),
   listWorktreesStrict: vi.fn().mockResolvedValue([])
 }))

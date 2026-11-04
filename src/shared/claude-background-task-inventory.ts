@@ -1,5 +1,5 @@
 import { classifyClaudeBackgroundTaskKind } from './claude-background-task-kind'
-import { isAgentChildWorkKind } from './agent-status-child-work-liveness'
+import { isAgentChildWorkKind } from './agent-status/child-work/agent-status-child-work-liveness'
 import type { AgentMonitoredWorkSnapshot } from './agent-monitored-work'
 import { runsOrcaOrchestrationWait } from './orca-cli-invocations'
 

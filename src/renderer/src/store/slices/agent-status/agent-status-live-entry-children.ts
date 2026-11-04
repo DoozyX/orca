@@ -1,8 +1,8 @@
-import type { AgentStatusEntry } from '../../../../../shared/agent-status-types'
-import '../../../../../shared/agent-status-types'
-import { agentSubagentsEqual } from '../../../../../shared/agent-status-subagent-snapshot'
+import type { AgentStatusEntry } from '../../../../../shared/agent-status/contracts/agent-status-types'
+import '../../../../../shared/agent-status/contracts/agent-status-types'
+import { agentSubagentsEqual } from '../../../../../shared/agent-status/contracts/agent-status-subagent-snapshot'
 import { agentMonitoredWorkEqual } from '../../../../../shared/agent-monitored-work'
-import { agentChildWorkViewsEqual } from '../../../../../shared/agent-status-child-work-view-wire'
+import { agentChildWorkViewsEqual } from '../../../../../shared/agent-status/child-work/agent-status-child-work-view-wire'
 import type { AgentStatusPayload } from './agent-status-contract'
 
 /** Reuse equal child arrays for derived-row identity; children are host views, subagents the legacy roster, monitored work the host's watched processes. */

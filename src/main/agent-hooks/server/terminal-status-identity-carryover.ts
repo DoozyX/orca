@@ -1,4 +1,4 @@
-import type { ParsedAgentStatusPayload } from '../../../shared/agent-status-types'
+import type { ParsedAgentStatusPayload } from '../../../shared/agent-status/contracts/agent-status-types'
 import type { EnrichedAgentHookEventPayload } from './server-types'
 
 /** What a terminal status row keeps from the row it replaces: provider session and main agent. */

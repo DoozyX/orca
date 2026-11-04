@@ -1,4 +1,4 @@
-import { normalizeOptionalField } from './agent-status-field-normalization'
+import { normalizeOptionalField } from './agent-status/contracts/agent-status-field-normalization'
 
 /** Non-agent child work only; agent children stay in `subagents`. */
 export type AgentMonitoredWorkKind = 'command' | 'monitor' | 'workflow' | 'cron' | 'unknown'

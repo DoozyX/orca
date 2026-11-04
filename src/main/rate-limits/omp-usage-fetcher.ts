@@ -9,7 +9,7 @@ import {
   resolveOmpConfigDirName,
   resolvePiSourceAgentDir
 } from '../../wsl-guest/plugin-overlay-env'
-import { resolveOmpAgentDir } from '../ai-vault/omp-session-root'
+import { resolveOmpAgentDir } from '../ai-vault/scanners/omp/omp-session-root'
 import { mapOmpUsage, type OmpRateLimits } from './omp-usage-mapping'
 
 const configSchema = z.object({ modelRoles: z.object({ default: z.string().min(1) }) })

@@ -4,12 +4,12 @@ vi.mock('electron', () => ({ BrowserWindow: { getAllWindows: () => [] } }))
 
 import { getDefaultSettings } from '../../shared/constants'
 import { withClaudeProfileTerminalEnv } from '../claude-accounts/claude-profile-installed-router'
-import { installWslOrcadAccountEnvDependencies } from '../wsl/wsl-orcad-account-env'
+import { installWslOrcadAccountEnvDependencies } from '../wsl/orcad/wsl-orcad-account-env'
 
 vi.mock('../claude-accounts/claude-profile-installed-router', () => ({
   withClaudeProfileTerminalEnv: vi.fn(() => ({ ORCA_CLAUDE_PROFILE_POINTER: 'test-pointer' }))
 }))
-vi.mock('../wsl/wsl-orcad-account-env', () => ({
+vi.mock('../wsl/orcad/wsl-orcad-account-env', () => ({
   installWslOrcadAccountEnvDependencies: vi.fn()
 }))
 

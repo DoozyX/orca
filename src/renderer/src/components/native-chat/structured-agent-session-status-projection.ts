@@ -4,7 +4,7 @@ import {
   agentChildWorkProjectionCandidateFromBackgroundTask,
   projectAgentChildWorkLegacySubagents,
   projectAgentChildWorkMonitoredWork
-} from '../../../../shared/agent-status-child-work-projection'
+} from '../../../../shared/agent-status/child-work/agent-status-child-work-projection'
 import {
   agentMonitoredWorkEqual,
   type AgentMonitoredWorkSnapshot
@@ -13,17 +13,17 @@ import {
   continueMainAgentStatus,
   isAgentStatusHeldOpenByChildWork,
   mainAgentTurnInterrupted
-} from '../../../../shared/agent-lead-status-fold'
-import type { AgentChildWorkView } from '../../../../shared/agent-status-child-work-view'
+} from '../../../../shared/agent-status/lifecycle/agent-lead-status-fold'
+import type { AgentChildWorkView } from '../../../../shared/agent-status/child-work/agent-status-child-work-view'
 import {
   agentChildWorkViewsEqual,
   decodeAgentChildWorkViews
-} from '../../../../shared/agent-status-child-work-view-wire'
+} from '../../../../shared/agent-status/child-work/agent-status-child-work-view-wire'
 import {
   agentSubagentsEqual,
-  mainAgentStatusEqual,
   type AgentSubagentSnapshot
-} from '../../../../shared/agent-status-types'
+} from '../../../../shared/agent-status/contracts/agent-status-subagent-snapshot'
+import { mainAgentStatusEqual } from '../../../../shared/agent-status/lifecycle/main-agent-status'
 import { structuredChildWorkLegacySubagents } from '../../../../shared/agent-session/structured-agent-session-child-work-legacy'
 import { structuredAgentSessionPaneKey } from '../../../../shared/agent-session/view/structured-agent-session-projection'
 import { structuredAgentSessionAgentStatus } from '../../../../shared/agent-session/view/structured-agent-session-agent-status'
@@ -31,7 +31,7 @@ import {
   structuredAgentSessionDatedMainAgent,
   structuredAgentSessionRowStateStartedAt
 } from '../../../../shared/agent-session/view/structured-agent-session-status-started-at'
-import { agentMainAgentVerdict } from '../../../../shared/agent-main-agent-verdict'
+import { agentMainAgentVerdict } from '../../../../shared/agent-status/lifecycle/agent-main-agent-verdict'
 import type { AgentStatusBatchTransaction } from '@/store/slices/agent-status/agent-status-contract'
 import type { StructuredTab } from './structured-agent-session-tabs'
 

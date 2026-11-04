@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   programStatusChildrenUnchanged,
   type AgentSubagentSnapshot
-} from './agent-status-subagent-snapshot'
+} from './agent-status/contracts/agent-status-subagent-snapshot'
 
 const child: AgentSubagentSnapshot = { id: 'c1', state: 'working', startedAt: 1 }
 

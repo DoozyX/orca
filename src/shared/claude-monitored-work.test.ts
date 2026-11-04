@@ -7,7 +7,7 @@ import {
   movePaneCacheState,
   type HookListenerState
 } from './agent-hook-listener/listener-state'
-import { normalizeHookPayload } from './agent-hook-listener'
+import { normalizeHookPayload } from './agent-hook-listener/normalization/normalize-hook-payload'
 import { makePaneKey } from './stable-pane-id'
 
 const PANE = makePaneKey('tab-source', '11111111-1111-4111-8111-111111111111')

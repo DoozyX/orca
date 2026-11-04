@@ -1,4 +1,5 @@
 import { retireRemovedNativeChatDraftPositions } from '@/components/native-chat/native-chat-draft-cache'
+import { pickParsedAgentStatusPayload } from '../../../../shared/agent-status/contracts/agent-status-payload-pick'
 import {
   markStructuredAgentSessionLaunchesPublished,
   publishedStructuredSessions
@@ -9,10 +10,9 @@ import { useAppStore } from '../../store'
 import type { RuntimeMobileSessionTabsResult } from '../../../../shared/runtime-types'
 import {
   pickHostTurnEnd,
-  pickParsedAgentStatusPayload,
   type TurnEndDisposition
-} from '../../../../shared/agent-status-types'
-import { normalizeTurnCompletedAtField } from '../../../../shared/agent-status-field-normalization'
+} from '../../../../shared/agent-status/contracts/agent-status-types'
+import { normalizeTurnCompletedAtField } from '../../../../shared/agent-status/contracts/agent-status-field-normalization'
 import { isSeenHostReplay } from '@/hooks/ipc-events/agent-status-routing'
 import { isClientAuthoritativeAgentStatusPane } from '@/components/terminal-pane/renderer-owned-agent-status-registry'
 import { observeAgentHookCompletionForNotification } from '@/hooks/agent-hook-completion-notifications'

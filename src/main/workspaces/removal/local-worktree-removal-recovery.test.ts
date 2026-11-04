@@ -9,7 +9,8 @@ const { gitExecFileAsyncMock, listWorktreesStrictMock, removeLocalWorktreePathMo
     hostRmMock: vi.fn()
   }))
 
-vi.mock('../../git/runner', () => ({
+vi.mock('../../git/command-runner/git-exec-file', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
   gitExecFileAsync: gitExecFileAsyncMock
 }))
 
@@ -19,10 +20,7 @@ vi.mock('./local-worktree-filesystem', () => ({
 
 vi.mock('../../filesystem/asar-transparent-fs', () => ({ rm: hostRmMock }))
 
-vi.mock('../../git/worktree', () => ({
-  listWorktreesStrict: listWorktreesStrictMock
-}))
-vi.mock('../../git/worktree-listing', async (importOriginal) => ({
+vi.mock('../../git/worktrees/catalog/worktree-listing', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   listWorktreesStrict: listWorktreesStrictMock
 }))
@@ -32,7 +30,7 @@ import {
   removeStaleLocalWorktreeRegistration
 } from './local-worktree-removal-recovery'
 import { NESTED_WORKTREE_REMOVAL_PREFIX } from '../../../shared/worktree/nested-removal'
-import { createGitCommandMocker } from '../../git/remove-worktree-test-harness'
+import { createGitCommandMocker } from '../../git/worktrees/removal/remove-worktree-test-harness'
 
 async function withPlatform<T>(platform: NodeJS.Platform, fn: () => Promise<T>): Promise<T> {
   const original = process.platform
