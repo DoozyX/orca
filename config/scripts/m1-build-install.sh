@@ -6,6 +6,8 @@ WT=/Users/skletnikov/DoozyX/tools/orca/.worktrees/orca/m1-daily-upstream-sync
 PNPM12=/Users/skletnikov/Library/pnpm/package-manager-store/v11/links/@/pnpm/12.14.0/fa4b6de714eee5e41198578d37b51a0becbe0643d80916ccfc693ffd9491d0c0/bin
 RUN=$WT/.orca/$(date +%F)-m1-build
 mkdir -p "$RUN/tmp"
+# A failed run must leave a trace where the restart outcome is read, or a stale serve goes unnoticed.
+trap 'rc=$?; [ $rc -eq 0 ] || echo "$(date +%F\ %T) restart NOT scheduled: m1-build-install.sh exited $rc" >>"$HOME/Library/Logs/orca-m1-restart.log"' EXIT
 
 cd "$WT"
 [ "$(git rev-parse --show-toplevel)" = "$WT" ] || { echo "wrong checkout" >&2; exit 1; }
@@ -30,7 +32,8 @@ CSC_NAME="Apple Distribution: DoozyX FZ-LLC (N59WC8BU7V)" pnpm build:mac:install
 
 app=/Applications/Orca.app
 codesign --verify --deep --strict "$app"
-codesign -dv "$app" 2>&1 | grep -q 'TeamIdentifier=N59WC8BU7V'
+# Not a pipe: grep -q exits early, codesign gets SIGPIPE and pipefail aborts with 141.
+grep -q 'TeamIdentifier=N59WC8BU7V' <<<"$(codesign -dv "$app" 2>&1)"
 lipo -archs "$app/Contents/MacOS/Orca" | grep -qx arm64
 python3 - "$(git rev-parse HEAD)" <<'PY'
 import json, sys
