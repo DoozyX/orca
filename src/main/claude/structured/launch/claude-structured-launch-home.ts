@@ -1,5 +1,8 @@
 import { join } from 'node:path'
 import type { ClaudeAccountRecipe } from '../../../../shared/agent-session/lifecycle/agent-session-acquired-account'
+import type { ExecutionHostId } from '../../../../shared/execution-host'
+import type { LegacyAgentSessionAccountHome } from '../../../../shared/agent-session/lifecycle/agent-session-account-home'
+import type { AgentSessionExecutionLocation } from '../../../../shared/agent-session/lifecycle/agent-session-record'
 import type { ResolvedClaudeHomeBinding } from '../../../../shared/claude-home-binding'
 import { prepareClaudeBoundHomeLaunch } from '../../../claude-accounts/claude-bound-home-route'
 import { applyClaudeEnvPatch } from '../../../claude-accounts/environment'
@@ -8,6 +11,33 @@ import { AgentSessionPreSpawnError } from '../../../native-chat/agent-session-wi
 import { resolveSessionFilePath } from '../../../native-chat/session-file-resolver'
 import type { AssertClaudeBoundHomeUsable } from '../../claude-bound-home-refusal'
 import { prepareClaudeLaunchAccount } from '../../claude-launch-account'
+import { assertClaudeChatPredatesNoBinding } from '../../claude-structured-bound-home-checks'
+import { isEffectiveBoundClaudeHome } from '../../claude-structured-account-home'
+
+export type ClaudeBoundHomeLaunchDeps = {
+  /** Re-proves a bound home per acquisition when no router is installed. Overridden by tests. */
+  assertBoundHomeUsable?: AssertClaudeBoundHomeUsable
+  /** The binding the workspace's group carries now; a chat created before it refuses by name.
+   *  Absent leaves the check off, for embedders with no project catalog. */
+  readClaudeHomeBinding?: (location: {
+    workspaceId: string
+    executionHostId: ExecutionHostId
+  }) => ResolvedClaudeHomeBinding | null
+}
+
+/** A group-bound chat keeps the home pinned at create, as its transcript lives there. */
+export function resolveClaudeBoundHomeForLaunch(
+  deps: ClaudeBoundHomeLaunchDeps,
+  location: AgentSessionExecutionLocation,
+  accountHome: LegacyAgentSessionAccountHome,
+  childEnv: NodeJS.ProcessEnv
+): { configDir: string; groupId: string } | undefined {
+  if (accountHome.binding && isEffectiveBoundClaudeHome(accountHome, { env: childEnv })) {
+    return { configDir: accountHome.path, groupId: accountHome.binding.groupId }
+  }
+  assertClaudeChatPredatesNoBinding({ deps, location, accountHome, childEnv })
+  return undefined
+}
 
 /** A bound home is re-proved and recorded as a system-route recipe; otherwise the current account selection is prepared. */
 export async function prepareBoundAccount(

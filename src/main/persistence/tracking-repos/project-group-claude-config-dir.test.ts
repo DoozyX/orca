@@ -13,7 +13,7 @@ function createOperations(): {
   const operations = new ProjectGroupPersistenceOperations({
     state,
     scheduleSave: () => {},
-    removeWorkspaceLineageForFolderParent: () => {},
+    removeWorkspaceLineageForRemovedFolder: () => {},
     pruneMobileClientTabSelections: () => {}
   })
   return { operations, state }

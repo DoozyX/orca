@@ -1,5 +1,5 @@
 import React from 'react'
-import { Ellipsis, Plus } from 'lucide-react'
+import { Ellipsis, Plus, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
@@ -12,19 +12,28 @@ import { cn } from '@/lib/utils'
 import { translate } from '@/i18n/i18n'
 import { getFolderWorkspacePathStatusDescription } from '@/lib/folder-workspace-path-status'
 import type { ProjectGroup } from '../../../../../../shared/project-group-types'
-import type { FolderWorkspacePathStatus } from '../../../../../../shared/folder-workspace-path-status'
+import type { FolderWorkspacePathStatus } from '../../../../../../shared/folder-workspaces/folder-workspace-path-status'
 import type { ExecutionHostId } from '../../../../../../shared/execution-host'
-import { REPO_HEADER_ACTION_BUTTON_CLASS } from '../../repo-header-action-button-class'
+import { getFolderProjectGroupRefreshHandler } from './project-group-folder-refresh'
+import { REPO_HEADER_ACTION_BUTTON_CLASS } from './repo-header-action-button-class'
 import {
   handleRepoHeaderActionPointerDown,
   stopRepoHeaderKeyboardToggle,
   stopRepoHeaderMenuEvent
 } from './header-event-guards'
 
+export type ProjectGroupHeaderRowHandlers = {
+  onRenameProjectGroup: (groupId: string, currentName: string, hostId?: ExecutionHostId) => void
+  onDeleteProjectGroup: (groupId: string, groupName: string, hostId?: ExecutionHostId) => void
+  onOpenProjectGroupSettings: (groupId: string, hostId?: ExecutionHostId) => void
+}
+
 export function ProjectGroupHeaderMenu({
   groupId,
   hostId,
   label,
+  projectGroup,
+  onRefreshProjectGroup,
   onRename,
   onDelete,
   onOpenSettings
@@ -33,10 +42,13 @@ export function ProjectGroupHeaderMenu({
   /** Owner host of the group row, so rename/delete/settings route to the host that holds it. */
   hostId?: ExecutionHostId
   label: string
+  projectGroup: ProjectGroup | null
+  onRefreshProjectGroup?: (projectGroup: ProjectGroup) => void
   onRename: (groupId: string, currentName: string, hostId?: ExecutionHostId) => void
   onDelete: (groupId: string, groupName: string, hostId?: ExecutionHostId) => void
   onOpenSettings: (groupId: string, hostId?: ExecutionHostId) => void
 }): React.JSX.Element {
+  const onRefresh = getFolderProjectGroupRefreshHandler(projectGroup, onRefreshProjectGroup)
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
@@ -70,6 +82,15 @@ export function ProjectGroupHeaderMenu({
         onClick={stopRepoHeaderMenuEvent}
         onKeyDown={stopRepoHeaderMenuEvent}
       >
+        {onRefresh ? (
+          <DropdownMenuItem onSelect={onRefresh}>
+            <RefreshCw className="size-3.5" />
+            {translate(
+              'auto.components.sidebar.WorktreeList.refreshProjectGroup',
+              'Refresh projects'
+            )}
+          </DropdownMenuItem>
+        ) : null}
         <DropdownMenuItem onSelect={() => onRename(groupId, label, hostId)}>
           {translate('auto.components.sidebar.WorktreeList.4d7b73658c', 'Rename group')}
         </DropdownMenuItem>

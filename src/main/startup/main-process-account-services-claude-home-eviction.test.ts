@@ -24,6 +24,7 @@ vi.mock('electron', () => ({ app: { getPath: () => '/tmp/orca-test-home' } }))
 vi.mock('../rate-limits/service', () => ({
   RateLimitService: class {
     evictBoundClaudeHomeUsage = evictBoundClaudeHomeUsage
+    start = vi.fn()
     ingestLiveClaudeRateLimits = vi.fn()
     invalidateMiniMaxCredentialState = vi.fn()
     invalidateOpenCodeGoCredentialState = vi.fn()
@@ -61,28 +62,32 @@ vi.mock('../keybindings/keybinding-service', () => ({
     getOverrides = vi.fn(() => ({}))
   }
 }))
-vi.mock('../codex/codex-session-migration-scheduler', () => ({
+vi.mock('../codex/history/backfill/codex-session-migration-scheduler', () => ({
   createCodexSessionMigrationScheduler: () => ({
     requestRun: vi.fn(),
     scheduleInitialRun: vi.fn()
   })
 }))
-vi.mock('../codex/codex-session-backfill', () => ({
+vi.mock('../codex/history/backfill/codex-session-backfill', () => ({
   startCodexSessionBackfillInBackground: vi.fn()
 }))
-vi.mock('../codex/codex-session-index-heal', () => ({
+vi.mock('../codex/history/index/codex-session-index-heal', () => ({
   startCodexSessionIndexHealInBackground: vi.fn()
 }))
-vi.mock('../codex/codex-state-db-backfill-recovery', () => ({
+vi.mock('../codex/history/index/codex-state-db-backfill-recovery', () => ({
   startCodexStateDbBackfillRecoveryInBackground: vi.fn(async () => {})
 }))
-vi.mock('../codex/codex-home-paths', () => ({ getOrcaManagedCodexHomePath: () => '/tmp/codex' }))
-vi.mock('../codex/hook-service', () => ({ setSystemCodexHomeHookSweepSuppressed: vi.fn() }))
-vi.mock('../codex/codex-real-home-hook-install', () => ({
+vi.mock('../codex/configuration/homes/codex-home-paths', () => ({
+  getOrcaManagedCodexHomePath: () => '/tmp/codex'
+}))
+vi.mock('../codex/hooks/installation/hook-service', () => ({
+  setSystemCodexHomeHookSweepSuppressed: vi.fn()
+}))
+vi.mock('../codex/hooks/reconciliation/codex-real-home-hook-install', () => ({
   isRealHomeCodexHookLaneUsable: () => false,
   setRealHomeCodexHooksEnabledReader: vi.fn()
 }))
-vi.mock('../codex/codex-session-source-home', () => ({
+vi.mock('../codex/history/rollouts/codex-session-source-home', () => ({
   resolveHostCodexSessionSourceHome: () => undefined
 }))
 vi.mock('../agent-hooks/managed-agent-hook-controls', () => ({

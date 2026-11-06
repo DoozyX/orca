@@ -1,6 +1,10 @@
 // @vitest-environment happy-dom
 
 import { act, cleanup, render, waitFor } from '@testing-library/react'
+import {
+  structuredTab,
+  type SubscribeAgentSessionStatus
+} from './structured-agent-session-status-bridge-test-fixture'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
   AgentSessionStatusEvent,
@@ -8,7 +12,6 @@ import type {
 } from '../../../../shared/agent-session/agent-session-wire'
 import type { AgentStatusEntry } from '../../../../shared/agent-status/contracts/agent-status-types'
 import type { AgentChildWorkView } from '../../../../shared/agent-status/child-work/agent-status-child-work-view'
-import type { Tab } from '../../../../shared/tab-types'
 import type { AppState } from '@/store/types'
 import type * as RuntimeRpcClientModule from '@/runtime/runtime-rpc-client'
 
@@ -22,7 +25,7 @@ const storeHolder = vi.hoisted((): { store: MonitoredWorkStore | null } => ({ st
 const mocks = vi.hoisted(() => ({
   removeAgentStatus: vi.fn(),
   setAgentStatus: vi.fn(),
-  subscribeStatus: vi.fn(),
+  subscribeStatus: vi.fn<SubscribeAgentSessionStatus>(),
   subscribeTranscript: vi.fn(),
   supportsCapability: vi.fn(),
   unsubscribe: vi.fn()
@@ -67,21 +70,6 @@ vi.mock('@/runtime/structured-agent-session-client', () => ({
 import { StructuredAgentSessionStatusBridge } from './StructuredAgentSessionStatusBridge'
 import { resetStructuredAgentSessionStatusFeedsForTests } from '@/runtime/structured-agent-session-status-feed'
 
-const structuredTab = {
-  id: 'structured-tab-1',
-  worktreeId: 'wt-1',
-  groupId: 'group-1',
-  contentType: 'agent-session',
-  entityId: 'session-1',
-  label: 'Codex Chat',
-  customLabel: null,
-  color: null,
-  sortOrder: 0,
-  createdAt: 0,
-  isPinned: false,
-  agentSessionAgent: 'codex'
-} satisfies Tab
-
 const providerSession = { key: 'session_id', id: '01a002e9-9a1c-7d42-a642-e481f64446f1' } as const
 
 function summary(overrides: Partial<AgentSessionStatusSummary> = {}): AgentSessionStatusSummary {
@@ -108,7 +96,7 @@ function feed(index = 0): { target: unknown; emit: (event: AgentSessionStatusEve
   if (!call) {
     throw new Error('status feed not subscribed')
   }
-  return { target: call[0], emit: call[1] as (event: AgentSessionStatusEvent) => void }
+  return { target: call[0], emit: call[1] }
 }
 
 describe('StructuredAgentSessionStatusBridge monitored work', () => {

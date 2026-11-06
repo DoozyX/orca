@@ -5,7 +5,7 @@
 // compile however wrong it was, and the wrong answer here is another organisation's account.
 
 import type { ExecutionHostId } from '../../shared/execution-host'
-import type { FolderWorkspace } from '../../shared/folder-workspace-types'
+import type { FolderWorkspace } from '../../shared/folder-workspaces/folder-workspace-types'
 import type { ProjectGroup } from '../../shared/project-group-types'
 import type { Repo } from '../../shared/repo-types'
 import {
@@ -20,7 +20,7 @@ import { isCustomClaudeConfigDir } from './claude-config-dir-pin'
 import {
   resolveStructuredClaudeAccountHomePath,
   type StructuredClaudeAccountHomeDeps
-} from '../runtime/structured-agent-account-home'
+} from '../runtime/agent-session/environment/structured-agent-account-home'
 
 /** The store accessors the binding decision reads. Each is optional only so a missing one can be
  *  *detected*; see `readClaudeHomeBindingCatalog`. */

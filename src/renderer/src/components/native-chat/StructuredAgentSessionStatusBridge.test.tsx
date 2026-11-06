@@ -1,13 +1,18 @@
 // @vitest-environment happy-dom
 
 import { act, cleanup, render, waitFor } from '@testing-library/react'
+import {
+  structuredTab,
+  subagentParentTab,
+  type SubscribeAgentSessionStatus
+} from './structured-agent-session-status-bridge-test-fixture'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
   AgentSessionStatusEvent,
   AgentSessionStatusSummary
 } from '../../../../shared/agent-session/agent-session-wire'
-import { buildSubagentChildRows } from '../sidebar/worktree-subagent-child-rows'
-import { hasSleepableWorkspaceActivity } from '../sidebar/workspace-lineage-menu-actions'
+import { buildSubagentChildRows } from '../sidebar/workspace-card/activity/worktree-subagent-child-rows'
+import { hasSleepableWorkspaceActivity } from '../sidebar/workspace-actions/context-menu/workspace-lineage-menu-actions'
 import { resolveAttention } from '../../../../shared/sidebar-list/smart-attention'
 import { isExplicitAgentStatusFresh } from '@/lib/pane-agent-evidence'
 import type { AgentStatusEntry } from '../../../../shared/agent-status/contracts/agent-status-types'
@@ -21,7 +26,7 @@ const mocks = vi.hoisted(() => ({
     getState: () => AppState
     setState: (state: Partial<AppState>) => void
   } | null => null)(),
-  subscribeStatus: vi.fn(),
+  subscribeStatus: vi.fn<SubscribeAgentSessionStatus>(),
   subscribeTranscript: vi.fn(),
   supportsCapability: vi.fn(),
   unsubscribe: vi.fn()
@@ -73,21 +78,6 @@ import {
 import { resetStructuredAgentSessionStatusFeedsForTests } from '@/runtime/structured-agent-session-status-feed'
 import { useAppStore } from '@/store'
 
-const structuredTab = {
-  id: 'structured-tab-1',
-  worktreeId: 'wt-1',
-  groupId: 'group-1',
-  contentType: 'agent-session',
-  entityId: 'session-1',
-  label: 'Codex Chat',
-  customLabel: null,
-  color: null,
-  sortOrder: 0,
-  createdAt: 0,
-  isPinned: false,
-  agentSessionAgent: 'codex'
-} satisfies Tab
-
 const providerSession = { key: 'session_id', id: '01a002e9-9a1c-7d42-a642-e481f64446f1' } as const
 
 function summary(overrides: Partial<AgentSessionStatusSummary> = {}): AgentSessionStatusSummary {
@@ -114,7 +104,7 @@ function feed(index = 0): { target: unknown; emit: (event: AgentSessionStatusEve
   if (!call) {
     throw new Error('status feed not subscribed')
   }
-  return { target: call[0], emit: call[1] as (event: AgentSessionStatusEvent) => void }
+  return { target: call[0], emit: call[1] }
 }
 
 describe('StructuredAgentSessionStatusBridge', () => {
@@ -316,7 +306,7 @@ describe('StructuredAgentSessionStatusBridge', () => {
     expect(
       buildSubagentChildRows({
         parentEntry: statuses()[0],
-        tab: structuredTab as never,
+        tab: subagentParentTab,
         parentIsFresh: true
       })[0]?.state
     ).toBe('unverifiable')
@@ -467,7 +457,7 @@ describe('StructuredAgentSessionStatusBridge', () => {
     const childState = () =>
       buildSubagentChildRows({
         parentEntry: statuses()[0],
-        tab: structuredTab as never,
+        tab: subagentParentTab,
         parentIsFresh
       })[0]?.state
     act(() => feed().emit({ type: 'snapshot', sessions: [live] }))

@@ -5,9 +5,14 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { OrcaRuntimeService } from './orca-runtime'
 import { OrchestrationDb } from './orchestration/db'
-import { readRuntimeMetadata } from './runtime-metadata'
-import { createLongPollServer } from './runtime-rpc-long-poll-server.test-fixture'
-import { openFramedSession, sleep, waitFor, type FramedSession } from './runtime-rpc-test-harness'
+import { readRuntimeMetadata } from './rpc/server/runtime-metadata'
+import { createLongPollServer } from './rpc/server/runtime-rpc-long-poll-server.test-fixture'
+import {
+  openFramedSession,
+  sleep,
+  waitFor,
+  type FramedSession
+} from './rpc/server/runtime-rpc-test-harness'
 import { COORDINATOR_PANE_KEY } from './rpc/methods/orchestration/rpc-test-harness'
 
 vi.mock('../git/worktrees/catalog/worktree-listing', () => ({

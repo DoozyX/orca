@@ -4,10 +4,10 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { OrcaRuntimeService } from './orca-runtime'
-import { readRuntimeMetadata } from './runtime-metadata'
-import { classifyRuntimeLongPoll } from './runtime-rpc/runtime-rpc-long-poll'
-import { createLongPollServer as createServer } from './runtime-rpc-long-poll-server.test-fixture'
-import { openFramedSession } from './runtime-rpc-test-harness'
+import { readRuntimeMetadata } from './rpc/server/runtime-metadata'
+import { classifyRuntimeLongPoll } from './rpc/server/runtime-rpc-long-poll'
+import { createLongPollServer as createServer } from './rpc/server/runtime-rpc-long-poll-server.test-fixture'
+import { openFramedSession } from './rpc/server/runtime-rpc-test-harness'
 
 describe('browser bridge calls on the runtime socket', () => {
   // #28: a hung page queues later bridge calls past the 30 s idle timer, reading as a dead runtime.

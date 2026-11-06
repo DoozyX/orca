@@ -4,7 +4,7 @@ import {
   resolveClaudeHomeBindingForWorkspace,
   resolveProjectGroupIdForWorkspace
 } from './claude-home-binding'
-import type { FolderWorkspace } from './folder-workspace-types'
+import type { FolderWorkspace } from './folder-workspaces/folder-workspace-types'
 import type { ProjectGroup } from './project-group-types'
 import type { Repo } from './repo-types'
 

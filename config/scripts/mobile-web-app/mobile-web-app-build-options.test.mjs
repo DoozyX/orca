@@ -1,7 +1,10 @@
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { MOBILE_WEB_APP_SHIMS, mobileWebAppBuildOptions } from '../build-mobile-web-app-bundle.mjs'
+import {
+  MOBILE_WEB_APP_SHIMS,
+  mobileWebAppBuildOptions
+} from '../build/mobile-web-app/build-mobile-web-app-bundle.mjs'
 import {
   ROUTE_SOURCE_LOADERS,
   collectMobileWebAppRoutes

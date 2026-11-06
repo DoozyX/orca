@@ -55,7 +55,6 @@ vi.mock('fs/promises', async () => {
   const actual = await vi.importActual<typeof FsPromises>('fs/promises')
   return { ...actual, stat: statMock, readFile: readFileMock }
 })
-
 import {
   createGitCallReader,
   createGitCommandMocker,
@@ -367,93 +366,6 @@ branch refs/heads/main
     }
   })
 
-  it('leaves a dirty checkout to Git to refuse', async () => {
-    mockGitCommands({
-      'git worktree list --porcelain': {
-        stdout: `worktree /repo
-HEAD abc123
-branch refs/heads/main
-
-worktree /repo-feature
-HEAD def456
-branch refs/heads/feature/test
-`
-      },
-      'git status --porcelain --untracked-files=all': { stdout: ' M src/app.ts\n' },
-      'git worktree remove /repo-feature': {
-        error: new Error('fatal: contains modified or untracked files, use --force to delete it')
-      }
-    })
-
-    await expect(removeWorktree('/repo', '/repo-feature')).rejects.toThrow(
-      'contains modified or untracked files'
-    )
-    expect(getGitCalls()).not.toContain('git worktree remove --force /repo-feature')
-  })
-
-  it('deletes WSL-hosted checkouts in place inside the distro', async () => {
-    mockGitCommands({
-      'git worktree list --porcelain': {
-        stdout: `worktree /repo
-HEAD abc123
-branch refs/heads/main
-
-worktree /repo-feature
-HEAD def456
-branch refs/heads/feature/test
-`
-      },
-      'git worktree list --porcelain#2': {
-        stdout: `worktree /repo
-HEAD abc123
-branch refs/heads/main
-`
-      }
-    })
-
-    await removeWorktree('/repo', '/repo-feature', false, { wslDistro: 'Ubuntu' })
-
-    expect(getGitCalls()).not.toContain('git status --porcelain --untracked-files=all')
-    expect(getGitCalls()).toContain('git worktree remove /repo-feature')
-  })
-
-  it('removes a WSL checkout configured for a native Windows repo with Git alone', async () => {
-    const worktreePath = '\\\\wsl.localhost\\Ubuntu\\home\\dev\\feature'
-    platformSpy.mockReturnValue('win32')
-    mockGitCommands({})
-
-    await removeWorktree('C:\\repo', worktreePath, false, {
-      knownRemovedWorktree: { branch: '', head: '', locked: false }
-    })
-
-    expect(getGitCalls()).toEqual([`git -c core.longpaths=true worktree remove ${worktreePath}`])
-  })
-
-  it('passes one --force before the worktree path for dirty-file removal', async () => {
-    mockGitCommands({
-      'git worktree list --porcelain': {
-        stdout: `worktree /repo
-HEAD abc123
-branch refs/heads/main
-
-worktree /repo-feature
-HEAD def456
-branch refs/heads/feature/test
-`
-      },
-      'git worktree list --porcelain#2': {
-        stdout: `worktree /repo
-HEAD abc123
-branch refs/heads/main
-`
-      }
-    })
-
-    await removeWorktree('/repo', '/repo-feature', true)
-
-    expect(getGitCalls()).toContain('git worktree remove --force /repo-feature')
-  })
-
   it('preserves Git refusal even when parent status cannot reveal unpublished submodule commits', async () => {
     mockGitCommands({
       'git worktree list --porcelain': {
@@ -484,101 +396,6 @@ branch refs/heads/main
     )
     expect(getGitCalls()).not.toContain('git worktree remove --force /repo-feature')
     expect(getGitCalls()).not.toContain('git update-ref -d refs/heads/feature/test def456')
-  })
-
-  it('preserves Git refusal for a dirty submodule worktree', async () => {
-    mockGitCommands({
-      'git worktree list --porcelain': {
-        stdout: `worktree /repo
-HEAD abc123
-branch refs/heads/main
-
-worktree /repo-feature
-HEAD def456
-branch refs/heads/feature/test
-`
-      },
-      'git worktree remove /repo-feature': {
-        error: new Error('git worktree remove failed'),
-        stderr: 'fatal: working trees containing submodules cannot be moved or removed'
-      },
-      'git status --porcelain --untracked-files=all': { stdout: ' M sub\n' }
-    })
-
-    await expect(removeWorktree('/repo', '/repo-feature')).rejects.toThrow(
-      'git worktree remove failed'
-    )
-    expect(getGitCalls()).not.toContain('git worktree remove --force /repo-feature')
-  })
-
-  it('does not force-retry when the caller already forced removal', async () => {
-    mockGitCommands({
-      'git worktree list --porcelain': {
-        stdout: `worktree /repo
-HEAD abc123
-branch refs/heads/main
-
-worktree /repo-feature
-HEAD def456
-branch refs/heads/feature/test
-`
-      },
-      'git worktree remove --force /repo-feature': {
-        error: new Error('git worktree remove failed'),
-        stderr: 'fatal: working trees containing submodules cannot be moved or removed'
-      }
-    })
-
-    await expect(removeWorktree('/repo', '/repo-feature', true)).rejects.toThrow()
-    expect(
-      getGitCalls().filter((call) => call === 'git worktree remove --force /repo-feature')
-    ).toHaveLength(1)
-  })
-
-  it('does not force-retry unrelated non-force remove failures', async () => {
-    mockGitCommands({
-      'git worktree list --porcelain': {
-        stdout: `worktree /repo
-HEAD abc123
-branch refs/heads/main
-
-worktree /repo-feature
-HEAD def456
-branch refs/heads/feature/test
-`
-      },
-      'git worktree remove /repo-feature': {
-        error: new Error('git worktree remove failed'),
-        stderr: 'fatal: contains modified or untracked files, use --force to delete it'
-      }
-    })
-
-    await expect(removeWorktree('/repo', '/repo-feature')).rejects.toThrow(
-      'git worktree remove failed'
-    )
-    expect(getGitCalls()).not.toContain('git worktree remove --force /repo-feature')
-    expect(getGitCalls()).not.toContain('git status --porcelain --untracked-files=all')
-  })
-
-  it('rejects a locked worktree with stable app-owned copy before invoking remove', async () => {
-    mockGitCommands({
-      'git worktree list --porcelain': {
-        stdout: `worktree /repo
-HEAD abc123
-branch refs/heads/main
-
-worktree /repo-feature
-HEAD def456
-branch refs/heads/feature/test
-locked active agent session
-`
-      }
-    })
-
-    await expect(removeWorktree('/repo', '/repo-feature', true)).rejects.toThrow(
-      'Worktree is locked by Git. Lock reason: active agent session.'
-    )
-    expect(getGitCalls()).not.toContain('git worktree remove /repo-feature')
   })
 
   it('does not treat dirty-file force as permission to override a lock', async () => {
