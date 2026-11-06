@@ -61,7 +61,7 @@ jobs:
           ORCA_BACKGROUND_LAUNCH: '1'
         run: |
           base=$(node -p "require('./package.json').version")
-          node config/scripts/ensure-native-runtime.mjs --runtime=electron
+          node config/scripts/native-build/node-addons/ensure-native-runtime.mjs --runtime=electron
           pnpm exec electron-builder --config config/electron-builder.config.cjs --linux deb --x64 --publish never \
             -c.extraMetadata.version="${base}-fork.${GITHUB_SHA::12}"
           ls -l dist/*.deb

@@ -1,4 +1,5 @@
 import type { CommandHandler } from './dispatch'
+import { ORCHESTRATION_HANDLER_KEYS } from './orchestration-handler-keys'
 import { BROWSER_HANDLER_GROUPS } from './browser/browser-handler-groups'
 import { JIRA_HANDLER_GROUP } from './jira-handler-group'
 import { LINEAR_HANDLER_GROUP } from './linear-handler-group'
@@ -125,40 +126,7 @@ export const HANDLER_GROUPS: readonly HandlerGroup[] = [
   ...BROWSER_HANDLER_GROUPS,
   {
     name: 'orchestration',
-    keys: [
-      'orchestration run-create',
-      'orchestration run-use',
-      'orchestration run-current',
-      'orchestration run-list',
-      'orchestration run-show',
-      'orchestration send',
-      'orchestration check',
-      'orchestration reply',
-      'orchestration inbox',
-      'orchestration task-create',
-      'orchestration task-list',
-      'orchestration task-update',
-      'orchestration worker-start',
-      'orchestration worker-show',
-      'orchestration worker-read',
-      'orchestration worker-stop',
-      'orchestration worker-abandon',
-      'orchestration worker-release',
-      'orchestration worker-keep-open',
-      'orchestration worker-retain',
-      'orchestration worker-list',
-      'orchestration dispatch',
-      'orchestration ask',
-      'orchestration dispatch-show',
-      'orchestration coordinator-start',
-      'orchestration coordinator-stop',
-      'orchestration request-show',
-      'orchestration gate-create',
-      'orchestration gate-resolve',
-      'orchestration gate-list',
-      'orchestration review-metrics',
-      'orchestration reset'
-    ],
+    keys: ORCHESTRATION_HANDLER_KEYS,
     load: async () => (await import('./handlers/orchestration.js')).ORCHESTRATION_HANDLERS
   },
   {
@@ -212,6 +180,11 @@ export const HANDLER_GROUPS: readonly HandlerGroup[] = [
     name: 'agent-launch',
     keys: ['agent launch'],
     load: async () => (await import('./handlers/agent-launch.js')).AGENT_LAUNCH_HANDLERS
+  },
+  {
+    name: 'chat',
+    keys: ['chat rename'],
+    load: async () => (await import('./handlers/chat.js')).CHAT_HANDLERS
   },
   {
     name: 'connector',

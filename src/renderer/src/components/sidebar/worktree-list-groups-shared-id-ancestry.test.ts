@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from 'vitest'
 import { buildRows } from './worktree-list/grouping/build-rows.test-fixture'
-import { repo, worktree } from './worktree-list-groups-test-fixtures'
+import { repo, worktree } from './worktree-list/grouping/worktree-list-groups-test-fixtures'
 import { getSidebarRowRevealAncestorKeys } from './worktree-list/navigation/reveal-ancestors'
 import type { ProjectGroup } from '../../../../shared/project-group-types'
 import type { Repo } from '../../../../shared/repo-types'

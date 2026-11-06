@@ -8,7 +8,7 @@ import {
   type HookListenerState
 } from './agent-hook-listener/listener-state'
 import { normalizeHookPayload } from './agent-hook-listener/normalization/normalize-hook-payload'
-import { makePaneKey } from './stable-pane-id'
+import { makePaneKey } from './workspace-layout/stable-pane-id'
 
 const PANE = makePaneKey('tab-source', '11111111-1111-4111-8111-111111111111')
 const TARGET_PANE = makePaneKey('tab-target', '22222222-2222-4222-8222-222222222222')

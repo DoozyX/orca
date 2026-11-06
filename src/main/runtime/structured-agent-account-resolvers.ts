@@ -6,7 +6,7 @@ import {
   claudeHomeBindingReader,
   type ClaudeHomeBindingCatalogSource
 } from '../claude/claude-structured-account-home'
-import { resolveStructuredCodexAccountKind } from './structured-agent-account-home'
+import { resolveStructuredCodexAccountKind } from './agent-session/environment/structured-agent-account-home'
 
 export function structuredAgentAccountResolvers(
   getSettings: () => StoreSettings,

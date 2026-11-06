@@ -13,14 +13,14 @@ import {
   structuredAgentSessionAdoptAttach,
   type StructuredAgentSessionCreateIntentInput
 } from '../agent-session/structured-agent-session-create-adoption'
-import { adoptedStructuredAgentAccountHome } from '../structured-agent-account-home'
+import { adoptedStructuredAgentAccountHome } from '../agent-session/environment/structured-agent-account-home'
 import type { AgentSessionAttachParams } from '../../native-chat/agent-session-wire/structured-agent-session-attach'
 import {
   resolveHostStructuredAgentCreateSupport,
   resolveHostStructuredAgentLaunchEnvironment
-} from '../structured-agent-launch-support'
-import { structuredAgentRuntimeMetadata } from '../structured-agent-runtime-metadata'
-import { structuredAgentChatProgramNeedsInstall } from '../structured-agent-availability'
+} from '../agent-session/launch/structured-agent-launch-support'
+import { structuredAgentRuntimeMetadata } from '../agent-session/installation/structured-agent-runtime-metadata'
+import { structuredAgentChatProgramNeedsInstall } from '../agent-session/launch/structured-agent-availability'
 import { structuredLaunchSeedOptions } from '../../../shared/native-chat/input/native-chat-session-option-defaults'
 import { hasPersistedStructuredAgentSessionStore as hasPersistedStructuredAgentSessionStoreOnDisk } from '../agent-session/records/agent-session-record-store-slot'
 import { ensureStructuredAgentSessionHostUnlessRefused } from '../agent-session/structured-agent-session-host-refusal'
@@ -242,7 +242,8 @@ export abstract class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport exte
                 : {}),
               transcriptPath: adoption.transcriptPath,
               providerSessionId: input.resumeFrom.providerSessionId,
-              workspaceCwd
+              workspaceCwd,
+              conversationName: adoption.conversationName
             })
           }
         : {}),

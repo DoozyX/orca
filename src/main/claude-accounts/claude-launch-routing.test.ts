@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ClaudeManagedAccount } from '../../shared/managed-account-types'
 import { resolveClaudeStructuredInvocation } from '../claude/structured/launch/claude-structured-launch-resolution'
 import { resolveClaudeStructuredLaunchHome } from '../claude/structured/launch/claude-structured-launch-home'
-import { resolveStructuredClaudeAccountHomePath } from '../runtime/structured-agent-account-home'
+import { resolveStructuredClaudeAccountHomePath } from '../runtime/agent-session/environment/structured-agent-account-home'
 import {
   installClaudeProfileRouter,
   withClaudeProfileTerminalEnv
@@ -15,7 +15,7 @@ import { prepareLocalCommitMessageAgentEnv } from '../text-generation/commit-mes
 import { claudeStructuredAuthPolicyForSettings } from './claude-structured-auth-policy'
 import { applyClaudeEnvPatch } from './environment'
 import { createProjectGroup } from '../../shared/project-groups'
-import type { FolderWorkspace } from '../../shared/folder-workspace-types'
+import type { FolderWorkspace } from '../../shared/folder-workspaces/folder-workspace-types'
 import { CLAUDE_PROFILE_POINTER_ENV } from '../../shared/claude-profile-routing'
 import { createClaudeBoundHomeOverride } from './claude-bound-home-route'
 import type { ClaudeHomeBindingCatalogSource } from '../claude/claude-structured-account-home'

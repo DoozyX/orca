@@ -1,4 +1,4 @@
-import { getProviderDisplayName } from './usage-error-copy'
+import { getProviderDisplayName } from '../../../../shared/usage-provider-windows'
 import type { AccountUsageEntry } from './account-usage-entry'
 import { entryRateLimits } from './account-usage-entry'
 import { ProviderSegment } from './StatusBarProviderSegment'

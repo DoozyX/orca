@@ -49,7 +49,6 @@ vi.mock('fs/promises', async () => {
   const actual = await vi.importActual<typeof FsPromises>('fs/promises')
   return { ...actual, stat: statMock, readFile: readFileMock }
 })
-
 import {
   createGitCallReader,
   createGitCommandMocker,

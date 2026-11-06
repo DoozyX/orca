@@ -170,7 +170,7 @@ describe('agent launch caller routing', () => {
           tokenizeStartupCommand(String(queuedStartupPayload(store)?.command), 'posix')
         ).toMatchObject({
           ok: true,
-          tokens: ['codex', '-c', 'disable_paste_burst=true', '--search']
+          tokens: ['codex', '--no-daemon', '-c', 'disable_paste_burst=true', '--search']
         })
       }
     }
