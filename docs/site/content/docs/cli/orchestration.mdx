@@ -86,7 +86,7 @@ orca orchestration worker-keep-open --dispatch <dispatchId>
 orca orchestration worker-start --task <taskId> --retry-of <dispatchId> --worktree current --agent codex
 ```
 
-`worker-stop` and `worker-release` accept `--run <runId>`: a Dispatch in another Run fails with `dispatch_run_mismatch`, and any error reading the Dispatch surfaces as itself; either way nothing is stopped or released. For a federated Dispatch, `--run` needs its execution host to be reachable; omit `--run` to keep the fence-and-report path.
+`worker-stop` and `worker-release` accept `--run <runId>`: a Dispatch in another Run fails with `dispatch_run_mismatch`, and any error reading the Dispatch surfaces as itself; either way nothing is stopped or released. For a federated Dispatch, `--run` needs its execution host to be reachable; omitting `--run` gets a `stop_unknown` or `release_unknown` receipt instead.
 
 Do not leave completed worker terminals open just to re-read output — use `worker-read` after `worker-release`. Do not substitute a broad `terminal close` when release returns `release_pending` or `release_unknown`; follow the receipt's recovery action.
 
