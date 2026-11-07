@@ -1,7 +1,11 @@
 import type { CommandHandler } from '../../dispatch'
 import { printResult } from '../../format'
 import { printOrchestrationResult } from './agent-view'
-import { WORKER_LIST_VIEW, type WorkerListResult } from './worker-agent-views'
+import {
+  WORKER_LIST_VIEW,
+  type WorkerListResult,
+  type WorkerShowResult
+} from './worker-agent-views'
 import {
   formatHelperStops,
   WORKER_RELEASE_VIEW,
@@ -13,7 +17,7 @@ import {
   getOptionalStringFlag,
   getRequiredStringFlag
 } from '../../flags'
-import { RuntimeClientError } from '../../runtime-client'
+import { RuntimeClientError, type RuntimeClient } from '../../runtime-client'
 import { callOrchestrationMutation } from './mutation-request'
 import { formatWorkerRelease, type WorkerReleaseReceipt } from './worker-output'
 import { formatWorkerListScope, resolveWorkerListRunScope } from './worker-list-run-scope'
@@ -26,6 +30,26 @@ const WORKER_TERMINAL_LIST_STATES = [
   'release_unknown',
   'released'
 ] as const
+
+// The RPCs take no run, and a Dispatch's Run never changes, so a read before the mutation is enough.
+async function assertDispatchInRun(
+  client: RuntimeClient,
+  flags: Map<string, string | boolean>,
+  dispatch: string
+): Promise<void> {
+  const run = getOptionalStringFlag(flags, 'run')
+  if (!run) {
+    return
+  }
+  const shown = await client.call<WorkerShowResult>('orchestration.workerShow', { dispatch })
+  const actual = shown.result.dispatch?.runId
+  if (actual !== run) {
+    throw new RuntimeClientError(
+      'dispatch_run_mismatch',
+      `Dispatch ${dispatch} belongs to Run ${actual ?? 'unknown'}, not ${run}. Nothing was stopped or released.`
+    )
+  }
+}
 
 const keepWorkerOpen: CommandHandler = async ({ flags, client, json }) => {
   const result = await callOrchestrationMutation<WorkerReleaseReceipt>(
@@ -46,13 +70,13 @@ const keepWorkerOpen: CommandHandler = async ({ flags, client, json }) => {
 
 export const ORCHESTRATION_WORKER_TERMINAL_HANDLERS: Record<string, CommandHandler> = {
   'orchestration worker-stop': async ({ flags, client, json }) => {
+    const dispatch = getRequiredStringFlag(flags, 'dispatch')
+    await assertDispatchInRun(client, flags, dispatch)
     const result = await callOrchestrationMutation<WorkerStopReceipt>(
       client,
       flags,
       'orchestration.workerStop',
-      {
-        dispatch: getRequiredStringFlag(flags, 'dispatch')
-      }
+      { dispatch }
     )
     if (!flags.has('full')) {
       printOrchestrationResult(result, json, {
@@ -92,11 +116,13 @@ export const ORCHESTRATION_WORKER_TERMINAL_HANDLERS: Record<string, CommandHandl
   },
 
   'orchestration worker-release': async ({ flags, client, json }) => {
+    const dispatch = getRequiredStringFlag(flags, 'dispatch')
+    await assertDispatchInRun(client, flags, dispatch)
     const result = await callOrchestrationMutation<WorkerReleaseReceipt>(
       client,
       flags,
       'orchestration.workerRelease',
-      { dispatch: getRequiredStringFlag(flags, 'dispatch') }
+      { dispatch }
     )
     if (!flags.has('full')) {
       printOrchestrationResult(result, json, WORKER_RELEASE_VIEW)
