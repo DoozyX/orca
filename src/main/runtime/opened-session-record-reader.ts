@@ -2,7 +2,7 @@ import {
   conversationRecordReader,
   readAgentSessionRecordStore,
   type AgentSessionRecordReader
-} from './orchestration/structured-session-lineage'
+} from './orchestration/addressing/session-lineage/structured-session-lineage'
 import { peekOpenedAgentSessionRecordStore } from './agent-session/records/agent-session-record-store-slot'
 
 /** The installed host's records, else the store this process already opened; never opens one. */

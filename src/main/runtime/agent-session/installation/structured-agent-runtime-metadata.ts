@@ -89,7 +89,7 @@ async function resolveCodexAccountHomePath(
   request: StructuredAgentAccountHomeRequest,
   services: StructuredAgentAccountHomeServices
 ): Promise<string> {
-  const { launchEnv, purpose, workspacePath } = request
+  const { launchEnv, purpose, workspacePath, location } = request
   const codexHome = await resolveStructuredCodexAccountHomePath({
     launchEnv,
     resolveLaunchHome:
@@ -100,7 +100,8 @@ async function resolveCodexAccountHomePath(
       workspacePath: await workspacePath(),
       launchEnv,
       codexHome,
-      settings: services.workspaceTrustSettings()
+      settings: services.workspaceTrustSettings(),
+      repoDecision: services.workspaceTrustRepoDecision(location)
     })
   }
   return codexHome

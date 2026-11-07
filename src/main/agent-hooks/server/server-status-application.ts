@@ -1,4 +1,5 @@
 import { deriveCliWriterTopology } from './cli-writer-observation'
+import { leadReplyOf, withAcceptedReply } from './server-accepted-reply'
 import { createHash } from 'node:crypto'
 
 import { getCohortAtEmit } from '../../telemetry/cohort-classifier'
@@ -165,20 +166,26 @@ export abstract class AgentHookServerStatusApplication extends AgentHookServerSt
       turnEndedAt: _turnEndedAt,
       turnEndDisposition: _turnEndDisposition,
       hostTurn: _hostTurn,
+      replyCandidate: _replyCandidate,
       ...event
     } = payload
-    return {
-      ...event,
-      receivedAt: now,
-      evidenceObservedAt,
-      agentEvidenceObservedAt:
-        restated && previous ? previous.agentEvidenceObservedAt : evidenceObservedAt,
-      stateStartedAt,
-      // Producers cannot declare a main-agent turn start.
-      turnStartedAt,
-      ...turnEnd,
-      ...(hostTurn ? { hostTurn } : {})
-    }
+    return withAcceptedReply(
+      {
+        ...event,
+        receivedAt: now,
+        evidenceObservedAt,
+        agentEvidenceObservedAt:
+          restated && previous ? previous.agentEvidenceObservedAt : evidenceObservedAt,
+        stateStartedAt,
+        // Producers cannot declare a main-agent turn start.
+        turnStartedAt,
+        ...turnEnd,
+        ...(hostTurn ? { hostTurn } : {})
+      },
+      previous,
+      leadReplyOf(payload),
+      !!previous && this.sameTerminalOwner(previous, payload)
+    )
   }
 
   /** Replay keeps evidence age separate from arrival order; unknown age falls back to now. */

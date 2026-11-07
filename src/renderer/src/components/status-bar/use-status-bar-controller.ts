@@ -267,6 +267,7 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
   }
 
   return {
+    antigravityAccounts: rateLimits.antigravityAccounts,
     anyFetching: anyFetching || usageEntries.some((entry) => entry.isFetching),
     anyVisible,
     barRef,

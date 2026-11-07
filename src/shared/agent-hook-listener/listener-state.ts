@@ -16,7 +16,7 @@ import type { ClaudeMonitoredWork } from './providers/claude-monitored-work'
 import type { ClaudeToolRequest } from './claude-tool-request-identity'
 import type { CodexSubagentRoster } from '../codex-subagent-roster'
 import type { CodexSubagentTranscriptState } from '../codex-subagent-transcript'
-import type { MuseSessionLogState } from '../muse-session-log'
+import type { GrokActiveTurn, HermesPaneTurn, MusePaneState } from './listener-pane-turn-types'
 import type { AgentHookEventPayload, ToolSnapshot } from './listener-event'
 import {
   deletePaneScopedCacheEntry,
@@ -38,6 +38,8 @@ export type HookListenerState = {
   warnedEnvs: Set<string>
   lastPromptByPaneKey: Map<string, string>
   lastToolByPaneKey: Map<string, ToolSnapshot>
+  /** Reply text the event being normalized carried; normalizeProviderEvent takes and clears it, so it never outlives that event. */
+  eventReplyCandidate: string | undefined
   /** Read-only compatibility view. All writes pass through the isolated legacy adapter. */
   lastStatusByPaneKey: ReadonlyMap<string, AgentHookEventPayload>
   antigravityCompletedTranscriptByPaneKey: Map<string, string>
@@ -94,27 +96,6 @@ export type HookListenerState = {
   hermesTurnByPaneKey: Map<string, HermesPaneTurn>
 }
 
-export type HermesPaneTurn = {
-  ended: boolean
-  /** `delegate_task` children run their own turns, under their own session ids, inside the parent's. */
-  childSessionIds: Set<string>
-  /** The pane's own session, which its children's hooks must not replace. */
-  sessionId: string
-}
-
-export type MusePaneState = {
-  /** Internal reminder/subagent sessions; their hooks inherit the pane env and fire even after Stop. */
-  childSessionIds: Set<string>
-  log?: MuseSessionLogState
-  /** Muse emits PermissionRequest for auto-approved calls too; only Notification confirms a visible prompt. */
-  pendingApproval?: { toolName?: string; toolInput?: unknown }
-}
-
-export type GrokActiveTurn = {
-  promptId?: string
-  sessionId?: string
-}
-
 const legacyStatusAdapterByState = new WeakMap<HookListenerState, AgentStatusLegacyAdapter>()
 
 function legacyStatusAdapter(state: HookListenerState): AgentStatusLegacyAdapter {
@@ -134,6 +115,7 @@ export function createHookListenerState(
     warnedEnvs: new Set(),
     lastPromptByPaneKey: new Map(),
     lastToolByPaneKey: new Map(),
+    eventReplyCandidate: undefined,
     lastStatusByPaneKey: adapter.view,
     antigravityCompletedTranscriptByPaneKey: new Map(),
     antigravitySubagentParentByPaneKey: new Map(),

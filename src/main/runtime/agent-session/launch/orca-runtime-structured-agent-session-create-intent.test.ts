@@ -1,7 +1,7 @@
 import type { AgentLaunchChoices } from '../../../../shared/agent-launch/choices/agent-launch-choices'
-import { prepareStructuredAgentSessionCreateForWorktree } from '../../rpc/methods/structured-agent-session-create'
+import { prepareStructuredAgentSessionCreateForWorktree } from '../../rpc/methods/structured-sessions/creation/structured-agent-session-create'
 import { agentSessionConversationView } from '../../../../shared/agent-session/lifecycle/agent-session-conversation-view'
-import { prepareAdoptedTranscript } from '../../../native-chat/agent-session-wire/structured-agent-session-adopted-import'
+import { prepareAdoptedTranscript } from '../../../native-chat/agent-session-wire/acquisition/structured-agent-session-adopted-import'
 import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
 import { homedir, tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -12,11 +12,11 @@ vi.mock('../../../agent-launch/trust/agent-workspace-trust', () => ({ applyAgent
 
 import { OrcaRuntimeService } from '../../orca-runtime'
 import type { AssertClaudeBoundHomeUsable } from '../../../claude/claude-bound-home-refusal'
-import { setStructuredAgentSessionHost } from '../../../native-chat/agent-session-wire/structured-agent-session-registry'
-import type { StructuredAgentSessionHost } from '../../../native-chat/agent-session-wire/structured-agent-session-host'
+import { setStructuredAgentSessionHost } from '../../../native-chat/agent-session-wire/host/structured-agent-session-registry'
+import type { StructuredAgentSessionHost } from '../../../native-chat/agent-session-wire/host/structured-agent-session-host'
 import { agentSessionRecordFixture } from '../../../../shared/agent-session/lifecycle/agent-session-record.test-fixture'
 import { FLOATING_TERMINAL_WORKTREE_ID } from '../../../../shared/constants'
-import { attachFingerprintFields } from '../../../native-chat/agent-session-wire/structured-agent-session-attach'
+import { attachFingerprintFields } from '../../../native-chat/agent-session-wire/acquisition/structured-agent-session-attach'
 
 /** The real Store always answers these; a stub that omits one refuses by name instead of
  *  silently reading as "nothing is bound". */
@@ -233,6 +233,7 @@ describe('structured agent-session create intent', () => {
   it('pins the selected Codex launch home after normal launch preparation', async () => {
     const prepareCodexStructuredLaunch = vi.fn(() => '/accounts/selected/home')
     const runtime = new OrcaRuntimeService(
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the create-intent path reads only the store accessors stubbed here.
       {
         getSettings: () => ({
           agentDefaultEnv: { codex: { CODEX_HOME: '/configured/home' } },
@@ -252,6 +253,7 @@ describe('structured agent-session create intent', () => {
     vi.spyOn(runtime, 'getStructuredAgentSessionCreateSupport').mockResolvedValue({
       supported: true
     })
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: protected test seam.
     const internal = runtime as unknown as {
       resolveStructuredAgentSessionLocation: (selector: string) => Promise<{
         executionHostId: string
@@ -342,6 +344,7 @@ describe('structured agent-session create intent', () => {
     vi.spyOn(runtime, 'getStructuredAgentSessionCreateSupport').mockResolvedValue({
       supported: true
     })
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: protected test seam.
     const internal = runtime as unknown as {
       resolveStructuredAgentSessionLocation: (selector: string) => Promise<{
         executionHostId: string
@@ -399,13 +402,17 @@ describe('structured agent-session create intent', () => {
       { prepareCodexStructuredLaunch }
     )
     runtime.setAccountServices({
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the create-intent path reads only getRuntimeConfigDir from this service.
       claudeAccounts: { getRuntimeConfigDir } as never,
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the create-intent path never reads this service.
       codexAccounts: {} as never,
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the create-intent path never reads this service.
       rateLimits: {} as never
     })
     vi.spyOn(runtime, 'getStructuredAgentSessionCreateSupport').mockResolvedValue({
       supported: true
     })
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: protected test seam.
     const internal = runtime as unknown as {
       resolveStructuredAgentSessionLocation: (selector: string) => Promise<{
         executionHostId: string

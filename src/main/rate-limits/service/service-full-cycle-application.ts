@@ -3,6 +3,19 @@ import { isZcodeUsageCredentialCurrent } from '../zcode-usage-credentials'
 import { settleSiblingProviderResult } from './service-sibling-provider-result'
 import type { ProviderRateLimits } from './service-types'
 
+function hasKnownProvenanceChange(
+  previous: ProviderRateLimits | null,
+  fresh: ProviderRateLimits
+): boolean {
+  const previousProvenance = previous?.usageMetadata?.authProvenance
+  const freshProvenance = fresh.usageMetadata?.authProvenance
+  return (
+    previousProvenance !== undefined &&
+    freshProvenance !== undefined &&
+    previousProvenance !== freshProvenance
+  )
+}
+
 export abstract class RateLimitServiceFullCycleApplication extends RateLimitServiceFullCyclePreparation {
   protected async runFetchAllCycle(
     signal: AbortSignal,
@@ -222,12 +235,7 @@ export abstract class RateLimitServiceFullCycleApplication extends RateLimitServ
     const antigravity = settleSiblingProviderResult('antigravity', antigravitySettled)
     const shouldApplyAntigravity = antigravityGeneration === this.antigravityFetchGeneration
     // Discard Cursor stale usage only for a known account change; unidentified transient failures retain their last reading.
-    const previousCursorAccount = previousState.cursor?.usageMetadata?.authProvenance
-    const cursorAccount = cursor.usageMetadata?.authProvenance
-    const cursorAccountChanged =
-      previousCursorAccount !== undefined &&
-      cursorAccount !== undefined &&
-      previousCursorAccount !== cursorAccount
+    const cursorAccountChanged = hasKnownProvenanceChange(previousState.cursor, cursor)
     const ompModel = omp.usageMetadata?.modelIdentity
     const previousOmpModel = previousState.omp?.usageMetadata?.modelIdentity
     const ompModelMatches = ompModel !== undefined && ompModel === previousOmpModel
@@ -261,9 +269,12 @@ export abstract class RateLimitServiceFullCycleApplication extends RateLimitServ
           : zcode.status === 'error' && !sameZcodeAccount
             ? zcode
             : this.applyStalePolicy(zcode, previousState.zcode),
-      antigravity: shouldApplyAntigravity
-        ? this.applyStalePolicy(antigravity, previousState.antigravity)
-        : this.state.antigravity
+      // Another runtime's last reading must not stand in for this runtime's failure.
+      antigravity: !shouldApplyAntigravity
+        ? this.state.antigravity
+        : hasKnownProvenanceChange(previousState.antigravity, antigravity)
+          ? antigravity
+          : this.applyStalePolicy(antigravity, previousState.antigravity)
     })
   }
 }
