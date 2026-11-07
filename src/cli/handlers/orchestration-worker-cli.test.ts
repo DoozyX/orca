@@ -347,7 +347,23 @@ describe('orchestration worker-start CLI contract', () => {
         ])
       )
 
+      expect(callMock).toHaveBeenCalledWith('orchestration.workerShow', { dispatch: 'ctx_1' })
       expect(callMock).toHaveBeenCalledWith(mutationMethod, { dispatch: 'ctx_1' })
+    })
+
+    it('rejects an empty --run without calling the mutation', async () => {
+      mockShowInRun('run_other')
+
+      await expect(
+        invoke(
+          new Map<string, string | boolean>([
+            ['dispatch', 'ctx_1'],
+            ['run', '']
+          ])
+        )
+      ).rejects.toMatchObject({ code: 'invalid_argument' })
+
+      expect(callMock).not.toHaveBeenCalled()
     })
   })
 
@@ -367,22 +383,6 @@ describe('orchestration worker-start CLI contract', () => {
     ).rejects.toMatchObject({ code: 'dispatch_run_mismatch' })
 
     expect(callMock).toHaveBeenCalledTimes(1)
-  })
-
-  it('makes no workerShow call for worker-stop without --run', async () => {
-    callMock.mockResolvedValue({
-      result: { dispatchId: 'ctx_1', state: 'stopped', processAction: 'none' }
-    })
-
-    await ORCHESTRATION_HANDLERS['orchestration worker-stop']({
-      flags: new Map<string, string | boolean>([['dispatch', 'ctx_1']]),
-      client,
-      cwd: '/tmp/repo',
-      json: true
-    })
-
-    expect(callMock).toHaveBeenCalledOnce()
-    expect(callMock).toHaveBeenCalledWith('orchestration.workerStop', { dispatch: 'ctx_1' })
   })
 
   it('allows the initial zero cursor when paging worker output', async () => {

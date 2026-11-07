@@ -15,6 +15,7 @@ import type { WorkerStopReceipt } from '../../../shared/orchestration-worker-sto
 import {
   getOptionalPositiveIntegerFlag,
   getOptionalStringFlag,
+  getPresentStringFlag,
   getRequiredStringFlag
 } from '../../flags'
 import { RuntimeClientError, type RuntimeClient } from '../../runtime-client'
@@ -37,7 +38,7 @@ async function assertDispatchInRun(
   flags: Map<string, string | boolean>,
   dispatch: string
 ): Promise<void> {
-  const run = getOptionalStringFlag(flags, 'run')
+  const run = getPresentStringFlag(flags, 'run')
   if (!run) {
     return
   }
