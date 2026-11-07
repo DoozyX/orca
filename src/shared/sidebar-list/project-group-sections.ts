@@ -16,7 +16,8 @@ import {
   createRecentRankLookup,
   withRepoSectionDisplayLabels
 } from '../project-section-order'
-import { buildFolderWorkspaceRow } from './row-builders'
+import { appendWorktreeRows } from './row-builders'
+import { getFolderLaneSectionKey } from './folder-workspace-occurrences'
 import {
   buildMergedProjectGroupIndex,
   findMergedProjectGroup,
@@ -149,9 +150,14 @@ export function appendProjectGroupSections(
       projectGroupDepth: depth
     })
     if (!collapsedGroups.has(key)) {
-      for (const pair of folderWorkspacesByProjectGroupId.get(merged.rowId) ?? []) {
-        result.push(buildFolderWorkspaceRow(pair, depth + 1))
-      }
+      // The group's folders, with whatever is nested under them, precede its projects.
+      appendWorktreeRows(result, ctx.repoOf, ctx.occurrencePlan, {
+        collapsedGroups,
+        groupDepth: depth + 1,
+        sectionKey: getFolderLaneSectionKey(merged.rowId),
+        hostContextLabelByWorktreeIdentity: ctx.mixedWorktreeHostContextLabels,
+        folderPairByIdentity: ctx.folderPairByIdentity
+      })
       appendOrderedGroups(ctx, withRepoSectionDisplayLabels(repoEntries), depth + 1)
       for (const childGroup of childGroups) {
         appendProjectGroup(childGroup, depth + 1)

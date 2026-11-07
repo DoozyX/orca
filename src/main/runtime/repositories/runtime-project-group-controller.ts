@@ -1,4 +1,3 @@
-import type { WorkspaceAttachmentMutation } from '../../../shared/workspace-attachments/workspace-attachment-mutation'
 import { refuseWslHostWindowsDrivePath } from '../terminal/launch/wsl-host-windows-drive-guard'
 import type { FolderWorkspace } from '../../../shared/folder-workspaces/folder-workspace-types'
 import type { ProjectGroup } from '../../../shared/project-group-types'
@@ -15,6 +14,7 @@ import {
 } from '../../project-groups/folder-workspace-path-status'
 import { FolderWorkspaceCreateRefusedError } from '../../project-groups/folder-workspace-create-refusal'
 import type { RuntimeStore } from '../runtime-store-contract'
+import type { FolderWorkspaceUpdates } from './runtime-folder-workspace-updates'
 import type { RuntimeWorktreeLifecycleEvent } from '../workspaces/lifecycle/worktree-lifecycle-event'
 import {
   runtimeVisibleFolderWorkspaces,
@@ -40,35 +40,11 @@ type RuntimeProjectGroupDependencies = {
     path: string,
     connectionId?: string
   ) => Promise<{ finish(removed: boolean): Promise<void> }>
-  cleanupRemovedFolderWorkspaceState: (worktreeId: string) => void
+  cleanupRemovedFolderWorkspaceState: (worktreeId: string) => void | Promise<void>
   /** A group's bound CLAUDE_CONFIG_DIR may now resolve elsewhere, or nowhere. */
   onClaudeHomeBindingChanged: (groupId: string) => void
   emitWorktreeLifecycle: (event: RuntimeWorktreeLifecycleEvent) => void
 }
-
-type FolderWorkspaceUpdates = Partial<
-  Pick<
-    FolderWorkspace,
-    | 'name'
-    | 'folderPath'
-    | 'linkedTask'
-    | 'linkedItems'
-    | 'linkedTaskSourceContext'
-    | 'comment'
-    | 'isArchived'
-    | 'isUnread'
-    | 'isPinned'
-    | 'sortOrder'
-    | 'manualOrder'
-    | 'workspaceStatus'
-    | 'createdWithAgent'
-    | 'pendingFirstAgentMessageRename'
-    | 'firstAgentMessageRenameError'
-    | 'lastActivityAt'
-    | 'diffComments'
-  >
-> &
-  WorkspaceAttachmentMutation
 
 export class RuntimeProjectGroupController {
   constructor(private readonly deps: RuntimeProjectGroupDependencies) {}
@@ -282,6 +258,7 @@ export class RuntimeProjectGroupController {
     let gate:
       | Awaited<ReturnType<RuntimeProjectGroupDependencies['acquireFileWatcherRemoval']>>
       | undefined
+    let cleanupState: void | Promise<void> = undefined
     try {
       if (workspace) {
         const worktreeId = folderWorkspaceKey(folderWorkspaceId)
@@ -299,7 +276,11 @@ export class RuntimeProjectGroupController {
           )
           await this.deps.teardownFolderWorkspacePtys(worktreeId, connectionId)
         }
-        this.deps.cleanupRemovedFolderWorkspaceState(worktreeId)
+        // Fired here (timing unchanged) but awaited at the end: the delete may
+        // only resolve after the purge has landed. `folder:<uuid>` ids parse to
+        // no filesystem path, so the pretrust drop inside the purge skips here —
+        // safe: the folder itself stays and sibling workspaces may share its path.
+        cleanupState = this.deps.cleanupRemovedFolderWorkspaceState(worktreeId)
       }
       const deleted = store.removeFolderWorkspace(folderWorkspaceId)
       if (deleted) {
@@ -313,6 +294,7 @@ export class RuntimeProjectGroupController {
           })
         }
       }
+      await cleanupState
       return { deleted }
     } finally {
       await gate?.finish(false)

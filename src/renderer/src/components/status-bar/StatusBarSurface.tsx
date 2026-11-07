@@ -65,6 +65,7 @@ export function StatusBarSurface({
     return null
   }
   const {
+    antigravityAccounts,
     anyFetching,
     anyVisible,
     barRef,
@@ -220,7 +221,15 @@ export function StatusBarSurface({
                     renderRow={(p, rowNode, entry) =>
                       // Why: a placeholder has nothing to drill into; its row opens the host's accounts.
                       isOwnerNotSetUpPlaceholder(p) ? null : (
-                        <AccountUsageDetailsMenu entry={entry} compact={compact} row={rowNode} />
+                        <AccountUsageDetailsMenu
+                          entry={entry}
+                          compact={compact}
+                          row={rowNode}
+                          antigravityAccounts={antigravityAccounts}
+                          onManageAntigravityAccounts={() =>
+                            handleOpenProviderAccounts('antigravity')
+                          }
+                        />
                       )
                     }
                   />

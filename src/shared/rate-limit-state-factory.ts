@@ -25,6 +25,7 @@ export function createEmptyRateLimitState(overrides: Partial<RateLimitState> = {
     inactiveClaudeAccounts: [],
     inactiveCodexAccounts: [],
     boundClaudeHomes: [],
+    antigravityAccounts: [],
     ...overrides
   }
 }

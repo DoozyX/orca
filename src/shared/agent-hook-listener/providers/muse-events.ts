@@ -4,7 +4,8 @@ import {
   type ParsedAgentStatusPayload
 } from '../../agent-status/contracts/agent-status-types'
 import { createMuseSessionLogState, readMusePendingUserInput } from '../../muse-session-log'
-import type { HookListenerState, MusePaneState } from '../listener-state'
+import type { HookListenerState } from '../listener-state'
+import type { MusePaneState } from '../listener-pane-turn-types'
 import {
   resolvePrompt,
   resolveToolState,

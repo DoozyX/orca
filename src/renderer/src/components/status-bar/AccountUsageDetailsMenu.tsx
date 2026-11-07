@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react'
 import { translate } from '@/i18n/i18n'
+import type { AntigravityAccountUsage } from '../../../../shared/rate-limit-types'
+import { AntigravityUsageMenu } from './AntigravityUsageMenu'
 import { ClaudeSwitcherMenu } from './ClaudeSwitcherMenu'
 import { CodexSwitcherMenu } from './CodexSwitcherMenu'
 import { ProviderDetailsMenu } from './ProviderDetailsMenu'
@@ -8,11 +10,15 @@ import { entryRateLimits, type AccountUsageEntry } from './account-usage-entry'
 export function AccountUsageDetailsMenu({
   entry,
   compact,
-  row
+  row,
+  antigravityAccounts,
+  onManageAntigravityAccounts
 }: {
   entry: AccountUsageEntry
   compact: boolean
   row: ReactNode
+  antigravityAccounts: readonly AntigravityAccountUsage[]
+  onManageAntigravityAccounts: () => void
 }): React.JSX.Element {
   const p = entryRateLimits(entry)
   if (entry.selected && p.provider === 'claude') {
@@ -23,6 +29,17 @@ export function AccountUsageDetailsMenu({
         iconOnly={false}
         asSubmenu
         triggerContent={row}
+      />
+    )
+  }
+  if (entry.selected && p.provider === 'antigravity') {
+    return (
+      <AntigravityUsageMenu
+        antigravity={p}
+        accounts={antigravityAccounts}
+        compact={compact}
+        triggerContent={row}
+        onManageAccounts={onManageAntigravityAccounts}
       />
     )
   }
