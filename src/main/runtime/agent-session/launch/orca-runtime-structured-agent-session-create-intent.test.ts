@@ -233,6 +233,7 @@ describe('structured agent-session create intent', () => {
   it('pins the selected Codex launch home after normal launch preparation', async () => {
     const prepareCodexStructuredLaunch = vi.fn(() => '/accounts/selected/home')
     const runtime = new OrcaRuntimeService(
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the create-intent path reads only the store accessors stubbed here.
       {
         getSettings: () => ({
           agentDefaultEnv: { codex: { CODEX_HOME: '/configured/home' } },
@@ -252,6 +253,7 @@ describe('structured agent-session create intent', () => {
     vi.spyOn(runtime, 'getStructuredAgentSessionCreateSupport').mockResolvedValue({
       supported: true
     })
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: protected test seam.
     const internal = runtime as unknown as {
       resolveStructuredAgentSessionLocation: (selector: string) => Promise<{
         executionHostId: string
@@ -342,6 +344,7 @@ describe('structured agent-session create intent', () => {
     vi.spyOn(runtime, 'getStructuredAgentSessionCreateSupport').mockResolvedValue({
       supported: true
     })
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: protected test seam.
     const internal = runtime as unknown as {
       resolveStructuredAgentSessionLocation: (selector: string) => Promise<{
         executionHostId: string
@@ -399,13 +402,17 @@ describe('structured agent-session create intent', () => {
       { prepareCodexStructuredLaunch }
     )
     runtime.setAccountServices({
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the create-intent path reads only getRuntimeConfigDir from this service.
       claudeAccounts: { getRuntimeConfigDir } as never,
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the create-intent path never reads this service.
       codexAccounts: {} as never,
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the create-intent path never reads this service.
       rateLimits: {} as never
     })
     vi.spyOn(runtime, 'getStructuredAgentSessionCreateSupport').mockResolvedValue({
       supported: true
     })
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: protected test seam.
     const internal = runtime as unknown as {
       resolveStructuredAgentSessionLocation: (selector: string) => Promise<{
         executionHostId: string
