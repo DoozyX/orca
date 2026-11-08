@@ -15,6 +15,8 @@ import {
 } from '../../../../../shared/git/history/git-history-graph'
 import { useGitGraphHistory, gitGraphFilterSupported } from './use-git-graph-history'
 import { GitGraphFilter } from './git-graph-filter'
+import { GitGraphAuthorFilter } from './git-graph-author-filter'
+import { gitGraphAuthorKey } from './git-graph-author-key'
 import { GitGraphDetails } from './git-graph-details'
 import { GitGraphRefRail } from './git-graph-ref-rail'
 import { GitGraphRefs, useGitGraphWorkspaces } from './git-graph-ref-menu'
@@ -206,7 +208,11 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
               />
             </div>
             <span>{t('gitGraph.message', 'Message')}</span>
-            <span>{t('gitGraph.author', 'Author')}</span>
+            <GitGraphAuthorFilter
+              items={result?.items ?? []}
+              picked={history.authorHighlight}
+              onChange={history.setAuthorHighlight}
+            />
             <span>{t('gitGraph.date', 'Date')}</span>
           </div>
           <div
@@ -233,12 +239,15 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
               {virtualizer.getVirtualItems().map((virtualRow) => {
                 const viewModel = rows[virtualRow.index]!
                 const item = viewModel.historyItem
+                const dimmed =
+                  history.authorHighlight.size > 0 &&
+                  !history.authorHighlight.has(gitGraphAuthorKey(item))
                 return (
                   <ContextMenu key={item.id}>
                     <ContextMenuTrigger asChild>
                       <div
                         className={cn(
-                          'absolute left-0 top-0 grid h-6 w-full items-center px-3 text-xs hover:bg-accent',
+                          'absolute left-0 top-0 grid h-6 w-full items-center px-3 text-xs hover:bg-accent data-[dimmed]:[&>:not(:nth-child(2))]:opacity-40',
                           selected?.id === item.id && 'bg-accent'
                         )}
                         style={{
@@ -246,6 +255,7 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
                           gridTemplateColumns: columns
                         }}
                         data-current={selected?.id === item.id}
+                        data-dimmed={dimmed ? '' : undefined}
                         onClick={() => controller.select(item.id)}
                       >
                         <div className="flex min-w-0 gap-1 overflow-hidden pr-2">

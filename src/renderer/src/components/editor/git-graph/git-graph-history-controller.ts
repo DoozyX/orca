@@ -5,6 +5,7 @@ import { useAppStore } from '@/store'
 import { gitGraphScope, gitGraphScopeInputs, GIT_GRAPH_REFRESH_EVENT } from '@/lib/git-graph-tab'
 import { getRuntimeGitHistory } from '@/runtime/source-control/git/runtime-git-status-client'
 import { translate } from '@/i18n/i18n'
+import { adoptResolvedGitGraphRefs } from './git-graph-resolved-refs'
 import type {
   GitHistoryRefs,
   GitHistoryResult
@@ -17,7 +18,9 @@ type HistoryView = {
   loading: boolean
   selectedId?: string
   revealId?: string
+  authorHighlight: ReadonlySet<string>
 }
+const noAuthors: ReadonlySet<string> = new Set()
 const controllers = new Map<string, GitGraphHistoryController>()
 const filterFor = (worktreeId: string) =>
   useAppStore.getState().gitGraphFiltersByWorktree?.[worktreeId] ?? 'all'
@@ -38,7 +41,10 @@ export function disposeGitGraphHistory(tabId: string): void {
 }
 
 export class GitGraphHistoryController {
-  readonly view = createStore<HistoryView>(() => ({ loading: false }))
+  readonly view = createStore<HistoryView>(() => ({
+    loading: false,
+    authorHighlight: noAuthors
+  }))
   scrollOffset = 0
   graphWidth = 132
   private scope: ReturnType<typeof gitGraphScope>
@@ -105,7 +111,7 @@ export class GitGraphHistoryController {
     this.scope = scope
     this.filter = filter
     this.scrollOffset = 0
-    this.view.setState({ loading: false }, true)
+    this.view.setState({ loading: false, authorHighlight: this.authorHighlight }, true)
     this.invalidate()
   }
 
@@ -138,6 +144,13 @@ export class GitGraphHistoryController {
       refId,
       () => !this.disposed && generation === this.generation
     )
+  }
+
+  get authorHighlight(): ReadonlySet<string> {
+    return this.view.getState().authorHighlight
+  }
+  setAuthorHighlight = (keys: Iterable<string>): void => {
+    this.view.setState({ authorHighlight: new Set(keys) })
   }
 
   select = (selectedId: string): void => {
@@ -288,19 +301,7 @@ export class GitGraphHistoryController {
         selectedId,
         ...(selectionGone ? { revealId: selectedId } : {})
       })
-      if (
-        Array.isArray(filter) &&
-        result?.resolvedRefs &&
-        JSON.stringify(filter) !== JSON.stringify(result.resolvedRefs)
-      ) {
-        const refs = result.resolvedRefs
-        useAppStore.setState((state) => ({
-          gitGraphFiltersByWorktree: {
-            ...state.gitGraphFiltersByWorktree,
-            [this.worktreeId]: refs.length ? refs : 'head'
-          }
-        }))
-      }
+      adoptResolvedGitGraphRefs(this.worktreeId, filter, result)
       return result
     }
     const pending = run().finally(() => {

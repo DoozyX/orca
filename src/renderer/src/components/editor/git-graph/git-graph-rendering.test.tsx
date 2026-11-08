@@ -660,3 +660,51 @@ it('selects the commit of a tag older than the first loaded page', async () => {
     expect(container.querySelector('[data-current="true"]')?.textContent).toContain('Commit 120')
   })
 })
+
+it('dims commits by authors outside the picked set until cleared', async () => {
+  const authored = (id: string, author: string, authorEmail: string) => ({
+    id,
+    subject: id,
+    message: id,
+    parentIds: [],
+    author,
+    authorEmail
+  })
+  getHistory.mockReset().mockResolvedValue({
+    ...result,
+    refs: 'all',
+    items: [
+      authored('c1', 'Ada Lovelace', 'ada@example.com'),
+      authored('c2', 'Grace Hopper', 'grace@example.com'),
+      authored('c3', 'Ada Lovelace', 'ADA@example.com')
+    ]
+  })
+  await act(async () =>
+    root.render(
+      <TooltipProvider>
+        <GitGraphTab worktreeId={workspaceId} />
+      </TooltipProvider>
+    )
+  )
+  const dimmedIds = () =>
+    Array.from(container.querySelectorAll('[data-current]'))
+      .filter((row) => row.hasAttribute('data-dimmed'))
+      .map((row) => row.querySelector('button')!.title)
+  expect(dimmedIds()).toEqual([])
+  await act(async () => {
+    container.querySelector<HTMLButtonElement>('button[aria-label="Highlight authors"]')!.click()
+  })
+  await act(async () => {
+    Array.from(document.body.querySelectorAll<HTMLElement>('label'))
+      .find((label) => label.textContent === 'Ada Lovelace2')!
+      .querySelector('button')!
+      .click()
+  })
+  expect(dimmedIds()).toEqual(['c2'])
+  await act(async () => {
+    Array.from(document.body.querySelectorAll('button'))
+      .find((button) => button.textContent === 'Clear')!
+      .click()
+  })
+  expect(dimmedIds()).toEqual([])
+})
