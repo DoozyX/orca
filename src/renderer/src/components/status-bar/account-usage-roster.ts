@@ -1,4 +1,4 @@
-import type { ProviderAccountsSnapshot } from '@/runtime/runtime-provider-accounts-client'
+import type { ProviderAccountsSnapshot } from '@/runtime/provider-accounts/observations/runtime-provider-accounts-client'
 import type { ProviderRateLimits, RateLimitState } from '../../../../shared/rate-limit-types'
 import { providerUsageEntry, type AccountUsageEntry } from './account-usage-entry'
 import {

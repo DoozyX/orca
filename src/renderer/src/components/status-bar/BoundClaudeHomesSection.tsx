@@ -1,6 +1,7 @@
 import React from 'react'
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu'
 import { translate } from '@/i18n/i18n'
+import { useTranslate } from '@/i18n/use-translate'
 import type {
   BoundClaudeHomeStatus,
   BoundClaudeHomeUsage
@@ -64,13 +65,14 @@ export function BoundClaudeHomesSection({
   rows: BoundClaudeHomeUsage[] | undefined
   groups: readonly BoundClaudeHomeGroup[]
 }): React.JSX.Element | null {
+  const t = useTranslate()
   if (!rows || rows.length === 0) {
     return null
   }
   return (
     <div className="px-1 pb-1">
       <div className="px-2 py-1 text-[10px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
-        {translate('auto.components.status.bar.BoundClaudeHomesSection.36b1b954e0', 'Bound groups')}
+        {t('auto.components.status.bar.BoundClaudeHomesSection.36b1b954e0', 'Bound groups')}
       </div>
       <div className="max-h-[220px] overflow-y-auto rounded-md border border-border/60 bg-accent/5 p-1 scrollbar-sleek">
         {rows.map((row) => (

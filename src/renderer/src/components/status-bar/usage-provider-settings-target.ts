@@ -22,7 +22,8 @@ export function getUsageProviderAccountsSectionId(
     case 'antigravity':
     case 'kimi':
     case 'omp':
-      // Kimi, Antigravity and omp keep credentials in their own CLIs; Orca has no account settings for them.
+    case 'muse':
+      // These CLIs keep their own credentials; Orca has no account settings for them.
       return null
     case 'zcode':
       return 'accounts-zcode'

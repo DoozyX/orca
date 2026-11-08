@@ -4,7 +4,7 @@ import { act } from 'react'
 vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { ProviderAccountsSnapshot } from '@/runtime/runtime-provider-accounts-client'
+import type { ProviderAccountsSnapshot } from '@/runtime/provider-accounts/observations/runtime-provider-accounts-client'
 import type { GlobalSettings } from '../../../../shared/global-settings-types'
 import { createEmptyRateLimitState } from '../../../../shared/rate-limit-state-factory'
 
@@ -32,7 +32,7 @@ function fail(environmentId: string, error: Error): void {
     }
   }
 }
-vi.mock('@/runtime/runtime-provider-accounts-client', () => ({
+vi.mock('@/runtime/provider-accounts/observations/runtime-provider-accounts-client', () => ({
   emptyClaudeAccountsState: () => ({ accounts: [], activeAccountId: null }),
   emptyCodexAccountsState: () => ({ accounts: [], activeAccountId: null }),
   watchProviderAccounts: (target: Subscription['target'], handlers: Watcher) => {
@@ -49,7 +49,9 @@ vi.mock('@/runtime/use-worktree-runtime-target', () => ({
   })
 }))
 vi.mock('@/hooks/useShortcutLabel', () => ({ useShortcutLabel: () => '' }))
-vi.mock('../../store/selectors', () => ({ selectFloatingWorkspaceHasUnread: () => false }))
+vi.mock('../../store/workspaces/floating/floating-workspace-unread-selector', () => ({
+  selectFloatingWorkspaceHasUnread: () => false
+}))
 vi.mock('./ProviderDetailsMenu', () => ({
   CLOSE_ALL_CONTEXT_MENUS_EVENT: 'close-menu',
   useStatusBarMenuFocusHandoff: () => ({ reset: () => {} })

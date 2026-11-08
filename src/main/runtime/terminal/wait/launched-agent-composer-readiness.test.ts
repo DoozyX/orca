@@ -141,7 +141,15 @@ describe('which idle-lane worker starts also answer on their composer marker', (
             workerStartReadsComposerMarker(agent)
         )
         .sort()
-    ).toEqual(['antigravity', 'claude', 'claude-agent-teams', 'dsh', 'grok', 'mimo-code'])
+    ).toEqual([
+      'antigravity',
+      'claude',
+      'claude-agent-teams',
+      'copilot',
+      'dsh',
+      'grok',
+      'mimo-code'
+    ])
   })
 })
 

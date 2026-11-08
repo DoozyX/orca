@@ -81,12 +81,17 @@ export abstract class RateLimitServicePolling extends RateLimitServiceFetchQueue
       antigravity: this.state.antigravity,
       cursor: this.state.cursor,
       omp: this.state.omp,
-      zcode: this.state.zcode
+      zcode: this.state.zcode,
+      muse: this.state.muse
     }
-    return Object.entries(byProvider).map(([provider, limits]) => ({
-      provider: provider as ActiveRateLimitProvider,
-      limits
-    }))
+    // A hidden Muse meter keeps an idle snapshot, which must not force a full refresh on every focus.
+    const museEnabled = this.museUsageEnabledResolver?.() ?? true
+    return Object.entries(byProvider)
+      .filter(([provider]) => provider !== 'muse' || museEnabled)
+      .map(([provider, limits]) => ({
+        provider: provider as ActiveRateLimitProvider,
+        limits
+      }))
   }
 
   protected getActiveWindowRefreshPlan(now: number): ActiveWindowRefreshPlan {

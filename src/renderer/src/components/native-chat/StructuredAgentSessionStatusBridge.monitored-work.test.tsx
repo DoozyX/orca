@@ -13,7 +13,7 @@ import type {
 import type { AgentStatusEntry } from '../../../../shared/agent-status/contracts/agent-status-types'
 import type { AgentChildWorkView } from '../../../../shared/agent-status/child-work/agent-status-child-work-view'
 import type { AppState } from '@/store/types'
-import type * as RuntimeRpcClientModule from '@/runtime/runtime-rpc-client'
+import type * as RuntimeRpcClientModule from '@/runtime/rpc/compatibility/runtime-capability-proof'
 
 type MonitoredWorkStore = {
   getState: () => AppState
@@ -32,7 +32,7 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('@/store', async () => {
-  const { createTestStore } = await import('@/store/slices/store-test-helpers')
+  const { createTestStore } = await import('@/store/testing/app-store-test-fixture')
   const useAppStore = createTestStore()
   const { setAgentStatus, removeAgentStatus } = useAppStore.getState()
   useAppStore.setState({
@@ -49,14 +49,14 @@ vi.mock('@/store', async () => {
   return { useAppStore }
 })
 
-vi.mock('@/lib/worktree-runtime-owner', () => ({
+vi.mock('@/lib/workspace/ownership/worktree-runtime-owner', () => ({
   getRuntimeEnvironmentIdForWorktree: (state: { testRuntimeOwner?: string | null }) =>
     state.testRuntimeOwner ?? null,
   getExecutionHostIdForWorktree: (state: { testRuntimeOwner?: string | null }) =>
     state.testRuntimeOwner ? `runtime:${state.testRuntimeOwner}` : 'local'
 }))
 
-vi.mock('@/runtime/runtime-rpc-client', async (importOriginal) => ({
+vi.mock('@/runtime/rpc/compatibility/runtime-capability-proof', async (importOriginal) => ({
   ...(await importOriginal<typeof RuntimeRpcClientModule>()),
   runtimeEnvironmentSupportsCapability: mocks.supportsCapability
 }))
@@ -67,7 +67,7 @@ vi.mock('@/runtime/structured-agent-session-client', () => ({
   subscribeStructuredAgentSessionStatus: mocks.subscribeStatus
 }))
 
-import { StructuredAgentSessionStatusBridge } from './StructuredAgentSessionStatusBridge'
+import { StructuredAgentSessionStatusBridge } from './session/status/StructuredAgentSessionStatusBridge'
 import { resetStructuredAgentSessionStatusFeedsForTests } from '@/runtime/structured-agent-session-status-feed'
 
 const providerSession = { key: 'session_id', id: '01a002e9-9a1c-7d42-a642-e481f64446f1' } as const

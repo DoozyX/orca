@@ -43,6 +43,7 @@ vi.mock('../rate-limits/service', () => ({
     setInactiveCodexAccountsResolver = vi.fn()
     setKimiHomeResolver = vi.fn()
     setMiniMaxConfigResolver = vi.fn()
+    setMuseUsageEnabledResolver = vi.fn()
     setNetworkProxySettingsResolver = vi.fn()
     setOpenCodeGoConfigResolver = vi.fn()
     setZcodePlanConfigResolver = vi.fn()

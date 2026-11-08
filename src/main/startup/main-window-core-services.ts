@@ -131,7 +131,6 @@ export function attachMainWindowCoreServices(
         }
       : undefined
   )
-  automations.setWebContents(window.webContents)
   automations.start()
   attachMainWindowServices(
     window,

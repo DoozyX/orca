@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { translate } from '@/i18n/i18n'
+import { useTranslate } from '@/i18n/use-translate'
 import type { AntigravityAccountUsage } from '../../../../shared/rate-limit-types'
 import { AntigravityUsageMenu } from './AntigravityUsageMenu'
 import { ClaudeSwitcherMenu } from './ClaudeSwitcherMenu'
@@ -20,6 +20,7 @@ export function AccountUsageDetailsMenu({
   antigravityAccounts: readonly AntigravityAccountUsage[]
   onManageAntigravityAccounts: () => void
 }): React.JSX.Element {
+  const t = useTranslate()
   const p = entryRateLimits(entry)
   if (entry.selected && p.provider === 'claude') {
     return (
@@ -61,10 +62,7 @@ export function AccountUsageDetailsMenu({
       iconOnly={false}
       asSubmenu
       triggerContent={row}
-      ariaLabel={translate(
-        'auto.components.status.bar.UsageRosterPanel.openDetails',
-        'Open usage details'
-      )}
+      ariaLabel={t('auto.components.status.bar.UsageRosterPanel.openDetails', 'Open usage details')}
       topContent={entry.label ? <div className="px-3 pt-2 text-xs">{entry.label}</div> : undefined}
     />
   )
