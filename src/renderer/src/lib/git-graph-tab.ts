@@ -20,7 +20,9 @@ import {
 import { openWorkspaceEditorItem } from '@/store/slices/editor/tabs/workspace-editor-item'
 import { runtimeTargetForOwnerEnvironment } from '@/runtime/rpc/targets/runtime-client-target'
 import { translate } from '@/i18n/i18n'
+import { revealGitRefInGitGraph } from '@/components/editor/git-graph/git-graph-reveal-ref'
 import type { Translate } from '@/i18n/use-translate'
+import type { GitHistoryItemRef } from '../../../shared/git/history/git-history-types'
 import { GIT_GRAPH_TAB_CAPABILITY } from '../../../shared/source-control/runtime/git-graph-capabilities'
 import { readCachedRuntimeEnvironmentCapability } from '@/runtime/rpc/compatibility/runtime-compatibility-cache'
 import { runtimeEnvironmentSupportsCapability } from '@/runtime/rpc/compatibility/runtime-capability-proof'
@@ -119,7 +121,10 @@ export function gitGraphUpdateMessage(worktreeId: string, t: Translate = transla
   })
 }
 
-export async function openGitGraph(worktreeId: string): Promise<void> {
+export async function openGitGraph(
+  worktreeId: string,
+  options?: { revealRef?: GitHistoryItemRef }
+): Promise<void> {
   const supported = await probeGitGraphSupport(worktreeId)
   if (!supported) {
     return
@@ -136,21 +141,24 @@ export async function openGitGraph(worktreeId: string): Promise<void> {
   const label = translate('gitGraph.title', 'Git Graph')
   if (state.openFiles.some((file) => file.id === id)) {
     openWorkspaceEditorItem(state, id, worktreeId, label, 'git-graph')
-    return
-  }
-  state.openFile(
-    {
-      filePath: id,
-      relativePath: label,
-      worktreeId,
-      runtimeEnvironmentId: scope.route.runtimeEnvironmentId,
-      language: 'plaintext',
-      operationProvenance: {
-        generation: captureWorktreeOperationGenerationSnapshot(scope.route),
-        ownershipProjection: 'explicit'
+  } else {
+    state.openFile(
+      {
+        filePath: id,
+        relativePath: label,
+        worktreeId,
+        runtimeEnvironmentId: scope.route.runtimeEnvironmentId,
+        language: 'plaintext',
+        operationProvenance: {
+          generation: captureWorktreeOperationGenerationSnapshot(scope.route),
+          ownershipProjection: 'explicit'
+        },
+        mode: 'git-graph'
       },
-      mode: 'git-graph'
-    },
-    { reopenId: id, preview: false }
-  )
+      { reopenId: id, preview: false }
+    )
+  }
+  if (options?.revealRef) {
+    await revealGitRefInGitGraph(worktreeId, scope, options.revealRef)
+  }
 }

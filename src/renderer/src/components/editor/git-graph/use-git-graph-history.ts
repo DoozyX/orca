@@ -12,19 +12,22 @@ export function gitGraphFilterSupported(result?: GitHistoryResult): boolean | un
   return result ? result.refs !== undefined : undefined
 }
 
+export function setGitGraphFilter(worktreeId: string, refs: GitHistoryRefs): void {
+  useAppStore.setState((state) => ({
+    gitGraphFiltersByWorktree: {
+      ...state.gitGraphFiltersByWorktree,
+      [worktreeId]: Array.isArray(refs) ? [...new Set(refs)].sort() : refs
+    }
+  }))
+}
+
 export function useGitGraphHistory(worktreeId: string) {
   const filter = useAppStore((state) => state.gitGraphFiltersByWorktree?.[worktreeId] ?? 'all')
   const controller = gitGraphHistoryForTab(worktreeId)
   const scope = useGitGraphScope(worktreeId, controller.executionHostId)
   const view = useStore(controller.view)
   useEffect(() => controller.attach(), [controller])
-  const changeFilter = (refs: GitHistoryRefs) =>
-    useAppStore.setState((state) => ({
-      gitGraphFiltersByWorktree: {
-        ...state.gitGraphFiltersByWorktree,
-        [worktreeId]: Array.isArray(refs) ? [...new Set(refs)].sort() : refs
-      }
-    }))
+  const changeFilter = (refs: GitHistoryRefs) => setGitGraphFilter(worktreeId, refs)
   return {
     ...view,
     filter,

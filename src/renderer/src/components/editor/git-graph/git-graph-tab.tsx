@@ -1,7 +1,7 @@
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useSidebarResize } from '@/hooks/useSidebarResize'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { RefreshCw } from 'lucide-react'
+import { PanelLeft, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { ContextMenu, ContextMenuTrigger } from '@/components/ui/context-menu'
@@ -16,8 +16,10 @@ import {
 import { useGitGraphHistory, gitGraphFilterSupported } from './use-git-graph-history'
 import { GitGraphFilter } from './git-graph-filter'
 import { GitGraphDetails } from './git-graph-details'
+import { GitGraphRefRail } from './git-graph-ref-rail'
 import { GitGraphRefs, useGitGraphWorkspaces } from './git-graph-ref-menu'
 import { cn } from '@/lib/utils'
+import { GIT_GRAPH_REFRESH_EVENT } from '@/lib/git-graph-tab'
 import { useIntlLocale, useTranslate } from '@/i18n/use-translate'
 
 const sameGroup = () => undefined
@@ -51,6 +53,17 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
       ),
     [rows]
   )
+  const [railOpen, setRailOpen] = useState(true)
+  const [refsEpoch, setRefsEpoch] = useState(0)
+  useEffect(() => {
+    const onRefresh = (event: Event) => {
+      if (event instanceof CustomEvent && event.detail === worktreeId) {
+        setRefsEpoch((epoch) => epoch + 1)
+      }
+    }
+    window.addEventListener(GIT_GRAPH_REFRESH_EVENT, onRefresh)
+    return () => window.removeEventListener(GIT_GRAPH_REFRESH_EVENT, onRefresh)
+  }, [worktreeId])
   const [graphWidth, setGraphWidth] = useState(controller.graphWidth)
   const [draftGraphWidth, setDraftGraphWidth] = useState(graphWidth)
   const commitGraphWidth = useCallback(
@@ -105,20 +118,41 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
   return (
     <div className="flex h-full min-h-0 flex-col bg-background text-foreground">
       <div className="flex h-11 shrink-0 items-center justify-between gap-3 border-b border-border px-3">
-        <GitGraphFilter
-          worktreeId={worktreeId}
-          executionHostId={history.controller.executionHostId}
-          filter={history.filter}
-          supported={gitGraphFilterSupported(result)}
-          onChange={history.changeFilter}
-        />
+        <div className="flex min-w-0 items-center gap-1">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={t('gitGraph.toggleRefRail', 'Show or hide branches and tags')}
+                aria-pressed={railOpen}
+                onClick={() => setRailOpen((open) => !open)}
+              >
+                <PanelLeft className="size-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {t('gitGraph.toggleRefRail', 'Show or hide branches and tags')}
+            </TooltipContent>
+          </Tooltip>
+          <GitGraphFilter
+            worktreeId={worktreeId}
+            executionHostId={history.controller.executionHostId}
+            filter={history.filter}
+            supported={gitGraphFilterSupported(result)}
+            onChange={history.changeFilter}
+          />
+        </div>
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
               variant="ghost"
               size="icon-sm"
               aria-label={t('gitGraph.refresh', 'Refresh commits')}
-              onClick={() => void history.refresh()}
+              onClick={() => {
+                setRefsEpoch((epoch) => epoch + 1)
+                void history.refresh()
+              }}
             >
               <RefreshCw className="size-4" />
             </Button>
@@ -130,6 +164,9 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
         <div className="shrink-0 px-3 py-2 text-xs text-destructive">{history.error}</div>
       )}
       <div className="flex min-h-0 flex-1">
+        {railOpen && (
+          <GitGraphRefRail worktreeId={worktreeId} history={history} reloadKey={refsEpoch} />
+        )}
         <div className="flex min-w-0 flex-1 flex-col overflow-x-auto scrollbar-sleek">
           <div
             className="grid h-7 shrink-0 items-center border-b border-border px-3 text-2xs text-muted-foreground"

@@ -597,3 +597,66 @@ it('applies checkbox choices once on picker close, with no choices returning to 
   await openPicker()
   expect(document.querySelector('[role="checkbox"]')?.getAttribute('aria-checked')).toBe('false')
 })
+
+const sha = (n: number) => String(n).padStart(40, '0')
+const railRefs = [
+  { id: 'refs/heads/a', name: 'a', revision: sha(1) },
+  { id: 'refs/heads/b', name: 'b', revision: sha(2) },
+  { id: 'refs/heads/x', name: 'x', revision: sha(3) },
+  { id: 'refs/tags/v1', name: 'v1', revision: 'commit-120' }
+]
+
+async function renderGraphWithRail(refs: typeof railRefs) {
+  getRefs.mockReset().mockResolvedValue(refs)
+  await act(async () =>
+    root.render(
+      <TooltipProvider>
+        <GitGraphTab worktreeId={workspaceId} />
+      </TooltipProvider>
+    )
+  )
+  await vi.waitFor(async () => {
+    await act(async () => {})
+    expect(container.querySelector('aside button[title="v1"]')).not.toBeNull()
+  })
+}
+
+it('hides a ref chosen in the rail by asking history for every other ref', async () => {
+  getHistory.mockReset().mockImplementation(async (_owner, options) => ({
+    ...result,
+    refs: options.refs
+  }))
+  await renderGraphWithRail(railRefs)
+  await act(async () =>
+    container.querySelector<HTMLButtonElement>('aside [role="checkbox"][aria-label="x"]')!.click()
+  )
+  expect(getHistory.mock.calls.at(-1)?.[1].refs).toEqual([
+    'refs/heads/a',
+    'refs/heads/b',
+    'refs/tags/v1'
+  ])
+})
+
+it('selects the commit of a tag older than the first loaded page', async () => {
+  const items = Array.from({ length: 300 }, (_, index) => ({
+    id: `commit-${index}`,
+    subject: `Commit ${index}`,
+    message: `Commit ${index}`,
+    parentIds: []
+  }))
+  getHistory.mockReset().mockImplementation(async (_owner, options) => ({
+    ...result,
+    refs: 'all',
+    historyToken: 'pinned',
+    items: items.slice(options.skip, options.skip + 50),
+    hasMore: options.skip < 250
+  }))
+  await renderGraphWithRail(railRefs)
+  await act(async () =>
+    container.querySelector<HTMLButtonElement>('aside button[title="v1"]')!.click()
+  )
+  await vi.waitFor(async () => {
+    await act(async () => {})
+    expect(container.querySelector('[data-current="true"]')?.textContent).toContain('Commit 120')
+  })
+})
