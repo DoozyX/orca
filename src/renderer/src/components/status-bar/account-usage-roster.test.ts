@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest'
 import { createEmptyRateLimitState } from '../../../../shared/rate-limit-state-factory'
 import type { ProviderRateLimits } from '../../../../shared/rate-limit-types'
-import type { ProviderAccountsSnapshot } from '@/runtime/runtime-provider-accounts-client'
+import type { ProviderAccountsSnapshot } from '@/runtime/provider-accounts/observations/runtime-provider-accounts-client'
 import { buildAccountUsageRoster } from './account-usage-roster'
 
 function limits(provider: 'claude' | 'codex', usedPercent: number): ProviderRateLimits {

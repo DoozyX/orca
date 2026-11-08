@@ -22,7 +22,7 @@ import {
   type WorktreeAgentRowsCache
 } from './worktree-agent-rows-cache'
 import { isDerivedChildRow } from './derived-child-row'
-import { selectWorktreesByRepo } from '@/store/workspace-record-selectors'
+import { selectWorktreesByRepo } from '@/store/workspaces/catalog/workspace-record-fields'
 
 const EMPTY_COUNTS: Record<DashboardBucket, number> = {
   attention: 0,

@@ -1,6 +1,7 @@
 import React from 'react'
 import { cn } from '@/lib/utils'
 import { translate } from '@/i18n/i18n'
+import { useTranslate } from '@/i18n/use-translate'
 import {
   formatRateLimitWindowChipLabel,
   formatWindowLabel
@@ -142,6 +143,7 @@ export function UsageRow({
   accountLabel?: string | null
   selected?: boolean
 }): React.JSX.Element {
+  const t = useTranslate()
   const sections = usedSections(p)
   const hasUsage = sections.length > 0
   const name = getProviderDisplayName(p.provider)
@@ -159,7 +161,7 @@ export function UsageRow({
           {name}
           {selected ? (
             <span className="ml-1.5 text-xs text-muted-foreground">
-              {translate('auto.components.status.bar.StatusBar.ff0fbe9311', 'Active')}
+              {t('auto.components.status.bar.StatusBar.ff0fbe9311', 'Active')}
             </span>
           ) : null}
           {plan ? <span className="font-normal text-muted-foreground"> · {plan}</span> : null}
@@ -171,7 +173,7 @@ export function UsageRow({
             </span>
             {showSignInAction ? (
               <span className="ml-auto shrink-0 rounded-md border border-border bg-secondary px-2.5 py-0.5 text-xs text-foreground">
-                {translate('auto.components.status.bar.StatusBar.c35af53b73', 'Sign in')}
+                {t('auto.components.status.bar.StatusBar.c35af53b73', 'Sign in')}
               </span>
             ) : null}
           </>

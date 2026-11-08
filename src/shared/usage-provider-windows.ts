@@ -30,7 +30,8 @@ const PROVIDER_DISPLAY_NAMES: Readonly<Record<string, string>> = {
   grok: 'Grok',
   zcode: 'ZCode',
   cursor: 'Cursor',
-  omp: 'omp'
+  omp: 'omp',
+  muse: 'Muse'
 } satisfies Record<ProviderRateLimits['provider'], string>
 
 // A provider id from a newer host falls back to the id itself.

@@ -11,7 +11,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { translate } from '@/i18n/i18n'
+import { useTranslate } from '@/i18n/use-translate'
 import {
   getExecutionHostLabel,
   LOCAL_EXECUTION_HOST_ID,
@@ -46,6 +46,7 @@ export function ProjectGroupSettingsDialog({
   onOpenChange,
   onSubmit
 }: ProjectGroupSettingsDialogProps): React.JSX.Element {
+  const t = useTranslate()
   const inputRef = useRef<HTMLInputElement>(null)
   const inputId = useId()
   const [draft, setDraft] = useState(configDir ?? '')
@@ -149,13 +150,10 @@ export function ProjectGroupSettingsDialog({
       >
         <DialogHeader>
           <DialogTitle size="compact">
-            {translate(
-              'auto.components.sidebar.ProjectGroupSettingsDialog.title',
-              'Group Settings'
-            )}
+            {t('auto.components.sidebar.ProjectGroupSettingsDialog.title', 'Group Settings')}
           </DialogTitle>
           <DialogDescription size="compact">
-            {translate(
+            {t(
               'auto.components.sidebar.ProjectGroupSettingsDialog.description',
               'Settings for {{value0}} and the groups nested inside it.',
               { value0: groupName }
@@ -171,7 +169,7 @@ export function ProjectGroupSettingsDialog({
         >
           <div className="space-y-1">
             <Label htmlFor={inputId} size="sm">
-              {translate(
+              {t(
                 'auto.components.sidebar.ProjectGroupSettingsDialog.fieldLabel',
                 'Claude config directory'
               )}
@@ -183,7 +181,7 @@ export function ProjectGroupSettingsDialog({
                 type="text"
                 value={draft}
                 spellCheck={false}
-                placeholder={translate(
+                placeholder={t(
                   'auto.components.sidebar.ProjectGroupSettingsDialog.fieldPlaceholder',
                   'Claude’s default home'
                 )}
@@ -200,7 +198,7 @@ export function ProjectGroupSettingsDialog({
                   onClick={() => void handleBrowse()}
                 >
                   <FolderOpen className="size-3.5" />
-                  {translate('auto.components.sidebar.ProjectGroupSettingsDialog.browse', 'Browse')}
+                  {t('auto.components.sidebar.ProjectGroupSettingsDialog.browse', 'Browse')}
                 </Button>
               ) : null}
             </div>
@@ -219,7 +217,7 @@ export function ProjectGroupSettingsDialog({
               disabled={submitting || (!configDir && !trimmedDraft)}
               onClick={() => void submit(null)}
             >
-              {translate('auto.components.sidebar.ProjectGroupSettingsDialog.clear', 'Clear')}
+              {t('auto.components.sidebar.ProjectGroupSettingsDialog.clear', 'Clear')}
             </Button>
             <div className="flex items-center gap-2">
               <Button
@@ -229,16 +227,13 @@ export function ProjectGroupSettingsDialog({
                 disabled={submitting}
                 onClick={() => onOpenChange(false)}
               >
-                {translate('auto.components.sidebar.ProjectGroupSettingsDialog.cancel', 'Cancel')}
+                {t('auto.components.sidebar.ProjectGroupSettingsDialog.cancel', 'Cancel')}
               </Button>
               {/* Never disabled on advice: the directory's state can change before launch, where the authoritative refusal lives. */}
               <Button type="submit" size="sm-compact" disabled={submitting}>
                 {submitting
-                  ? translate(
-                      'auto.components.sidebar.ProjectGroupSettingsDialog.saving',
-                      'Saving...'
-                    )
-                  : translate('auto.components.sidebar.ProjectGroupSettingsDialog.save', 'Save')}
+                  ? t('auto.components.sidebar.ProjectGroupSettingsDialog.saving', 'Saving...')
+                  : t('auto.components.sidebar.ProjectGroupSettingsDialog.save', 'Save')}
               </Button>
             </div>
           </DialogFooter>
@@ -260,6 +255,7 @@ function ClaudeConfigDirFieldNote({
   inherited: InheritedClaudeConfigDir | null
   remoteHostLabel: string | null
 }): React.JSX.Element {
+  const t = useTranslate()
   // Why deferred into its own region: a live region announces a *mutation*, so text already
   // present when the region mounts is silent — and an advisory can be true at open time. The
   // `null` initial value commits the region empty first, so the first advisory is an update too.
@@ -273,7 +269,7 @@ function ClaudeConfigDirFieldNote({
       </span>
       {remoteHostLabel ? (
         <p className="text-muted-foreground">
-          {translate(
+          {t(
             'auto.components.sidebar.ProjectGroupSettingsDialog.remoteHostPath',
             'This path is read on {{value0}}, so type it as that host spells it.',
             { value0: remoteHostLabel }
@@ -288,12 +284,12 @@ function ClaudeConfigDirFieldNote({
       {divergedConfigDir !== null ? (
         <p data-claude-config-dir-external="" className="text-foreground">
           {divergedConfigDir
-            ? translate(
+            ? t(
                 'auto.components.sidebar.ProjectGroupSettingsDialog.externalChange',
                 'Changed elsewhere to {{value0}}. Your edit is kept — saving replaces it.',
                 { value0: divergedConfigDir }
               )
-            : translate(
+            : t(
                 'auto.components.sidebar.ProjectGroupSettingsDialog.externalCleared',
                 'Cleared elsewhere. Your edit is kept — saving replaces it.'
               )}
@@ -301,7 +297,7 @@ function ClaudeConfigDirFieldNote({
       ) : null}
       {inherited ? (
         <p className="text-muted-foreground">
-          {translate(
+          {t(
             'auto.components.sidebar.ProjectGroupSettingsDialog.inherited',
             'Inherited from {{value0}}:',
             { value0: inherited.groupName }

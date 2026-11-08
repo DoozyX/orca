@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createTestStore } from './store-test-helpers'
+import { createTestStore } from '@/store/testing/app-store-test-fixture'
 
 const PANE = 'tab-1:leaf-1'
 const work = () => [

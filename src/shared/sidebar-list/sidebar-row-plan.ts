@@ -221,6 +221,7 @@ export function planSidebarRows(inputs: SidebarRowPlanInputs) {
     // Include pinned-only rows when testing mixed hosts or pinned remotes lose host labels.
     const mixedWorktreeHostContextLabels = getMixedWorktreeHostContextLabels(
       worktrees,
+      renderableFolderWorkspaces,
       repoOf,
       hostLabelById,
       defaultHostId

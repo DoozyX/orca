@@ -5,11 +5,11 @@ import {
   emptyCodexAccountsState,
   watchProviderAccounts,
   type ProviderAccountsSnapshot
-} from '@/runtime/runtime-provider-accounts-client'
+} from '@/runtime/provider-accounts/observations/runtime-provider-accounts-client'
 import {
   runtimeTargetEnvironmentId,
   runtimeTargetForOwnerEnvironment
-} from '@/runtime/runtime-client-target'
+} from '@/runtime/rpc/targets/runtime-client-target'
 import { useActiveAccountOwner } from '@/runtime/use-worktree-runtime-target'
 import type { RuntimeClientTarget } from '../../../../shared/runtime-client-target'
 import { resolveClaudeStatusAccountState } from './status-bar-claude-accounts'

@@ -40,7 +40,7 @@ function sortEntriesByProviderUsage(entries: AccountUsageEntry[]): AccountUsageE
 // Shared account roster; explicit switching stays in the detail menus.
 export function UsageRosterPanel({
   providers = EMPTY_PROVIDERS,
-  entries = providers.map(providerUsageEntry),
+  entries: entriesProp,
   display,
   statusBarUsageMode,
   onStatusBarUsageModeChange,
@@ -72,6 +72,7 @@ export function UsageRosterPanel({
     entry: AccountUsageEntry
   ) => React.ReactNode
 }): React.JSX.Element {
+  const entries = entriesProp ?? providers.map(providerUsageEntry)
   // Why: one boundary-scheduled clock keeps every open row current without per-provider timers.
   const now = useResetCountdownClock(
     entries.flatMap((entry) =>

@@ -27,7 +27,7 @@ export type UsageProviderSettings = Pick<
   cursorAuthConfigured: boolean
 }
 
-type UsageProviderSnapshots = {
+export type UsageProviderSnapshots = {
   claude: ProviderRateLimits | null | undefined
   codex: ProviderRateLimits | null | undefined
   gemini: ProviderRateLimits | null | undefined
@@ -39,6 +39,7 @@ type UsageProviderSnapshots = {
   cursor: ProviderRateLimits | null | undefined
   omp?: ProviderRateLimits | null | undefined
   zcode?: ProviderRateLimits | null
+  muse?: ProviderRateLimits | null
 }
 
 type UsageProviderId = ProviderRateLimits['provider']
@@ -173,7 +174,8 @@ export function isUsageEmptyState(
     isProviderSnapshotPending(providers.grok) ||
     isProviderSnapshotPending(providers.cursor) ||
     (providers.omp !== undefined && isProviderSnapshotPending(providers.omp)) ||
-    (providers.zcode !== undefined && isProviderSnapshotPending(providers.zcode))
+    (providers.zcode !== undefined && isProviderSnapshotPending(providers.zcode)) ||
+    (providers.muse !== undefined && isProviderSnapshotPending(providers.muse))
   ) {
     return false
   }
@@ -189,6 +191,11 @@ export function isUsageEmptyState(
     !isProviderConfigured(providers.grok) &&
     !isProviderConfigured(providers.cursor) &&
     !isProviderConfigured(providers.omp) &&
-    !isProviderConfigured(providers.zcode)
+    !isProviderConfigured(providers.zcode) &&
+    !isProviderConfigured(providers.muse)
   )
+}
+
+export function isAnyUsageProviderFetching(providers: UsageProviderSnapshots): boolean {
+  return Object.values(providers).some((provider) => provider?.status === 'fetching')
 }
