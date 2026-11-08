@@ -6,7 +6,11 @@ import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { ContextMenu, ContextMenuTrigger } from '@/components/ui/context-menu'
 import { GitHistoryCommitContextMenu } from '@/components/right-sidebar/source-control/sync/git-history-commit-context-menu'
-import { GitHistoryGraphSvg } from '@/components/right-sidebar/source-control/sync/git-history-graph-svg'
+import {
+  GIT_HISTORY_GRAPH_METRICS,
+  GitHistoryGraphSvg,
+  gitHistoryNodeColor
+} from '@/components/right-sidebar/source-control/sync/git-history-graph-svg'
 import { useGitHistoryCommitActions } from '@/components/right-sidebar/source-control/sync/use-git-history-commit-actions'
 import { formatGitHistoryTimestamp } from '@/components/right-sidebar/source-control/sync/git-history-format'
 import {
@@ -23,6 +27,8 @@ import { GIT_GRAPH_REFRESH_EVENT } from '@/lib/git-graph-tab'
 import { useIntlLocale, useTranslate } from '@/i18n/use-translate'
 
 const sameGroup = () => undefined
+const { rowHeight: ROW_HEIGHT, laneWidth: LANE_WIDTH } = GIT_HISTORY_GRAPH_METRICS.avatar
+const FIXED_COLUMNS_WIDTH = 160 + 200 + 120 + 100 + 72 + 24
 
 export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
   const t = useTranslate()
@@ -47,7 +53,7 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
         (width, row) =>
           Math.max(
             width,
-            (Math.max(row.inputSwimlanes.length, row.outputSwimlanes.length) + 1) * 11
+            (Math.max(row.inputSwimlanes.length, row.outputSwimlanes.length) + 1) * LANE_WIDTH
           ),
         132
       ),
@@ -82,13 +88,13 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
     setWidth: commitGraphWidth,
     onDraftWidthChange: setDraftGraphWidth
   })
-  const columns = `160px ${draftGraphWidth}px minmax(200px,1fr) 120px 100px`
+  const columns = `160px ${draftGraphWidth}px minmax(200px,1fr) 120px 100px 72px`
   const scroll = useRef<HTMLDivElement>(null)
   const virtualizer = useVirtualizer({
     count: rows.length,
     initialOffset: () => history.controller.scrollOffset,
     getScrollElement: () => scroll.current,
-    estimateSize: () => 24,
+    estimateSize: () => ROW_HEIGHT,
     overscan: 12,
     getItemKey: (index) => rows[index]!.historyItem.id
   })
@@ -170,7 +176,10 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
         <div className="flex min-w-0 flex-1 flex-col overflow-x-auto scrollbar-sleek">
           <div
             className="grid h-7 shrink-0 items-center border-b border-border px-3 text-2xs text-muted-foreground"
-            style={{ gridTemplateColumns: columns, minWidth: draftGraphWidth + 604 }}
+            style={{
+              gridTemplateColumns: columns,
+              minWidth: draftGraphWidth + FIXED_COLUMNS_WIDTH
+            }}
           >
             <span>{t('gitGraph.branchTag', 'Branch / Tag')}</span>
             <div ref={graphHeader} className="relative flex h-full items-center">
@@ -192,7 +201,10 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
                     commitGraphWidth(
                       Math.max(
                         44,
-                        Math.min(maxGraphWidth, graphWidth + (event.key === 'ArrowLeft' ? -11 : 11))
+                        Math.min(
+                          maxGraphWidth,
+                          graphWidth + (event.key === 'ArrowLeft' ? -LANE_WIDTH : LANE_WIDTH)
+                        )
                       )
                     )
                   } else if (event.key === 'Home') {
@@ -208,6 +220,7 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
             <span>{t('gitGraph.message', 'Message')}</span>
             <span>{t('gitGraph.author', 'Author')}</span>
             <span>{t('gitGraph.date', 'Date')}</span>
+            <span>{t('gitGraph.sha', 'SHA')}</span>
           </div>
           <div
             ref={scroll}
@@ -228,7 +241,10 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
           >
             <div
               className="relative min-w-max"
-              style={{ height: virtualizer.getTotalSize(), minWidth: draftGraphWidth + 604 }}
+              style={{
+                height: virtualizer.getTotalSize(),
+                minWidth: draftGraphWidth + FIXED_COLUMNS_WIDTH
+              }}
             >
               {virtualizer.getVirtualItems().map((virtualRow) => {
                 const viewModel = rows[virtualRow.index]!
@@ -238,7 +254,7 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
                     <ContextMenuTrigger asChild>
                       <div
                         className={cn(
-                          'absolute left-0 top-0 grid h-6 w-full items-center px-3 text-xs hover:bg-accent',
+                          'absolute left-0 top-0 grid h-[26px] w-full items-center px-3 text-xs hover:bg-accent',
                           selected?.id === item.id && 'bg-accent'
                         )}
                         style={{
@@ -252,12 +268,13 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
                           <GitGraphRefs
                             workspaces={workspaces}
                             references={item.references ?? []}
+                            color={gitHistoryNodeColor(viewModel)}
                             onSwitch={controller.switchToWorkspace}
                             currentRefId={result?.currentRef?.id}
                           />
                         </div>
                         <div className="min-w-0 overflow-hidden">
-                          <GitHistoryGraphSvg viewModel={viewModel} />
+                          <GitHistoryGraphSvg viewModel={viewModel} variant="avatar" />
                         </div>
                         <button
                           className="min-w-0 truncate pr-3 text-left"
@@ -270,6 +287,9 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
                         <span className="truncate pr-2 text-muted-foreground">{item.author}</span>
                         <span className="truncate text-2xs text-muted-foreground">
                           {formatGitHistoryTimestamp(item.timestamp, intlLocale)}
+                        </span>
+                        <span className="truncate font-mono text-2xs text-muted-foreground">
+                          {item.id.slice(0, 7)}
                         </span>
                       </div>
                     </ContextMenuTrigger>

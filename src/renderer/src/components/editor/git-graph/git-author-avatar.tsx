@@ -1,5 +1,4 @@
 import { GitHubUserAvatar } from '@/components/github/github-user-avatar'
-import { graphColor } from '@/components/right-sidebar/source-control/sync/git-history-graph-svg'
 import type { GitHistoryGraphColorId } from '../../../../../shared/git/history/git-history-types'
 import { gitHubLoginFromNoreplyEmail } from './git-author-github-login'
 
@@ -33,7 +32,7 @@ export function GitAuthorAvatar({
       style={{
         width: size,
         height: size,
-        ...(ringColor ? { boxShadow: `0 0 0 1.5px ${graphColor(ringColor)}` } : {})
+        ...(ringColor ? { boxShadow: `0 0 0 1.5px var(--${ringColor})` } : {})
       }}
     >
       {login ? (

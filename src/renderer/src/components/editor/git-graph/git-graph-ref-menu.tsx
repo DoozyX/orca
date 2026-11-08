@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ArrowUpRight } from 'lucide-react'
+import { ArrowUpRight, Check, Cloud, Laptop, Tag, type LucideIcon } from 'lucide-react'
 import {
   ContextMenu,
   ContextMenuContent,
@@ -13,7 +13,12 @@ import { selectWorktreesByRepo } from '@/store/workspaces/catalog/workspace-reco
 import type { gitGraphScope } from '@/lib/git-graph-tab'
 import { gitGraphWorkspaceCatalog } from './git-graph-workspace-navigation'
 import { useTranslate } from '@/i18n/use-translate'
-import type { GitHistoryItemRef } from '../../../../../shared/git/history/git-history-types'
+import { graphColor } from '@/components/right-sidebar/source-control/sync/git-history-graph-svg'
+import { groupGitGraphRowRefs, type GitGraphRowRef } from './git-graph-row-refs'
+import type {
+  GitHistoryGraphColorId,
+  GitHistoryItemRef
+} from '../../../../../shared/git/history/git-history-types'
 import type { Worktree } from '../../../../../shared/worktree/types'
 import { cn } from '@/lib/utils'
 
@@ -35,51 +40,48 @@ export function useGitGraphWorkspaces(scope: ReturnType<typeof gitGraphScope>) {
 export function GitGraphRefs({
   references,
   currentRefId,
+  color,
   workspaces,
   onSwitch
 }: {
   references: GitHistoryItemRef[]
   currentRefId?: string
+  color: GitHistoryGraphColorId
   workspaces: Map<string, Worktree>
   onSwitch: (refId: string) => Promise<void>
 }) {
   const t = useTranslate()
   const [open, setOpen] = useState(false)
-  const [menuRef, setMenuRef] = useState<GitHistoryItemRef>()
-  const current = references.find((ref) => ref.id === currentRefId)
-  const inline = current ? [current] : []
-  for (const ref of references) {
-    if (inline.length === 2) {
-      break
-    }
-    if (workspaces.has(ref.id) && ref !== current) {
-      inline.push(ref)
-    }
-  }
-  for (const ref of references) {
-    if (inline.length === 2) {
-      break
-    }
-    if (!inline.includes(ref)) {
-      inline.push(ref)
-    }
-  }
-  const badge = (ref: GitHistoryItemRef) => (
-    <ContextMenuTrigger asChild key={ref.id}>
+  const [menuEntry, setMenuEntry] = useState<GitGraphRowRef>()
+  const entries = useMemo(
+    () => groupGitGraphRowRefs(references, currentRefId),
+    [references, currentRefId]
+  )
+  const inline = entries.slice(0, 1)
+  const overflow = entries.slice(1)
+  const badge = (entry: GitGraphRowRef) => (
+    <ContextMenuTrigger asChild key={entry.name}>
       <span
         onContextMenu={(event) => {
           event.stopPropagation()
-          setMenuRef(ref)
+          setMenuEntry(entry)
+        }}
+        style={{
+          borderColor: graphColor(color),
+          backgroundColor: `color-mix(in srgb, ${graphColor(color)} 18%, transparent)`
         }}
         className={cn(
-          'inline-flex min-w-0 max-w-full shrink items-center gap-1 rounded-full border px-1.5 text-2xs text-muted-foreground',
-          ref.id === currentRefId && 'bg-accent font-medium text-foreground'
+          'inline-flex min-w-0 max-w-full shrink items-center gap-1 rounded-full border px-1.5 text-2xs text-foreground',
+          entry.current && 'font-semibold'
         )}
       >
-        <span className="min-w-0 truncate" title={ref.name}>
-          {ref.name}
+        {entry.local && <RefChipIcon icon={entry.current ? Check : Laptop} color={color} />}
+        {entry.remotes.length > 0 && <RefChipIcon icon={Cloud} color={color} />}
+        {entry.tag && <RefChipIcon icon={Tag} color={color} />}
+        <span className="min-w-0 truncate" title={entry.name}>
+          {entry.name}
         </span>
-        {workspaces.has(ref.id) && (
+        {entry.local && workspaces.has(entry.local.id) && (
           <Tooltip>
             <TooltipTrigger asChild>
               <button
@@ -87,7 +89,7 @@ export function GitGraphRefs({
                 aria-label={t('gitGraph.switchWorkspace', 'Switch to workspace')}
                 onClick={(event) => {
                   event.stopPropagation()
-                  void onSwitch(ref.id)
+                  void onSwitch(entry.local!.id)
                 }}
               >
                 <ArrowUpRight className="size-3" />
@@ -99,40 +101,41 @@ export function GitGraphRefs({
       </span>
     </ContextMenuTrigger>
   )
+  const menuLocalId = menuEntry?.local?.id
   return (
     <ContextMenu
       onOpenChange={(open) => {
         if (!open) {
-          setMenuRef(undefined)
+          setMenuEntry(undefined)
         }
       }}
     >
       <div className="flex w-full min-w-0 gap-1">
         {inline.map(badge)}
-        {references.length > inline.length && (
+        {overflow.length > 0 && (
           <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
               <button className="shrink-0 text-2xs text-muted-foreground">
-                +{references.length - inline.length}
+                +{overflow.length}
               </button>
             </PopoverTrigger>
             {open && (
               <PopoverContent>
                 <div className="max-h-72 space-y-1 overflow-auto scrollbar-sleek">
-                  {references.filter((ref) => !inline.includes(ref)).map(badge)}
+                  {overflow.map(badge)}
                 </div>
               </PopoverContent>
             )}
           </Popover>
         )}
       </div>
-      {menuRef && (
+      {menuEntry && (
         <ContextMenuContent>
-          <ContextMenuItem onSelect={() => void window.api.ui.writeClipboardText(menuRef.name)}>
+          <ContextMenuItem onSelect={() => void window.api.ui.writeClipboardText(menuEntry.name)}>
             {t('gitGraph.copyBranch', 'Copy branch name')}
           </ContextMenuItem>
-          {workspaces.has(menuRef.id) && (
-            <ContextMenuItem onSelect={() => void onSwitch(menuRef.id)}>
+          {menuLocalId && workspaces.has(menuLocalId) && (
+            <ContextMenuItem onSelect={() => void onSwitch(menuLocalId)}>
               {t('gitGraph.switchWorkspace', 'Switch to workspace')}
             </ContextMenuItem>
           )}
@@ -140,4 +143,8 @@ export function GitGraphRefs({
       )}
     </ContextMenu>
   )
+}
+
+function RefChipIcon({ icon: Icon, color }: { icon: LucideIcon; color: GitHistoryGraphColorId }) {
+  return <Icon className="size-3 shrink-0" style={{ color: graphColor(color) }} aria-hidden />
 }
