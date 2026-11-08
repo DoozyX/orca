@@ -85,7 +85,8 @@ export function SourceControlPanelContent(props: SourceControlPanelReadyProps) {
     visibleTreeRowsBySection
   } = model
 
-  const showBranchesAndTags = useGitGraphSupport(currentWorktreeId) === true
+  const gitGraphSupported = useGitGraphSupport(currentWorktreeId) === true
+  const showBranchesAndTags = isGitHistoryVisible && gitGraphSupported
   const hasFilteredUncommittedEntries = displaySections.length > 0
   const hasFilteredBranchEntries = filteredBranchEntries.length > 0
   const showGenericEmptyState =
@@ -228,7 +229,7 @@ export function SourceControlPanelContent(props: SourceControlPanelReadyProps) {
         />
       )}
 
-      {(isGitHistoryVisible || showBranchesAndTags) && (
+      {isGitHistoryVisible && (
         // Dock history as reference context while the rest of the pane scrolls.
         <div
           className={`sticky bottom-0 z-10 mt-auto shrink-0 border-t border-border ${dockBackground} backdrop-blur-sm`}
@@ -241,19 +242,17 @@ export function SourceControlPanelContent(props: SourceControlPanelReadyProps) {
               onToggle={() => toggleSection('refs')}
             />
           )}
-          {isGitHistoryVisible && (
-            <GitHistoryPanel
-              worktreeId={currentWorktreeId ?? undefined}
-              state={gitHistoryState}
-              collapsed={collapsedSections.has('history')}
-              onToggle={() => toggleSection('history')}
-              onRefresh={() => void refreshGitHistory({ wakeWslDistro: true })}
-              onOpenCommit={(item) => void openHistoryCommitDiff(item)}
-              onLoadCommitFiles={loadCommitFiles}
-              onOpenCommitFile={openCommitFile}
-              onCommitAction={handleCommitAction}
-            />
-          )}
+          <GitHistoryPanel
+            worktreeId={currentWorktreeId ?? undefined}
+            state={gitHistoryState}
+            collapsed={collapsedSections.has('history')}
+            onToggle={() => toggleSection('history')}
+            onRefresh={() => void refreshGitHistory({ wakeWslDistro: true })}
+            onOpenCommit={(item) => void openHistoryCommitDiff(item)}
+            onLoadCommitFiles={loadCommitFiles}
+            onOpenCommitFile={openCommitFile}
+            onCommitAction={handleCommitAction}
+          />
         </div>
       )}
     </>

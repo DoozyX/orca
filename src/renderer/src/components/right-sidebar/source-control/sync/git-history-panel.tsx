@@ -1,7 +1,8 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { GitGraphOpenButton } from './git-graph-open-button'
+import { DockSectionToggle } from './dock-section-toggle'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronDown, CircleHelp, RefreshCw } from 'lucide-react'
+import { CircleHelp, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
@@ -255,18 +256,17 @@ export function GitHistoryPanel({
       )}
       <div className="h-7 pl-1 pr-3">
         <div className="flex h-full items-stretch rounded-md pr-1">
-          <button
-            type="button"
-            className="flex min-w-0 flex-1 items-center gap-1 px-0.5 text-left text-[11px] font-semibold uppercase tracking-wider text-foreground/70"
-            onClick={onToggle}
-          >
-            <ChevronDown
-              className={cn('size-3 shrink-0 transition-transform', collapsed && '-rotate-90')}
-            />
-            <span>{t('auto.components.right.sidebar.GitHistoryPanel.d836037d02', 'Commits')}</span>
-            {result && <span className="text-[10px] font-medium tabular-nums">{count}</span>}
-            {result?.hasMore && <span className="text-[10px] font-medium">+</span>}
-          </button>
+          <DockSectionToggle
+            label={t('auto.components.right.sidebar.GitHistoryPanel.d836037d02', 'Commits')}
+            collapsed={collapsed}
+            onToggle={onToggle}
+            count={
+              <>
+                {result && <span className="text-3xs font-medium tabular-nums">{count}</span>}
+                {result?.hasMore && <span className="text-3xs font-medium">+</span>}
+              </>
+            }
+          />
           {worktreeId && <GitGraphOpenButton worktreeId={worktreeId} />}
           <Tooltip>
             <TooltipTrigger asChild>

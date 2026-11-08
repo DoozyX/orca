@@ -62,6 +62,17 @@ describe('toggleGitGraphRefVisibility', () => {
   })
 })
 
+describe('toggleGitGraphRefVisibility with a partial ref list', () => {
+  it('refuses to hide from All and never restores All from the known refs', () => {
+    expect(toggleGitGraphRefVisibility({ filter: 'all', refIds: ['a'], visible: false })).toEqual({
+      error: 'refs-incomplete'
+    })
+    expect(
+      toggleGitGraphRefVisibility({ filter: ['a', 'b'], refIds: ['x'], visible: true })
+    ).toEqual({ filter: ['a', 'b', 'x'] })
+  })
+})
+
 describe('isGitGraphRefVisible', () => {
   it('reads each filter shape', () => {
     expect(isGitGraphRefVisible('all', 'a')).toBe(true)

@@ -649,7 +649,9 @@ it('hides a ref chosen in the rail by asking history for every other ref', async
   }))
   await renderGraphWithRail(railRefs)
   await act(async () =>
-    container.querySelector<HTMLButtonElement>('aside [role="checkbox"][aria-label="x"]')!.click()
+    container
+      .querySelector<HTMLButtonElement>('aside [role="checkbox"][aria-label="Local: x"]')!
+      .click()
   )
   expect(getHistory.mock.calls.at(-1)?.[1].refs).toEqual([
     'refs/heads/a',
@@ -762,37 +764,16 @@ it('dims commits by authors outside the picked set until cleared', async () => {
   expect(dimmedIds()).toEqual([])
 })
 
-it("opens a file from another workspace's WIP row in the graph's workspace", async () => {
-  const other: Worktree = {
-    ...local,
-    id: 'r::/other',
-    path: '/other',
-    branch: 'refs/heads/feature',
-    displayName: 'other',
-    isMainWorktree: false
-  }
-  const clean: Worktree = {
-    ...other,
-    id: 'r::/clean',
-    path: '/clean',
-    branch: 'refs/heads/clean',
-    displayName: 'clean'
-  }
-  const entry = (path: string, area: 'staged' | 'unstaged') => ({
-    path,
-    area,
-    status: 'modified' as const
-  })
-  getStatus.mockImplementation(async (context: { worktreePath: string }) => ({
-    entries:
-      context.worktreePath === '/other'
-        ? [entry('src/a.ts', 'unstaged'), entry('b.ts', 'staged')]
-        : [],
-    head: 'a'
+it('refuses to hide from All while a group is capped and leaves the filter untouched', async () => {
+  const locals = Array.from({ length: 1000 }, (_, index) => ({
+    id: `refs/heads/b${index}`,
+    name: `b${index}`,
+    revision: sha(index + 1)
   }))
   getHistory.mockReset().mockResolvedValue({ ...result, refs: 'all' })
-  const openDiff = vi.fn()
-  useAppStore.setState({ worktreesByRepo: { r: [local, other, clean] }, openDiff })
+  getRefs
+    .mockReset()
+    .mockImplementation(async (_context, query) => (query === 'refs/heads/' ? locals : []))
   await act(async () =>
     root.render(
       <TooltipProvider>
@@ -802,24 +783,28 @@ it("opens a file from another workspace's WIP row in the graph's workspace", asy
   )
   await vi.waitFor(async () => {
     await act(async () => {})
-    expect(container.querySelectorAll('[data-wip]')).toHaveLength(1)
+    expect(container.querySelector('aside [role="checkbox"][aria-label="Local"]')).not.toBeNull()
   })
-  expect(container.querySelector('[data-wip]')?.textContent).toContain('// WIP2on feature')
-  await act(async () => container.querySelector<HTMLElement>('[data-wip]')!.click())
-  expect(container.querySelector('[data-testid="git-graph-wip-heading"]')?.textContent).toBe(
-    '2 file changes on feature'
-  )
   await act(async () =>
-    Array.from(container.querySelectorAll('button'))
-      .find((button) => button.title === 'src/a.ts')!
+    container
+      .querySelector<HTMLButtonElement>('aside [role="checkbox"][aria-label="Local"]')!
       .click()
   )
-  expect(openDiff).toHaveBeenCalledWith(
-    'r::/other',
-    '/other/src/a.ts',
-    'src/a.ts',
-    'typescript',
-    false,
-    expect.objectContaining({ placementWorkspaceId: workspaceId })
+  expect(container.querySelector('aside [role="status"]')?.textContent).toContain(
+    'at most 1,000 chosen branches and tags'
   )
+  expect(getHistory.mock.calls.map((call) => call[1].refs)).toEqual(['all'])
+})
+
+it('shows a hidden ref before jumping to its commit', async () => {
+  useAppStore.setState({ gitGraphFiltersByWorktree: { [workspaceId]: ['refs/heads/a'] } })
+  getHistory.mockReset().mockImplementation(async (_owner, options) => ({
+    ...result,
+    refs: options.refs
+  }))
+  await renderGraphWithRail(railRefs)
+  await act(async () =>
+    container.querySelector<HTMLButtonElement>('aside button[title="v1"]')!.click()
+  )
+  expect(getHistory.mock.calls.at(-1)?.[1].refs).toEqual(['refs/heads/a', 'refs/tags/v1'])
 })

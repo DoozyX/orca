@@ -4,6 +4,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
 import { useTranslate } from '@/i18n/use-translate'
+import { gitGraphOldServerMessage } from './git-graph-ref-messages'
 import { useGitGraphRefOwner, useGitGraphRefSearch, type RefRequests } from './git-graph-ref-source'
 import type { GitHistoryRefs } from '../../../../../shared/git/history/git-history-types'
 import type { ExecutionHostId } from '../../../../../shared/execution-host'
@@ -125,9 +126,7 @@ function GitGraphFilterForOwner({
         </PopoverContent>
       </Popover>
       {capable === false || (supported === false && capable === true) ? (
-        <span className="text-xs text-muted-foreground">
-          {t('gitGraph.oldServer', "This server's Orca version shows only the current branch")}
-        </span>
+        <span className="text-xs text-muted-foreground">{gitGraphOldServerMessage(t)}</span>
       ) : null}
     </div>
   )

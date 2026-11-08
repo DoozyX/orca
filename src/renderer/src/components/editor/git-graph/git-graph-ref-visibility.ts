@@ -3,7 +3,7 @@ import {
   type GitHistoryRefs
 } from '../../../../../shared/git/history/git-history-types'
 
-export type GitGraphRefVisibilityError = 'last-visible' | 'too-many-refs'
+export type GitGraphRefVisibilityError = 'last-visible' | 'too-many-refs' | 'refs-incomplete'
 
 export function isGitGraphRefVisible(
   filter: GitHistoryRefs,
@@ -18,12 +18,16 @@ export function isGitGraphRefVisible(
 
 export function toggleGitGraphRefVisibility(input: {
   filter: GitHistoryRefs
-  allRefIds: string[]
+  /** Every ref that exists; undefined when the list is partial, so All can be neither expanded nor restored. */
+  allRefIds?: string[]
   currentRefId?: string
   refIds: string[]
   visible: boolean
 }): { filter: GitHistoryRefs } | { error: GitGraphRefVisibilityError } {
   const { filter, allRefIds, currentRefId, refIds, visible } = input
+  if (filter === 'all' && !allRefIds) {
+    return visible ? { filter: 'all' } : { error: 'refs-incomplete' }
+  }
   const shown = new Set(
     filter === 'all' ? allRefIds : filter === 'head' ? (currentRefId ? [currentRefId] : []) : filter
   )
@@ -34,11 +38,11 @@ export function toggleGitGraphRefVisibility(input: {
       shown.delete(id)
     }
   }
-  if (allRefIds.length === shown.size && allRefIds.every((id) => shown.has(id))) {
-    return { filter: 'all' }
-  }
   if (!shown.size) {
     return { error: 'last-visible' }
+  }
+  if (allRefIds && allRefIds.length === shown.size && allRefIds.every((id) => shown.has(id))) {
+    return { filter: 'all' }
   }
   if (shown.size > GIT_HISTORY_MAX_REFS) {
     return { error: 'too-many-refs' }

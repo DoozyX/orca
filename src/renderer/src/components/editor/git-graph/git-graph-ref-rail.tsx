@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type RefObject } from 'react'
 import { useTranslate } from '@/i18n/use-translate'
 import { GitRefTree } from './git-ref-tree'
 import { revealCommitWhenLoaded } from './git-graph-reveal-ref'
+import { gitGraphOldServerMessage, gitGraphRefVisibilityMessage } from './git-graph-ref-messages'
 import { useGitGraphRefOwner, useGitRefTreeSource, type RefRequests } from './git-graph-ref-source'
 import {
   isGitGraphRefVisible,
@@ -33,8 +34,9 @@ function GitGraphRefRailForOwner({
   requests
 }: RailProps & { owner: string; requests: RefObject<RefRequests> }) {
   const t = useTranslate()
-  const [refusal, setRefusal] = useState<GitGraphRefVisibilityError>()
-  const { capable, refs, cappedKeys, allRefs, anyGroupCapped, error, setQuery } =
+  const [refusal, setRefusal] = useState<{ error: GitGraphRefVisibilityError; visible: boolean }>()
+  const [pendingRefId, setPendingRefId] = useState<string>()
+  const { capable, refs, cappedKeys, allRefs, anyGroupCapped, groupsComplete, error, setQuery } =
     useGitRefTreeSource({
       worktreeId,
       executionHostId: history.controller.executionHostId,
@@ -45,13 +47,17 @@ function GitGraphRefRailForOwner({
     })
   useEffect(() => setRefusal(undefined), [history.filter])
   const currentRefId = history.result?.currentRef?.id
-  const allRefIds = useMemo(() => allRefs?.map((ref) => ref.id) ?? [], [allRefs])
+  const allRefIds = useMemo(
+    () => (groupsComplete && allRefs ? allRefs.map((ref) => ref.id) : undefined),
+    [groupsComplete, allRefs]
+  )
+  const chosen = useMemo(
+    () => (Array.isArray(history.filter) ? new Set(history.filter) : undefined),
+    [history.filter]
+  )
+  const isVisible = (refId: string) =>
+    chosen ? chosen.has(refId) : isGitGraphRefVisible(history.filter, refId, currentRefId)
   const setVisible = (refIds: string[], visible: boolean): boolean => {
-    // A capped group cannot name every ref, so hiding one from All would drop the unlisted ones.
-    if (!visible && history.filter === 'all' && anyGroupCapped) {
-      setRefusal('too-many-refs')
-      return false
-    }
     const outcome = toggleGitGraphRefVisibility({
       filter: history.filter,
       allRefIds,
@@ -60,14 +66,14 @@ function GitGraphRefRailForOwner({
       visible
     })
     if ('error' in outcome) {
-      setRefusal(outcome.error)
+      setRefusal({ error: outcome.error, visible })
       return false
     }
     setRefusal(undefined)
     history.changeFilter(outcome.filter)
     return true
   }
-  const jump = (ref: GitHistoryItemRef) => {
+  const jump = async (ref: GitHistoryItemRef) => {
     if (!ref.revision) {
       return
     }
@@ -77,36 +83,38 @@ function GitGraphRefRailForOwner({
     ) {
       return
     }
-    revealCommitWhenLoaded(history.controller, ref.revision)
+    setPendingRefId(ref.id)
+    await revealCommitWhenLoaded(history.controller, ref.revision)
+    // A later jump has already replaced this one as the pending row.
+    setPendingRefId((id) => (id === ref.id ? undefined : id))
   }
-  const notice =
+  const notices =
     capable === false
-      ? t('gitGraph.oldServer', "This server's Orca version shows only the current branch")
-      : error
-        ? error
-        : refusal === 'last-visible'
-          ? t('gitGraph.lastVisibleRef', 'At least one branch or tag must stay visible')
-          : refusal === 'too-many-refs'
-            ? t(
-                'gitGraph.tooManyRefs',
-                'The graph can show at most 1,000 chosen branches and tags. Pick fewer to hide.'
-              )
-            : undefined
+      ? [gitGraphOldServerMessage(t)]
+      : [
+          error,
+          refusal &&
+            gitGraphRefVisibilityMessage(t, refusal.error, {
+              visible: refusal.visible,
+              capped: anyGroupCapped
+            })
+        ].filter((notice): notice is string => Boolean(notice))
   return (
     <aside className="flex w-[220px] shrink-0 flex-col border-r border-border">
-      {notice && (
-        <p role="status" className="shrink-0 px-3 pt-2 text-xs text-destructive">
+      {notices.map((notice) => (
+        <p key={notice} role="status" className="shrink-0 px-3 pt-2 text-xs text-destructive">
           {notice}
         </p>
-      )}
+      ))}
       {refs && (
         <GitRefTree
           refs={refs}
           cappedKeys={cappedKeys}
           currentRefId={currentRefId}
-          isVisible={(refId) => isGitGraphRefVisible(history.filter, refId, currentRefId)}
+          pendingRefId={pendingRefId}
+          isVisible={isVisible}
           onToggle={setVisible}
-          onJump={jump}
+          onJump={(ref) => void jump(ref)}
           onQueryChange={setQuery}
         />
       )}

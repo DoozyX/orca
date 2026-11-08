@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } fro
 import { getRuntimeGitRefs } from '@/runtime/source-control/git/runtime-git-status-client'
 import { runtimeEnvironmentSupportsCapability } from '@/runtime/rpc/compatibility/runtime-capability-proof'
 import { GIT_HISTORY_REFS_CAPABILITY } from '../../../../../shared/source-control/runtime/git-graph-capabilities'
-import { gitGraphScope, useGitGraphScope } from '@/lib/git-graph-tab'
+import { gitGraphRuntimeContext, gitGraphScope, useGitGraphScope } from '@/lib/git-graph-tab'
 import { loadGitRefGroups, type LoadedGitRefGroups } from './git-ref-group-loader'
 import { groupGitRefs, gitRefGroupKey, isGitRefListTruncated } from './git-ref-groups'
 import type { GitHistoryItemRef } from '../../../../../shared/git/history/git-history-types'
@@ -18,14 +18,8 @@ export function useGitGraphRefOwner(worktreeId: string, executionHostId?: Execut
   return { owner, requests }
 }
 
-function gitRefContext(worktreeId: string, scope: NonNullable<ReturnType<typeof gitGraphScope>>) {
-  return {
-    target: scope.target,
-    worktreeId,
-    worktreePath: scope.worktree.path,
-    connectionId: scope.connectionId ?? undefined
-  }
-}
+const errorText = (cause: unknown): string =>
+  cause instanceof Error ? cause.message : String(cause)
 
 type RefSearchInput = {
   worktreeId: string
@@ -53,8 +47,13 @@ export function useGitGraphRefSearch({
     refs?: GitHistoryItemRef[]
     error?: string
   }>()
-  const [probe, setProbe] = useState<{ owner: string | undefined; capable: boolean | null }>()
+  const [probe, setProbe] = useState<{
+    owner: string | undefined
+    capable: boolean | null
+    error?: string
+  }>()
   const capable = probe?.owner === owner ? probe?.capable : null
+  const probeError = probe?.owner === owner ? probe?.error : undefined
   const current = enabled && search?.owner === owner && search.query === query ? search : undefined
   useEffect(() => {
     let live = true
@@ -74,7 +73,11 @@ export function useGitGraphRefSearch({
             setProbe({ owner, capable: value })
           }
         })
-        .catch(() => {})
+        .catch((cause: unknown) => {
+          if (live) {
+            setProbe({ owner, capable: null, error: errorText(cause) })
+          }
+        })
     }
     return () => {
       live = false
@@ -108,13 +111,13 @@ export function useGitGraphRefSearch({
           return
         }
         try {
-          const rows = await getRuntimeGitRefs(gitRefContext(worktreeId, scope), query)
+          const rows = await getRuntimeGitRefs(gitGraphRuntimeContext(worktreeId, scope), query)
           if (live) {
             setSearch({ owner, query, refs: rows })
           }
         } catch (cause) {
           if (live) {
-            setSearch({ owner, query, error: String(cause) })
+            setSearch({ owner, query, error: errorText(cause) })
           }
         }
       }
@@ -127,7 +130,7 @@ export function useGitGraphRefSearch({
     }
   }, [worktreeId, owner, query, enabled, capable, executionHostId, requests, reloadKey])
   const reset = useCallback(() => setSearch(undefined), [])
-  return { capable, refs: current?.refs, error: current?.error, reset }
+  return { capable, refs: current?.refs, error: current?.error ?? probeError, reset }
 }
 
 type RefsSnapshot = { refs: GitHistoryItemRef[]; cappedKeys: string[] }
@@ -146,18 +149,24 @@ function useGitRefGroups(
     }
     let live = true
     void loadGitRefGroups(
-      (query) => getRuntimeGitRefs(gitRefContext(worktreeId, scope), query),
+      (query) => getRuntimeGitRefs(gitGraphRuntimeContext(worktreeId, scope), query),
       () => live
-    ).then((result) => {
-      if (live) {
-        setLoaded({ owner, reloadKey, ...result })
-      }
-    })
+    )
+      .then((result) => {
+        if (live) {
+          setLoaded({ owner, reloadKey, ...result })
+        }
+      })
+      .catch((cause: unknown) => {
+        if (live) {
+          setLoaded({ owner, reloadKey, refs: [], cappedKeys: [], errors: [errorText(cause)] })
+        }
+      })
     return () => {
       live = false
     }
   }, [worktreeId, executionHostId, owner, enabled, capable, fresh, reloadKey])
-  return loaded?.owner === owner ? loaded : undefined
+  return loaded?.owner === owner ? { ...loaded, fresh } : undefined
 }
 
 const searchSnapshot = (refs: GitHistoryItemRef[]): RefsSnapshot => ({
@@ -188,6 +197,9 @@ export function useGitRefTreeSource(input: Omit<RefSearchInput, 'query'>) {
     /** The union of every loaded group: the only list that says which refs exist. */
     allRefs: groups?.refs,
     anyGroupCapped: (groups?.cappedKeys.length ?? 0) > 0,
+    /** True only when every group loaded whole and is current; a partial list must not decide hide or restore-All. */
+    groupsComplete:
+      groups !== undefined && groups.fresh && !groups.errors.length && !groups.cappedKeys.length,
     refs: own?.shown.refs,
     cappedKeys: own?.shown.cappedKeys
   }
