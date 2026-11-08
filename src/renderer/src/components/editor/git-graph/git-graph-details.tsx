@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
-import { ArrowDownAZ, ArrowUpZA, ChevronsDownUp, Copy } from 'lucide-react'
+import { Copy } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   GitHistoryCommitFiles,
@@ -17,6 +16,7 @@ import {
   useGitGraphFileViewMode,
   type GitGraphFileSort
 } from './git-graph-file-list'
+import { GitGraphFileToolbar } from './git-graph-file-toolbar'
 import { GIT_FILE_STATUS_SUMMARY_ORDER, summarizeFileChanges } from './git-graph-file-summary'
 import type { GitFileStatus } from '../../../../../shared/git/status/git-status-types'
 
@@ -59,10 +59,6 @@ export function GitGraphDetails({
   }, [item, loadFiles])
   const shortId = item.displayId ?? item.id.slice(0, 7)
   const authoredAt = formatGitHistoryTimestamp(item.timestamp, intlLocale)
-  const sortLabel =
-    fileSort === 'asc'
-      ? t('gitGraph.sortAscending', 'Sorted A to Z')
-      : t('gitGraph.sortDescending', 'Sorted Z to A')
   return (
     <div>
       <div className="space-y-3 p-4">
@@ -129,52 +125,13 @@ export function GitGraphDetails({
           </span>
         )}
       </div>
-      <div className="flex items-center gap-1 px-4 pb-2">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              size="icon-xs"
-              variant="ghost"
-              aria-label={sortLabel}
-              onClick={() => onFileSortChange(fileSort === 'asc' ? 'desc' : 'asc')}
-            >
-              {fileSort === 'asc' ? (
-                <ArrowDownAZ className="size-3.5" />
-              ) : (
-                <ArrowUpZA className="size-3.5" />
-              )}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>{sortLabel}</TooltipContent>
-        </Tooltip>
-        <ToggleGroup
-          type="single"
-          size="xs"
-          variant="outline"
-          value={viewMode}
-          onValueChange={(next) => {
-            // Pressing the selected mode again would clear it; the list always has one.
-            if (next === 'list' || next === 'tree') {
-              setViewMode(next)
-            }
-          }}
-          aria-label={t('gitGraph.fileViewMode', 'File list layout')}
-        >
-          <ToggleGroupItem value="list">{t('gitGraph.viewPath', 'Path')}</ToggleGroupItem>
-          <ToggleGroupItem value="tree">{t('gitGraph.viewTree', 'Tree')}</ToggleGroupItem>
-        </ToggleGroup>
-        {viewMode === 'tree' && (
-          <Button
-            size="xs"
-            variant="ghost"
-            className="ml-auto"
-            onClick={() => setCollapseAllRequest((request) => request + 1)}
-          >
-            <ChevronsDownUp />
-            {t('gitGraph.collapseAll', 'Collapse All')}
-          </Button>
-        )}
-      </div>
+      <GitGraphFileToolbar
+        sort={fileSort}
+        onSortChange={onFileSortChange}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        onCollapseAll={() => setCollapseAllRequest((request) => request + 1)}
+      />
       <GitHistoryCommitFiles
         state={files}
         onOpenFile={(entry, event) => actions.openCommitFile(item, entry, event)}

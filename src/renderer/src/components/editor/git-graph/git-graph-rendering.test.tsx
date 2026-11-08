@@ -16,11 +16,16 @@ import { GitGraphFilter } from './git-graph-filter'
 import { useGitGraphHistory } from './use-git-graph-history'
 import type { GitHistoryResult } from '../../../../../shared/git/history/git-history-types'
 
-const { getHistory, getRefs } = vi.hoisted(() => ({ getHistory: vi.fn(), getRefs: vi.fn() }))
+const { getHistory, getRefs, getStatus } = vi.hoisted(() => ({
+  getHistory: vi.fn(),
+  getRefs: vi.fn(),
+  getStatus: vi.fn()
+}))
 vi.mock('@/runtime/source-control/git/runtime-git-status-client', async (original) => ({
   ...(await original<object>()),
   getRuntimeGitHistory: getHistory,
-  getRuntimeGitRefs: getRefs
+  getRuntimeGitRefs: getRefs,
+  getRuntimeGitStatus: getStatus
 }))
 vi.mock('@/runtime/source-control/git/runtime-git-diff-client', async (original) => ({
   ...(await original<object>()),
@@ -74,6 +79,7 @@ const repo: Repo = {
   executionHostId: 'local'
 }
 beforeEach(() => {
+  getStatus.mockReset().mockResolvedValue({ entries: [] })
   useAppStore.setState({
     repos: [repo],
     worktreesByRepo: { r: [local] },
@@ -754,4 +760,66 @@ it('dims commits by authors outside the picked set until cleared', async () => {
       .click()
   })
   expect(dimmedIds()).toEqual([])
+})
+
+it("opens a file from another workspace's WIP row in the graph's workspace", async () => {
+  const other: Worktree = {
+    ...local,
+    id: 'r::/other',
+    path: '/other',
+    branch: 'refs/heads/feature',
+    displayName: 'other',
+    isMainWorktree: false
+  }
+  const clean: Worktree = {
+    ...other,
+    id: 'r::/clean',
+    path: '/clean',
+    branch: 'refs/heads/clean',
+    displayName: 'clean'
+  }
+  const entry = (path: string, area: 'staged' | 'unstaged') => ({
+    path,
+    area,
+    status: 'modified' as const
+  })
+  getStatus.mockImplementation(async (context: { worktreePath: string }) => ({
+    entries:
+      context.worktreePath === '/other'
+        ? [entry('src/a.ts', 'unstaged'), entry('b.ts', 'staged')]
+        : [],
+    head: 'a'
+  }))
+  getHistory.mockReset().mockResolvedValue({ ...result, refs: 'all' })
+  const openDiff = vi.fn()
+  useAppStore.setState({ worktreesByRepo: { r: [local, other, clean] }, openDiff })
+  await act(async () =>
+    root.render(
+      <TooltipProvider>
+        <GitGraphTab worktreeId={workspaceId} />
+      </TooltipProvider>
+    )
+  )
+  await vi.waitFor(async () => {
+    await act(async () => {})
+    expect(container.querySelectorAll('[data-wip]')).toHaveLength(1)
+  })
+  expect(container.querySelector('[data-wip]')?.textContent).toContain('// WIP2on feature')
+  await act(async () => container.querySelector<HTMLElement>('[data-wip]')!.click())
+  expect(container.querySelector('[data-testid="git-graph-wip-heading"]')?.textContent).toBe(
+    '2 file changes on feature'
+  )
+  await act(async () =>
+    Array.from(container.querySelectorAll('button'))
+      .find((button) => button.title === 'src/a.ts')!
+      .click()
+  )
+  expect(openDiff).toHaveBeenCalledWith(
+    'r::/other',
+    '/other/src/a.ts',
+    'src/a.ts',
+    'typescript',
+    false,
+    expect.objectContaining({ placementWorkspaceId: workspaceId })
+  )
 })

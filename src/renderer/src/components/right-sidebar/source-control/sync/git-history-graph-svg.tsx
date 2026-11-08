@@ -27,19 +27,22 @@ export function gitHistoryNodeColor(viewModel: GitHistoryItemViewModel): GitHist
 function GraphPath({
   d,
   color,
-  strokeWidth = 1
+  strokeWidth = 1,
+  dashLength
 }: {
   d: string
   color: GitHistoryGraphColorId
   strokeWidth?: number
+  dashLength?: number
 }): React.JSX.Element {
   return (
     <path
       d={d}
       fill="none"
       stroke={graphColor(color)}
-      strokeLinecap="round"
+      strokeLinecap={dashLength ? 'butt' : 'round'}
       strokeWidth={strokeWidth}
+      strokeDasharray={dashLength ? `${dashLength} ${dashLength}` : undefined}
     />
   )
 }
@@ -64,6 +67,9 @@ export function GitHistoryGraphSvg({
   const circleIndex = getGitHistoryItemLaneIndex(viewModel)
   const circleColor = gitHistoryNodeColor(viewModel)
 
+  // Four dashes per row keep the pattern continuous across row boundaries.
+  const dashFor = (node: { dashed?: true } | undefined) =>
+    node?.dashed ? rowHeight / 8 : undefined
   const paths: React.JSX.Element[] = []
   let outputSwimlaneIndex = 0
 
@@ -75,6 +81,7 @@ export function GitHistoryGraphSvg({
           <GraphPath
             key={`base-${inputSwimlanes[index]!.id}`}
             color={color}
+            dashLength={dashFor(inputSwimlanes[index])}
             d={[
               `M ${laneWidth * (index + 1)} 0`,
               `A ${laneWidth} ${laneWidth} 0 0 1 ${laneWidth * index} ${nodeY}`,
@@ -97,6 +104,7 @@ export function GitHistoryGraphSvg({
           <GraphPath
             key={`vertical-${inputSwimlanes[index]!.id}`}
             color={color}
+            dashLength={dashFor(inputSwimlanes[index])}
             d={`M ${laneWidth * (index + 1)} 0 V ${rowHeight}`}
           />
         )
@@ -105,6 +113,7 @@ export function GitHistoryGraphSvg({
           <GraphPath
             key={`shift-${inputSwimlanes[index]!.id}-${outputSwimlanes[outputSwimlaneIndex]!.id}`}
             color={color}
+            dashLength={dashFor(inputSwimlanes[index])}
             d={[
               `M ${laneWidth * (index + 1)} 0`,
               `V ${nodeY - curveRadius - 1}`,
@@ -134,6 +143,7 @@ export function GitHistoryGraphSvg({
       <GraphPath
         key={`merge-parent-${parentId}`}
         color={outputSwimlanes[parentOutputIndex]!.color}
+        dashLength={dashFor(outputSwimlanes[parentOutputIndex])}
         d={[
           `M ${laneWidth * parentOutputIndex} ${rowHeight / 2}`,
           `A ${laneWidth} ${laneWidth} 0 0 1 ${laneWidth * (parentOutputIndex + 1)} ${rowHeight}`,
@@ -149,6 +159,7 @@ export function GitHistoryGraphSvg({
       <GraphPath
         key="into-node"
         color={inputSwimlanes[inputIndex]!.color}
+        dashLength={dashFor(inputSwimlanes[inputIndex])}
         d={`M ${laneWidth * (circleIndex + 1)} 0 V ${rowHeight / 2}`}
       />
     )
@@ -158,6 +169,7 @@ export function GitHistoryGraphSvg({
       <GraphPath
         key="out-of-node"
         color={circleColor}
+        dashLength={viewModel.kind === 'wip' ? rowHeight / 8 : undefined}
         d={`M ${laneWidth * (circleIndex + 1)} ${rowHeight / 2} V ${rowHeight}`}
       />
     )
@@ -168,7 +180,9 @@ export function GitHistoryGraphSvg({
   const width =
     laneWidth * (Math.max(inputSwimlanes.length, outputSwimlanes.length, circleIndex + 1, 1) + 1)
   const isBoundaryNode =
-    viewModel.kind === 'incoming-changes' || viewModel.kind === 'outgoing-changes'
+    viewModel.kind === 'incoming-changes' ||
+    viewModel.kind === 'outgoing-changes' ||
+    viewModel.kind === 'wip'
   const isMergeNode = historyItem.parentIds.length > 1
   const showAvatar = variant === 'avatar' && !isBoundaryNode
 

@@ -24346,7 +24346,13 @@
     "tagRefs": "Tags",
     "groupTruncated": "Only the first 1,000 are listed. Search to find the rest.",
     "noRefs": "No matching branches or tags",
-    "branchesAndTags": "Branches & Tags"
+    "branchesAndTags": "Branches & Tags",
+    "wipFileChange": "1 file change on {{branch}}",
+    "wipFileChanges": "{{total}} file changes on {{branch}}",
+    "wipStaged": "Staged",
+    "wipChanges": "Changes",
+    "wip": "// WIP",
+    "wipOnBranch": "on {{branch}}"
   },
   "macosUpdateRequirement": {
     "title": "Orca updates now need macOS {{macos}}",

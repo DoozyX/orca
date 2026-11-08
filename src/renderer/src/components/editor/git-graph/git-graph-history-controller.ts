@@ -11,6 +11,7 @@ import type {
   GitHistoryResult
 } from '../../../../../shared/git/history/git-history-types'
 import type { ExecutionHostId } from '../../../../../shared/execution-host'
+import { resolveGitGraphSelection } from './git-graph-wip-items'
 
 type HistoryView = {
   result?: GitHistoryResult
@@ -287,8 +288,7 @@ export class GitGraphHistoryController {
       }
       const result = error !== undefined ? previous : (accumulated ?? previous)
       const selection = this.view.getState().selectedId
-      const selectedId =
-        result?.items.find((item) => item.id === selection)?.id ?? result?.items[0]?.id
+      const selectedId = resolveGitGraphSelection(result?.items, selection)
       const selectionGone = selection !== undefined && selection !== selectedId
       if (selectionGone) {
         this.scrollOffset = 0
