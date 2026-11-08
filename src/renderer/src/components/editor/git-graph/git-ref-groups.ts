@@ -9,9 +9,9 @@ export type GitRefTreeGroup =
   | { kind: 'tags'; refs: GitHistoryItemRef[] }
 
 const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
-const LOCAL = 'refs/heads/'
-const REMOTE = 'refs/remotes/'
-const TAG = 'refs/tags/'
+export const LOCAL = 'refs/heads/'
+export const REMOTE = 'refs/remotes/'
+export const TAG = 'refs/tags/'
 
 export function groupGitRefs(refs: GitHistoryItemRef[]): GitRefTreeGroup[] {
   const local: GitHistoryItemRef[] = []
@@ -46,8 +46,10 @@ export function groupGitRefs(refs: GitHistoryItemRef[]): GitRefTreeGroup[] {
   return groups
 }
 
+export const remoteGroupKey = (remote: string): string => `remote:${remote}`
+
 export function gitRefGroupKey(group: GitRefTreeGroup): string {
-  return group.kind === 'remote' ? `remote:${group.remote}` : group.kind
+  return group.kind === 'remote' ? remoteGroupKey(group.remote) : group.kind
 }
 
 export function gitRefDisplayName(group: GitRefTreeGroup, ref: GitHistoryItemRef): string {

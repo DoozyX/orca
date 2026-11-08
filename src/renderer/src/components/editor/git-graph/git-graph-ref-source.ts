@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import { getRuntimeGitRefs } from '@/runtime/source-control/git/runtime-git-status-client'
 import { runtimeEnvironmentSupportsCapability } from '@/runtime/rpc/compatibility/runtime-capability-proof'
 import { GIT_HISTORY_REFS_CAPABILITY } from '../../../../../shared/source-control/runtime/git-graph-capabilities'
 import { gitGraphScope, useGitGraphScope } from '@/lib/git-graph-tab'
+import { loadGitRefGroups, type LoadedGitRefGroups } from './git-ref-group-loader'
+import { groupGitRefs, gitRefGroupKey, isGitRefListTruncated } from './git-ref-groups'
 import type { GitHistoryItemRef } from '../../../../../shared/git/history/git-history-types'
 import type { ExecutionHostId } from '../../../../../shared/execution-host'
 
@@ -14,6 +16,15 @@ export function useGitGraphRefOwner(worktreeId: string, executionHostId?: Execut
   const scope = useGitGraphScope(worktreeId, executionHostId)
   const owner = JSON.stringify([worktreeId, scope?.route, scope?.worktree.path])
   return { owner, requests }
+}
+
+function gitRefContext(worktreeId: string, scope: NonNullable<ReturnType<typeof gitGraphScope>>) {
+  return {
+    target: scope.target,
+    worktreeId,
+    worktreePath: scope.worktree.path,
+    connectionId: scope.connectionId ?? undefined
+  }
 }
 
 type RefSearchInput = {
@@ -97,15 +108,7 @@ export function useGitGraphRefSearch({
           return
         }
         try {
-          const rows = await getRuntimeGitRefs(
-            {
-              target: scope.target,
-              worktreeId,
-              worktreePath: scope.worktree.path,
-              connectionId: scope.connectionId ?? undefined
-            },
-            query
-          )
+          const rows = await getRuntimeGitRefs(gitRefContext(worktreeId, scope), query)
           if (live) {
             setSearch({ owner, query, refs: rows })
           }
@@ -127,19 +130,65 @@ export function useGitGraphRefSearch({
   return { capable, refs: current?.refs, error: current?.error, reset }
 }
 
-// The refs endpoint caps its page at 1,000 but filters by `query` first, so searching reaches every ref.
+type RefsSnapshot = { refs: GitHistoryItemRef[]; cappedKeys: string[] }
+type LoadedGroups = LoadedGitRefGroups & { owner: string; reloadKey?: number }
+
+function useGitRefGroups(
+  { worktreeId, executionHostId, owner, enabled, reloadKey }: Omit<RefSearchInput, 'query'>,
+  capable: boolean | null
+) {
+  const [loaded, setLoaded] = useState<LoadedGroups>()
+  const fresh = loaded?.owner === owner && loaded.reloadKey === reloadKey
+  useEffect(() => {
+    const scope = gitGraphScope(worktreeId, undefined, executionHostId)
+    if (!enabled || !capable || fresh || !scope) {
+      return
+    }
+    let live = true
+    void loadGitRefGroups(
+      (query) => getRuntimeGitRefs(gitRefContext(worktreeId, scope), query),
+      () => live
+    ).then((result) => {
+      if (live) {
+        setLoaded({ owner, reloadKey, ...result })
+      }
+    })
+    return () => {
+      live = false
+    }
+  }, [worktreeId, executionHostId, owner, enabled, capable, fresh, reloadKey])
+  return loaded?.owner === owner ? loaded : undefined
+}
+
+const searchSnapshot = (refs: GitHistoryItemRef[]): RefsSnapshot => ({
+  refs,
+  cappedKeys: isGitRefListTruncated(refs) ? groupGitRefs(refs).map(gitRefGroupKey) : []
+})
+
 export function useGitRefTreeSource(input: Omit<RefSearchInput, 'query'>) {
   const [query, setQuery] = useState('')
-  const { capable, refs, error } = useGitGraphRefSearch({ ...input, query })
-  const [lists, setLists] = useState<{
-    owner: string
-    /** Unfiltered page: the only list that says which refs exist. */
-    all?: GitHistoryItemRef[]
-    shown?: GitHistoryItemRef[]
-  }>()
+  const searching = query !== ''
+  const search = useGitGraphRefSearch({ ...input, query, enabled: input.enabled && searching })
+  const groups = useGitRefGroups(input, search.capable)
+  const searched = useMemo(
+    () => (search.refs ? searchSnapshot(search.refs) : undefined),
+    [search.refs]
+  )
+  const [lists, setLists] = useState<{ owner: string; shown: RefsSnapshot }>()
   const own = lists?.owner === input.owner ? lists : undefined
-  if (refs && refs !== own?.shown) {
-    setLists({ owner: input.owner, all: query === '' ? refs : own?.all, shown: refs })
+  const next = searching ? searched : groups
+  if (next && next.refs !== own?.shown.refs) {
+    setLists({ owner: input.owner, shown: { refs: next.refs, cappedKeys: next.cappedKeys } })
   }
-  return { capable, error, setQuery, allRefs: own?.all, refs: own?.shown }
+  const error = [search.error, ...(groups?.errors ?? [])].filter(Boolean).join(' ')
+  return {
+    capable: search.capable,
+    error: error || undefined,
+    setQuery,
+    /** The union of every loaded group: the only list that says which refs exist. */
+    allRefs: groups?.refs,
+    anyGroupCapped: (groups?.cappedKeys.length ?? 0) > 0,
+    refs: own?.shown.refs,
+    cappedKeys: own?.shown.cappedKeys
+  }
 }

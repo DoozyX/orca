@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState, type RefObject } from 'react'
 import { useTranslate } from '@/i18n/use-translate'
 import { GitRefTree } from './git-ref-tree'
-import { isGitRefListTruncated } from './git-ref-groups'
 import { revealCommitWhenLoaded } from './git-graph-reveal-ref'
 import { useGitGraphRefOwner, useGitRefTreeSource, type RefRequests } from './git-graph-ref-source'
 import {
@@ -35,20 +34,21 @@ function GitGraphRefRailForOwner({
 }: RailProps & { owner: string; requests: RefObject<RefRequests> }) {
   const t = useTranslate()
   const [refusal, setRefusal] = useState<GitGraphRefVisibilityError>()
-  const { capable, refs, allRefs, error, setQuery } = useGitRefTreeSource({
-    worktreeId,
-    executionHostId: history.controller.executionHostId,
-    owner,
-    requests,
-    enabled: true,
-    reloadKey
-  })
+  const { capable, refs, cappedKeys, allRefs, anyGroupCapped, error, setQuery } =
+    useGitRefTreeSource({
+      worktreeId,
+      executionHostId: history.controller.executionHostId,
+      owner,
+      requests,
+      enabled: true,
+      reloadKey
+    })
   useEffect(() => setRefusal(undefined), [history.filter])
   const currentRefId = history.result?.currentRef?.id
   const allRefIds = useMemo(() => allRefs?.map((ref) => ref.id) ?? [], [allRefs])
   const setVisible = (refIds: string[], visible: boolean): boolean => {
-    // A truncated list cannot name every ref, so hiding one from All would drop the unlisted ones.
-    if (!visible && history.filter === 'all' && allRefs && isGitRefListTruncated(allRefs)) {
+    // A capped group cannot name every ref, so hiding one from All would drop the unlisted ones.
+    if (!visible && history.filter === 'all' && anyGroupCapped) {
       setRefusal('too-many-refs')
       return false
     }
@@ -102,6 +102,7 @@ function GitGraphRefRailForOwner({
       {refs && (
         <GitRefTree
           refs={refs}
+          cappedKeys={cappedKeys}
           currentRefId={currentRefId}
           isVisible={(refId) => isGitGraphRefVisible(history.filter, refId, currentRefId)}
           onToggle={setVisible}
