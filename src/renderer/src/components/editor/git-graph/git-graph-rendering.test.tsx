@@ -684,6 +684,47 @@ it('selects the commit of a tag older than the first loaded page', async () => {
   })
 })
 
+it('stops paging for an earlier jump when a second ref is clicked and selects its commit', async () => {
+  const items = Array.from({ length: 300 }, (_, index) => ({
+    id: `commit-${index}`,
+    subject: `Commit ${index}`,
+    message: `Commit ${index}`,
+    parentIds: []
+  }))
+  let release!: () => void
+  const held = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  getHistory.mockReset().mockImplementation(async (_owner, options) => {
+    if (options.skip === 50) {
+      await held
+    }
+    return {
+      ...result,
+      refs: 'all',
+      historyToken: 'pinned',
+      items: items.slice(options.skip, options.skip + 50),
+      hasMore: options.skip < 250
+    }
+  })
+  await renderGraphWithRail([
+    ...railRefs,
+    { id: 'refs/tags/v2', name: 'v2', revision: 'commit-60' }
+  ])
+  await act(async () =>
+    container.querySelector<HTMLButtonElement>('aside button[title="v1"]')!.click()
+  )
+  await act(async () =>
+    container.querySelector<HTMLButtonElement>('aside button[title="v2"]')!.click()
+  )
+  release()
+  await vi.waitFor(async () => {
+    await act(async () => {})
+    expect(container.querySelector('[data-current="true"]')?.textContent).toContain('Commit 60')
+  })
+  expect(getHistory.mock.calls.map((call) => call[1].skip)).toEqual([0, 50])
+})
+
 it('lists a remote the capped remotes page does not reach by probing remote names', async () => {
   const forkRefs = Array.from({ length: 1000 }, (_, index) => ({
     id: `refs/remotes/fork/b${index}`,

@@ -12,8 +12,9 @@ import { isGitGraphRefVisible, toggleGitGraphRefVisibility } from './git-graph-r
 import { setGitGraphFilter } from './use-git-graph-history'
 import type { GitHistoryItemRef } from '../../../../../shared/git/history/git-history-types'
 
+// A paging view still counts: `reveal` supersedes the running jump and waits for its page itself.
 const isSettled = (view: HistoryView) =>
-  view.disposed === true || view.error !== undefined || (!view.loading && view.result !== undefined)
+  view.disposed === true || view.error !== undefined || view.result !== undefined
 
 const loadedView = (controller: GitGraphHistoryController): Promise<HistoryView> =>
   new Promise((resolve) => {
