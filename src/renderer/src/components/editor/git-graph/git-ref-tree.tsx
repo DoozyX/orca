@@ -10,7 +10,6 @@ import {
   gitRefDisplayName,
   gitRefGroupKey,
   groupGitRefs,
-  isGitRefListTruncated,
   type GitRefTreeGroup
 } from './git-ref-groups'
 
@@ -18,6 +17,8 @@ const COLLAPSED_GROUP_THRESHOLD = 200
 
 type GitRefTreeProps = {
   refs: GitHistoryItemRef[]
+  /** Keys of groups whose list stops at the server's page limit. */
+  cappedKeys?: string[]
   currentRefId?: string
   isVisible?: (refId: string) => boolean
   onToggle?: (refIds: string[], visible: boolean) => void
@@ -33,7 +34,9 @@ type Row =
       group: GitRefTreeGroup
       matches: GitHistoryItemRef[]
       expanded: boolean
+      capped: boolean
     }
+  | { kind: 'capped-note'; key: string }
   | { kind: 'ref'; key: string; group: GitRefTreeGroup; ref: GitHistoryItemRef }
 
 function GroupIcon({ group }: { group: GitRefTreeGroup }) {
@@ -43,6 +46,7 @@ function GroupIcon({ group }: { group: GitRefTreeGroup }) {
 
 export function GitRefTree({
   refs,
+  cappedKeys,
   currentRefId,
   isVisible,
   onToggle,
@@ -67,15 +71,19 @@ export function GitRefTree({
       const key = gitRefGroupKey(group)
       const expanded =
         needle !== '' || (expandedByKey[key] ?? group.refs.length <= COLLAPSED_GROUP_THRESHOLD)
-      next.push({ kind: 'group', key, group, matches, expanded })
+      const capped = cappedKeys?.includes(key) ?? false
+      next.push({ kind: 'group', key, group, matches, expanded, capped })
       if (expanded) {
         for (const ref of matches) {
           next.push({ kind: 'ref', key: ref.id, group, ref })
         }
+        if (capped) {
+          next.push({ kind: 'capped-note', key: `${key}:capped` })
+        }
       }
     }
     return next
-  }, [groups, needle, expandedByKey])
+  }, [groups, needle, expandedByKey, cappedKeys])
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => scroll.current,
@@ -103,23 +111,39 @@ export function GitRefTree({
           aria-label={t('gitGraph.searchRefs', 'Search branches and tags')}
         />
       </div>
-      {isGitRefListTruncated(refs) && (
-        <p className="shrink-0 px-3 pb-1 text-2xs text-muted-foreground">
-          {t('gitGraph.refsTruncated', 'Showing only the first 1,000 branches and tags')}
-        </p>
-      )}
       <div ref={scroll} className="min-h-0 flex-1 overflow-y-auto scrollbar-sleek">
         <div className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
           {virtualizer.getVirtualItems().map((virtualRow) => {
             const row = rows[virtualRow.index]!
             const style = { transform: `translateY(${virtualRow.start}px)` }
             const rowClass =
-              'absolute left-0 top-0 flex h-6 w-full items-center gap-1.5 px-2 text-xs'
+              'absolute left-0 top-0 flex min-h-6 w-full items-center gap-1.5 px-2 text-xs'
+            const measure = { ref: virtualizer.measureElement, 'data-index': virtualRow.index }
+            if (row.kind === 'capped-note') {
+              return (
+                <p
+                  key={row.key}
+                  {...measure}
+                  className="absolute left-0 top-0 w-full py-1 pl-5 pr-2 text-2xs text-muted-foreground"
+                  style={style}
+                >
+                  {t(
+                    'gitGraph.groupTruncated',
+                    'Only the first 1,000 are listed. Search to find the rest.'
+                  )}
+                </p>
+              )
+            }
             if (row.kind === 'group') {
               const ids = row.matches.map((ref) => ref.id)
               const visibleCount = isVisible ? ids.filter(isVisible).length : 0
               return (
-                <div key={row.key} className={cn(rowClass, 'hover:bg-accent')} style={style}>
+                <div
+                  key={row.key}
+                  {...measure}
+                  className={cn(rowClass, 'hover:bg-accent')}
+                  style={style}
+                >
                   {onToggle && isVisible && (
                     <Checkbox
                       aria-label={groupLabel(row.group)}
@@ -151,6 +175,7 @@ export function GitRefTree({
                     <span className="truncate font-medium">{groupLabel(row.group)}</span>
                     <span className="text-2xs tabular-nums text-muted-foreground">
                       {row.matches.length}
+                      {row.capped && '+'}
                     </span>
                   </button>
                 </div>
@@ -159,7 +184,12 @@ export function GitRefTree({
             const { ref, group } = row
             const name = gitRefDisplayName(group, ref)
             return (
-              <div key={row.key} className={cn(rowClass, 'pl-5 hover:bg-accent')} style={style}>
+              <div
+                key={row.key}
+                {...measure}
+                className={cn(rowClass, 'pl-5 hover:bg-accent')}
+                style={style}
+              >
                 {onToggle && isVisible && (
                   <Checkbox
                     aria-label={name}

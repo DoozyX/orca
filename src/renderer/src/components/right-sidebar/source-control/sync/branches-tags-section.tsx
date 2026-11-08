@@ -3,7 +3,6 @@ import { cn } from '@/lib/utils'
 import { openGitGraph } from '@/lib/git-graph-tab'
 import { useTranslate } from '@/i18n/use-translate'
 import { GitRefTree } from '@/components/editor/git-graph/git-ref-tree'
-import { isGitRefListTruncated } from '@/components/editor/git-graph/git-ref-groups'
 import {
   useGitGraphRefOwner,
   useGitRefTreeSource
@@ -22,12 +21,13 @@ export function BranchesTagsSection({
 }) {
   const t = useTranslate()
   const { owner, requests } = useGitGraphRefOwner(worktreeId)
-  const { capable, refs, allRefs, error, setQuery } = useGitRefTreeSource({
-    worktreeId,
-    owner,
-    requests,
-    enabled: !collapsed
-  })
+  const { capable, refs, cappedKeys, allRefs, anyGroupCapped, error, setQuery } =
+    useGitRefTreeSource({
+      worktreeId,
+      owner,
+      requests,
+      enabled: !collapsed
+    })
   return (
     <div className="border-b border-border">
       <div className="h-7 pl-1 pr-3">
@@ -44,27 +44,33 @@ export function BranchesTagsSection({
           {allRefs && (
             <span className="text-3xs font-medium tabular-nums">
               {allRefs.length}
-              {isGitRefListTruncated(allRefs) && '+'}
+              {anyGroupCapped && '+'}
             </span>
           )}
         </button>
       </div>
       {!collapsed && (
-        <div style={{ height: 'min(192px, 25vh)' }}>
+        <div className="flex flex-col" style={{ height: 'min(192px, 25vh)' }}>
           {capable === false ? (
             <p className="px-3 py-2 text-xs text-muted-foreground">
               {t('gitGraph.oldServer', "This server's Orca version shows only the current branch")}
             </p>
-          ) : error ? (
-            <p className="px-3 py-2 text-xs text-destructive">{error}</p>
-          ) : refs ? (
-            <GitRefTree
-              refs={refs}
-              currentRefId={currentRefId}
-              onJump={(ref) => void openGitGraph(worktreeId, { revealRef: ref })}
-              onQueryChange={setQuery}
-            />
-          ) : null}
+          ) : (
+            <>
+              {error && <p className="shrink-0 px-3 py-2 text-xs text-destructive">{error}</p>}
+              {refs && (
+                <div className="min-h-0 flex-1">
+                  <GitRefTree
+                    refs={refs}
+                    cappedKeys={cappedKeys}
+                    currentRefId={currentRefId}
+                    onJump={(ref) => void openGitGraph(worktreeId, { revealRef: ref })}
+                    onQueryChange={setQuery}
+                  />
+                </div>
+              )}
+            </>
+          )}
         </div>
       )}
     </div>

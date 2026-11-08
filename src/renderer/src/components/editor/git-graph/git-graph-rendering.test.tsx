@@ -162,7 +162,9 @@ it('keeps an older selection, loaded depth and scroll through refresh', async ()
     await controller.loadMore()
     await controller.loadMore()
   })
-  const scroll = container.querySelector<HTMLDivElement>('div.overflow-y-auto')!
+  const scroll = container.querySelector<HTMLDivElement>(
+    'div.overflow-x-auto > div.overflow-y-auto'
+  )!
   await act(async () => {
     Array.from(container.querySelectorAll('button'))
       .find((button) => button.textContent === 'Commit 110')!
@@ -274,7 +276,9 @@ it('bounds refresh to one extra page when the selected commit has vanished', asy
     items: remaining.slice(options.skip, options.skip + 50),
     hasMore: options.skip < 250
   }))
-  const scroll = container.querySelector<HTMLDivElement>('div.overflow-y-auto')!
+  const scroll = container.querySelector<HTMLDivElement>(
+    'div.overflow-x-auto > div.overflow-y-auto'
+  )!
   await act(async () => {
     scroll.scrollTop = 2400
     controller.scrollOffset = 2400
@@ -371,7 +375,9 @@ it.each(['local', 'ssh:A'] as const)(
           (button) => button.textContent === 'second'
         )!
         commit.click()
-        const scroll = container.querySelector<HTMLDivElement>('div.overflow-y-auto')!
+        const scroll = container.querySelector<HTMLDivElement>(
+          'div.overflow-x-auto > div.overflow-y-auto'
+        )!
         scroll.scrollTop = 144
         scroll.dispatchEvent(new Event('scroll'))
       })
@@ -389,7 +395,10 @@ it.each(['local', 'ssh:A'] as const)(
       )
       await act(async () => root.render(render()))
       expect(container.querySelector('[data-current="true"]')?.textContent).toContain('second')
-      expect(container.querySelector<HTMLDivElement>('div.overflow-y-auto')?.scrollTop).toBe(144)
+      expect(
+        container.querySelector<HTMLDivElement>('div.overflow-x-auto > div.overflow-y-auto')
+          ?.scrollTop
+      ).toBe(144)
       expect(getHistory).toHaveBeenCalledTimes(1)
       await act(async () => root.render(null))
       useAppStore.setState({
@@ -658,5 +667,37 @@ it('selects the commit of a tag older than the first loaded page', async () => {
   await vi.waitFor(async () => {
     await act(async () => {})
     expect(container.querySelector('[data-current="true"]')?.textContent).toContain('Commit 120')
+  })
+})
+
+it('lists a remote the capped remotes page does not reach by probing remote names', async () => {
+  const forkRefs = Array.from({ length: 1000 }, (_, index) => ({
+    id: `refs/remotes/fork/b${index}`,
+    name: `fork/b${index}`,
+    revision: sha(index + 1)
+  }))
+  const originMain = { id: 'refs/remotes/origin/main', name: 'origin/main', revision: sha(9) }
+  const byQuery: Record<string, typeof forkRefs> = {
+    'refs/remotes/': forkRefs,
+    'refs/remotes/f': forkRefs,
+    'refs/remotes/fork/': forkRefs,
+    'refs/remotes/o': [originMain],
+    'refs/remotes/origin/': [originMain]
+  }
+  getHistory.mockReset().mockResolvedValue({ ...result, refs: 'all' })
+  getRefs.mockReset().mockImplementation(async (_context, query) => byQuery[query] ?? [])
+  await act(async () =>
+    root.render(
+      <TooltipProvider>
+        <GitGraphTab worktreeId={workspaceId} />
+      </TooltipProvider>
+    )
+  )
+  await vi.waitFor(async () => {
+    await act(async () => {})
+    const labels = [...container.querySelectorAll('aside button[aria-expanded]')].map(
+      (button) => button.textContent
+    )
+    expect(labels).toEqual(['origin1', 'fork1000+'])
   })
 })
