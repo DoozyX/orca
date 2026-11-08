@@ -60,6 +60,7 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
     [rows]
   )
   const [railOpen, setRailOpen] = useState(true)
+  const [fileSort, setFileSort] = useState(controller.fileSort)
   const [refsEpoch, setRefsEpoch] = useState(0)
   useEffect(() => {
     const onRefresh = (event: Event) => {
@@ -325,6 +326,11 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
               key={selected.id}
               item={selected}
               actions={actions}
+              fileSort={fileSort}
+              onFileSortChange={(sort) => {
+                controller.fileSort = sort
+                setFileSort(sort)
+              }}
               onParent={(id) => void history.reveal(id)}
             />
           )}

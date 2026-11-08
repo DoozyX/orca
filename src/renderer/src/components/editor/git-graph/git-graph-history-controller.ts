@@ -41,6 +41,7 @@ export class GitGraphHistoryController {
   readonly view = createStore<HistoryView>(() => ({ loading: false }))
   scrollOffset = 0
   graphWidth = 132
+  fileSort: 'asc' | 'desc' = 'asc'
   private scope: ReturnType<typeof gitGraphScope>
   private filter: GitHistoryRefs
   executionHostId: ExecutionHostId | undefined
@@ -144,9 +145,7 @@ export class GitGraphHistoryController {
     this.navigation++
     this.view.setState({ selectedId, revealId: undefined })
   }
-  clearReveal = (): void => {
-    this.view.setState({ revealId: undefined })
-  }
+  clearReveal = (): void => this.view.setState({ revealId: undefined })
   refresh = (): Promise<GitHistoryResult | undefined> => {
     this.generation++
     this.pending = undefined
