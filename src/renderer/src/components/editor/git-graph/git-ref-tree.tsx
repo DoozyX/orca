@@ -1,11 +1,22 @@
-import { useMemo, useRef, useState } from 'react'
+import {
+  useMemo,
+  useRef,
+  useState,
+  type ButtonHTMLAttributes,
+  type CSSProperties,
+  type ReactNode
+} from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { Check, ChevronDown, Cloud, Laptop, Tag } from 'lucide-react'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { cn } from '@/lib/utils'
 import { useTranslate } from '@/i18n/use-translate'
-import type { GitHistoryItemRef } from '../../../../../shared/git/history/git-history-types'
+import {
+  GIT_HISTORY_MAX_REFS,
+  type GitHistoryItemRef
+} from '../../../../../shared/git/history/git-history-types'
 import {
   gitRefDisplayName,
   gitRefGroupKey,
@@ -20,6 +31,8 @@ type GitRefTreeProps = {
   /** Keys of groups whose list stops at the server's page limit. */
   cappedKeys?: string[]
   currentRefId?: string
+  /** The ref whose commit is being located; shown busy until the jump settles. */
+  pendingRefId?: string
   isVisible?: (refId: string) => boolean
   onToggle?: (refIds: string[], visible: boolean) => void
   onJump: (ref: GitHistoryItemRef) => void
@@ -39,6 +52,45 @@ type Row =
   | { kind: 'capped-note'; key: string }
   | { kind: 'ref'; key: string; group: GitRefTreeGroup; ref: GitHistoryItemRef }
 
+function RefRow({
+  measureRef,
+  index,
+  style,
+  className,
+  checkbox,
+  button,
+  children
+}: {
+  measureRef: (element: HTMLElement | null) => void
+  index: number
+  style: CSSProperties
+  className?: string
+  checkbox?: ReactNode
+  button: ButtonHTMLAttributes<HTMLButtonElement>
+  children: ReactNode
+}) {
+  return (
+    <div
+      ref={measureRef}
+      data-index={index}
+      className={cn(
+        'absolute left-0 top-0 flex min-h-6 w-full items-center gap-1.5 px-2 text-xs hover:bg-accent',
+        className
+      )}
+      style={style}
+    >
+      {checkbox}
+      <button
+        type="button"
+        className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
+        {...button}
+      >
+        {children}
+      </button>
+    </div>
+  )
+}
+
 function GroupIcon({ group }: { group: GitRefTreeGroup }) {
   const Icon = group.kind === 'local' ? Laptop : group.kind === 'tags' ? Tag : Cloud
   return <Icon className="size-3.5 shrink-0 text-muted-foreground" />
@@ -48,6 +100,7 @@ export function GitRefTree({
   refs,
   cappedKeys,
   currentRefId,
+  pendingRefId,
   isVisible,
   onToggle,
   onJump,
@@ -63,7 +116,7 @@ export function GitRefTree({
     const next: Row[] = []
     for (const group of groups) {
       const matches = needle
-        ? group.refs.filter((ref) => ref.name.toLowerCase().includes(needle))
+        ? group.refs.filter((ref) => ref.id.toLowerCase().includes(needle))
         : group.refs
       if (!matches.length) {
         continue
@@ -115,21 +168,24 @@ export function GitRefTree({
         <div className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
           {virtualizer.getVirtualItems().map((virtualRow) => {
             const row = rows[virtualRow.index]!
-            const style = { transform: `translateY(${virtualRow.start}px)` }
-            const rowClass =
-              'absolute left-0 top-0 flex min-h-6 w-full items-center gap-1.5 px-2 text-xs'
-            const measure = { ref: virtualizer.measureElement, 'data-index': virtualRow.index }
+            const rowProps = {
+              measureRef: virtualizer.measureElement,
+              index: virtualRow.index,
+              style: { transform: `translateY(${virtualRow.start}px)` }
+            }
             if (row.kind === 'capped-note') {
               return (
                 <p
                   key={row.key}
-                  {...measure}
+                  ref={virtualizer.measureElement}
+                  data-index={virtualRow.index}
                   className="absolute left-0 top-0 w-full py-1 pl-5 pr-2 text-2xs text-muted-foreground"
-                  style={style}
+                  style={rowProps.style}
                 >
                   {t(
                     'gitGraph.groupTruncated',
-                    'Only the first 1,000 are listed. Search to find the rest.'
+                    'Only the first {{max}} are listed. Search to find the rest.',
+                    { max: GIT_HISTORY_MAX_REFS.toLocaleString() }
                   )}
                 </p>
               )
@@ -138,76 +194,77 @@ export function GitRefTree({
               const ids = row.matches.map((ref) => ref.id)
               const visibleCount = isVisible ? ids.filter(isVisible).length : 0
               return (
-                <div
+                <RefRow
                   key={row.key}
-                  {...measure}
-                  className={cn(rowClass, 'hover:bg-accent')}
-                  style={style}
-                >
-                  {onToggle && isVisible && (
-                    <Checkbox
-                      aria-label={groupLabel(row.group)}
-                      checked={
-                        visibleCount === ids.length
-                          ? true
-                          : visibleCount === 0
-                            ? false
-                            : 'indeterminate'
-                      }
-                      onCheckedChange={() => onToggle(ids, visibleCount !== ids.length)}
-                    />
-                  )}
-                  <button
-                    type="button"
-                    className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
-                    aria-expanded={row.expanded}
-                    onClick={() =>
+                  {...rowProps}
+                  checkbox={
+                    onToggle &&
+                    isVisible && (
+                      <Checkbox
+                        aria-label={groupLabel(row.group)}
+                        checked={
+                          visibleCount === ids.length
+                            ? true
+                            : visibleCount === 0
+                              ? false
+                              : 'indeterminate'
+                        }
+                        onCheckedChange={() => onToggle(ids, visibleCount !== ids.length)}
+                      />
+                    )
+                  }
+                  button={{
+                    'aria-expanded': row.expanded,
+                    onClick: () =>
                       setExpandedByKey((state) => ({ ...state, [row.key]: !row.expanded }))
-                    }
-                  >
-                    <ChevronDown
-                      className={cn(
-                        'size-3 shrink-0 transition-transform',
-                        !row.expanded && '-rotate-90'
-                      )}
-                    />
-                    <GroupIcon group={row.group} />
-                    <span className="truncate font-medium">{groupLabel(row.group)}</span>
-                    <span className="text-2xs tabular-nums text-muted-foreground">
-                      {row.matches.length}
-                      {row.capped && '+'}
-                    </span>
-                  </button>
-                </div>
+                  }}
+                >
+                  <ChevronDown
+                    className={cn(
+                      'size-3 shrink-0 transition-transform',
+                      !row.expanded && '-rotate-90'
+                    )}
+                  />
+                  <GroupIcon group={row.group} />
+                  <span className="truncate font-medium">{groupLabel(row.group)}</span>
+                  <span className="text-2xs tabular-nums text-muted-foreground">
+                    {row.matches.length}
+                    {row.capped && '+'}
+                  </span>
+                </RefRow>
               )
             }
             const { ref, group } = row
             const name = gitRefDisplayName(group, ref)
+            const pending = ref.id === pendingRefId
             return (
-              <div
+              <RefRow
                 key={row.key}
-                {...measure}
-                className={cn(rowClass, 'pl-5 hover:bg-accent')}
-                style={style}
+                {...rowProps}
+                className="pl-5"
+                checkbox={
+                  onToggle &&
+                  isVisible && (
+                    <Checkbox
+                      aria-label={`${groupLabel(group)}: ${name}`}
+                      checked={isVisible(ref.id)}
+                      onCheckedChange={(checked) => onToggle([ref.id], checked === true)}
+                    />
+                  )
+                }
+                button={{ title: name, 'aria-busy': pending, onClick: () => onJump(ref) }}
               >
-                {onToggle && isVisible && (
-                  <Checkbox
-                    aria-label={name}
-                    checked={isVisible(ref.id)}
-                    onCheckedChange={(checked) => onToggle([ref.id], checked === true)}
-                  />
-                )}
-                <button
-                  type="button"
-                  className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
-                  title={name}
-                  onClick={() => onJump(ref)}
-                >
+                {pending ? (
+                  <>
+                    <LoadingSpinner className="size-3.5 shrink-0 text-muted-foreground" />
+                    <span className="sr-only">{t('gitGraph.findingCommit', 'Finding commit')}</span>
+                  </>
+                ) : (
                   <GroupIcon group={group} />
-                  <span className="truncate">{name}</span>
-                  {ref.id === currentRefId && <Check className="size-3 shrink-0 text-primary" />}
-                </button>
-              </div>
+                )}
+                <span className="truncate">{name}</span>
+                {ref.id === currentRefId && <Check className="size-3 shrink-0 text-primary" />}
+              </RefRow>
             )
           })}
         </div>

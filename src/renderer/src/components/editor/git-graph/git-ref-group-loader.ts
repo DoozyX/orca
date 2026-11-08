@@ -1,3 +1,4 @@
+import { translate } from '@/i18n/i18n'
 import type { GitHistoryItemRef } from '../../../../../shared/git/history/git-history-types'
 import { LOCAL, REMOTE, TAG, isGitRefListTruncated, remoteGroupKey } from './git-ref-groups'
 
@@ -8,6 +9,7 @@ export type LoadedGitRefGroups = {
   errors: string[]
 }
 
+const REMOTE_HEAD = /^refs\/remotes\/[^/]+\/HEAD$/
 const PROBE_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789._-'
 const MAX_CONCURRENT_REQUESTS = 4
 
@@ -53,13 +55,18 @@ export async function loadGitRefGroups(
       return await fetchRefs(prefix)
     } catch (cause) {
       console.error(`Could not load git refs for ${prefix}`, cause)
-      errors.push(`${prefix}: ${String(cause)}`)
+      errors.push(
+        translate('gitGraph.groupLoadFailed', 'Could not load {{refs}}: {{reason}}', {
+          refs: prefix,
+          reason: cause instanceof Error ? cause.message : String(cause)
+        })
+      )
       return undefined
     }
   }
   const addGroup = (page: GitHistoryItemRef[], prefix: string, key: string) => {
     for (const ref of page) {
-      if (ref.id.startsWith(prefix)) {
+      if (ref.id.startsWith(prefix) && !REMOTE_HEAD.test(ref.id)) {
         byId.set(ref.id, ref)
       }
     }

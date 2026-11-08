@@ -637,7 +637,9 @@ it('hides a ref chosen in the rail by asking history for every other ref', async
   }))
   await renderGraphWithRail(railRefs)
   await act(async () =>
-    container.querySelector<HTMLButtonElement>('aside [role="checkbox"][aria-label="x"]')!.click()
+    container
+      .querySelector<HTMLButtonElement>('aside [role="checkbox"][aria-label="Local: x"]')!
+      .click()
   )
   expect(getHistory.mock.calls.at(-1)?.[1].refs).toEqual([
     'refs/heads/a',
@@ -700,4 +702,49 @@ it('lists a remote the capped remotes page does not reach by probing remote name
     )
     expect(labels).toEqual(['origin1', 'fork1000+'])
   })
+})
+
+it('refuses to hide from All while a group is capped and leaves the filter untouched', async () => {
+  const locals = Array.from({ length: 1000 }, (_, index) => ({
+    id: `refs/heads/b${index}`,
+    name: `b${index}`,
+    revision: sha(index + 1)
+  }))
+  getHistory.mockReset().mockResolvedValue({ ...result, refs: 'all' })
+  getRefs
+    .mockReset()
+    .mockImplementation(async (_context, query) => (query === 'refs/heads/' ? locals : []))
+  await act(async () =>
+    root.render(
+      <TooltipProvider>
+        <GitGraphTab worktreeId={workspaceId} />
+      </TooltipProvider>
+    )
+  )
+  await vi.waitFor(async () => {
+    await act(async () => {})
+    expect(container.querySelector('aside [role="checkbox"][aria-label="Local"]')).not.toBeNull()
+  })
+  await act(async () =>
+    container
+      .querySelector<HTMLButtonElement>('aside [role="checkbox"][aria-label="Local"]')!
+      .click()
+  )
+  expect(container.querySelector('aside [role="status"]')?.textContent).toContain(
+    'at most 1,000 chosen branches and tags'
+  )
+  expect(getHistory.mock.calls.map((call) => call[1].refs)).toEqual(['all'])
+})
+
+it('shows a hidden ref before jumping to its commit', async () => {
+  useAppStore.setState({ gitGraphFiltersByWorktree: { [workspaceId]: ['refs/heads/a'] } })
+  getHistory.mockReset().mockImplementation(async (_owner, options) => ({
+    ...result,
+    refs: options.refs
+  }))
+  await renderGraphWithRail(railRefs)
+  await act(async () =>
+    container.querySelector<HTMLButtonElement>('aside button[title="v1"]')!.click()
+  )
+  expect(getHistory.mock.calls.at(-1)?.[1].refs).toEqual(['refs/heads/a', 'refs/tags/v1'])
 })

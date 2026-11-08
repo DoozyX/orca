@@ -2,22 +2,23 @@ import { gitGraphOwnerKey, switchGitGraphWorkspace } from './git-graph-workspace
 import { createStore } from 'zustand/vanilla'
 import { shallow } from 'zustand/shallow'
 import { useAppStore } from '@/store'
-import { gitGraphScope, gitGraphScopeInputs, GIT_GRAPH_REFRESH_EVENT } from '@/lib/git-graph-tab'
+import {
+  gitGraphRuntimeContext,
+  gitGraphScope,
+  gitGraphScopeInputs,
+  GIT_GRAPH_REFRESH_EVENT
+} from '@/lib/git-graph-tab'
 import { getRuntimeGitHistory } from '@/runtime/source-control/git/runtime-git-status-client'
 import { translate } from '@/i18n/i18n'
-import type {
-  GitHistoryRefs,
-  GitHistoryResult
+import {
+  GIT_HISTORY_DEFAULT_LIMIT,
+  GIT_HISTORY_MAX_LIMIT,
+  type GitHistoryRefs,
+  type GitHistoryResult
 } from '../../../../../shared/git/history/git-history-types'
+import type { HistoryView } from './git-graph-history-view'
 import type { ExecutionHostId } from '../../../../../shared/execution-host'
 
-type HistoryView = {
-  result?: GitHistoryResult
-  error?: string
-  loading: boolean
-  selectedId?: string
-  revealId?: string
-}
 const controllers = new Map<string, GitGraphHistoryController>()
 const filterFor = (worktreeId: string) =>
   useAppStore.getState().gitGraphFiltersByWorktree?.[worktreeId] ?? 'all'
@@ -126,6 +127,7 @@ export class GitGraphHistoryController {
 
   dispose(): void {
     this.disposed = true
+    this.view.setState({ disposed: true, loading: false })
     this.generation++
     this.unsubscribe?.()
     window.removeEventListener(GIT_GRAPH_REFRESH_EVENT, this.onRefresh)
@@ -160,18 +162,20 @@ export class GitGraphHistoryController {
     this.clearReveal()
     const current = () =>
       !this.disposed && generation === this.generation && navigation === this.navigation
+    // -2: the history was reloaded under this jump, so the caller may retry; -1: superseded or closed.
+    const aborted = () => (!this.disposed && navigation === this.navigation ? -2 : -1)
     while (this.pending && current()) {
       await this.pending
     }
     if (!current()) {
-      return -1
+      return aborted()
     }
     let result = this.view.getState().result
     if (!result?.items.some((item) => item.id === id) && result?.hasMore) {
       result = await this.retrieve(true, false, id, navigation)
     }
     if (!current()) {
-      return -1
+      return aborted()
     }
     const index = result?.items.findIndex((item) => item.id === id) ?? -1
     if (index !== -1) {
@@ -213,15 +217,10 @@ export class GitGraphHistoryController {
       try {
         do {
           const page = await getRuntimeGitHistory(
-            {
-              target: context.target,
-              worktreeId: this.worktreeId,
-              worktreePath: context.worktree.path,
-              connectionId: context.connectionId ?? undefined
-            },
+            gitGraphRuntimeContext(this.worktreeId, context),
             {
               refs: filter,
-              limit: 50,
+              limit: revealId ? GIT_HISTORY_MAX_LIMIT : GIT_HISTORY_DEFAULT_LIMIT,
               historyToken: accumulated?.historyToken,
               skip: items.length,
               wakeWslDistro

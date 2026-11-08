@@ -5,7 +5,7 @@ import { getWorktreeExecutionHostId } from '../../../../../shared/execution-host
 import { findIndexedRepoOwnerForHost } from '@/lib/workspace/ownership/repo-owner-index'
 import { selectWorktreesByRepo } from '@/store/workspaces/catalog/workspace-record-fields'
 import { useAppStore } from '@/store'
-import { gitGraphScope } from '@/lib/git-graph-tab'
+import { gitGraphRuntimeContext, gitGraphScope } from '@/lib/git-graph-tab'
 import { getRuntimeGitRefs } from '@/runtime/source-control/git/runtime-git-status-client'
 
 export const gitGraphOwnerKey = (scope: ReturnType<typeof gitGraphScope>) =>
@@ -47,15 +47,7 @@ export async function switchGitGraphWorkspace(
     gitGraphOwnerKey(scope) ===
       gitGraphOwnerKey(gitGraphScope(worktreeId, useAppStore.getState(), hostId))
   try {
-    const refs = await getRuntimeGitRefs(
-      {
-        target: scope.target,
-        worktreeId: worktreeId,
-        worktreePath: scope.worktree.path,
-        connectionId: scope.connectionId ?? undefined
-      },
-      refId
-    )
+    const refs = await getRuntimeGitRefs(gitGraphRuntimeContext(worktreeId, scope), refId)
     if (!current()) {
       return
     }

@@ -1,12 +1,15 @@
-import { ChevronDown } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { openGitGraph } from '@/lib/git-graph-tab'
+import { useEffect, useState } from 'react'
+import { openGitGraph, GIT_GRAPH_REFRESH_EVENT } from '@/lib/git-graph-tab'
 import { useTranslate } from '@/i18n/use-translate'
 import { GitRefTree } from '@/components/editor/git-graph/git-ref-tree'
+import { gitGraphOldServerMessage } from '@/components/editor/git-graph/git-graph-ref-messages'
+import { revealGitRefInGitGraph } from '@/components/editor/git-graph/git-graph-reveal-ref'
 import {
   useGitGraphRefOwner,
   useGitRefTreeSource
 } from '@/components/editor/git-graph/git-graph-ref-source'
+import type { GitHistoryItemRef } from '../../../../../../shared/git/history/git-history-types'
+import { DockSectionToggle } from './dock-section-toggle'
 
 export function BranchesTagsSection({
   worktreeId,
@@ -21,40 +24,62 @@ export function BranchesTagsSection({
 }) {
   const t = useTranslate()
   const { owner, requests } = useGitGraphRefOwner(worktreeId)
+  // Each expand and each Git Graph refresh refetches, so failed groups retry and moved tips update.
+  const [reloadKey, setReloadKey] = useState(0)
+  const [pendingRefId, setPendingRefId] = useState<string>()
+  useEffect(() => {
+    const onRefresh = (event: Event) => {
+      if (event instanceof CustomEvent && event.detail === worktreeId) {
+        setReloadKey((key) => key + 1)
+      }
+    }
+    window.addEventListener(GIT_GRAPH_REFRESH_EVENT, onRefresh)
+    return () => window.removeEventListener(GIT_GRAPH_REFRESH_EVENT, onRefresh)
+  }, [worktreeId])
   const { capable, refs, cappedKeys, allRefs, anyGroupCapped, error, setQuery } =
     useGitRefTreeSource({
       worktreeId,
       owner,
       requests,
-      enabled: !collapsed
+      enabled: !collapsed,
+      reloadKey
     })
+  const jump = async (ref: GitHistoryItemRef) => {
+    setPendingRefId(ref.id)
+    await openGitGraph(worktreeId, {
+      afterOpen: async (scope) => {
+        await revealGitRefInGitGraph(worktreeId, scope, ref)
+      }
+    })
+    // A later jump has already replaced this one as the pending row.
+    setPendingRefId((id) => (id === ref.id ? undefined : id))
+  }
   return (
     <div className="border-b border-border">
       <div className="h-7 pl-1 pr-3">
-        <button
-          type="button"
-          className="flex h-full w-full min-w-0 items-center gap-1 px-0.5 text-left text-2xs font-semibold uppercase tracking-wider text-foreground/70"
-          aria-expanded={!collapsed}
-          onClick={onToggle}
-        >
-          <ChevronDown
-            className={cn('size-3 shrink-0 transition-transform', collapsed && '-rotate-90')}
-          />
-          <span>{t('gitGraph.branchesAndTags', 'Branches & Tags')}</span>
-          {allRefs && (
-            <span className="text-3xs font-medium tabular-nums">
-              {allRefs.length}
-              {anyGroupCapped && '+'}
-            </span>
-          )}
-        </button>
+        <DockSectionToggle
+          label={t('gitGraph.branchesAndTags', 'Branches & Tags')}
+          collapsed={collapsed}
+          onToggle={() => {
+            if (collapsed) {
+              setReloadKey((key) => key + 1)
+            }
+            onToggle()
+          }}
+          count={
+            allRefs && (
+              <span className="text-3xs font-medium tabular-nums">
+                {allRefs.length}
+                {anyGroupCapped && '+'}
+              </span>
+            )
+          }
+        />
       </div>
       {!collapsed && (
         <div className="flex flex-col" style={{ height: 'min(192px, 25vh)' }}>
           {capable === false ? (
-            <p className="px-3 py-2 text-xs text-muted-foreground">
-              {t('gitGraph.oldServer', "This server's Orca version shows only the current branch")}
-            </p>
+            <p className="px-3 py-2 text-xs text-muted-foreground">{gitGraphOldServerMessage(t)}</p>
           ) : (
             <>
               {error && <p className="shrink-0 px-3 py-2 text-xs text-destructive">{error}</p>}
@@ -64,7 +89,8 @@ export function BranchesTagsSection({
                     refs={refs}
                     cappedKeys={cappedKeys}
                     currentRefId={currentRefId}
-                    onJump={(ref) => void openGitGraph(worktreeId, { revealRef: ref })}
+                    pendingRefId={pendingRefId}
+                    onJump={(ref) => void jump(ref)}
                     onQueryChange={setQuery}
                   />
                 </div>
