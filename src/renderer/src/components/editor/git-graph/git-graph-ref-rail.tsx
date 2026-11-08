@@ -45,7 +45,7 @@ function GitGraphRefRailForOwner({
       enabled: true,
       reloadKey
     })
-  useEffect(() => setRefusal(undefined), [history.filter])
+  useEffect(() => setRefusal(undefined), [history.filter, groupsComplete, anyGroupCapped])
   const currentRefId = history.result?.currentRef?.id
   const allRefIds = useMemo(
     () => (groupsComplete && allRefs ? allRefs.map((ref) => ref.id) : undefined),
