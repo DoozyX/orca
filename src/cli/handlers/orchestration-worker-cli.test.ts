@@ -305,6 +305,86 @@ describe('orchestration worker-start CLI contract', () => {
     )
   })
 
+  describe.each([
+    ['orchestration worker-stop', 'orchestration.workerStop'],
+    ['orchestration worker-release', 'orchestration.workerRelease']
+  ])('%s --run', (command, mutationMethod) => {
+    function mockShowInRun(runId: string): void {
+      callMock.mockImplementation(async (method: string) => {
+        if (method === 'orchestration.workerShow') {
+          return { result: { dispatch: { id: 'ctx_1', runId } } }
+        }
+        return { result: { dispatchId: 'ctx_1', state: 'stopped', processAction: 'none' } }
+      })
+    }
+
+    const invoke = (flags: Map<string, string | boolean>) =>
+      ORCHESTRATION_HANDLERS[command]({ flags, client, cwd: '/tmp/repo', json: true })
+
+    it('refuses a Dispatch in another Run without calling the mutation', async () => {
+      mockShowInRun('run_other')
+
+      await expect(
+        invoke(
+          new Map<string, string | boolean>([
+            ['dispatch', 'ctx_1'],
+            ['run', 'run_wanted']
+          ])
+        )
+      ).rejects.toMatchObject({ code: 'dispatch_run_mismatch' })
+
+      expect(callMock).toHaveBeenCalledTimes(1)
+      expect(callMock).toHaveBeenCalledWith('orchestration.workerShow', { dispatch: 'ctx_1' })
+    })
+
+    it('calls the mutation with only the dispatch when the Run matches', async () => {
+      mockShowInRun('run_wanted')
+
+      await invoke(
+        new Map<string, string | boolean>([
+          ['dispatch', 'ctx_1'],
+          ['run', 'run_wanted']
+        ])
+      )
+
+      expect(callMock).toHaveBeenCalledWith('orchestration.workerShow', { dispatch: 'ctx_1' })
+      expect(callMock).toHaveBeenCalledWith(mutationMethod, { dispatch: 'ctx_1' })
+    })
+
+    it('rejects an empty --run without calling the mutation', async () => {
+      mockShowInRun('run_other')
+
+      await expect(
+        invoke(
+          new Map<string, string | boolean>([
+            ['dispatch', 'ctx_1'],
+            ['run', '']
+          ])
+        )
+      ).rejects.toMatchObject({ code: 'invalid_argument' })
+
+      expect(callMock).not.toHaveBeenCalled()
+    })
+  })
+
+  it('refuses worker-stop --run when the shown Dispatch is null', async () => {
+    callMock.mockResolvedValue({ result: { dispatch: null } })
+
+    await expect(
+      ORCHESTRATION_HANDLERS['orchestration worker-stop']({
+        flags: new Map<string, string | boolean>([
+          ['dispatch', 'ctx_1'],
+          ['run', 'run_wanted']
+        ]),
+        client,
+        cwd: '/tmp/repo',
+        json: true
+      })
+    ).rejects.toMatchObject({ code: 'dispatch_run_mismatch' })
+
+    expect(callMock).toHaveBeenCalledTimes(1)
+  })
+
   it('allows the initial zero cursor when paging worker output', async () => {
     callMock.mockResolvedValue({
       result: {
