@@ -283,7 +283,9 @@ it('bounds refresh to one extra page when the selected commit has vanished', asy
   expect(getHistory).toHaveBeenCalledTimes(4)
   expect(container.querySelectorAll('[data-current]')).toHaveLength(200)
   expect(container.querySelector('[data-current="true"] button[title="Commit 0"]')).not.toBeNull()
-  expect(container.querySelector('aside h2')?.textContent).toBe('Commit 0')
+  expect(container.querySelector('[data-testid="git-graph-commit-message"]')?.textContent).toBe(
+    'Commit 0'
+  )
   expect(scroll.scrollTop).toBe(0)
 })
 
@@ -309,7 +311,9 @@ it('keeps a newer selection and its details during refresh and after a partial f
   })
   expect(container.querySelectorAll('[data-current]')).toHaveLength(150)
   expect(container.querySelector('[data-current="true"] button[title="Commit 120"]')).not.toBeNull()
-  expect(container.querySelector('aside h2')?.textContent).toBe('Commit 120')
+  expect(container.querySelector('[data-testid="git-graph-commit-message"]')?.textContent).toBe(
+    'Commit 120'
+  )
 
   getHistory
     .mockResolvedValueOnce(page(0))
@@ -319,7 +323,9 @@ it('keeps a newer selection and its details during refresh and after a partial f
   })
   expect(container.querySelectorAll('[data-current]')).toHaveLength(150)
   expect(container.querySelector('[data-current="true"] button[title="Commit 120"]')).not.toBeNull()
-  expect(container.querySelector('aside h2')?.textContent).toBe('Commit 120')
+  expect(container.querySelector('[data-testid="git-graph-commit-message"]')?.textContent).toBe(
+    'Commit 120'
+  )
 })
 
 it.each(['local', 'ssh:A'] as const)(
