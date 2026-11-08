@@ -36,6 +36,16 @@ describe('buildGitGraphWipItems', () => {
     ).toEqual([])
   })
 
+  it('leaves out a workspace on an unborn branch', () => {
+    expect(
+      buildGitGraphWipItems({
+        workspaces: [workspace({ headOid: '' })],
+        filter: 'all',
+        loadedIds: new Set()
+      })
+    ).toEqual([])
+  })
+
   it('shows a detached workspace only while its HEAD is loaded', () => {
     const detached = workspace({ branchRefId: undefined })
     const build = (loadedIds: Set<string>) =>

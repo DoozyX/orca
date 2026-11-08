@@ -24352,7 +24352,12 @@
     "wipStaged": "Staged",
     "wipChanges": "Changes",
     "wip": "// WIP",
-    "wipOnBranch": "on {{branch}}"
+    "wipOnBranch": "on {{branch}}",
+    "refsIncomplete": "Not every branch and tag is loaded yet. Wait for the list, or Refresh, to hide one.",
+    "tooManyRefsShow": "The graph can show at most {{max}} chosen branches and tags. Hide some first.",
+    "commitNotFound": "That commit is not in the loaded graph",
+    "groupLoadFailed": "Could not load {{refs}}: {{reason}}",
+    "findingCommit": "Finding commit"
   },
   "macosUpdateRequirement": {
     "title": "Orca updates now need macOS {{macos}}",

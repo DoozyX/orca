@@ -7,7 +7,11 @@ import { forEachWithConcurrency } from '../../../../../shared/map-with-concurren
 import type { GitStatusEntry } from '../../../../../shared/git/status/git-status-types'
 import type { Worktree } from '../../../../../shared/worktree/types'
 import type { GitGraphWipWorkspace } from './git-graph-wip-items'
-import { gitGraphOwnerKey, gitGraphWorkspaceCatalog } from './git-graph-workspace-navigation'
+import {
+  gitGraphOwnerKey,
+  gitGraphWorkspaceBranchRefId,
+  gitGraphWorkspaceCatalog
+} from './git-graph-workspace-navigation'
 
 const STATUS_CONCURRENCY = 4
 const STATUS_TIMEOUT_MS = 15_000
@@ -23,11 +27,7 @@ function toWipWorkspace(
     worktreeId: worktree.id,
     worktreePath: worktree.path,
     displayName: worktree.displayName,
-    branchRefId: worktree.branch
-      ? worktree.branch.startsWith('refs/heads/')
-        ? worktree.branch
-        : `refs/heads/${worktree.branch}`
-      : undefined,
+    branchRefId: worktree.branch ? gitGraphWorkspaceBranchRefId(worktree.branch) : undefined,
     headOid: status.head ?? worktree.head,
     entries: status.entries,
     didHitLimit: status.didHitLimit,
@@ -85,6 +85,9 @@ export function useGitGraphWipStatus(scope: ReturnType<typeof gitGraphScope>): {
       (worktree) => worktree.id !== owner.worktree.id || !hasSourceControlStatus
     )
     void forEachWithConcurrency(targets, STATUS_CONCURRENCY, async (worktree) => {
+      if (run !== generation.current) {
+        return
+      }
       let status: FetchedStatus | undefined
       try {
         const result = await getRuntimeGitStatus(

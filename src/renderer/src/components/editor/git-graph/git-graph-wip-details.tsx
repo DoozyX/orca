@@ -78,7 +78,7 @@ export function GitGraphWipDetails({
               })}
         </h2>
         {onSwitch && (
-          <Button size="xs" variant="outline" onClick={onSwitch}>
+          <Button size="xs" variant="outline" onClick={onSwitch} data-testid="git-graph-wip-switch">
             <ArrowUpRight />
             {t('gitGraph.switchWorkspace', 'Switch to workspace')}
           </Button>

@@ -11,7 +11,10 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { useAppStore } from '@/store'
 import { selectWorktreesByRepo } from '@/store/workspaces/catalog/workspace-record-fields'
 import type { gitGraphScope } from '@/lib/git-graph-tab'
-import { gitGraphWorkspaceCatalog } from './git-graph-workspace-navigation'
+import {
+  gitGraphWorkspaceBranchRefId,
+  gitGraphWorkspaceCatalog
+} from './git-graph-workspace-navigation'
 import { useTranslate } from '@/i18n/use-translate'
 import { graphColor } from '@/components/right-sidebar/source-control/sync/git-history-graph-svg'
 import { groupGitGraphRowRefs, type GitGraphRowRef } from './git-graph-row-refs'
@@ -29,7 +32,7 @@ export function useGitGraphWorkspaces(scope: ReturnType<typeof gitGraphScope>) {
     () =>
       new Map(
         gitGraphWorkspaceCatalog(scope, { repos, worktreesByRepo: worktrees }).map((row) => [
-          row.branch.startsWith('refs/heads/') ? row.branch : `refs/heads/${row.branch}`,
+          gitGraphWorkspaceBranchRefId(row.branch),
           row
         ])
       ),

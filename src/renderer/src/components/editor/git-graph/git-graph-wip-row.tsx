@@ -49,7 +49,7 @@ export function GitGraphWipRow({
       className={cn(className, selected && 'bg-accent')}
       style={style}
       data-current={selected}
-      data-wip
+      data-wip={workspace.worktreeId}
       onClick={onSelect}
     >
       <span />

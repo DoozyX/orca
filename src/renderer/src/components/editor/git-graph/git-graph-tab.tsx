@@ -18,12 +18,14 @@ import { GitGraphFilter } from './git-graph-filter'
 import { GitGraphAuthorFilter } from './git-graph-author-filter'
 import { gitGraphAuthorKey } from './git-graph-author-key'
 import { GitGraphDetails } from './git-graph-details'
+import type { GitGraphFileSort } from './git-graph-file-list'
 import { GitGraphRefRail } from './git-graph-ref-rail'
 import { GitGraphRefs, useGitGraphWorkspaces } from './git-graph-ref-menu'
 import { GitGraphWipDetails } from './git-graph-wip-details'
 import { GitGraphWipRow } from './git-graph-wip-row'
 import { openGitGraphWipEntry } from './open-git-graph-wip-entry'
 import { useGitGraphRows } from './use-git-graph-rows'
+import { isGitHistoryWipId } from '../../../../../shared/git/history/git-history-wip-rows'
 import { cn } from '@/lib/utils'
 import { GIT_GRAPH_REFRESH_EVENT } from '@/lib/git-graph-tab'
 import { useIntlLocale, useTranslate } from '@/i18n/use-translate'
@@ -94,7 +96,13 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
     overscan: 12,
     getItemKey: (index) => rows[index]!.historyItem.id
   })
-  const selected = rows.find((row) => row.historyItem.id === selectedId)?.historyItem
+  // A WIP selection outlives its row (clean, hidden or failed status), so show the newest commit instead.
+  const selected = (
+    rows.find((row) => row.historyItem.id === selectedId) ??
+    (selectedId !== undefined && isGitHistoryWipId(selectedId)
+      ? rows.find((row) => !isGitHistoryWipId(row.historyItem.id))
+      : undefined)
+  )?.historyItem
   const selectedWip = selected ? wipById.get(selected.id) : undefined
   useLayoutEffect(() => {
     if (scroll.current) {
@@ -111,7 +119,7 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
       controller.clearReveal()
     }
   }, [rows, revealId, virtualizer, controller])
-  const changeFileSort = (sort: 'asc' | 'desc') => {
+  const changeFileSort = (sort: GitGraphFileSort) => {
     controller.fileSort = sort
     setFileSort(sort)
   }
@@ -353,9 +361,9 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
                   scope && openGitGraphWipEntry(worktreeId, scope, selectedWip, entry, event)
                 }
                 onSwitch={
-                  !selectedWip.current && selectedWip.branchRefId
-                    ? () => void controller.switchToWorkspace(selectedWip.branchRefId!)
-                    : undefined
+                  selectedWip.current
+                    ? undefined
+                    : () => controller.activateWorkspace(selectedWip.worktreeId)
                 }
               />
             ) : (

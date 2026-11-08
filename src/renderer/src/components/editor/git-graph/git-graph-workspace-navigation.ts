@@ -32,6 +32,30 @@ export function gitGraphWorkspaceCatalog(
   )
 }
 
+export const gitGraphWorkspaceBranchRefId = (branch: string): string =>
+  branch.startsWith('refs/heads/') ? branch : `refs/heads/${branch}`
+
+const notifyWorkspaceClosed = () =>
+  toast.message(
+    translate('gitGraph.workspaceClosed', "This branch isn't open in another workspace anymore.")
+  )
+
+export function activateGitGraphWorkspace(
+  scope: ReturnType<typeof gitGraphScope>,
+  worktreeId: string,
+  isLive: () => boolean
+): void {
+  const hostId = scope?.route.executionHostId
+  if (!scope || !hostId || !isLive()) {
+    return
+  }
+  if (gitGraphWorkspaceCatalog(scope).some((row) => row.id === worktreeId)) {
+    useAppStore.getState().setActiveWorktree(worktreeId, hostId)
+  } else {
+    notifyWorkspaceClosed()
+  }
+}
+
 export async function switchGitGraphWorkspace(
   scope: ReturnType<typeof gitGraphScope>,
   refId: string,
@@ -61,12 +85,7 @@ export async function switchGitGraphWorkspace(
     if (workspace) {
       useAppStore.getState().setActiveWorktree(workspace.id, hostId)
     } else {
-      toast.message(
-        translate(
-          'gitGraph.workspaceClosed',
-          "This branch isn't open in another workspace anymore."
-        )
-      )
+      notifyWorkspaceClosed()
     }
   } catch {
     if (current()) {

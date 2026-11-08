@@ -1,4 +1,8 @@
-import { gitGraphOwnerKey, switchGitGraphWorkspace } from './git-graph-workspace-navigation'
+import {
+  activateGitGraphWorkspace,
+  gitGraphOwnerKey,
+  switchGitGraphWorkspace
+} from './git-graph-workspace-navigation'
 import { createStore } from 'zustand/vanilla'
 import { shallow } from 'zustand/shallow'
 import { useAppStore } from '@/store'
@@ -19,7 +23,7 @@ import {
 } from '../../../../../shared/git/history/git-history-types'
 import type { HistoryView } from './git-graph-history-view'
 import type { ExecutionHostId } from '../../../../../shared/execution-host'
-import { resolveGitGraphSelection } from './git-graph-wip-items'
+import { isGitGraphSelectionLoaded, resolveGitGraphSelection } from './git-graph-wip-items'
 
 const noAuthors: ReadonlySet<string> = new Set()
 const controllers = new Map<string, GitGraphHistoryController>()
@@ -140,14 +144,14 @@ export class GitGraphHistoryController {
     window.removeEventListener(GIT_GRAPH_REFRESH_EVENT, this.onRefresh)
   }
 
-  switchToWorkspace = (refId: string): Promise<void> => {
+  private liveGuard(): () => boolean {
     const generation = this.generation
-    return switchGitGraphWorkspace(
-      this.scope,
-      refId,
-      () => !this.disposed && generation === this.generation
-    )
+    return () => !this.disposed && generation === this.generation
   }
+  switchToWorkspace = (refId: string): Promise<void> =>
+    switchGitGraphWorkspace(this.scope, refId, this.liveGuard())
+  activateWorkspace = (worktreeId: string): void =>
+    activateGitGraphWorkspace(this.scope, worktreeId, this.liveGuard())
 
   get authorHighlight(): ReadonlySet<string> {
     return this.view.getState().authorHighlight
@@ -213,10 +217,9 @@ export class GitGraphHistoryController {
     if (!context || (append && !previous?.hasMore)) {
       return Promise.resolve(context ? previous : undefined)
     }
-    const generation = this.generation
     const targetDepth = previous?.items.length ?? 0
     const filter = this.filter
-    const current = () => !this.disposed && generation === this.generation
+    const current = this.liveGuard()
     this.initial = false
     this.dirty = false
     this.view.setState({ loading: true, error: undefined })
@@ -267,7 +270,8 @@ export class GitGraphHistoryController {
           if (
             (!revealId &&
               items.length >= targetDepth &&
-              (count >= targetDepth || ids.has(this.view.getState().selectedId ?? ''))) ||
+              (count >= targetDepth ||
+                isGitGraphSelectionLoaded(ids, this.view.getState().selectedId))) ||
             (revealId && (navigation !== this.navigation || ids.has(revealId))) ||
             !page.hasMore ||
             items.length === count

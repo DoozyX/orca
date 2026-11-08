@@ -30,10 +30,13 @@ export function buildGitGraphWipItems(input: {
 }): GitHistoryItem[] {
   const { workspaces, filter, currentRefId, loadedIds } = input
   return workspaces
-    .filter((workspace) =>
-      workspace.branchRefId
-        ? isGitGraphRefVisible(filter, workspace.branchRefId, currentRefId)
-        : loadedIds.has(workspace.headOid)
+    .filter(
+      (workspace) =>
+        // An unborn branch has no HEAD commit to hang the dashed lane from.
+        workspace.headOid !== '' &&
+        (workspace.branchRefId
+          ? isGitGraphRefVisible(filter, workspace.branchRefId, currentRefId)
+          : loadedIds.has(workspace.headOid))
     )
     .toSorted(
       (a, b) => Number(b.current) - Number(a.current) || a.displayName.localeCompare(b.displayName)
@@ -75,3 +78,9 @@ export function resolveGitGraphSelection(
   }
   return items?.find((item) => item.id === selection)?.id ?? items?.[0]?.id
 }
+
+// A WIP row is synthetic and never in the commit ids, so it must not trigger extra paging.
+export const isGitGraphSelectionLoaded = (
+  ids: ReadonlySet<string>,
+  selectedId: string | undefined
+): boolean => selectedId !== undefined && (isGitHistoryWipId(selectedId) || ids.has(selectedId))
