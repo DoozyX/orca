@@ -165,7 +165,8 @@ export function GitHistoryGraphSvg({
 
   const cx = laneWidth * (circleIndex + 1)
   const cy = nodeY
-  const width = laneWidth * (Math.max(inputSwimlanes.length, outputSwimlanes.length, 1) + 1)
+  const width =
+    laneWidth * (Math.max(inputSwimlanes.length, outputSwimlanes.length, circleIndex + 1, 1) + 1)
   const isBoundaryNode =
     viewModel.kind === 'incoming-changes' || viewModel.kind === 'outgoing-changes'
   const isMergeNode = historyItem.parentIds.length > 1

@@ -14,6 +14,13 @@ describe('groupGitGraphRowRefs', () => {
     expect(entries[0]!.remotes).toEqual([remote('origin/main')])
   })
 
+  it('merges a remote branch whose name contains a slash', () => {
+    const entries = groupGitGraphRowRefs([local('feature/x'), remote('origin/feature/x')])
+    expect(entries).toHaveLength(1)
+    expect(entries[0]!.name).toBe('feature/x')
+    expect(entries[0]!.remotes).toEqual([remote('origin/feature/x')])
+  })
+
   it('orders current first, then local, remote-only and tags', () => {
     const entries = groupGitGraphRowRefs(
       [tag('v1'), remote('origin/dev'), local('feature'), local('main')],

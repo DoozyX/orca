@@ -289,7 +289,7 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
                           {formatGitHistoryTimestamp(item.timestamp, intlLocale)}
                         </span>
                         <span className="truncate font-mono text-2xs text-muted-foreground">
-                          {item.id.slice(0, 7)}
+                          {item.displayId ?? item.id}
                         </span>
                       </div>
                     </ContextMenuTrigger>

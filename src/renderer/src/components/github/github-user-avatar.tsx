@@ -5,7 +5,7 @@ function githubAvatarUrl(login: string): string {
   return `https://github.com/${encodeURIComponent(login)}.png?size=64`
 }
 
-function initialsFor(login: string, name?: string | null): string {
+export function initialsFor(login: string, name?: string | null): string {
   const source = (name?.trim() || login).trim()
   if (!source) {
     return '?'

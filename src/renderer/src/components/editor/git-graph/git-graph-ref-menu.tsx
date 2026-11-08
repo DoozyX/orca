@@ -60,7 +60,7 @@ export function GitGraphRefs({
   const inline = entries.slice(0, 1)
   const overflow = entries.slice(1)
   const badge = (entry: GitGraphRowRef) => (
-    <ContextMenuTrigger asChild key={entry.name}>
+    <ContextMenuTrigger asChild key={entry.local?.id ?? entry.tag?.id ?? entry.remotes[0]!.id}>
       <span
         onContextMenu={(event) => {
           event.stopPropagation()

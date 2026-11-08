@@ -1,16 +1,6 @@
-import { GitHubUserAvatar } from '@/components/github/github-user-avatar'
+import { GitHubUserAvatar, initialsFor } from '@/components/github/github-user-avatar'
 import type { GitHistoryGraphColorId } from '../../../../../shared/git/history/git-history-types'
 import { gitHubLoginFromNoreplyEmail } from './git-author-github-login'
-
-function authorInitials(name: string | undefined): string {
-  const initials = (name ?? '')
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((word) => [...word].find((ch) => /[\p{L}\p{N}]/u.test(ch)) ?? '')
-    .join('')
-  return initials.toUpperCase() || '?'
-}
 
 export function GitAuthorAvatar({
   name,
@@ -38,7 +28,7 @@ export function GitAuthorAvatar({
       {login ? (
         <GitHubUserAvatar login={login} name={name} className="size-full border-0 text-[8px]" />
       ) : (
-        authorInitials(name)
+        initialsFor('', name)
       )}
     </span>
   )
