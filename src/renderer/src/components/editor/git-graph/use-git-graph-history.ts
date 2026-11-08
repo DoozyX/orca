@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { useStore } from 'zustand'
 import { useAppStore } from '@/store'
 import { useGitGraphScope } from '@/lib/git-graph-tab'
-import { gitGraphHistoryForTab } from './git-graph-history-controller'
+import { gitGraphHistoryForTab } from './git-graph-tab-controllers'
 import type {
   GitHistoryRefs,
   GitHistoryResult

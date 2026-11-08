@@ -1,3 +1,6 @@
+import { useStore } from 'zustand'
+import type { GitGraphCommitActionsController } from './git-graph-commit-actions-controller'
+import type { useGitCommitActionsSupport } from '@/runtime/source-control/git/git-commit-actions-capability'
 import { useMemo, useState } from 'react'
 import { ArrowUpRight, Check, Cloud, Laptop, Tag, type LucideIcon } from 'lucide-react'
 import {
@@ -45,15 +48,22 @@ export function GitGraphRefs({
   currentRefId,
   color,
   workspaces,
-  onSwitch
+  onSwitch,
+  onCheckout,
+  controller,
+  support
 }: {
   references: GitHistoryItemRef[]
   currentRefId?: string
   color: GitHistoryGraphColorId
   workspaces: Map<string, Worktree>
   onSwitch: (refId: string) => Promise<void>
+  onCheckout: (ref: GitHistoryItemRef) => void
+  controller: GitGraphCommitActionsController
+  support: ReturnType<typeof useGitCommitActionsSupport>
 }) {
   const t = useTranslate()
+  const running = useStore(controller.view, (state) => state.running)
   const [open, setOpen] = useState(false)
   const [menuEntry, setMenuEntry] = useState<GitGraphRowRef>()
   const entries = useMemo(
@@ -105,6 +115,11 @@ export function GitGraphRefs({
     </ContextMenuTrigger>
   )
   const menuLocalId = menuEntry?.local?.id
+  // A branch that is current or has its own workspace is switched to, not checked out here.
+  const checkoutRef =
+    menuEntry && !menuEntry.current && !(menuLocalId && workspaces.has(menuLocalId))
+      ? (menuEntry.local ?? menuEntry.remotes[0])
+      : undefined
   return (
     <ContextMenu
       onOpenChange={(open) => {
@@ -118,12 +133,15 @@ export function GitGraphRefs({
         {overflow.length > 0 && (
           <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
-              <button className="shrink-0 text-2xs text-muted-foreground">
+              <button
+                className="shrink-0 text-2xs text-muted-foreground"
+                onClick={(event) => event.stopPropagation()}
+              >
                 +{overflow.length}
               </button>
             </PopoverTrigger>
             {open && (
-              <PopoverContent>
+              <PopoverContent onClick={(event) => event.stopPropagation()}>
                 <div className="max-h-72 space-y-1 overflow-auto scrollbar-sleek">
                   {overflow.map(badge)}
                 </div>
@@ -133,10 +151,23 @@ export function GitGraphRefs({
         )}
       </div>
       {menuEntry && (
-        <ContextMenuContent>
+        <ContextMenuContent onClick={(event) => event.stopPropagation()}>
           <ContextMenuItem onSelect={() => void window.api.ui.writeClipboardText(menuEntry.name)}>
             {t('gitGraph.copyBranch', 'Copy branch name')}
           </ContextMenuItem>
+          {checkoutRef && (
+            <>
+              <ContextMenuItem
+                disabled={running || !support.supported}
+                onSelect={() => onCheckout(checkoutRef)}
+              >
+                {t('gitGraph.checkoutBranch', 'Check out branch')}
+              </ContextMenuItem>
+              {support.reason && (
+                <p className="px-2 py-1 text-xs text-muted-foreground">{support.reason}</p>
+              )}
+            </>
+          )}
           {menuLocalId && workspaces.has(menuLocalId) && (
             <ContextMenuItem onSelect={() => void onSwitch(menuLocalId)}>
               {t('gitGraph.switchWorkspace', 'Switch to workspace')}

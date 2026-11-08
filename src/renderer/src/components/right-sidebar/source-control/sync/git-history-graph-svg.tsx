@@ -70,25 +70,22 @@ export function GitHistoryGraphSvg({
   // Four dashes per row keep the pattern continuous across row boundaries.
   const dashFor = (node: { dashed?: true } | undefined) =>
     node?.dashed ? rowHeight / 8 : undefined
-  const paths: React.JSX.Element[] = []
+  const paths: { d: string; color: GitHistoryGraphColorId; dashLength?: number }[] = []
   let outputSwimlaneIndex = 0
 
   for (let index = 0; index < inputSwimlanes.length; index += 1) {
     const color = inputSwimlanes[index]!.color
     if (inputSwimlanes[index]!.id === historyItem.id) {
       if (index !== circleIndex) {
-        paths.push(
-          <GraphPath
-            key={`base-${inputSwimlanes[index]!.id}`}
-            color={color}
-            dashLength={dashFor(inputSwimlanes[index])}
-            d={[
-              `M ${laneWidth * (index + 1)} 0`,
-              `A ${laneWidth} ${laneWidth} 0 0 1 ${laneWidth * index} ${nodeY}`,
-              `H ${laneWidth * (circleIndex + 1)}`
-            ].join(' ')}
-          />
-        )
+        paths.push({
+          color,
+          dashLength: dashFor(inputSwimlanes[index]),
+          d: [
+            `M ${laneWidth * (index + 1)} 0`,
+            `A ${laneWidth} ${laneWidth} 0 0 1 ${laneWidth * index} ${nodeY}`,
+            `H ${laneWidth * (circleIndex + 1)}`
+          ].join(' ')
+        })
       } else if (historyItem.parentIds.length > 0) {
         outputSwimlaneIndex += 1
       }
@@ -100,34 +97,28 @@ export function GitHistoryGraphSvg({
       inputSwimlanes[index]!.id === outputSwimlanes[outputSwimlaneIndex]!.id
     ) {
       if (index === outputSwimlaneIndex) {
-        paths.push(
-          <GraphPath
-            key={`vertical-${inputSwimlanes[index]!.id}`}
-            color={color}
-            dashLength={dashFor(inputSwimlanes[index])}
-            d={`M ${laneWidth * (index + 1)} 0 V ${rowHeight}`}
-          />
-        )
+        paths.push({
+          color,
+          dashLength: dashFor(inputSwimlanes[index]),
+          d: `M ${laneWidth * (index + 1)} 0 V ${rowHeight}`
+        })
       } else {
-        paths.push(
-          <GraphPath
-            key={`shift-${inputSwimlanes[index]!.id}-${outputSwimlanes[outputSwimlaneIndex]!.id}`}
-            color={color}
-            dashLength={dashFor(inputSwimlanes[index])}
-            d={[
-              `M ${laneWidth * (index + 1)} 0`,
-              `V ${nodeY - curveRadius - 1}`,
-              `A ${curveRadius} ${curveRadius} 0 0 1 ${
-                laneWidth * (index + 1) - curveRadius
-              } ${rowHeight / 2}`,
-              `H ${laneWidth * (outputSwimlaneIndex + 1) + curveRadius}`,
-              `A ${curveRadius} ${curveRadius} 0 0 0 ${
-                laneWidth * (outputSwimlaneIndex + 1)
-              } ${rowHeight / 2 + curveRadius}`,
-              `V ${rowHeight}`
-            ].join(' ')}
-          />
-        )
+        paths.push({
+          color,
+          dashLength: dashFor(inputSwimlanes[index]),
+          d: [
+            `M ${laneWidth * (index + 1)} 0`,
+            `V ${nodeY - curveRadius - 1}`,
+            `A ${curveRadius} ${curveRadius} 0 0 1 ${
+              laneWidth * (index + 1) - curveRadius
+            } ${rowHeight / 2}`,
+            `H ${laneWidth * (outputSwimlaneIndex + 1) + curveRadius}`,
+            `A ${curveRadius} ${curveRadius} 0 0 0 ${
+              laneWidth * (outputSwimlaneIndex + 1)
+            } ${rowHeight / 2 + curveRadius}`,
+            `V ${rowHeight}`
+          ].join(' ')
+        })
       }
       outputSwimlaneIndex += 1
     }
@@ -139,40 +130,31 @@ export function GitHistoryGraphSvg({
     if (parentOutputIndex === -1) {
       continue
     }
-    paths.push(
-      <GraphPath
-        key={`merge-parent-${parentId}`}
-        color={outputSwimlanes[parentOutputIndex]!.color}
-        dashLength={dashFor(outputSwimlanes[parentOutputIndex])}
-        d={[
-          `M ${laneWidth * parentOutputIndex} ${rowHeight / 2}`,
-          `A ${laneWidth} ${laneWidth} 0 0 1 ${laneWidth * (parentOutputIndex + 1)} ${rowHeight}`,
-          `M ${laneWidth * parentOutputIndex} ${rowHeight / 2}`,
-          `H ${laneWidth * (circleIndex + 1)}`
-        ].join(' ')}
-      />
-    )
+    paths.push({
+      color: outputSwimlanes[parentOutputIndex]!.color,
+      dashLength: dashFor(outputSwimlanes[parentOutputIndex]),
+      d: [
+        `M ${laneWidth * parentOutputIndex} ${rowHeight / 2}`,
+        `A ${laneWidth} ${laneWidth} 0 0 1 ${laneWidth * (parentOutputIndex + 1)} ${rowHeight}`,
+        `M ${laneWidth * parentOutputIndex} ${rowHeight / 2}`,
+        `H ${laneWidth * (circleIndex + 1)}`
+      ].join(' ')
+    })
   }
 
   if (inputIndex !== -1) {
-    paths.push(
-      <GraphPath
-        key="into-node"
-        color={inputSwimlanes[inputIndex]!.color}
-        dashLength={dashFor(inputSwimlanes[inputIndex])}
-        d={`M ${laneWidth * (circleIndex + 1)} 0 V ${rowHeight / 2}`}
-      />
-    )
+    paths.push({
+      color: inputSwimlanes[inputIndex]!.color,
+      dashLength: dashFor(inputSwimlanes[inputIndex]),
+      d: `M ${laneWidth * (circleIndex + 1)} 0 V ${rowHeight / 2}`
+    })
   }
   if (historyItem.parentIds.length > 0) {
-    paths.push(
-      <GraphPath
-        key="out-of-node"
-        color={circleColor}
-        dashLength={viewModel.kind === 'wip' ? rowHeight / 8 : undefined}
-        d={`M ${laneWidth * (circleIndex + 1)} ${rowHeight / 2} V ${rowHeight}`}
-      />
-    )
+    paths.push({
+      color: circleColor,
+      dashLength: viewModel.kind === 'wip' ? rowHeight / 8 : undefined,
+      d: `M ${laneWidth * (circleIndex + 1)} ${rowHeight / 2} V ${rowHeight}`
+    })
   }
 
   const cx = laneWidth * (circleIndex + 1)
@@ -194,7 +176,9 @@ export function GitHistoryGraphSvg({
       height={rowHeight}
       viewBox={`0 0 ${width} ${rowHeight}`}
     >
-      {paths}
+      {paths.map((path) => (
+        <GraphPath key={path.d} {...path} />
+      ))}
       {!showAvatar && viewModel.kind === 'HEAD' && (
         <>
           <circle

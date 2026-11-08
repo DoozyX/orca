@@ -15280,7 +15280,9 @@
             "needsIsolatedFrames": "This panel is not available: it needs isolated plugin frames, which are turned off."
           },
           "activityBar": {
-            "error": "Error"
+            "error": "Error",
+            "disablePlugin": "Disable Plugin",
+            "disableFailed": "Could not disable plugin."
           },
           "AiVaultSessionLimitMenu": {
             "historyDepth": "History depth: {{value0}}",
@@ -16705,6 +16707,7 @@
           "kernelStartFailed": "The kernel failed to start.",
           "noPython": "Python was not found on this computer. Install it from [python.org](https://www.python.org/downloads/), then run the cell again.",
           "kernelDied": "The kernel died.",
+          "outputTruncated": "Output truncated: Orca kept the start of this cell's output and discarded the rest. To keep all of it, write it to a file instead.",
           "localOnly": "Notebook cells can only run for files on this computer.",
           "pythonOnly": "Only Python notebooks can run in Orca.",
           "ownerUnresolved": "Orca can't tell which computer this notebook is on yet, so its cells can't run.",
@@ -20756,6 +20759,7 @@
         "copyIdentity": "Copy {{value0}}",
         "folder": "Folder",
         "mainCheckout": "Main checkout",
+        "turnWorking": "This chat's agent is working. Switch branches after its turn finishes.",
         "worktree": "Worktree"
       },
       "creationChatNotOpened": "Your worktree is ready, but the chat could not open. Retry to open it with your message.",
@@ -22008,6 +22012,7 @@
       "switch": "Switch branch: {{branch}}",
       "search": "Search branches",
       "recover": "Switch to {{branch}}",
+      "copy": "Copy branch name",
       "create": "Create branch {{name}} from {{branch}}",
       "open": "Open workspace",
       "occupied": "Checked out in {{path}}",
@@ -22340,10 +22345,10 @@
     "claudeThemeSyncOffer": {
       "title": "Match Claude Code to your Orca theme?",
       "description": "Claude Code on this computer would use your terminal colors and follow theme changes, including outside Orca. You can change this in Settings.",
-      "accept": "Match Theme",
+      "accept": "Match theme",
       "accepted": "Claude Code theme sync is on",
       "acceptedDescription": "New Claude Code sessions on this computer use your Orca theme.",
-      "decline": "No Thanks",
+      "decline": "No thanks",
       "failed": "Could not turn on Claude Code theme sync",
       "failedDescription": "Turn it on in Settings."
     }
@@ -24358,7 +24363,42 @@
     "findingCommit": "Finding commit",
     "filterAuthorsPicked": "Highlight authors ({{total}} picked)",
     "sortToDescending": "Sort Z to A",
-    "sortToAscending": "Sort A to Z"
+    "sortToAscending": "Sort A to Z",
+    "revertConflicts": "Revert conflicts",
+    "revertInProgress": "Revert in progress",
+    "abortOperationTitle": "Abort {{operation}}?",
+    "abortOperationDescription": "This cancels the operation in progress and can discard conflict resolutions made during it.",
+    "abortOperation": "Abort {{operation}}",
+    "recoveryFailed": "Could not finish the operation. Refresh Source Control and try again.",
+    "continueOperation": "Continue {{operation}}",
+    "reverting": "Reverting",
+    "updateActionsHost": "Update Orca on {{host}} to act on commits",
+    "thisHost": "this host",
+    "cannotApplyMerge": "Can't cherry-pick/revert a merge commit from here",
+    "confirmCommitAction": "{{action}} {{commit}}?",
+    "cancelAction": "Cancel",
+    "checkoutCommit": "Check out commit",
+    "cherryPick": "Cherry-pick",
+    "revert": "Revert",
+    "actionLanded": "Now at {{commit}} on {{branch}}",
+    "detachedHead": "detached HEAD",
+    "actionWarning": "The action completed, but Git reported a problem.",
+    "actionConflicted": "Resolve the conflicts in Source Control, then continue or abort the operation.",
+    "alreadyApplied": "Already applied, nothing to cherry-pick",
+    "nothingToRevert": "Nothing to revert; the changes are already undone.",
+    "actionRefused": "The action did not complete.",
+    "actionUnavailable": "This workspace is no longer available for the action. Reopen the Git Graph and try again.",
+    "ownerChanged": "The workspace host changed. Reopen the Git Graph and try again.",
+    "showAllBranches": "Show all branches",
+    "actionDirty": "Commit or stash your changes, then try again.",
+    "actionFailed": "Git did not create a commit. Check the checkout and try again.",
+    "operationInProgress": "Finish or abort the {{operation}} in progress before trying again.",
+    "checkoutBranch": "Check out branch",
+    "createBranch": "Create branch here",
+    "branchCreated": "Created {{branch}} at {{commit}}",
+    "branchName": "Branch name",
+    "invalidBranchName": "This branch name is invalid. Choose a different name.",
+    "createBranchFailed": "Orca couldn't create the branch. Check this repository in a terminal, then try again."
   },
   "macosUpdateRequirement": {
     "title": "Orca updates now need macOS {{macos}}",

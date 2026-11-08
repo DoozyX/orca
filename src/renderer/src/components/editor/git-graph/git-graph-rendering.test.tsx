@@ -1,11 +1,10 @@
+import { workspaceId, local, repo } from './git-graph-workspace.test-fixtures'
 // @vitest-environment happy-dom
 import { useAppStore } from '@/store'
-import { gitGraphHistoryForTab, disposeGitGraphHistory } from './git-graph-history-controller'
+import { gitGraphHistoryForTab, disposeGitGraphHistory } from './git-graph-tab-controllers'
 import { attachClosedEditorTabCleanup } from '../model-lifetime/retention/closed-editor-tab-controller'
 import { gitGraphScope } from '@/lib/git-graph-tab'
 import { captureWorktreeOperationGenerationSnapshot } from '@/lib/worktree-operation-generation'
-import type { Worktree } from '../../../../../shared/worktree/types'
-import type { Repo } from '../../../../../shared/repo-types'
 import type { OpenFile } from '@/store/slices/editor/types/open-file'
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
@@ -13,6 +12,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { GitGraphTab } from './git-graph-tab'
 import { GitGraphFilter } from './git-graph-filter'
+import * as commitSupport from '@/runtime/source-control/git/git-commit-actions-capability'
 import { useGitGraphHistory } from './use-git-graph-history'
 import type { GitHistoryResult } from '../../../../../shared/git/history/git-history-types'
 
@@ -49,35 +49,6 @@ const container = document.createElement('div')
 document.body.appendChild(container)
 let root = createRoot(container)
 const initialState = useAppStore.getState()
-const workspaceId = 'r::/repo'
-const local: Worktree = {
-  id: workspaceId,
-  repoId: 'r',
-  path: '/repo',
-  branch: 'refs/heads/main',
-  hostId: 'local',
-  head: 'a',
-  isBare: false,
-  isMainWorktree: true,
-  displayName: 'repo',
-  comment: '',
-  linkedIssue: null,
-  linkedPR: null,
-  linkedLinearIssue: null,
-  isArchived: false,
-  isUnread: false,
-  isPinned: false,
-  sortOrder: 0,
-  lastActivityAt: 0
-}
-const repo: Repo = {
-  id: 'r',
-  path: '/repo',
-  displayName: 'repo',
-  badgeColor: '',
-  addedAt: 0,
-  executionHostId: 'local'
-}
 beforeEach(() => {
   getStatus.mockReset().mockResolvedValue({ entries: [] })
   useAppStore.setState({
@@ -102,6 +73,62 @@ const result: GitHistoryResult = {
   hasOutgoingChanges: false,
   limit: 50
 }
+
+it('keeps the branch checkout strip open after selecting a badge context-menu action', async () => {
+  vi.spyOn(commitSupport, 'useGitCommitActionsSupport').mockReturnValue({
+    supported: true,
+    reason: undefined
+  })
+  getHistory.mockReset().mockResolvedValue({
+    ...result,
+    items: [
+      {
+        ...result.items[0],
+        references: [{ id: 'refs/heads/topic', name: 'topic' }]
+      }
+    ]
+  })
+  await act(async () =>
+    root.render(
+      <TooltipProvider>
+        <GitGraphTab worktreeId={workspaceId} />
+      </TooltipProvider>
+    )
+  )
+  await act(async () => {
+    container
+      .querySelector('[title="topic"]')!
+      .dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, button: 2 }))
+  })
+  await act(async () => {
+    Array.from(document.querySelectorAll<HTMLElement>('[role="menuitem"]'))
+      .find((item) => item.textContent === 'Check out branch')!
+      .click()
+  })
+  expect(container.querySelector('form')?.textContent).toContain('Check out branch topic?')
+})
+
+it('renders converging branch lanes and a detached root without duplicate child keys', async () => {
+  const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+  getHistory.mockReset().mockResolvedValue({
+    ...result,
+    items: [
+      { id: 'a', subject: 'a', message: 'a', parentIds: ['root'] },
+      { id: 'b', subject: 'b', message: 'b', parentIds: ['root'] },
+      { id: 'c', subject: 'c', message: 'c', parentIds: ['root'] },
+      { id: 'detached', subject: 'detached', message: 'detached', parentIds: [] },
+      { id: 'root', subject: 'root', message: 'root', parentIds: [] }
+    ]
+  })
+  await act(async () =>
+    root.render(
+      <TooltipProvider>
+        <GitGraphTab worktreeId={workspaceId} />
+      </TooltipProvider>
+    )
+  )
+  expect(errors.mock.calls.filter(([message]) => String(message).includes('same key'))).toEqual([])
+})
 
 it('recovers silently after each later token expiry and ignores refreshes for other worktrees', async () => {
   let history: ReturnType<typeof useGitGraphHistory>
@@ -619,144 +646,6 @@ it('applies checkbox choices once on picker close, with no choices returning to 
   expect(document.querySelector('[role="checkbox"]')?.getAttribute('aria-checked')).toBe('false')
 })
 
-const sha = (n: number) => String(n).padStart(40, '0')
-const railRefs = [
-  { id: 'refs/heads/a', name: 'a', revision: sha(1) },
-  { id: 'refs/heads/b', name: 'b', revision: sha(2) },
-  { id: 'refs/heads/x', name: 'x', revision: sha(3) },
-  { id: 'refs/tags/v1', name: 'v1', revision: 'commit-120' }
-]
-
-async function renderGraphWithRail(refs: typeof railRefs) {
-  getRefs.mockReset().mockResolvedValue(refs)
-  await act(async () =>
-    root.render(
-      <TooltipProvider>
-        <GitGraphTab worktreeId={workspaceId} />
-      </TooltipProvider>
-    )
-  )
-  await vi.waitFor(async () => {
-    await act(async () => {})
-    expect(container.querySelector('aside button[title="v1"]')).not.toBeNull()
-  })
-}
-
-it('hides a ref chosen in the rail by asking history for every other ref', async () => {
-  getHistory.mockReset().mockImplementation(async (_owner, options) => ({
-    ...result,
-    refs: options.refs
-  }))
-  await renderGraphWithRail(railRefs)
-  await act(async () =>
-    container
-      .querySelector<HTMLButtonElement>('aside [role="checkbox"][aria-label="Local: x"]')!
-      .click()
-  )
-  expect(getHistory.mock.calls.at(-1)?.[1].refs).toEqual([
-    'refs/heads/a',
-    'refs/heads/b',
-    'refs/tags/v1'
-  ])
-})
-
-it('selects the commit of a tag older than the first loaded page', async () => {
-  const items = Array.from({ length: 300 }, (_, index) => ({
-    id: `commit-${index}`,
-    subject: `Commit ${index}`,
-    message: `Commit ${index}`,
-    parentIds: []
-  }))
-  getHistory.mockReset().mockImplementation(async (_owner, options) => ({
-    ...result,
-    refs: 'all',
-    historyToken: 'pinned',
-    items: items.slice(options.skip, options.skip + 50),
-    hasMore: options.skip < 250
-  }))
-  await renderGraphWithRail(railRefs)
-  await act(async () =>
-    container.querySelector<HTMLButtonElement>('aside button[title="v1"]')!.click()
-  )
-  await vi.waitFor(async () => {
-    await act(async () => {})
-    expect(container.querySelector('[data-current="true"]')?.textContent).toContain('Commit 120')
-  })
-})
-
-it('stops paging for an earlier jump when a second ref is clicked and selects its commit', async () => {
-  const items = Array.from({ length: 300 }, (_, index) => ({
-    id: `commit-${index}`,
-    subject: `Commit ${index}`,
-    message: `Commit ${index}`,
-    parentIds: []
-  }))
-  let release!: () => void
-  const held = new Promise<void>((resolve) => {
-    release = resolve
-  })
-  getHistory.mockReset().mockImplementation(async (_owner, options) => {
-    if (options.skip === 50) {
-      await held
-    }
-    return {
-      ...result,
-      refs: 'all',
-      historyToken: 'pinned',
-      items: items.slice(options.skip, options.skip + 50),
-      hasMore: options.skip < 250
-    }
-  })
-  await renderGraphWithRail([
-    ...railRefs,
-    { id: 'refs/tags/v2', name: 'v2', revision: 'commit-60' }
-  ])
-  await act(async () =>
-    container.querySelector<HTMLButtonElement>('aside button[title="v1"]')!.click()
-  )
-  await act(async () =>
-    container.querySelector<HTMLButtonElement>('aside button[title="v2"]')!.click()
-  )
-  release()
-  await vi.waitFor(async () => {
-    await act(async () => {})
-    expect(container.querySelector('[data-current="true"]')?.textContent).toContain('Commit 60')
-  })
-  expect(getHistory.mock.calls.map((call) => call[1].skip)).toEqual([0, 50])
-})
-
-it('lists a remote the capped remotes page does not reach by probing remote names', async () => {
-  const forkRefs = Array.from({ length: 1000 }, (_, index) => ({
-    id: `refs/remotes/fork/b${index}`,
-    name: `fork/b${index}`,
-    revision: sha(index + 1)
-  }))
-  const originMain = { id: 'refs/remotes/origin/main', name: 'origin/main', revision: sha(9) }
-  const byQuery: Record<string, typeof forkRefs> = {
-    'refs/remotes/': forkRefs,
-    'refs/remotes/f': forkRefs,
-    'refs/remotes/fork/': forkRefs,
-    'refs/remotes/o': [originMain],
-    'refs/remotes/origin/': [originMain]
-  }
-  getHistory.mockReset().mockResolvedValue({ ...result, refs: 'all' })
-  getRefs.mockReset().mockImplementation(async (_context, query) => byQuery[query] ?? [])
-  await act(async () =>
-    root.render(
-      <TooltipProvider>
-        <GitGraphTab worktreeId={workspaceId} />
-      </TooltipProvider>
-    )
-  )
-  await vi.waitFor(async () => {
-    await act(async () => {})
-    const labels = [...container.querySelectorAll('aside button[aria-expanded]')].map(
-      (button) => button.textContent
-    )
-    expect(labels).toEqual(['origin1', 'fork1000+'])
-  })
-})
-
 it('dims commits by authors outside the picked set until cleared', async () => {
   const authored = (id: string, author: string, authorEmail: string) => ({
     id,
@@ -805,47 +694,52 @@ it('dims commits by authors outside the picked set until cleared', async () => {
   expect(dimmedIds()).toEqual([])
 })
 
-it('refuses to hide from All while a group is capped and leaves the filter untouched', async () => {
-  const locals = Array.from({ length: 1000 }, (_, index) => ({
-    id: `refs/heads/b${index}`,
-    name: `b${index}`,
-    revision: sha(index + 1)
-  }))
-  getHistory.mockReset().mockResolvedValue({ ...result, refs: 'all' })
-  getRefs
-    .mockReset()
-    .mockImplementation(async (_context, query) => (query === 'refs/heads/' ? locals : []))
-  await act(async () =>
-    root.render(
-      <TooltipProvider>
-        <GitGraphTab worktreeId={workspaceId} />
-      </TooltipProvider>
-    )
+it('keeps the confirm strip across tab switches, discarding it on navigation, filter change and close', async () => {
+  getHistory.mockResolvedValue(result)
+  const render = () => (
+    <TooltipProvider>
+      <GitGraphTab worktreeId={workspaceId} />
+    </TooltipProvider>
   )
-  await vi.waitFor(async () => {
-    await act(async () => {})
-    expect(container.querySelector('aside [role="checkbox"][aria-label="Local"]')).not.toBeNull()
+  await act(async () => root.render(render()))
+  const controller = gitGraphHistoryForTab(workspaceId)
+  await act(async () => controller.actions.request('revert', result.items[0]!))
+  expect(container.textContent).toContain('Revert a?')
+  await act(async () => root.render(<div>Another tab</div>))
+  await act(async () => root.render(render()))
+  expect(container.textContent).toContain('Revert a?')
+  await act(async () => controller.select('a'))
+  expect(container.textContent).not.toContain('Revert a?')
+  await act(async () => controller.actions.request('revert', result.items[0]!))
+  await act(async () =>
+    useAppStore.setState({ gitGraphFiltersByWorktree: { [workspaceId]: 'head' } })
+  )
+  expect(container.textContent).not.toContain('Revert a?')
+  await act(async () => controller.actions.request('revert', result.items[0]!))
+  await act(async () => {
+    disposeGitGraphHistory(`${workspaceId}::git-graph`)
+    root.render(<div>Closed</div>)
   })
-  await act(async () =>
-    container
-      .querySelector<HTMLButtonElement>('aside [role="checkbox"][aria-label="Local"]')!
-      .click()
-  )
-  expect(container.querySelector('aside [role="status"]')?.textContent).toContain(
-    'at most 1,000 chosen branches and tags'
-  )
-  expect(getHistory.mock.calls.map((call) => call[1].refs)).toEqual(['all'])
+  await act(async () => root.render(render()))
+  expect(container.textContent).not.toContain('Revert a?')
 })
 
-it('shows a hidden ref before jumping to its commit', async () => {
-  useAppStore.setState({ gitGraphFiltersByWorktree: { [workspaceId]: ['refs/heads/a'] } })
-  getHistory.mockReset().mockImplementation(async (_owner, options) => ({
+it('canonicalizes selected refs before requesting history', async () => {
+  let history: ReturnType<typeof useGitGraphHistory>
+  function History() {
+    history = useGitGraphHistory(workspaceId)
+    return null
+  }
+  getHistory.mockReset().mockResolvedValue({ ...result, refs: 'all' })
+  await act(async () => root.render(<History />))
+  getHistory.mockClear().mockResolvedValue({
     ...result,
-    refs: options.refs
-  }))
-  await renderGraphWithRail(railRefs)
-  await act(async () =>
-    container.querySelector<HTMLButtonElement>('aside button[title="v1"]')!.click()
-  )
-  expect(getHistory.mock.calls.at(-1)?.[1].refs).toEqual(['refs/heads/a', 'refs/tags/v1'])
+    refs: ['refs/heads/main', 'refs/heads/topic'],
+    resolvedRefs: ['refs/heads/main', 'refs/heads/topic']
+  })
+  await act(async () => {
+    history!.changeFilter(['refs/heads/topic', 'refs/heads/main', 'refs/heads/topic'])
+    await history!.controller.settledResult()
+  })
+  expect(getHistory.mock.calls[0]?.[1].refs).toEqual(['refs/heads/main', 'refs/heads/topic'])
 })

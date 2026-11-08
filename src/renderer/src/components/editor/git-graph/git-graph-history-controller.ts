@@ -1,3 +1,5 @@
+import type { GitGraphHistoryView } from './git-graph-history-view'
+import { GitGraphCommitActionsController } from './git-graph-commit-actions-controller'
 import {
   activateGitGraphWorkspace,
   gitGraphOwnerKey,
@@ -21,32 +23,20 @@ import {
   type GitHistoryRefs,
   type GitHistoryResult
 } from '../../../../../shared/git/history/git-history-types'
-import type { HistoryView } from './git-graph-history-view'
 import type { ExecutionHostId } from '../../../../../shared/execution-host'
 import { isGitGraphSelectionLoaded, resolveGitGraphSelection } from './git-graph-wip-items'
 
 const noAuthors: ReadonlySet<string> = new Set()
-const controllers = new Map<string, GitGraphHistoryController>()
 const filterFor = (worktreeId: string) =>
   useAppStore.getState().gitGraphFiltersByWorktree?.[worktreeId] ?? 'all'
 
-export function gitGraphHistoryForTab(worktreeId: string): GitGraphHistoryController {
-  const id = `${worktreeId}::git-graph`
-  let controller = controllers.get(id)
-  if (!controller) {
-    controller = new GitGraphHistoryController(worktreeId)
-    controllers.set(id, controller)
-  }
-  return controller
-}
-
-export function disposeGitGraphHistory(tabId: string): void {
-  controllers.get(tabId)?.dispose()
-  controllers.delete(tabId)
-}
-
 export class GitGraphHistoryController {
-  readonly view = createStore<HistoryView>(() => ({
+  readonly actions = new GitGraphCommitActionsController(this)
+  get actionScope() {
+    return this.scope
+  }
+  captureActionView = (): (() => boolean) => this.liveGuard(true)
+  readonly view = createStore<GitGraphHistoryView>(() => ({
     loading: false,
     authorHighlight: noAuthors
   }))
@@ -114,6 +104,7 @@ export class GitGraphHistoryController {
     ) {
       return
     }
+    this.actions.cancel()
     this.scope = scope
     this.filter = filter
     this.scrollOffset = 0
@@ -137,6 +128,7 @@ export class GitGraphHistoryController {
   }
 
   dispose(): void {
+    this.actions.cancel()
     this.disposed = true
     this.view.setState({ disposed: true, loading: false })
     this.generation++
@@ -144,9 +136,12 @@ export class GitGraphHistoryController {
     window.removeEventListener(GIT_GRAPH_REFRESH_EVENT, this.onRefresh)
   }
 
-  private liveGuard(): () => boolean {
-    const generation = this.generation
-    return () => !this.disposed && generation === this.generation
+  private liveGuard(sameNavigation = false): () => boolean {
+    const { generation, navigation } = this
+    return () =>
+      !this.disposed &&
+      generation === this.generation &&
+      (!sameNavigation || navigation === this.navigation)
   }
   switchToWorkspace = (refId: string): Promise<void> =>
     switchGitGraphWorkspace(this.scope, refId, this.liveGuard())
@@ -161,6 +156,7 @@ export class GitGraphHistoryController {
   }
 
   select = (selectedId: string): void => {
+    this.actions.cancel()
     this.navigation++
     this.view.setState({ selectedId, revealId: undefined })
   }
@@ -171,13 +167,14 @@ export class GitGraphHistoryController {
     return this.retrieve(false, true)
   }
   loadMore = (): Promise<GitHistoryResult | undefined> => this.retrieve(true)
+  settledResult = (): Promise<GitHistoryResult | undefined> =>
+    this.pending ?? (this.dirty ? this.retrieve() : Promise.resolve(this.view.getState().result))
 
   reveal = async (id: string): Promise<number> => {
-    const generation = this.generation
+    this.actions.cancel()
     const navigation = ++this.navigation
     this.clearReveal()
-    const current = () =>
-      !this.disposed && generation === this.generation && navigation === this.navigation
+    const current = this.captureActionView()
     // -2: the history was reloaded under this jump, so the caller may retry; -1: superseded or closed.
     const aborted = () => (!this.disposed && navigation === this.navigation ? -2 : -1)
     while (this.pending && current()) {
@@ -293,6 +290,7 @@ export class GitGraphHistoryController {
       const selectedId = resolveGitGraphSelection(result?.items, selection)
       const selectionGone = selection !== undefined && selection !== selectedId
       if (selectionGone) {
+        this.actions.cancel()
         this.scrollOffset = 0
       }
       this.view.setState({

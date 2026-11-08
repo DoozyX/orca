@@ -1,6 +1,6 @@
 import type { GitHistoryResult } from '../../../../../shared/git/history/git-history-types'
 
-export type HistoryView = {
+export type GitGraphHistoryView = {
   result?: GitHistoryResult
   error?: string
   loading: boolean

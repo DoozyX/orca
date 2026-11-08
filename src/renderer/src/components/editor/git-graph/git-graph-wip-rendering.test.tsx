@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { useAppStore } from '@/store'
-import { disposeGitGraphHistory } from './git-graph-history-controller'
+import { disposeGitGraphHistory } from './git-graph-tab-controllers'
 import type { Worktree } from '../../../../../shared/worktree/types'
 import type { Repo } from '../../../../../shared/repo-types'
 import type { GitStatusEntry } from '../../../../../shared/git/status/git-status-types'

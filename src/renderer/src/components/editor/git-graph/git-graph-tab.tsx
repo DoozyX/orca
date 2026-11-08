@@ -1,3 +1,8 @@
+import {
+  GitGraphCommitActionControls,
+  GitGraphCommitConfirmStrip,
+  useGitGraphCommitActionSupport
+} from './git-graph-commit-action-controls'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useSidebarResize } from '@/hooks/useSidebarResize'
 import { useVirtualizer } from '@tanstack/react-virtual'
@@ -42,6 +47,7 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
   const intlLocale = useIntlLocale()
   const history = useGitGraphHistory(worktreeId)
   const { result, scope, selectedId, revealId, controller } = history
+  const commitActionSupport = useGitGraphCommitActionSupport(scope)
   const workspaces = useGitGraphWorkspaces(scope)
   const { rows, wipById, refreshWip } = useGitGraphRows(scope, result, history.filter)
   const maxGraphWidth = useMemo(
@@ -296,6 +302,9 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
                       >
                         <div className="flex min-w-0 gap-1 overflow-hidden pr-2">
                           <GitGraphRefs
+                            controller={controller.actions}
+                            support={commitActionSupport}
+                            onCheckout={(ref) => controller.actions.requestBranch(item, ref)}
                             workspaces={workspaces}
                             references={item.references ?? []}
                             color={gitHistoryNodeColor(viewModel)}
@@ -323,10 +332,14 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
                         </span>
                       </div>
                     </ContextMenuTrigger>
-                    <GitHistoryCommitContextMenu
-                      item={item}
-                      onAction={actions.handleCommitAction}
-                    />
+                    <GitHistoryCommitContextMenu item={item} onAction={actions.handleCommitAction}>
+                      <GitGraphCommitActionControls
+                        item={item}
+                        controller={controller.actions}
+                        support={commitActionSupport}
+                        menu
+                      />
+                    </GitHistoryCommitContextMenu>
                   </ContextMenu>
                 )
               })}
@@ -350,6 +363,7 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
           </div>
         </div>
         <aside className="w-80 min-w-64 shrink-0 overflow-y-auto border-l border-border scrollbar-sleek">
+          <GitGraphCommitConfirmStrip controller={controller.actions} />
           {selected &&
             (selectedWip ? (
               <GitGraphWipDetails
@@ -370,6 +384,13 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
               <GitGraphDetails
                 key={selected.id}
                 item={selected}
+                commitActions={
+                  <GitGraphCommitActionControls
+                    item={selected}
+                    controller={controller.actions}
+                    support={commitActionSupport}
+                  />
+                }
                 actions={actions}
                 fileSort={fileSort}
                 onFileSortChange={changeFileSort}

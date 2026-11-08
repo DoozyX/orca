@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { useEffect, useState } from 'react'
 import { Copy } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -22,12 +23,14 @@ import type { GitFileStatus } from '../../../../../shared/git/status/git-status-
 
 export function GitGraphDetails({
   item,
+  commitActions,
   actions,
   fileSort,
   onFileSortChange,
   onParent
 }: {
   item: GitHistoryItem
+  commitActions?: ReactNode
   actions: ReturnType<typeof useGitHistoryCommitActions>
   fileSort: GitGraphFileSort
   onFileSortChange: (sort: GitGraphFileSort) => void
@@ -81,6 +84,7 @@ export function GitGraphDetails({
             <TooltipContent>{t('gitGraph.copyHash', 'Copy commit hash')}</TooltipContent>
           </Tooltip>
         </div>
+        {commitActions}
         <div
           className="max-h-40 overflow-y-auto whitespace-pre-wrap break-words rounded-md border border-border bg-muted/30 p-2 text-xs scrollbar-sleek"
           data-testid="git-graph-commit-message"

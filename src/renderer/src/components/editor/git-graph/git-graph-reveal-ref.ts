@@ -2,21 +2,19 @@ import { toast } from 'sonner'
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 import type { gitGraphScope } from '@/lib/git-graph-tab'
-import {
-  gitGraphHistoryForTab,
-  type GitGraphHistoryController
-} from './git-graph-history-controller'
-import type { HistoryView } from './git-graph-history-view'
+import type { GitGraphHistoryController } from './git-graph-history-controller'
+import { gitGraphHistoryForTab } from './git-graph-tab-controllers'
+import type { GitGraphHistoryView } from './git-graph-history-view'
 import { gitGraphRefVisibilityMessage } from './git-graph-ref-messages'
 import { isGitGraphRefVisible, toggleGitGraphRefVisibility } from './git-graph-ref-visibility'
 import { setGitGraphFilter } from './use-git-graph-history'
 import type { GitHistoryItemRef } from '../../../../../shared/git/history/git-history-types'
 
 // A paging view still counts: `reveal` supersedes the running jump and waits for its page itself.
-const isSettled = (view: HistoryView) =>
+const isSettled = (view: GitGraphHistoryView) =>
   view.disposed === true || view.error !== undefined || view.result !== undefined
 
-const loadedView = (controller: GitGraphHistoryController): Promise<HistoryView> =>
+const loadedView = (controller: GitGraphHistoryController): Promise<GitGraphHistoryView> =>
   new Promise((resolve) => {
     const now = controller.view.getState()
     if (isSettled(now)) {
