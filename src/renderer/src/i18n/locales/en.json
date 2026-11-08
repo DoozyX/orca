@@ -24312,6 +24312,7 @@
     "message": "Message",
     "author": "Author",
     "date": "Date",
+    "sha": "SHA",
     "loadMore": "Load more",
     "noCommits": "No commits yet",
     "historyChanged": "History changed again. Refresh the Git Graph to try again.",
