@@ -57,6 +57,7 @@ export function GitGraphDetails({
       live = false
     }
   }, [item, loadFiles])
+  const hasFiles = files.status === 'ready' && files.entries.length > 0
   const shortId = item.displayId ?? item.id.slice(0, 7)
   const authoredAt = formatGitHistoryTimestamp(item.timestamp, intlLocale)
   return (
@@ -64,7 +65,7 @@ export function GitGraphDetails({
       <div className="space-y-3 p-4">
         <div className="flex min-w-0 items-center gap-1">
           <h2 className="min-w-0 truncate text-sm font-semibold">
-            {t('gitGraph.commitHeading', 'commit')} <span className="font-mono">{shortId}</span>
+            {t('gitGraph.commitHeading', 'commit {{id}}', { id: shortId })}
           </h2>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -101,13 +102,7 @@ export function GitGraphDetails({
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <span className="text-muted-foreground">{t('gitGraph.parents', 'Parents')}</span>
             {item.parentIds.map((id) => (
-              <Button
-                key={id}
-                variant="ghost"
-                size="xs"
-                data-testid="git-graph-parent-link"
-                onClick={() => onParent(id)}
-              >
+              <Button key={id} variant="ghost" size="xs" onClick={() => onParent(id)}>
                 <span className="font-mono text-2xs">{id.slice(0, 7)}</span>
               </Button>
             ))}
@@ -115,26 +110,25 @@ export function GitGraphDetails({
         )}
       </div>
       <div className="flex items-center gap-2 border-t border-border px-4 py-2 text-xs text-muted-foreground">
-        {files.status === 'ready' ? (
-          <span data-testid="git-graph-change-summary">
-            {formatChangeSummary(files.entries, t)}
-          </span>
+        {hasFiles ? (
+          <span>{formatChangeSummary(files.entries, t)}</span>
         ) : (
           <span className="text-2xs font-semibold uppercase tracking-wider">
             {t('gitGraph.files', 'Files')}
           </span>
         )}
       </div>
-      <GitGraphFileToolbar
-        sort={fileSort}
-        onSortChange={onFileSortChange}
-        viewMode={viewMode}
-        onViewModeChange={setViewMode}
-        onCollapseAll={() => setCollapseAllRequest((request) => request + 1)}
-      />
+      {hasFiles && (
+        <GitGraphFileToolbar
+          sort={fileSort}
+          onSortChange={onFileSortChange}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          onCollapseAll={() => setCollapseAllRequest((request) => request + 1)}
+        />
+      )}
       <GitHistoryCommitFiles
         state={files}
-        onOpenFile={(entry, event) => actions.openCommitFile(item, entry, event)}
         onOpenAll={() => void actions.openHistoryCommitDiff(item)}
         renderEntries={(entries) => (
           <GitGraphFileList
@@ -152,15 +146,15 @@ export function GitGraphDetails({
 
 function formatChangeSummary(entries: readonly { status: GitFileStatus }[], t: Translate) {
   const counts = summarizeFileChanges(entries)
-  const labels: Record<GitFileStatus, string> = {
-    modified: t('gitGraph.fileStatus.modified', 'modified'),
-    added: t('gitGraph.fileStatus.added', 'added'),
-    deleted: t('gitGraph.fileStatus.deleted', 'deleted'),
-    renamed: t('gitGraph.fileStatus.renamed', 'renamed'),
-    copied: t('gitGraph.fileStatus.copied', 'copied'),
-    untracked: t('gitGraph.fileStatus.untracked', 'untracked')
+  const labels: Record<GitFileStatus, (total: string) => string> = {
+    modified: (total) => t('gitGraph.fileStatus.modified', '{{total}} modified', { total }),
+    added: (total) => t('gitGraph.fileStatus.added', '{{total}} added', { total }),
+    deleted: (total) => t('gitGraph.fileStatus.deleted', '{{total}} deleted', { total }),
+    renamed: (total) => t('gitGraph.fileStatus.renamed', '{{total}} renamed', { total }),
+    copied: (total) => t('gitGraph.fileStatus.copied', '{{total}} copied', { total }),
+    untracked: (total) => t('gitGraph.fileStatus.untracked', '{{total}} untracked', { total })
   }
   return GIT_FILE_STATUS_SUMMARY_ORDER.filter((status) => counts[status])
-    .map((status) => `${counts[status]} ${labels[status]}`)
+    .map((status) => labels[status](String(counts[status])))
     .join(' · ')
 }

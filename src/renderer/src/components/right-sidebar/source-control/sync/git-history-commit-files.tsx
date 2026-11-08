@@ -90,6 +90,14 @@ export function CommitFileRow<
   )
 }
 
+// A custom renderer owns opening files, so the default row handler is only for the default rows.
+type CommitFilesRendering =
+  | {
+      onOpenFile: (entry: GitBranchChangeEntry, event: SourceControlRowOpenEvent) => void
+      renderEntries?: undefined
+    }
+  | { renderEntries: (entries: GitBranchChangeEntry[]) => React.ReactNode; onOpenFile?: undefined }
+
 function CommitFilesBody({
   state,
   onOpenFile,
@@ -97,10 +105,8 @@ function CommitFilesBody({
   renderEntries
 }: {
   state: GitHistoryCommitFilesState
-  onOpenFile: (entry: GitBranchChangeEntry, event: SourceControlRowOpenEvent) => void
   onOpenAll?: () => void
-  renderEntries?: (entries: GitBranchChangeEntry[]) => React.ReactNode
-}): React.JSX.Element {
+} & CommitFilesRendering): React.JSX.Element {
   const t = useTranslate()
   if (state.status === 'loading') {
     return <div className="h-6" />
@@ -162,10 +168,8 @@ export function GitHistoryCommitFiles({
   state: GitHistoryCommitFilesState
   author?: string
   timestamp?: number
-  onOpenFile: (entry: GitBranchChangeEntry, event: SourceControlRowOpenEvent) => void
   onOpenAll?: () => void
-  renderEntries?: (entries: GitBranchChangeEntry[]) => React.ReactNode
-}): React.JSX.Element {
+} & CommitFilesRendering): React.JSX.Element {
   const intlLocale = useIntlLocale()
   const meta = [author, formatGitHistoryTimestamp(timestamp, intlLocale)]
     .filter(Boolean)
@@ -175,9 +179,8 @@ export function GitHistoryCommitFiles({
       {meta && <div className="py-1 pl-9 pr-3 text-[11px] text-muted-foreground">{meta}</div>}
       <CommitFilesBody
         state={state}
-        onOpenFile={onOpenFile}
         onOpenAll={onOpenAll}
-        renderEntries={renderEntries}
+        {...(renderEntries ? { renderEntries } : { onOpenFile })}
       />
     </div>
   )

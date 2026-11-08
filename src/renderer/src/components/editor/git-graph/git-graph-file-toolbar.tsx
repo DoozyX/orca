@@ -22,8 +22,8 @@ export function GitGraphFileToolbar({
   const t = useTranslate()
   const sortLabel =
     sort === 'asc'
-      ? t('gitGraph.sortAscending', 'Sorted A to Z')
-      : t('gitGraph.sortDescending', 'Sorted Z to A')
+      ? t('gitGraph.sortToDescending', 'Sort Z to A')
+      : t('gitGraph.sortToAscending', 'Sort A to Z')
   return (
     <div className="flex items-center gap-1 px-4 pb-2">
       <Tooltip>

@@ -20,10 +20,6 @@ export type SourceControlTreeDirectoryNode = Extract<
   { type: 'directory' }
 >
 export type BranchSourceControlTreeNode = SourceControlTreeNode<GitBranchChangeEntry, 'branch'>
-export type BranchSourceControlTreeDirectoryNode = Extract<
-  BranchSourceControlTreeNode,
-  { type: 'directory' }
->
 
 export type SourceControlDirectoryActionPaths = {
   stagePaths: string[]

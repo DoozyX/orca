@@ -2,8 +2,8 @@ import { useMemo, useState, type RefObject } from 'react'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Input } from '@/components/ui/input'
-import { Checkbox } from '@/components/ui/checkbox'
 import { useTranslate } from '@/i18n/use-translate'
+import { GitGraphCheckList } from './git-graph-check-list'
 import { gitGraphOldServerMessage } from './git-graph-ref-messages'
 import { useGitGraphRefOwner, useGitGraphRefSearch, type RefRequests } from './git-graph-ref-source'
 import type { GitHistoryRefs } from '../../../../../shared/git/history/git-history-types'
@@ -100,28 +100,11 @@ function GitGraphFilterForOwner({
               placeholder={t('gitGraph.searchRefs', 'Search branches and tags')}
             />
             {error && <p className="text-xs text-destructive">{error}</p>}
-            <div className="max-h-72 overflow-auto scrollbar-sleek">
-              {refs.map((ref) => (
-                <label
-                  key={ref.id}
-                  className="flex items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-accent"
-                >
-                  <Checkbox
-                    checked={chosen.has(ref.id)}
-                    onCheckedChange={(checked) => {
-                      const next = new Set(chosen)
-                      if (checked) {
-                        next.add(ref.id)
-                      } else {
-                        next.delete(ref.id)
-                      }
-                      setDraft([...next].sort())
-                    }}
-                  />
-                  <span className="truncate">{ref.name}</span>
-                </label>
-              ))}
-            </div>
+            <GitGraphCheckList
+              rows={refs.map((ref) => ({ id: ref.id, label: ref.name }))}
+              picked={chosen}
+              onChange={(next) => setDraft([...next].sort())}
+            />
           </div>
         </PopoverContent>
       </Popover>

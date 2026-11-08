@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react'
 import { ListFilter } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 import { useTranslate } from '@/i18n/use-translate'
 import { countGitGraphAuthors } from './git-graph-author-key'
+import { GitGraphCheckList } from './git-graph-check-list'
 import type { GitHistoryItem } from '../../../../../shared/git/history/git-history-types'
 
 type GitGraphAuthorFilterProps = {
@@ -21,7 +21,7 @@ export function GitGraphAuthorFilter({ items, picked, onChange }: GitGraphAuthor
   const authors = useMemo(() => countGitGraphAuthors(items), [items])
   const needle = query.trim().toLowerCase()
   const visible = needle
-    ? authors.filter(({ key, name }) => `${name} ${key}`.toLowerCase().includes(needle))
+    ? authors.filter(({ name, email }) => `${name} ${email}`.toLowerCase().includes(needle))
     : authors
   const active = picked.size > 0
   const label = t('gitGraph.author', 'Author')
@@ -33,9 +33,14 @@ export function GitGraphAuthorFilter({ items, picked, onChange }: GitGraphAuthor
           <Button
             variant="ghost"
             size="icon-xs"
-            aria-label={t('gitGraph.filterAuthors', 'Highlight authors')}
-            aria-pressed={active}
-            className={cn(active && 'bg-accent text-foreground')}
+            aria-label={
+              active
+                ? t('gitGraph.filterAuthorsPicked', 'Highlight authors ({{total}} picked)', {
+                    total: String(picked.size)
+                  })
+                : t('gitGraph.filterAuthors', 'Highlight authors')
+            }
+            className={cn(active && 'border border-primary bg-accent text-foreground')}
           >
             <ListFilter />
           </Button>
@@ -52,31 +57,15 @@ export function GitGraphAuthorFilter({ items, picked, onChange }: GitGraphAuthor
                 {t('gitGraph.clearAuthors', 'Clear')}
               </Button>
             </div>
-            <div className="max-h-72 overflow-auto scrollbar-sleek">
-              {visible.map(({ key, name, count }) => (
-                <label
-                  key={key}
-                  className="flex items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-accent"
-                >
-                  <Checkbox
-                    checked={picked.has(key)}
-                    onCheckedChange={(checked) => {
-                      const next = new Set(picked)
-                      if (checked) {
-                        next.add(key)
-                      } else {
-                        next.delete(key)
-                      }
-                      onChange(next)
-                    }}
-                  />
-                  <span className="min-w-0 flex-1 truncate">
-                    {name || t('gitGraph.unknownAuthor', 'Unknown')}
-                  </span>
-                  <span className="text-muted-foreground">{count}</span>
-                </label>
-              ))}
-            </div>
+            <GitGraphCheckList
+              rows={visible.map(({ key, name, count }) => ({
+                id: key,
+                label: name || t('gitGraph.unknownAuthor', 'Unknown'),
+                trailing: <span className="text-muted-foreground">{count}</span>
+              }))}
+              picked={picked}
+              onChange={onChange}
+            />
           </div>
         </PopoverContent>
       </Popover>

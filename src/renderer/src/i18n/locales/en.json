@@ -24323,21 +24323,19 @@
     "searchAuthors": "Search authors",
     "clearAuthors": "Clear",
     "unknownAuthor": "Unknown",
-    "sortAscending": "Sorted A to Z",
-    "sortDescending": "Sorted Z to A",
-    "commitHeading": "commit",
+    "commitHeading": "commit {{id}}",
     "authored": "authored {{date}}",
     "fileViewMode": "File list layout",
     "viewPath": "Path",
     "viewTree": "Tree",
     "collapseAll": "Collapse All",
     "fileStatus": {
-      "modified": "modified",
-      "added": "added",
-      "deleted": "deleted",
-      "renamed": "renamed",
-      "copied": "copied",
-      "untracked": "untracked"
+      "modified": "{{total}} modified",
+      "added": "{{total}} added",
+      "deleted": "{{total}} deleted",
+      "renamed": "{{total}} renamed",
+      "copied": "{{total}} copied",
+      "untracked": "{{total}} untracked"
     },
     "lastVisibleRef": "At least one branch or tag must stay visible",
     "tooManyRefs": "The graph can show at most 1,000 chosen branches and tags. Pick fewer to hide.",
@@ -24357,7 +24355,10 @@
     "tooManyRefsShow": "The graph can show at most {{max}} chosen branches and tags. Hide some first.",
     "commitNotFound": "That commit is not in the loaded graph",
     "groupLoadFailed": "Could not load {{refs}}: {{reason}}",
-    "findingCommit": "Finding commit"
+    "findingCommit": "Finding commit",
+    "filterAuthorsPicked": "Highlight authors ({{total}} picked)",
+    "sortToDescending": "Sort Z to A",
+    "sortToAscending": "Sort A to Z"
   },
   "macosUpdateRequirement": {
     "title": "Orca updates now need macOS {{macos}}",

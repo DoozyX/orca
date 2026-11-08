@@ -1,6 +1,6 @@
 import type { GitHistoryItem } from '../../../../../shared/git/history/git-history-types'
 
-export type GitGraphAuthorCount = { key: string; name: string; count: number }
+export type GitGraphAuthorCount = { key: string; name: string; email: string; count: number }
 
 export function gitGraphAuthorKey(item: GitHistoryItem): string {
   if (item.authorEmail) {
@@ -17,7 +17,12 @@ export function countGitGraphAuthors(items: readonly GitHistoryItem[]): GitGraph
     if (entry) {
       entry.count++
     } else {
-      byKey.set(key, { key, name: item.author ?? item.authorEmail ?? '', count: 1 })
+      byKey.set(key, {
+        key,
+        name: item.author || item.authorEmail || '',
+        email: item.authorEmail ?? '',
+        count: 1
+      })
     }
   }
   return [...byKey.values()].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
