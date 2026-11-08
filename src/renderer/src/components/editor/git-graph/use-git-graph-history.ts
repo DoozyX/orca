@@ -36,6 +36,7 @@ export function useGitGraphHistory(worktreeId: string) {
     changeFilter,
     refresh: controller.refresh,
     loadMore: controller.loadMore,
-    reveal: controller.reveal
+    reveal: controller.reveal,
+    setAuthorHighlight: controller.setAuthorHighlight
   }
 }

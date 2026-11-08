@@ -17,6 +17,7 @@ export function GitAuthorAvatar({
   return (
     <span
       aria-hidden
+      data-author-avatar
       title={name}
       className="inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-[8px] font-semibold text-muted-foreground"
       style={{
