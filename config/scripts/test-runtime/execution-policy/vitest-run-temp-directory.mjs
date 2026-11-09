@@ -1,9 +1,10 @@
-import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 // Tests bind Unix sockets below the temp root; on macOS (104-byte sun_path) some fail about four chars
 // past its 50-char default root, so a run root never grows past that and macOS's default falls back to /tmp.
+// macOS's /tmp is a symlink, and a child's cwd reports its target, so the fallback is that target.
 const MAX_POSIX_ROOT_LENGTH = 50
 const RUN_DIRECTORY = /^ov([0-9a-z]+)$/
 // Only directories carrying it are ours to sweep; a bare `ov…` name could belong to anyone.
@@ -44,7 +45,9 @@ export function sweepStaleRunDirectories(base, { ownPid = process.pid, alive = i
 }
 
 export function resolveRunTempBase(base, name, platform = process.platform) {
-  return platform !== 'win32' && join(base, name).length > MAX_POSIX_ROOT_LENGTH ? '/tmp' : base
+  return platform !== 'win32' && join(base, name).length > MAX_POSIX_ROOT_LENGTH
+    ? realpathSync('/tmp')
+    : base
 }
 
 /** A per-run temp root, so files tests leave in os.tmpdir() go when the run ends; null keeps the inherited one. */
