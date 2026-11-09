@@ -18,6 +18,22 @@ export function useGitGraphRefOwner(worktreeId: string, executionHostId?: Execut
   return { owner, requests }
 }
 
+async function drainRefRequests(queue: RefRequests): Promise<void> {
+  if (queue.running) {
+    return
+  }
+  queue.running = true
+  try {
+    while (queue.pending) {
+      const next = queue.pending
+      queue.pending = undefined
+      await next()
+    }
+  } finally {
+    queue.running = false
+  }
+}
+
 const errorText = (cause: unknown): string =>
   cause instanceof Error ? cause.message : String(cause)
 
@@ -89,21 +105,6 @@ export function useGitGraphRefSearch({
     }
     let live = true
     const queue = requests.current
-    const drain = async () => {
-      if (queue.running) {
-        return
-      }
-      queue.running = true
-      try {
-        while (queue.pending) {
-          const next = queue.pending
-          queue.pending = undefined
-          await next()
-        }
-      } finally {
-        queue.running = false
-      }
-    }
     const timeout = setTimeout(() => {
       queue.pending = async () => {
         const scope = gitGraphScope(worktreeId, undefined, executionHostId)
@@ -121,7 +122,7 @@ export function useGitGraphRefSearch({
           }
         }
       }
-      void drain()
+      void drainRefRequests(queue)
     }, 150)
     return () => {
       live = false

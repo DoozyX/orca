@@ -35,6 +35,16 @@ function toWipWorkspace(
   }
 }
 
+// Workspace records churn on every activity bump; keep the previous list until its signature changes.
+function useCatalogForSignature(latest: Worktree[], signature: string): Worktree[] {
+  const [kept, setKept] = useState({ signature, catalog: latest })
+  if (kept.signature !== signature) {
+    setKept({ signature, catalog: latest })
+    return latest
+  }
+  return kept.catalog
+}
+
 export function useGitGraphWipStatus(scope: ReturnType<typeof gitGraphScope>): {
   workspaces: GitGraphWipWorkspace[]
   refresh: () => void
@@ -54,7 +64,7 @@ export function useGitGraphWipStatus(scope: ReturnType<typeof gitGraphScope>): {
   const latestCatalog = scope
     ? [scope.worktree, ...gitGraphWorkspaceCatalog(scope, { repos, worktreesByRepo })]
     : []
-  // Workspace records churn on every activity bump; only the fields used here may rebuild rows.
+  // Only the fields used here may rebuild rows.
   const catalogSignature = JSON.stringify(
     latestCatalog.map((worktree) => [
       worktree.id,
@@ -64,8 +74,7 @@ export function useGitGraphWipStatus(scope: ReturnType<typeof gitGraphScope>): {
       worktree.head
     ])
   )
-  // oxlint-disable-next-line react-hooks/exhaustive-deps -- rebuilt only when the signature changes
-  const catalog = useMemo(() => latestCatalog, [catalogSignature])
+  const catalog = useCatalogForSignature(latestCatalog, catalogSignature)
   const ownerKey = gitGraphOwnerKey(scope)
   const [fetched, setFetched] = useState<ReadonlyMap<string, FetchedStatus>>(new Map())
   const generation = useRef(0)
