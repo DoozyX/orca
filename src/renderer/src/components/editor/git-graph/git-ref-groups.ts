@@ -1,3 +1,4 @@
+import { uiCollator } from '@/i18n/ui-intl-formatters'
 import {
   GIT_HISTORY_MAX_REFS,
   type GitHistoryItemRef
@@ -8,7 +9,8 @@ export type GitRefTreeGroup =
   | { kind: 'remote'; remote: string; refs: GitHistoryItemRef[] }
   | { kind: 'tags'; refs: GitHistoryItemRef[] }
 
-const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
+const NAME_ORDER: Intl.CollatorOptions = { numeric: true, sensitivity: 'base' }
+const collator = { compare: (a: string, b: string) => uiCollator(NAME_ORDER).compare(a, b) }
 export const LOCAL = 'refs/heads/'
 export const REMOTE = 'refs/remotes/'
 export const TAG = 'refs/tags/'

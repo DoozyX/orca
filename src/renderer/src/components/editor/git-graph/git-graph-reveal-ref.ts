@@ -47,10 +47,6 @@ export async function revealCommitWhenLoaded(
     if (view.disposed || !isNewest()) {
       return false
     }
-    if (view.error !== undefined) {
-      toast.message(view.error)
-      return false
-    }
     const index = await controller.reveal(id)
     if (!isNewest()) {
       return false
@@ -101,9 +97,9 @@ export async function revealGitRefInGitGraph(
       refIds: [ref.id],
       visible: true
     })
-    if ('error' in outcome) {
+    if ('refusal' in outcome) {
       toast.message(
-        gitGraphRefVisibilityMessage(translate, outcome.error, { visible: true, capped: false })
+        gitGraphRefVisibilityMessage(translate, outcome.refusal, { visible: true, capped: false })
       )
       return false
     }

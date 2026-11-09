@@ -31,13 +31,13 @@ describe('toggleGitGraphRefVisibility', () => {
         refIds: ['ref-0'],
         visible: false
       })
-    ).toEqual({ error: 'too-many-refs' })
+    ).toEqual({ refusal: 'too-many-refs' })
   })
 
   it('refuses to hide the last visible ref', () => {
     expect(
       toggleGitGraphRefVisibility({ filter: ['a'], allRefIds, refIds: ['a'], visible: false })
-    ).toEqual({ error: 'last-visible' })
+    ).toEqual({ refusal: 'last-visible' })
     expect(
       toggleGitGraphRefVisibility({
         filter: 'head',
@@ -46,7 +46,7 @@ describe('toggleGitGraphRefVisibility', () => {
         refIds: ['a'],
         visible: false
       })
-    ).toEqual({ error: 'last-visible' })
+    ).toEqual({ refusal: 'last-visible' })
   })
 
   it('expands the current-branch filter before adding a ref', () => {
@@ -65,7 +65,7 @@ describe('toggleGitGraphRefVisibility', () => {
 describe('toggleGitGraphRefVisibility with a partial ref list', () => {
   it('refuses to hide from All and never restores All from the known refs', () => {
     expect(toggleGitGraphRefVisibility({ filter: 'all', refIds: ['a'], visible: false })).toEqual({
-      error: 'refs-incomplete'
+      refusal: 'refs-incomplete'
     })
     expect(
       toggleGitGraphRefVisibility({ filter: ['a', 'b'], refIds: ['x'], visible: true })

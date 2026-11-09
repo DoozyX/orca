@@ -23,10 +23,10 @@ export function toggleGitGraphRefVisibility(input: {
   currentRefId?: string
   refIds: string[]
   visible: boolean
-}): { filter: GitHistoryRefs } | { error: GitGraphRefVisibilityError } {
+}): { filter: GitHistoryRefs } | { refusal: GitGraphRefVisibilityError } {
   const { filter, allRefIds, currentRefId, refIds, visible } = input
   if (filter === 'all' && !allRefIds) {
-    return visible ? { filter: 'all' } : { error: 'refs-incomplete' }
+    return visible ? { filter: 'all' } : { refusal: 'refs-incomplete' }
   }
   const shown = new Set(
     filter === 'all' ? allRefIds : filter === 'head' ? (currentRefId ? [currentRefId] : []) : filter
@@ -39,13 +39,13 @@ export function toggleGitGraphRefVisibility(input: {
     }
   }
   if (!shown.size) {
-    return { error: 'last-visible' }
+    return { refusal: 'last-visible' }
   }
   if (allRefIds && allRefIds.length === shown.size && allRefIds.every((id) => shown.has(id))) {
     return { filter: 'all' }
   }
   if (shown.size > GIT_HISTORY_MAX_REFS) {
-    return { error: 'too-many-refs' }
+    return { refusal: 'too-many-refs' }
   }
   return { filter: [...shown].sort() }
 }

@@ -13,10 +13,8 @@ import { Input } from '@/components/ui/input'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { cn } from '@/lib/utils'
 import { useTranslate } from '@/i18n/use-translate'
-import {
-  GIT_HISTORY_MAX_REFS,
-  type GitHistoryItemRef
-} from '../../../../../shared/git/history/git-history-types'
+import type { GitHistoryItemRef } from '../../../../../shared/git/history/git-history-types'
+import { formatGitGraphRefLimit } from './git-graph-ref-messages'
 import {
   gitRefDisplayName,
   gitRefGroupKey,
@@ -185,7 +183,7 @@ export function GitRefTree({
                   {t(
                     'gitGraph.groupTruncated',
                     'Only the first {{max}} are listed. Search to find the rest.',
-                    { max: GIT_HISTORY_MAX_REFS.toLocaleString() }
+                    { max: formatGitGraphRefLimit() }
                   )}
                 </p>
               )

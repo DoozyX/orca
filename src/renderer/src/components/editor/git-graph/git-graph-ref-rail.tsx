@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type RefObject } from 'react'
+import { useMemo, useState, type RefObject } from 'react'
 import { useTranslate } from '@/i18n/use-translate'
 import { GitRefTree } from './git-ref-tree'
 import { useGitGraphJumpPending } from './use-git-graph-jump-pending'
@@ -11,7 +11,18 @@ import {
   type GitGraphRefVisibilityError
 } from './git-graph-ref-visibility'
 import type { useGitGraphHistory } from './use-git-graph-history'
-import type { GitHistoryItemRef } from '../../../../../shared/git/history/git-history-types'
+import type {
+  GitHistoryItemRef,
+  GitHistoryRefs
+} from '../../../../../shared/git/history/git-history-types'
+
+type Refusal = {
+  reason: GitGraphRefVisibilityError
+  visible: boolean
+  filter: GitHistoryRefs
+  groupsComplete: boolean
+  anyGroupCapped: boolean
+}
 
 type RailProps = {
   worktreeId: string
@@ -35,7 +46,7 @@ function GitGraphRefRailForOwner({
   requests
 }: RailProps & { owner: string; requests: RefObject<RefRequests> }) {
   const t = useTranslate()
-  const [refusal, setRefusal] = useState<{ error: GitGraphRefVisibilityError; visible: boolean }>()
+  const [raised, setRaised] = useState<Refusal>()
   const { pendingRefId, runJump } = useGitGraphJumpPending()
   const { capable, refs, cappedKeys, allRefs, anyGroupCapped, groupsComplete, error, setQuery } =
     useGitRefTreeSource({
@@ -46,7 +57,14 @@ function GitGraphRefRailForOwner({
       enabled: true,
       reloadKey
     })
-  useEffect(() => setRefusal(undefined), [history.filter, groupsComplete, anyGroupCapped])
+  // A refusal describes the filter and ref list it was raised for; it is hidden once either changes.
+  const refusal =
+    raised &&
+    raised.filter === history.filter &&
+    raised.groupsComplete === groupsComplete &&
+    raised.anyGroupCapped === anyGroupCapped
+      ? raised
+      : undefined
   const currentRefId = history.result?.currentRef?.id
   const allRefIds = useMemo(
     () => (groupsComplete && allRefs ? allRefs.map((ref) => ref.id) : undefined),
@@ -66,11 +84,17 @@ function GitGraphRefRailForOwner({
       refIds,
       visible
     })
-    if ('error' in outcome) {
-      setRefusal({ error: outcome.error, visible })
+    if ('refusal' in outcome) {
+      setRaised({
+        reason: outcome.refusal,
+        visible,
+        filter: history.filter,
+        groupsComplete,
+        anyGroupCapped
+      })
       return false
     }
-    setRefusal(undefined)
+    setRaised(undefined)
     history.changeFilter(outcome.filter)
     return true
   }
@@ -93,7 +117,7 @@ function GitGraphRefRailForOwner({
       : [
           error,
           refusal &&
-            gitGraphRefVisibilityMessage(t, refusal.error, {
+            gitGraphRefVisibilityMessage(t, refusal.reason, {
               visible: refusal.visible,
               capped: anyGroupCapped
             })

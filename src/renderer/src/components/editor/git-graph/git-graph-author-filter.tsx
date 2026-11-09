@@ -3,7 +3,6 @@ import { ListFilter } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { cn } from '@/lib/utils'
 import { useTranslate } from '@/i18n/use-translate'
 import { countGitGraphAuthors } from './git-graph-author-key'
 import { GitGraphCheckList } from './git-graph-check-list'
@@ -31,7 +30,7 @@ export function GitGraphAuthorFilter({ items, picked, onChange }: GitGraphAuthor
       <Popover onOpenChange={(open) => !open && setQuery('')}>
         <PopoverTrigger asChild>
           <Button
-            variant="ghost"
+            variant={active ? 'outline' : 'ghost'}
             size="icon-xs"
             aria-label={
               active
@@ -40,7 +39,6 @@ export function GitGraphAuthorFilter({ items, picked, onChange }: GitGraphAuthor
                   })
                 : t('gitGraph.filterAuthors', 'Highlight authors')
             }
-            className={cn(active && 'border border-primary bg-accent text-foreground')}
           >
             <ListFilter />
           </Button>

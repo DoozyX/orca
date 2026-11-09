@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react'
 import { useEffect, useState } from 'react'
 import { Copy } from 'lucide-react'
+import { Trans } from 'react-i18next'
+import { i18n } from '@/i18n/i18n'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
@@ -68,7 +70,12 @@ export function GitGraphDetails({
       <div className="space-y-3 p-4">
         <div className="flex min-w-0 items-center gap-1">
           <h2 className="min-w-0 truncate text-sm font-semibold">
-            {t('gitGraph.commitHeading', 'commit {{id}}', { id: shortId })}
+            <Trans
+              i18n={i18n}
+              defaults={t('gitGraph.commitHeading', 'commit <id>{{id}}</id>')}
+              values={{ id: shortId }}
+              components={{ id: <span className="font-mono" /> }}
+            />
           </h2>
           <Tooltip>
             <TooltipTrigger asChild>

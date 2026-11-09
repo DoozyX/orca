@@ -3,6 +3,7 @@ import { openGitGraph, GIT_GRAPH_REFRESH_EVENT } from '@/lib/git-graph-tab'
 import { useTranslate } from '@/i18n/use-translate'
 import { GitRefTree } from '@/components/editor/git-graph/git-ref-tree'
 import { gitGraphOldServerMessage } from '@/components/editor/git-graph/git-graph-ref-messages'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { useGitGraphJumpPending } from '@/components/editor/git-graph/use-git-graph-jump-pending'
 import { revealGitRefInGitGraph } from '@/components/editor/git-graph/git-graph-reveal-ref'
 import {
@@ -82,6 +83,12 @@ export function BranchesTagsSection({
           ) : (
             <>
               {error && <p className="shrink-0 px-3 py-2 text-xs text-destructive">{error}</p>}
+              {!refs && !error && (
+                <p className="flex shrink-0 items-center gap-2 px-3 py-2 text-xs text-muted-foreground">
+                  <LoadingSpinner className="size-3.5" />
+                  {t('gitGraph.loadingRefs', 'Loading branches and tags…')}
+                </p>
+              )}
               {refs && (
                 <div className="min-h-0 flex-1">
                   <GitRefTree
