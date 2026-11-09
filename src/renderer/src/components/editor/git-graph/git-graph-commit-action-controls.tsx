@@ -5,10 +5,14 @@ import { useStore } from 'zustand'
 import { Button } from '@/components/ui/button'
 import { ContextMenuItem, ContextMenuSeparator } from '@/components/ui/context-menu'
 import { useTranslate } from '@/i18n/use-translate'
-import type { useGitCommitActionsSupport } from '@/runtime/source-control/git/git-commit-actions-capability'
+import { useGitCommitActionsSupport } from '@/runtime/source-control/git/git-commit-actions-capability'
+import type { gitGraphScope } from '@/lib/git-graph-tab'
 import type { GitHistoryItem } from '../../../../../shared/git/history/git-history-types'
 import type { GitGraphCommitActionsController } from './git-graph-commit-actions-controller'
 import { gitGraphActionLabel, type GitGraphCommitAction } from './git-graph-commit-action-copy'
+
+export const useGitGraphCommitActionSupport = (scope: ReturnType<typeof gitGraphScope>) =>
+  useGitCommitActionsSupport(scope?.target ?? null, scope?.route.executionHostId ?? undefined)
 
 type Props = {
   item: GitHistoryItem

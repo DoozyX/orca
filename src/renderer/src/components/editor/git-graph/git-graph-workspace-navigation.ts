@@ -5,7 +5,7 @@ import { getWorktreeExecutionHostId } from '../../../../../shared/execution-host
 import { findIndexedRepoOwnerForHost } from '@/lib/workspace/ownership/repo-owner-index'
 import { selectWorktreesByRepo } from '@/store/workspaces/catalog/workspace-record-fields'
 import { useAppStore } from '@/store'
-import { gitGraphScope } from '@/lib/git-graph-tab'
+import { gitGraphRuntimeContext, gitGraphScope } from '@/lib/git-graph-tab'
 import { getRuntimeGitRefs } from '@/runtime/source-control/git/runtime-git-status-client'
 
 export const gitGraphOwnerKey = (scope: ReturnType<typeof gitGraphScope>) =>
@@ -32,6 +32,30 @@ export function gitGraphWorkspaceCatalog(
   )
 }
 
+export const gitGraphWorkspaceBranchRefId = (branch: string): string =>
+  branch.startsWith('refs/heads/') ? branch : `refs/heads/${branch}`
+
+const notifyWorkspaceClosed = () =>
+  toast.message(
+    translate('gitGraph.workspaceClosed', "This branch isn't open in another workspace anymore.")
+  )
+
+export function activateGitGraphWorkspace(
+  scope: ReturnType<typeof gitGraphScope>,
+  worktreeId: string,
+  isLive: () => boolean
+): void {
+  const hostId = scope?.route.executionHostId
+  if (!scope || !hostId || !isLive()) {
+    return
+  }
+  if (gitGraphWorkspaceCatalog(scope).some((row) => row.id === worktreeId)) {
+    useAppStore.getState().setActiveWorktree(worktreeId, hostId)
+  } else {
+    notifyWorkspaceClosed()
+  }
+}
+
 export async function switchGitGraphWorkspace(
   scope: ReturnType<typeof gitGraphScope>,
   refId: string,
@@ -47,15 +71,7 @@ export async function switchGitGraphWorkspace(
     gitGraphOwnerKey(scope) ===
       gitGraphOwnerKey(gitGraphScope(worktreeId, useAppStore.getState(), hostId))
   try {
-    const refs = await getRuntimeGitRefs(
-      {
-        target: scope.target,
-        worktreeId: worktreeId,
-        worktreePath: scope.worktree.path,
-        connectionId: scope.connectionId ?? undefined
-      },
-      refId
-    )
+    const refs = await getRuntimeGitRefs(gitGraphRuntimeContext(worktreeId, scope), refId)
     if (!current()) {
       return
     }
@@ -69,12 +85,7 @@ export async function switchGitGraphWorkspace(
     if (workspace) {
       useAppStore.getState().setActiveWorktree(workspace.id, hostId)
     } else {
-      toast.message(
-        translate(
-          'gitGraph.workspaceClosed',
-          "This branch isn't open in another workspace anymore."
-        )
-      )
+      notifyWorkspaceClosed()
     }
   } catch {
     if (current()) {

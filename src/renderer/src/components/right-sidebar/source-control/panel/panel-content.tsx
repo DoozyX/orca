@@ -1,5 +1,7 @@
 import { useGitCommitActionsSupport } from '@/runtime/source-control/git/git-commit-actions-capability'
 import { GitHistoryPanel } from '../sync/git-history-panel'
+import { BranchesTagsSection } from '../sync/branches-tags-section'
+import { useGitGraphSupport } from '../sync/use-git-graph-support'
 import { shouldShowSourceControlCompareUnavailableCard } from './header-toolbar'
 import { shouldRenderCommitArea } from '../commit/component-gates'
 import { SourceControlBranchSection } from '../listing/branch-section'
@@ -86,6 +88,8 @@ export function SourceControlPanelContent(props: SourceControlPanelReadyProps) {
     visibleTreeRowsBySection
   } = model
 
+  const gitGraphSupported = useGitGraphSupport(currentWorktreeId) === true
+  const showBranchesAndTags = isGitHistoryVisible && gitGraphSupported
   const recovery = useGitCommitActionsSupport(
     conflictOperation === 'revert' ? model.activeRepoTarget : null
   )
@@ -238,6 +242,14 @@ export function SourceControlPanelContent(props: SourceControlPanelReadyProps) {
         <div
           className={`sticky bottom-0 z-10 mt-auto shrink-0 border-t border-border ${dockBackground} backdrop-blur-sm`}
         >
+          {showBranchesAndTags && (
+            <BranchesTagsSection
+              worktreeId={currentWorktreeId}
+              currentRefId={activeWorktree.branch}
+              collapsed={collapsedSections.has('refs')}
+              onToggle={() => toggleSection('refs')}
+            />
+          )}
           <GitHistoryPanel
             worktreeId={currentWorktreeId ?? undefined}
             state={gitHistoryState}
@@ -250,7 +262,9 @@ export function SourceControlPanelContent(props: SourceControlPanelReadyProps) {
             onCommitAction={handleCommitAction}
             onOpenGitGraph={(event) => {
               if (currentWorktreeId) {
-                void openGitGraph(currentWorktreeId, () => resolveSplitTargetGroupId(event))
+                void openGitGraph(currentWorktreeId, {
+                  resolveTargetGroupId: () => resolveSplitTargetGroupId(event)
+                })
               }
             }}
           />

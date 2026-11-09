@@ -1,18 +1,32 @@
 import type { GitGraphHistoryView } from './git-graph-history-view'
 import { GitGraphCommitActionsController } from './git-graph-commit-actions-controller'
-import { gitGraphOwnerKey, switchGitGraphWorkspace } from './git-graph-workspace-navigation'
+import {
+  activateGitGraphWorkspace,
+  gitGraphOwnerKey,
+  switchGitGraphWorkspace
+} from './git-graph-workspace-navigation'
 import { createStore } from 'zustand/vanilla'
 import { shallow } from 'zustand/shallow'
 import { useAppStore } from '@/store'
-import { gitGraphScope, gitGraphScopeInputs, GIT_GRAPH_REFRESH_EVENT } from '@/lib/git-graph-tab'
+import {
+  gitGraphRuntimeContext,
+  gitGraphScope,
+  gitGraphScopeInputs,
+  GIT_GRAPH_REFRESH_EVENT
+} from '@/lib/git-graph-tab'
 import { getRuntimeGitHistory } from '@/runtime/source-control/git/runtime-git-status-client'
 import { translate } from '@/i18n/i18n'
-import type {
-  GitHistoryRefs,
-  GitHistoryResult
+import { adoptResolvedGitGraphRefs } from './git-graph-resolved-refs'
+import {
+  GIT_HISTORY_DEFAULT_LIMIT,
+  GIT_HISTORY_MAX_LIMIT,
+  type GitHistoryRefs,
+  type GitHistoryResult
 } from '../../../../../shared/git/history/git-history-types'
 import type { ExecutionHostId } from '../../../../../shared/execution-host'
+import { isGitGraphSelectionLoaded, resolveGitGraphSelection } from './git-graph-wip-items'
 
+const noAuthors: ReadonlySet<string> = new Set()
 const filterFor = (worktreeId: string) =>
   useAppStore.getState().gitGraphFiltersByWorktree?.[worktreeId] ?? 'all'
 
@@ -21,14 +35,14 @@ export class GitGraphHistoryController {
   get actionScope() {
     return this.scope
   }
-  captureActionView(): () => boolean {
-    const generation = this.generation
-    const navigation = this.navigation
-    return () => !this.disposed && generation === this.generation && navigation === this.navigation
-  }
-  readonly view = createStore<GitGraphHistoryView>(() => ({ loading: false }))
+  captureActionView = (): (() => boolean) => this.liveGuard(true)
+  readonly view = createStore<GitGraphHistoryView>(() => ({
+    loading: false,
+    authorHighlight: noAuthors
+  }))
   scrollOffset = 0
   graphWidth = 132
+  fileSort: 'asc' | 'desc' = 'asc'
   private scope: ReturnType<typeof gitGraphScope>
   private filter: GitHistoryRefs
   executionHostId: ExecutionHostId | undefined
@@ -94,7 +108,7 @@ export class GitGraphHistoryController {
     this.scope = scope
     this.filter = filter
     this.scrollOffset = 0
-    this.view.setState({ loading: false }, true)
+    this.view.setState({ loading: false, authorHighlight: this.authorHighlight }, true)
     this.invalidate()
   }
 
@@ -116,18 +130,29 @@ export class GitGraphHistoryController {
   dispose(): void {
     this.actions.cancel()
     this.disposed = true
+    this.view.setState({ disposed: true, loading: false })
     this.generation++
     this.unsubscribe?.()
     window.removeEventListener(GIT_GRAPH_REFRESH_EVENT, this.onRefresh)
   }
 
-  switchToWorkspace = (refId: string): Promise<void> => {
-    const generation = this.generation
-    return switchGitGraphWorkspace(
-      this.scope,
-      refId,
-      () => !this.disposed && generation === this.generation
-    )
+  private liveGuard(sameNavigation = false): () => boolean {
+    const { generation, navigation } = this
+    return () =>
+      !this.disposed &&
+      generation === this.generation &&
+      (!sameNavigation || navigation === this.navigation)
+  }
+  switchToWorkspace = (refId: string): Promise<void> =>
+    switchGitGraphWorkspace(this.scope, refId, this.liveGuard())
+  activateWorkspace = (worktreeId: string): void =>
+    activateGitGraphWorkspace(this.scope, worktreeId, this.liveGuard())
+
+  get authorHighlight(): ReadonlySet<string> {
+    return this.view.getState().authorHighlight
+  }
+  setAuthorHighlight = (keys: Iterable<string>): void => {
+    this.view.setState({ authorHighlight: new Set(keys) })
   }
 
   select = (selectedId: string): void => {
@@ -135,9 +160,7 @@ export class GitGraphHistoryController {
     this.navigation++
     this.view.setState({ selectedId, revealId: undefined })
   }
-  clearReveal = (): void => {
-    this.view.setState({ revealId: undefined })
-  }
+  clearReveal = (): void => this.view.setState({ revealId: undefined })
   refresh = (): Promise<GitHistoryResult | undefined> => {
     this.generation++
     this.pending = undefined
@@ -148,24 +171,24 @@ export class GitGraphHistoryController {
     this.pending ?? (this.dirty ? this.retrieve() : Promise.resolve(this.view.getState().result))
 
   reveal = async (id: string): Promise<number> => {
-    const generation = this.generation
     this.actions.cancel()
     const navigation = ++this.navigation
     this.clearReveal()
-    const current = () =>
-      !this.disposed && generation === this.generation && navigation === this.navigation
+    const current = this.captureActionView()
+    // -2: the history was reloaded under this jump, so the caller may retry; -1: superseded or closed.
+    const aborted = () => (!this.disposed && navigation === this.navigation ? -2 : -1)
     while (this.pending && current()) {
       await this.pending
     }
     if (!current()) {
-      return -1
+      return aborted()
     }
     let result = this.view.getState().result
     if (!result?.items.some((item) => item.id === id) && result?.hasMore) {
       result = await this.retrieve(true, false, id, navigation)
     }
     if (!current()) {
-      return -1
+      return aborted()
     }
     const index = result?.items.findIndex((item) => item.id === id) ?? -1
     if (index !== -1) {
@@ -191,10 +214,9 @@ export class GitGraphHistoryController {
     if (!context || (append && !previous?.hasMore)) {
       return Promise.resolve(context ? previous : undefined)
     }
-    const generation = this.generation
     const targetDepth = previous?.items.length ?? 0
     const filter = this.filter
-    const current = () => !this.disposed && generation === this.generation
+    const current = this.liveGuard()
     this.initial = false
     this.dirty = false
     this.view.setState({ loading: true, error: undefined })
@@ -207,15 +229,10 @@ export class GitGraphHistoryController {
       try {
         do {
           const page = await getRuntimeGitHistory(
-            {
-              target: context.target,
-              worktreeId: this.worktreeId,
-              worktreePath: context.worktree.path,
-              connectionId: context.connectionId ?? undefined
-            },
+            gitGraphRuntimeContext(this.worktreeId, context),
             {
               refs: filter,
-              limit: 50,
+              limit: revealId ? GIT_HISTORY_MAX_LIMIT : GIT_HISTORY_DEFAULT_LIMIT,
               historyToken: accumulated?.historyToken,
               skip: items.length,
               wakeWslDistro
@@ -250,7 +267,8 @@ export class GitGraphHistoryController {
           if (
             (!revealId &&
               items.length >= targetDepth &&
-              (count >= targetDepth || ids.has(this.view.getState().selectedId ?? ''))) ||
+              (count >= targetDepth ||
+                isGitGraphSelectionLoaded(ids, this.view.getState().selectedId))) ||
             (revealId && (navigation !== this.navigation || ids.has(revealId))) ||
             !page.hasMore ||
             items.length === count
@@ -269,8 +287,7 @@ export class GitGraphHistoryController {
       }
       const result = error !== undefined ? previous : (accumulated ?? previous)
       const selection = this.view.getState().selectedId
-      const selectedId =
-        result?.items.find((item) => item.id === selection)?.id ?? result?.items[0]?.id
+      const selectedId = resolveGitGraphSelection(result?.items, selection)
       const selectionGone = selection !== undefined && selection !== selectedId
       if (selectionGone) {
         this.actions.cancel()
@@ -283,19 +300,7 @@ export class GitGraphHistoryController {
         selectedId,
         ...(selectionGone ? { revealId: selectedId } : {})
       })
-      if (
-        Array.isArray(filter) &&
-        result?.resolvedRefs &&
-        JSON.stringify(filter) !== JSON.stringify(result.resolvedRefs)
-      ) {
-        const refs = result.resolvedRefs
-        useAppStore.setState((state) => ({
-          gitGraphFiltersByWorktree: {
-            ...state.gitGraphFiltersByWorktree,
-            [this.worktreeId]: refs.length ? refs : 'head'
-          }
-        }))
-      }
+      adoptResolvedGitGraphRefs(this.worktreeId, filter, result)
       return result
     }
     const pending = run().finally(() => {

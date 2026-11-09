@@ -1,65 +1,79 @@
-import { useGitCommitActionsSupport } from '@/runtime/source-control/git/git-commit-actions-capability'
 import {
   GitGraphCommitActionControls,
-  GitGraphCommitConfirmStrip
+  GitGraphCommitConfirmStrip,
+  useGitGraphCommitActionSupport
 } from './git-graph-commit-action-controls'
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useSidebarResize } from '@/hooks/useSidebarResize'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { RefreshCw } from 'lucide-react'
+import { PanelLeft, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { ContextMenu, ContextMenuTrigger } from '@/components/ui/context-menu'
 import { GitHistoryCommitContextMenu } from '@/components/right-sidebar/source-control/sync/git-history-commit-context-menu'
-import { GitHistoryGraphSvg } from '@/components/right-sidebar/source-control/sync/git-history-graph-svg'
+import {
+  GIT_HISTORY_GRAPH_METRICS,
+  GitHistoryGraphSvg,
+  gitHistoryNodeColor
+} from '@/components/right-sidebar/source-control/sync/git-history-graph-svg'
 import { useGitHistoryCommitActions } from '@/components/right-sidebar/source-control/sync/use-git-history-commit-actions'
 import { formatGitHistoryTimestamp } from '@/components/right-sidebar/source-control/sync/git-history-format'
-import {
-  buildDefaultGitHistoryColorMap,
-  buildGitHistoryViewModels
-} from '../../../../../shared/git/history/git-history-graph'
 import { useGitGraphHistory, gitGraphFilterSupported } from './use-git-graph-history'
 import { GitGraphFilter } from './git-graph-filter'
+import { GitGraphAuthorFilter } from './git-graph-author-filter'
+import { gitGraphAuthorKey } from './git-graph-author-key'
 import { GitGraphDetails } from './git-graph-details'
+import type { GitGraphFileSort } from './git-graph-file-list'
+import { GitGraphRefRail } from './git-graph-ref-rail'
 import { GitGraphRefs, useGitGraphWorkspaces } from './git-graph-ref-menu'
+import { GitGraphWipDetails } from './git-graph-wip-details'
+import { GitGraphWipRow } from './git-graph-wip-row'
+import { openGitGraphWipEntry } from './open-git-graph-wip-entry'
+import { useGitGraphRows } from './use-git-graph-rows'
+import { isGitHistoryWipId } from '../../../../../shared/git/history/git-history-wip-rows'
 import { cn } from '@/lib/utils'
+import { GIT_GRAPH_REFRESH_EVENT } from '@/lib/git-graph-tab'
 import { useIntlLocale, useTranslate } from '@/i18n/use-translate'
 
 const sameGroup = () => undefined
+// Dimming covers text and avatar cells; the graph cell keeps its lanes at full strength.
+const ROW_CLASS =
+  'absolute left-0 top-0 grid h-[26px] w-full items-center px-3 text-xs hover:bg-accent data-[dimmed]:[&>:not(:nth-child(2))]:opacity-40 data-[dimmed]:[&_[data-author-avatar]]:opacity-40'
+const { rowHeight: ROW_HEIGHT, laneWidth: LANE_WIDTH } = GIT_HISTORY_GRAPH_METRICS.avatar
+const FIXED_COLUMNS_WIDTH = 160 + 200 + 120 + 100 + 72 + 24
 
 export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
   const t = useTranslate()
   const intlLocale = useIntlLocale()
   const history = useGitGraphHistory(worktreeId)
   const { result, scope, selectedId, revealId, controller } = history
-  const commitActionSupport = useGitCommitActionsSupport(
-    scope?.target ?? null,
-    scope?.route.executionHostId ?? undefined
-  )
+  const commitActionSupport = useGitGraphCommitActionSupport(scope)
   const workspaces = useGitGraphWorkspaces(scope)
-  const rows = useMemo(
-    () =>
-      result
-        ? buildGitHistoryViewModels(
-            result.items,
-            buildDefaultGitHistoryColorMap(result),
-            result.currentRef
-          )
-        : [],
-    [result]
-  )
+  const { rows, wipById, refreshWip } = useGitGraphRows(scope, result, history.filter)
   const maxGraphWidth = useMemo(
     () =>
       rows.reduce(
         (width, row) =>
           Math.max(
             width,
-            (Math.max(row.inputSwimlanes.length, row.outputSwimlanes.length) + 1) * 11
+            (Math.max(row.inputSwimlanes.length, row.outputSwimlanes.length) + 1) * LANE_WIDTH
           ),
         132
       ),
     [rows]
   )
+  const [railOpen, setRailOpen] = useState(true)
+  const [fileSort, setFileSort] = useState(controller.fileSort)
+  const [refsEpoch, setRefsEpoch] = useState(0)
+  useEffect(() => {
+    const onRefresh = (event: Event) => {
+      if (event instanceof CustomEvent && event.detail === worktreeId) {
+        setRefsEpoch((epoch) => epoch + 1)
+      }
+    }
+    window.addEventListener(GIT_GRAPH_REFRESH_EVENT, onRefresh)
+    return () => window.removeEventListener(GIT_GRAPH_REFRESH_EVENT, onRefresh)
+  }, [worktreeId])
   const [graphWidth, setGraphWidth] = useState(controller.graphWidth)
   const [draftGraphWidth, setDraftGraphWidth] = useState(graphWidth)
   const commitGraphWidth = useCallback(
@@ -78,17 +92,24 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
     setWidth: commitGraphWidth,
     onDraftWidthChange: setDraftGraphWidth
   })
-  const columns = `160px ${draftGraphWidth}px minmax(200px,1fr) 120px 100px`
+  const columns = `160px ${draftGraphWidth}px minmax(200px,1fr) 120px 100px 72px`
   const scroll = useRef<HTMLDivElement>(null)
   const virtualizer = useVirtualizer({
     count: rows.length,
     initialOffset: () => history.controller.scrollOffset,
     getScrollElement: () => scroll.current,
-    estimateSize: () => 24,
+    estimateSize: () => ROW_HEIGHT,
     overscan: 12,
     getItemKey: (index) => rows[index]!.historyItem.id
   })
-  const selected = result?.items.find((item) => item.id === selectedId)
+  // A WIP selection outlives its row (clean, hidden or failed status), so show the newest commit instead.
+  const selected = (
+    rows.find((row) => row.historyItem.id === selectedId) ??
+    (selectedId !== undefined && isGitHistoryWipId(selectedId)
+      ? rows.find((row) => !isGitHistoryWipId(row.historyItem.id))
+      : undefined)
+  )?.historyItem
+  const selectedWip = selected ? wipById.get(selected.id) : undefined
   useLayoutEffect(() => {
     if (scroll.current) {
       scroll.current.scrollTop = controller.scrollOffset
@@ -104,6 +125,10 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
       controller.clearReveal()
     }
   }, [rows, revealId, virtualizer, controller])
+  const changeFileSort = (sort: GitGraphFileSort) => {
+    controller.fileSort = sort
+    setFileSort(sort)
+  }
   const actions = useGitHistoryCommitActions({
     activeWorktreeId: worktreeId,
     worktreePath: scope?.worktree.path ?? null,
@@ -114,20 +139,42 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
   return (
     <div className="flex h-full min-h-0 flex-col bg-background text-foreground">
       <div className="flex h-11 shrink-0 items-center justify-between gap-3 border-b border-border px-3">
-        <GitGraphFilter
-          worktreeId={worktreeId}
-          executionHostId={history.controller.executionHostId}
-          filter={history.filter}
-          supported={gitGraphFilterSupported(result)}
-          onChange={history.changeFilter}
-        />
+        <div className="flex min-w-0 items-center gap-1">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={t('gitGraph.toggleRefRail', 'Show or hide branches and tags')}
+                aria-pressed={railOpen}
+                onClick={() => setRailOpen((open) => !open)}
+              >
+                <PanelLeft className="size-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {t('gitGraph.toggleRefRail', 'Show or hide branches and tags')}
+            </TooltipContent>
+          </Tooltip>
+          <GitGraphFilter
+            worktreeId={worktreeId}
+            executionHostId={history.controller.executionHostId}
+            filter={history.filter}
+            supported={gitGraphFilterSupported(result)}
+            onChange={history.changeFilter}
+          />
+        </div>
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
               variant="ghost"
               size="icon-sm"
               aria-label={t('gitGraph.refresh', 'Refresh commits')}
-              onClick={() => void history.refresh()}
+              onClick={() => {
+                setRefsEpoch((epoch) => epoch + 1)
+                refreshWip()
+                void history.refresh()
+              }}
             >
               <RefreshCw className="size-4" />
             </Button>
@@ -139,10 +186,16 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
         <div className="shrink-0 px-3 py-2 text-xs text-destructive">{history.error}</div>
       )}
       <div className="flex min-h-0 flex-1">
+        {railOpen && (
+          <GitGraphRefRail worktreeId={worktreeId} history={history} reloadKey={refsEpoch} />
+        )}
         <div className="flex min-w-0 flex-1 flex-col overflow-x-auto scrollbar-sleek">
           <div
             className="grid h-7 shrink-0 items-center border-b border-border px-3 text-2xs text-muted-foreground"
-            style={{ gridTemplateColumns: columns, minWidth: draftGraphWidth + 604 }}
+            style={{
+              gridTemplateColumns: columns,
+              minWidth: draftGraphWidth + FIXED_COLUMNS_WIDTH
+            }}
           >
             <span>{t('gitGraph.branchTag', 'Branch / Tag')}</span>
             <div ref={graphHeader} className="relative flex h-full items-center">
@@ -164,7 +217,10 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
                     commitGraphWidth(
                       Math.max(
                         44,
-                        Math.min(maxGraphWidth, graphWidth + (event.key === 'ArrowLeft' ? -11 : 11))
+                        Math.min(
+                          maxGraphWidth,
+                          graphWidth + (event.key === 'ArrowLeft' ? -LANE_WIDTH : LANE_WIDTH)
+                        )
                       )
                     )
                   } else if (event.key === 'Home') {
@@ -178,8 +234,13 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
               />
             </div>
             <span>{t('gitGraph.message', 'Message')}</span>
-            <span>{t('gitGraph.author', 'Author')}</span>
+            <GitGraphAuthorFilter
+              items={result?.items ?? []}
+              picked={history.authorHighlight}
+              onChange={history.setAuthorHighlight}
+            />
             <span>{t('gitGraph.date', 'Date')}</span>
+            <span>{t('gitGraph.sha', 'SHA')}</span>
           </div>
           <div
             ref={scroll}
@@ -200,24 +261,43 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
           >
             <div
               className="relative min-w-max"
-              style={{ height: virtualizer.getTotalSize(), minWidth: draftGraphWidth + 604 }}
+              style={{
+                height: virtualizer.getTotalSize(),
+                minWidth: draftGraphWidth + FIXED_COLUMNS_WIDTH
+              }}
             >
               {virtualizer.getVirtualItems().map((virtualRow) => {
                 const viewModel = rows[virtualRow.index]!
                 const item = viewModel.historyItem
+                const wipWorkspace = wipById.get(item.id)
+                const rowStyle = {
+                  transform: `translateY(${virtualRow.start}px)`,
+                  gridTemplateColumns: columns
+                }
+                if (wipWorkspace) {
+                  return (
+                    <GitGraphWipRow
+                      key={item.id}
+                      workspace={wipWorkspace}
+                      viewModel={viewModel}
+                      className={ROW_CLASS}
+                      style={rowStyle}
+                      selected={selected?.id === item.id}
+                      onSelect={() => controller.select(item.id)}
+                    />
+                  )
+                }
+                const dimmed =
+                  history.authorHighlight.size > 0 &&
+                  !history.authorHighlight.has(gitGraphAuthorKey(item))
                 return (
                   <ContextMenu key={item.id}>
                     <ContextMenuTrigger asChild>
                       <div
-                        className={cn(
-                          'absolute left-0 top-0 grid h-6 w-full items-center px-3 text-xs hover:bg-accent',
-                          selected?.id === item.id && 'bg-accent'
-                        )}
-                        style={{
-                          transform: `translateY(${virtualRow.start}px)`,
-                          gridTemplateColumns: columns
-                        }}
+                        className={cn(ROW_CLASS, selected?.id === item.id && 'bg-accent')}
+                        style={rowStyle}
                         data-current={selected?.id === item.id}
+                        data-dimmed={dimmed ? '' : undefined}
                         onClick={() => controller.select(item.id)}
                       >
                         <div className="flex min-w-0 gap-1 overflow-hidden pr-2">
@@ -227,12 +307,13 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
                             onCheckout={(ref) => controller.actions.requestBranch(item, ref)}
                             workspaces={workspaces}
                             references={item.references ?? []}
+                            color={gitHistoryNodeColor(viewModel)}
                             onSwitch={controller.switchToWorkspace}
                             currentRefId={result?.currentRef?.id}
                           />
                         </div>
                         <div className="min-w-0 overflow-hidden">
-                          <GitHistoryGraphSvg viewModel={viewModel} />
+                          <GitHistoryGraphSvg viewModel={viewModel} variant="avatar" />
                         </div>
                         <button
                           className="min-w-0 truncate pr-3 text-left"
@@ -245,6 +326,9 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
                         <span className="truncate pr-2 text-muted-foreground">{item.author}</span>
                         <span className="truncate text-2xs text-muted-foreground">
                           {formatGitHistoryTimestamp(item.timestamp, intlLocale)}
+                        </span>
+                        <span className="truncate font-mono text-2xs text-muted-foreground">
+                          {item.displayId ?? item.id}
                         </span>
                       </div>
                     </ContextMenuTrigger>
@@ -280,21 +364,39 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
         </div>
         <aside className="w-80 min-w-64 shrink-0 overflow-y-auto border-l border-border scrollbar-sleek">
           <GitGraphCommitConfirmStrip controller={controller.actions} />
-          {selected && (
-            <GitGraphDetails
-              key={selected.id}
-              item={selected}
-              commitActions={
-                <GitGraphCommitActionControls
-                  item={selected}
-                  controller={controller.actions}
-                  support={commitActionSupport}
-                />
-              }
-              actions={actions}
-              onParent={(id) => void history.reveal(id)}
-            />
-          )}
+          {selected &&
+            (selectedWip ? (
+              <GitGraphWipDetails
+                key={selected.id}
+                workspace={selectedWip}
+                fileSort={fileSort}
+                onFileSortChange={changeFileSort}
+                onOpenFile={(entry, event) =>
+                  scope && openGitGraphWipEntry(worktreeId, scope, selectedWip, entry, event)
+                }
+                onSwitch={
+                  selectedWip.current
+                    ? undefined
+                    : () => controller.activateWorkspace(selectedWip.worktreeId)
+                }
+              />
+            ) : (
+              <GitGraphDetails
+                key={selected.id}
+                item={selected}
+                commitActions={
+                  <GitGraphCommitActionControls
+                    item={selected}
+                    controller={controller.actions}
+                    support={commitActionSupport}
+                  />
+                }
+                actions={actions}
+                fileSort={fileSort}
+                onFileSortChange={changeFileSort}
+                onParent={(id) => void history.reveal(id)}
+              />
+            ))}
         </aside>
       </div>
     </div>

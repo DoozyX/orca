@@ -5,7 +5,6 @@ import { cn } from '@/lib/utils'
 import { useTranslate } from '@/i18n/use-translate'
 import type { DiscardAllArea } from '../../../../../../shared/source-control/listing/source-control-discard-all-sequence'
 import type {
-  BranchSourceControlTreeDirectoryNode,
   SourceControlDirectoryActionPaths,
   SourceControlTreeDirectoryNode
 } from './directory-action-paths'
@@ -138,7 +137,7 @@ export function SourceControlBranchTreeDirectoryRow({
   isCollapsed,
   onToggle
 }: {
-  node: BranchSourceControlTreeDirectoryNode
+  node: Pick<SourceControlTreeDirectoryNode, 'depth' | 'name' | 'fileCount'>
   isCollapsed: boolean
   onToggle: () => void
 }): React.JSX.Element {
