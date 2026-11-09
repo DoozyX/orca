@@ -173,6 +173,62 @@ it('stops paging for an earlier jump when a second ref is clicked and selects it
   expect(getHistory.mock.calls.map((call) => call[1].skip)).toEqual([0, 50])
 })
 
+it('selects the newer jump when an older paging jump wakes while the newer one waits for a filter reload', async () => {
+  const items = Array.from({ length: 300 }, (_, index) => ({
+    id: `commit-${index}`,
+    subject: `Commit ${index}`,
+    message: `Commit ${index}`,
+    parentIds: []
+  }))
+  const gate = () => {
+    let open!: () => void
+    const promise = new Promise<void>((resolve) => {
+      open = resolve
+    })
+    return { promise, open }
+  }
+  const page = gate()
+  const reload = gate()
+  useAppStore.setState({
+    gitGraphFiltersByWorktree: { [workspaceId]: ['refs/heads/a', 'refs/tags/v1'] }
+  })
+  getHistory.mockReset().mockImplementation(async (_owner, options) => {
+    if (options.refs.includes('refs/heads/b')) {
+      await reload.promise
+      return { ...result, refs: options.refs, items: items.slice(0, 5), hasMore: false }
+    }
+    if (options.skip === 50) {
+      await page.promise
+    }
+    return {
+      ...result,
+      refs: options.refs,
+      historyToken: 'pinned',
+      items: items.slice(options.skip, options.skip + 50),
+      hasMore: options.skip < 250
+    }
+  })
+  await renderGraphWithRail([
+    ...railRefs.filter((ref) => ref.name !== 'b'),
+    { id: 'refs/heads/b', name: 'b', revision: 'commit-3' }
+  ])
+  await act(async () =>
+    container.querySelector<HTMLButtonElement>('aside button[title="v1"]')!.click()
+  )
+  await act(async () =>
+    container.querySelector<HTMLButtonElement>('aside button[title="b"]')!.click()
+  )
+  page.open()
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 0))
+  })
+  reload.open()
+  await vi.waitFor(async () => {
+    await act(async () => {})
+    expect(container.querySelector('[data-current="true"]')?.textContent).toContain('Commit 3')
+  })
+})
+
 it('lists a remote the capped remotes page does not reach by probing remote names', async () => {
   const forkRefs = Array.from({ length: 1000 }, (_, index) => ({
     id: `refs/remotes/fork/b${index}`,

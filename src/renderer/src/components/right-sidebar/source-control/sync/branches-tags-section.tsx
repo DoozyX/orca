@@ -3,6 +3,7 @@ import { openGitGraph, GIT_GRAPH_REFRESH_EVENT } from '@/lib/git-graph-tab'
 import { useTranslate } from '@/i18n/use-translate'
 import { GitRefTree } from '@/components/editor/git-graph/git-ref-tree'
 import { gitGraphOldServerMessage } from '@/components/editor/git-graph/git-graph-ref-messages'
+import { useGitGraphJumpPending } from '@/components/editor/git-graph/use-git-graph-jump-pending'
 import { revealGitRefInGitGraph } from '@/components/editor/git-graph/git-graph-reveal-ref'
 import {
   useGitGraphRefOwner,
@@ -26,7 +27,7 @@ export function BranchesTagsSection({
   const { owner, requests } = useGitGraphRefOwner(worktreeId)
   // Each expand and each Git Graph refresh refetches, so failed groups retry and moved tips update.
   const [reloadKey, setReloadKey] = useState(0)
-  const [pendingRefId, setPendingRefId] = useState<string>()
+  const { pendingRefId, runJump } = useGitGraphJumpPending()
   useEffect(() => {
     const onRefresh = (event: Event) => {
       if (event instanceof CustomEvent && event.detail === worktreeId) {
@@ -44,16 +45,14 @@ export function BranchesTagsSection({
       enabled: !collapsed,
       reloadKey
     })
-  const jump = async (ref: GitHistoryItemRef) => {
-    setPendingRefId(ref.id)
-    await openGitGraph(worktreeId, {
-      afterOpen: async (scope) => {
-        await revealGitRefInGitGraph(worktreeId, scope, ref)
-      }
-    })
-    // A later jump has already replaced this one as the pending row.
-    setPendingRefId((id) => (id === ref.id ? undefined : id))
-  }
+  const jump = (ref: GitHistoryItemRef) =>
+    runJump(ref.id, () =>
+      openGitGraph(worktreeId, {
+        afterOpen: async (scope) => {
+          await revealGitRefInGitGraph(worktreeId, scope, ref)
+        }
+      })
+    )
   return (
     <div className="border-b border-border">
       <div className="h-7 pl-1 pr-3">

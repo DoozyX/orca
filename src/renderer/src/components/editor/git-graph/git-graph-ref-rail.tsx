@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type RefObject } from 'react'
 import { useTranslate } from '@/i18n/use-translate'
 import { GitRefTree } from './git-ref-tree'
+import { useGitGraphJumpPending } from './use-git-graph-jump-pending'
 import { revealCommitWhenLoaded } from './git-graph-reveal-ref'
 import { gitGraphOldServerMessage, gitGraphRefVisibilityMessage } from './git-graph-ref-messages'
 import { useGitGraphRefOwner, useGitRefTreeSource, type RefRequests } from './git-graph-ref-source'
@@ -35,7 +36,7 @@ function GitGraphRefRailForOwner({
 }: RailProps & { owner: string; requests: RefObject<RefRequests> }) {
   const t = useTranslate()
   const [refusal, setRefusal] = useState<{ error: GitGraphRefVisibilityError; visible: boolean }>()
-  const [pendingRefId, setPendingRefId] = useState<string>()
+  const { pendingRefId, runJump } = useGitGraphJumpPending()
   const { capable, refs, cappedKeys, allRefs, anyGroupCapped, groupsComplete, error, setQuery } =
     useGitRefTreeSource({
       worktreeId,
@@ -74,7 +75,8 @@ function GitGraphRefRailForOwner({
     return true
   }
   const jump = async (ref: GitHistoryItemRef) => {
-    if (!ref.revision) {
+    const { revision } = ref
+    if (!revision) {
       return
     }
     if (
@@ -83,10 +85,7 @@ function GitGraphRefRailForOwner({
     ) {
       return
     }
-    setPendingRefId(ref.id)
-    await revealCommitWhenLoaded(history.controller, ref.revision)
-    // A later jump has already replaced this one as the pending row.
-    setPendingRefId((id) => (id === ref.id ? undefined : id))
+    await runJump(ref.id, () => revealCommitWhenLoaded(history.controller, revision))
   }
   const notices =
     capable === false

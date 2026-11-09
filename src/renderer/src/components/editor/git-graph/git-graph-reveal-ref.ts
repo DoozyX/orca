@@ -31,14 +31,20 @@ const loadedView = (controller: GitGraphHistoryController): Promise<GitGraphHist
 
 const MAX_REVEAL_ATTEMPTS = 3
 
+// Only the newest jump on a controller may select; an older one waking from a wait gives up.
+const latestJump = new WeakMap<GitGraphHistoryController, number>()
+
 /** Selects the commit once history is loaded; true when it was selected. */
 export async function revealCommitWhenLoaded(
   controller: GitGraphHistoryController,
   id: string
 ): Promise<boolean> {
+  const jump = (latestJump.get(controller) ?? 0) + 1
+  latestJump.set(controller, jump)
+  const isNewest = () => latestJump.get(controller) === jump
   for (let attempt = 0; attempt < MAX_REVEAL_ATTEMPTS; attempt++) {
     const view = await loadedView(controller)
-    if (view.disposed) {
+    if (view.disposed || !isNewest()) {
       return false
     }
     if (view.error !== undefined) {
@@ -46,6 +52,15 @@ export async function revealCommitWhenLoaded(
       return false
     }
     const index = await controller.reveal(id)
+    if (!isNewest()) {
+      return false
+    }
+    // A refresh that failed while this reveal waited leaves the stale list in place.
+    const failure = controller.view.getState().error
+    if (failure !== undefined) {
+      toast.message(failure)
+      return index >= 0
+    }
     if (index >= 0) {
       return true
     }
