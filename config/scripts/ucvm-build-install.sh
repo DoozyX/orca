@@ -125,7 +125,8 @@ refresh_bin_copy() {
   log "refreshed $BIN_COPY from the checkout; it applies from the next run"
 }
 
-daemon_scopes() { systemctl --user list-units --plain --no-legend --all 'orca-daemon-*.scope' 'orca_pty_*.scope' | awk '{print $1}' | sort; }
+# Terminal scopes are what must survive a serve restart; idle daemon scopes legitimately come and go.
+terminal_scopes() { systemctl --user list-units --plain --no-legend --all 'orca_pty_*.scope' | awk '{print $1}' | sort; }
 
 serve_pid() { "$ORCA_CLI" status 2>/dev/null | awk '/^pid:/{print $2}'; }
 
@@ -253,7 +254,7 @@ run() {
   set_step install
   command cp "$deb" "$UPDATE_DIR/"
   local scopes_before pid_before
-  scopes_before=$(daemon_scopes)
+  scopes_before=$(terminal_scopes)
   pid_before=$(serve_pid)
   sudo -n /usr/local/sbin/orca-install-update
 
@@ -272,9 +273,9 @@ run() {
   [ "$up" = 1 ] || { echo "orca-serve does not answer after the install" >&2; exit 1; }
   log "serve pid ${pid_before:-none} -> $(serve_pid)"
   local missing
-  missing=$(comm -23 <(echo "$scopes_before") <(daemon_scopes) || true)
-  [ -z "$missing" ] || log "WARNING: daemon scopes gone after the install: $missing"
-  log "daemon scopes kept: $(daemon_scopes | wc -l) of $(echo "$scopes_before" | wc -l)"
+  missing=$(comm -23 <(echo "$scopes_before") <(terminal_scopes) || true)
+  [ -z "$missing" ] || log "WARNING: terminal scopes gone after the install: $missing"
+  log "terminal scopes: $(echo "$scopes_before" | wc -l) before, $(terminal_scopes | wc -l) after"
 
   set_step cleanup
   find "$UPDATE_DIR" -maxdepth 1 -name 'orca-ide_*.deb' ! -name "$(basename "$deb")" -delete
