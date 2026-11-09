@@ -27,6 +27,7 @@ import {
 } from './cross-host-project-group-merge'
 import type { ExecutionHostId } from '../execution-host'
 import { getFolderWorkspaceProjectGroupHostId } from './folder-workspace-host-id'
+import { compareRootProjectEntries } from '../root-project-order'
 
 export function appendProjectGroupSections(
   ctx: SectionAppendContext,
@@ -166,10 +167,6 @@ export function appendProjectGroupSections(
     groupByProjectGroupId.delete(merged.rowId)
   }
 
-  for (const merged of childGroupsByParentId.get(null) ?? []) {
-    appendProjectGroup(merged, 0)
-  }
-
   const mergedRowIds = new Set(mergedGroups.map((merged) => merged.rowId))
   const remainingRepoEntries = [...(groupByProjectGroupId.get(null) ?? [])]
   for (const [projectGroupId, entries] of groupByProjectGroupId) {
@@ -179,11 +176,38 @@ export function appendProjectGroupSections(
     // Keep repos visible while host project-group metadata is still loading.
     remainingRepoEntries.push(...entries)
   }
-  appendOrderedGroups(
-    ctx,
-    withRepoSectionDisplayLabels(sortRepoEntriesWithinGroup(remainingRepoEntries)),
-    0
-  )
+  const rootEntries: ({ merged: MergedProjectGroup } | { repoEntry: OrderedGroupEntry })[] = [
+    ...(childGroupsByParentId.get(null) ?? []).map((merged) => ({ merged })),
+    ...withRepoSectionDisplayLabels(sortRepoEntriesWithinGroup(remainingRepoEntries)).map(
+      (repoEntry) => ({ repoEntry })
+    )
+  ]
+  if (projectOrderBy === 'manual') {
+    rootEntries.sort((left, right) => {
+      const leftEntry =
+        'merged' in left
+          ? { kind: 'group' as const, group: left.merged.primary }
+          : left.repoEntry[1].repo
+            ? { kind: 'repo' as const, repo: left.repoEntry[1].repo }
+            : null
+      const rightEntry =
+        'merged' in right
+          ? { kind: 'group' as const, group: right.merged.primary }
+          : right.repoEntry[1].repo
+            ? { kind: 'repo' as const, repo: right.repoEntry[1].repo }
+            : null
+      return leftEntry && rightEntry
+        ? compareRootProjectEntries(leftEntry, rightEntry, repoOrder)
+        : 0
+    })
+  }
+  for (const entry of rootEntries) {
+    if ('merged' in entry) {
+      appendProjectGroup(entry.merged, 0)
+    } else {
+      appendOrderedGroups(ctx, [entry.repoEntry], 0)
+    }
+  }
 }
 
 /** The same group parents used by section emission, keyed by merged row id. */

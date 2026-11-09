@@ -39,6 +39,7 @@ import { useMobileStructuredSendWithOutcome } from './use-mobile-structured-send
 import { useMobileStructuredQueuedMessageControls } from './use-mobile-structured-queued-message-controls'
 import { useMobileStructuredBackgroundTasks } from './use-mobile-structured-background-tasks'
 import { useMobileStructuredSends } from './use-mobile-structured-sends'
+import { useMobileStructuredSendRecorded } from './mobile-structured-send-recorded-read'
 import { useMobileNativeChatQueueFollowUps as useQueueFollowUps } from './use-mobile-native-chat-queue-follow-ups'
 import { useMobileStructuredStopOffer } from './use-mobile-structured-stop-offer'
 import { useMobileStructuredTurnIndicator } from './use-mobile-structured-turn-indicator'
@@ -124,13 +125,11 @@ export function useMobileStructuredAgentSession(
     cursor: state.cursor,
     submissions: state.submissions,
     queuedMessages,
-    onSendError
+    onSendError,
+    confirmRecorded: useMobileStructuredSendRecorded(client, sessionId, hostSupport)
   })
-  const { transcriptItems, messages, receipts } = useMobileStructuredTranscript(
-    agent,
-    state,
-    sends.optimistic
-  )
+  const transcript = useMobileStructuredTranscript(agent, state, sends.optimistic, sessionKey)
+  const { clearing, transcriptItems, messages, receipts } = transcript
   const turnTiming = useMobileStructuredAgentTurnTiming(
     { ...state, items: transcriptItems },
     turnId
@@ -188,6 +187,7 @@ export function useMobileStructuredAgentSession(
     stopping: turnIndicator.stopping,
     ...sends,
     commandPending: commandPendingRef,
+    onClearSent: transcript.onClearSent,
     sendsOut,
     controller: goal.commands,
     sessionCommands: args.sessionCommands,
@@ -271,7 +271,8 @@ export function useMobileStructuredAgentSession(
       transcriptLoading: status === 'loading',
       error: state.error,
       readFailedFinally: status === 'error' && isFinalAgentSessionReadRefusal(state.readRefusal),
-      hasMore: state.hasOlder && olderPages !== 'unavailable',
+      clearing,
+      hasMore: state.hasOlder && olderPages !== 'unavailable' && !clearing,
       loadingEarlier: olderPages === 'loading',
       olderPages,
       loadEarlier

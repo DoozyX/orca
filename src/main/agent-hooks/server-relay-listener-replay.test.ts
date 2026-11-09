@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { AgentHookServer, _internals } from './server'
+import { AgentHookServer, _internals } from './server/agent-hook-server'
 import {
   createHookListenerState,
   type HookListenerState
@@ -9,7 +9,7 @@ import {
   createShedMonitoredWorkField,
   createShedSubagentsField
 } from '../../shared/agent-hook-listener/transport/agent-hook-relay'
-import { buildBody, PANE } from './server.test-fixtures'
+import { buildBody, PANE } from './server/testing/server.test-fixtures'
 
 const { getCohortAtEmitMock, trackMock } = vi.hoisted(() => ({
   getCohortAtEmitMock: vi.fn(),

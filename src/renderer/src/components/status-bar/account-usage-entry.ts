@@ -3,6 +3,7 @@ import type {
   RateLimitRuntimeTarget
 } from '../../../../shared/rate-limit-types'
 import type { StatusBarUsageMode } from '../../../../shared/status-bar-usage-mode'
+import type { Translate } from '@/i18n/use-translate'
 import { usageChipShowsPercentage, type UsageUnitLabelState } from './usage-unit-label'
 
 export type AccountUsageEntry = {
@@ -48,10 +49,11 @@ export function entryRateLimits(entry: AccountUsageEntry): ProviderRateLimits {
 export function getEntryUsageUnitLabelState(
   entries: readonly AccountUsageEntry[],
   collapsedKeys: readonly string[],
-  mode: StatusBarUsageMode
+  mode: StatusBarUsageMode,
+  t?: Translate
 ): UsageUnitLabelState {
   const withPercentage = entries.filter((entry) =>
-    usageChipShowsPercentage(entryRateLimits(entry), mode)
+    usageChipShowsPercentage(entryRateLimits(entry), mode, t)
   )
   if (withPercentage.length === 0) {
     return 'absent'

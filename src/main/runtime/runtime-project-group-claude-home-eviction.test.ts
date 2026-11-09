@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { ProjectGroup } from '../../shared/project-group-types'
 import { RuntimeProjectGroupController } from './repositories/runtime-project-group-controller'
-import type { RuntimeStore } from './runtime-store-contract'
+import type { RuntimeStore } from './construction/runtime-store-contract'
 
 const existingGroup: ProjectGroup = {
   id: 'group-1',

@@ -19,9 +19,10 @@ import { useUsageSettingsNavigation } from './use-usage-settings-navigation'
 import { useAccountUsageRoster } from './use-account-usage-roster'
 import { buildAccountUsageRoster } from './account-usage-roster'
 import { isOwnerNotSetUpPlaceholder } from './owner-usage-rate-limits'
-import { translate } from '@/i18n/i18n'
+import { useTranslate } from '@/i18n/use-translate'
 
 export function useStatusBarController(floatingTerminalOpen: boolean) {
+  const t = useTranslate()
   const floatingTerminalShortcut = useShortcutLabel('floatingTerminal.toggle')
   // Why: with a remote account owner the agents run there, so its usage is the one to show.
   const { rateLimits, remoteOwner, accounts, ownerKey, refreshUsage, refreshPreviews } =
@@ -234,11 +235,8 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
   const anyFetching = isAnyUsageProviderFetching(usageProviders)
 
   const floatingTerminalActionLabel = floatingTerminalOpen
-    ? translate(
-        'auto.components.status.bar.floatingWorkspace.minimize',
-        'Minimize Floating Workspace'
-      )
-    : translate('auto.components.status.bar.floatingWorkspace.show', 'Show Floating Workspace')
+    ? t('auto.components.status.bar.floatingWorkspace.minimize', 'Minimize Floating Workspace')
+    : t('auto.components.status.bar.floatingWorkspace.show', 'Show Floating Workspace')
   const showFloatingWorkspaceAttentionDot = !floatingTerminalOpen && hasFloatingUnread
 
   // Respect per-item visibility in the roster so its trigger cannot bypass hidden status items.

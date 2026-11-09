@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { AgentHookServer, _internals } from './server'
-import { buildBody, postHookEvent, PANE } from './server.test-fixtures'
+import { AgentHookServer, _internals } from './server/agent-hook-server'
+import { readSavedStatus } from './server/testing/persistence/last-status.test-fixtures'
+import { buildBody, postHookEvent, PANE } from './server/testing/server.test-fixtures'
 
 vi.mock('../telemetry/client', () => ({ track: vi.fn() }))
 vi.mock('../telemetry/cohort-classifier', () => ({
@@ -54,12 +55,10 @@ describe('Last-status persistence of monitored work', () => {
     } finally {
       writer.stop()
     }
-    const file = JSON.parse(
-      readFileSync(join(userDataPath, 'agent-hooks', 'last-status.json'), 'utf8')
-    )
-    expect(file.entries[PANE].payload.monitoredWork.map((item: { id: string }) => item.id)).toEqual(
-      ['b727cb698', 'c1']
-    )
+    const saved = JSON.parse(readSavedStatus(join(userDataPath, 'agent-hooks', 'last-status.json')))
+    expect(
+      saved.entries[PANE].payload.monitoredWork.map((item: { id: string }) => item.id)
+    ).toEqual(['b727cb698', 'c1'])
 
     _internals.resetCachesForTests()
     const reader = new AgentHookServer()
