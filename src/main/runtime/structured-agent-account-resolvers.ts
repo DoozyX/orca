@@ -1,4 +1,4 @@
-import type { RuntimeStore } from './runtime-store-contract'
+import type { RuntimeStore } from './construction/runtime-store-contract'
 
 type StoreSettings = ReturnType<RuntimeStore['getSettings']>
 import { claudeStructuredAuthPolicyForSettings } from '../claude-accounts/claude-structured-auth-policy'

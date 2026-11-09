@@ -61,14 +61,14 @@ vi.mock('@/runtime/rpc/compatibility/runtime-capability-proof', async (importOri
   runtimeEnvironmentSupportsCapability: mocks.supportsCapability
 }))
 
-vi.mock('@/runtime/structured-agent-session-client', () => ({
+vi.mock('@/runtime/native-chat/requests/structured-agent-session-subscriptions', () => ({
   callStructuredAgentSession: vi.fn(),
   subscribeStructuredAgentSession: mocks.subscribeTranscript,
   subscribeStructuredAgentSessionStatus: mocks.subscribeStatus
 }))
 
 import { StructuredAgentSessionStatusBridge } from './session/status/StructuredAgentSessionStatusBridge'
-import { resetStructuredAgentSessionStatusFeedsForTests } from '@/runtime/structured-agent-session-status-feed'
+import { resetStructuredAgentSessionStatusFeedsForTests } from '@/runtime/native-chat/status/structured-agent-session-status-feed'
 
 const providerSession = { key: 'session_id', id: '01a002e9-9a1c-7d42-a642-e481f64446f1' } as const
 

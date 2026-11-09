@@ -40,7 +40,7 @@ vi.mock('@/runtime/provider-accounts/observations/runtime-provider-accounts-clie
     return { close: () => {} }
   }
 }))
-vi.mock('@/runtime/use-worktree-runtime-target', () => ({
+vi.mock('@/runtime/provider-accounts/ownership/use-active-account-owner', () => ({
   useActiveAccountOwner: () => ({
     target: app.settings.activeRuntimeEnvironmentId
       ? { kind: 'environment', environmentId: app.settings.activeRuntimeEnvironmentId }

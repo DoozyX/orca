@@ -93,13 +93,13 @@ vi.mock('../codex/hooks/reconciliation/codex-real-home-hook-install', () => ({
 vi.mock('../codex/history/rollouts/codex-session-source-home', () => ({
   resolveHostCodexSessionSourceHome: () => undefined
 }))
-vi.mock('../agent-hooks/managed-agent-hook-controls', () => ({
+vi.mock('../agent-hooks/installation/managed-agent-hook-controls', () => ({
   isAgentStatusHooksEnabled: () => false
 }))
-vi.mock('../agent-hooks/server', () => ({
+vi.mock('../agent-hooks/server/agent-hook-server', () => ({
   agentHookServer: { setClaudeStatusLineListener: vi.fn() }
 }))
-vi.mock('../browser/browser-manager', () => ({
+vi.mock('../browser/guest-lifecycle/manager/browser-manager', () => ({
   browserManager: { setSettingsResolver: vi.fn() }
 }))
 vi.mock('../rate-limits/codex-rate-limit-target', () => ({

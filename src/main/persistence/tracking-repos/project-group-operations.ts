@@ -1,11 +1,12 @@
 import { parseClaudeConfigDirBinding } from '../../../shared/claude-home-binding'
 import type { PersistedState } from '../../../shared/persisted-state-types'
-import type { ProjectGroup } from '../../../shared/project-group-types'
+import type { ProjectGroup, ProjectGroupUpdate } from '../../../shared/project-group-types'
 import {
   createProjectGroup,
   getProjectGroupSubtreeIds,
   normalizeProjectGroupName
 } from '../../../shared/project-groups'
+import { getNextRootProjectOrder } from '../../../shared/root-project-order'
 import { folderWorkspaceKey } from '../../../shared/workspace-scope'
 import { removeWorkspaceSessionOwnersEverywhere } from '../restoring-sessions/session-owner-removal'
 
@@ -57,17 +58,18 @@ export class ProjectGroupPersistenceOperations {
       ...input,
       tabOrder: maxOrder + 1
     })
+    const rootProjectOrder = !group.parentGroupId
+      ? getNextRootProjectOrder(this.state.repos, this.state.projectGroups ?? [])
+      : undefined
+    if (rootProjectOrder !== undefined) {
+      group.rootProjectOrder = rootProjectOrder
+    }
     this.state.projectGroups = [...(this.state.projectGroups ?? []), group]
     this.scheduleSave()
     return group
   }
 
-  updateProjectGroup(
-    groupId: string,
-    updates: Partial<
-      Pick<ProjectGroup, 'name' | 'isCollapsed' | 'tabOrder' | 'color' | 'claudeConfigDir'>
-    >
-  ): ProjectGroup | null {
+  updateProjectGroup(groupId: string, updates: ProjectGroupUpdate): ProjectGroup | null {
     const group = (this.state.projectGroups ?? []).find((entry) => entry.id === groupId)
     if (!group) {
       return null
@@ -80,6 +82,14 @@ export class ProjectGroupPersistenceOperations {
     }
     if (updates.tabOrder !== undefined && Number.isFinite(updates.tabOrder)) {
       group.tabOrder = updates.tabOrder
+    }
+    if (updates.rootProjectOrder === null) {
+      delete group.rootProjectOrder
+    } else if (
+      updates.rootProjectOrder !== undefined &&
+      Number.isFinite(updates.rootProjectOrder)
+    ) {
+      group.rootProjectOrder = updates.rootProjectOrder
     }
     if (updates.color !== undefined) {
       group.color = typeof updates.color === 'string' ? updates.color : null

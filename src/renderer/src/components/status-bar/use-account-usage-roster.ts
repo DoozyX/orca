@@ -10,7 +10,7 @@ import {
   runtimeTargetEnvironmentId,
   runtimeTargetForOwnerEnvironment
 } from '@/runtime/rpc/targets/runtime-client-target'
-import { useActiveAccountOwner } from '@/runtime/use-worktree-runtime-target'
+import { useActiveAccountOwner } from '@/runtime/provider-accounts/ownership/use-active-account-owner'
 import type { RuntimeClientTarget } from '../../../../shared/runtime-client-target'
 import { resolveClaudeStatusAccountState } from './status-bar-claude-accounts'
 import { resolveCodexStatusAccountState } from './status-bar-codex-accounts'

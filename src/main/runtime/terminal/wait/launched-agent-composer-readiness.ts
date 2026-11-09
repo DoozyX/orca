@@ -15,7 +15,11 @@ import { TUI_AGENT_CONFIG } from '../../../../shared/agent-launch/catalog/tui-ag
 import { draftPasteReadySignalHasMarker } from '../../../../shared/draft-paste-ready-scanner'
 import { nameOnlyIdleNeedsCorroboration } from './tui-idle-evidence'
 import type { OrcaRuntimeService } from '../../orca-runtime'
-import { failOnLaunchedAgentExit, type LaunchedAgentExitRuntime } from './launched-agent-exit-watch'
+import {
+  failOnLaunchedAgentExit,
+  launchedAgentExitMessage,
+  type LaunchedAgentExitRuntime
+} from './launched-agent-exit-watch'
 import { showsHoldAnchor } from '../../agent-state-rules/agent-state-text-anchors'
 import { detectTerminalWaitBlockedReason } from './terminal-wait-detection'
 
@@ -29,7 +33,10 @@ export type LaunchedAgentReadinessRuntime = Pick<
   OrcaRuntimeService,
   'waitForTerminal' | 'waitForFreshWorkerComposer'
 > &
-  Partial<Pick<OrcaRuntimeService, 'getPtyLivenessVerdict'> & LaunchedAgentExitRuntime>
+  Partial<
+    Pick<OrcaRuntimeService, 'getPtyLivenessVerdict' | 'readExitedLaunchOutput'> &
+      LaunchedAgentExitRuntime
+  >
 
 export type TerminalReadinessCreation = Pick<
   RuntimeTerminalCreate,
@@ -69,9 +76,19 @@ function readinessFailure(
   ) {
     return error
   }
-  return classifyTerminalCreationFailure(error, {
+  const failure = classifyTerminalCreationFailure(error, {
     id: ptyId,
     incarnationId: creation.incarnationId
+  })
+  const output = runtime.readExitedLaunchOutput?.(ptyId, creation.incarnationId)
+  if (!output || !(failure instanceof Error)) {
+    return failure
+  }
+  // The PTY's death is the real reason, whichever wait noticed it.
+  const message = launchedAgentExitMessage(output)
+  return Object.defineProperties(new Error(message), {
+    ...Object.getOwnPropertyDescriptors(failure),
+    message: { value: message, configurable: true, writable: true }
   })
 }
 
@@ -290,49 +307,5 @@ export async function waitForLaunchedAgentComposer(
     )
   } catch (error) {
     throw readinessFailure(runtime, handle, creation, error)
-  }
-}
-
-export type WorkerAgentReadinessRebindRuntime = LaunchedAgentReadinessRuntime &
-  Pick<OrcaRuntimeService, 'getTerminalHandleForPaneKey' | 'getTerminalProcessIncarnation'>
-
-/**
- * `waitForWorkerAgentReady`, once more on the pane's new handle when the wait reports its handle
- * stale: a session-graph reload remints a live pane's handle (#29). Only the same process counts,
- * so the pane key and process incarnation are read before the wait, and it re-resolves once.
- */
-export async function waitForWorkerAgentReadyRebinding(
-  runtime: WorkerAgentReadinessRebindRuntime,
-  handle: string,
-  args: {
-    agent: TuiAgent | undefined
-    reusesTerminal: boolean
-    timeoutMs: number
-    creation?: TerminalReadinessCreation
-    paneKey: string | null
-    processIncarnation: string | null
-  }
-): Promise<{ wait: RuntimeTerminalWait; handle: string }> {
-  const startedAt = Date.now()
-  try {
-    return { wait: await waitForWorkerAgentReady(runtime, handle, args), handle }
-  } catch (error) {
-    const reminted =
-      error instanceof Error && error.message === 'terminal_handle_stale' && args.paneKey
-        ? runtime.getTerminalHandleForPaneKey(args.paneKey)
-        : null
-    if (
-      !reminted ||
-      reminted === handle ||
-      args.processIncarnation === null ||
-      runtime.getTerminalProcessIncarnation(reminted) !== args.processIncarnation
-    ) {
-      throw error
-    }
-    const timeoutMs = Math.max(1, args.timeoutMs - (Date.now() - startedAt))
-    return {
-      wait: await waitForWorkerAgentReady(runtime, reminted, { ...args, timeoutMs }),
-      handle: reminted
-    }
   }
 }

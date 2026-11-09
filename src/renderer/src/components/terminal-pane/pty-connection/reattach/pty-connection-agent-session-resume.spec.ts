@@ -44,7 +44,6 @@ export function registerPtyConnectionSleepingRecordResumeTests(): void {
   }
   describe('connectPanePty', () => {
     beforeEach(async () => {
-      vi.resetModules()
       vi.clearAllMocks()
       transportFactoryQueue = []
       createdTransportOptions = []
@@ -201,7 +200,6 @@ export function registerPtyConnectionLiveResumeIdentityTests(): void {
   const bindLeaf2 = bindsPaneInStore(() => mockStoreState, 'tab-1', LEAF_2)
   describe('connectPanePty', () => {
     beforeEach(async () => {
-      vi.resetModules()
       vi.clearAllMocks()
       transportFactoryQueue = []
       createdTransportOptions = []

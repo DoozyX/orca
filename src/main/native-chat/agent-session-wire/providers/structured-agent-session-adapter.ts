@@ -1,3 +1,5 @@
+import type { PrepareStructuredRewind } from './structured-agent-session-rewind-contract'
+import type { NativeCopyCoverage } from '../../agent-session-journal/context-epochs/journal-history-origin'
 import type { StructuredAgentSessionConversationCopyInput } from './structured-agent-session-conversation-copy-input'
 import type { CodexAccountUsageRead } from '../../../rate-limits/codex-rpc-rate-limit-mapper'
 import type { ClaudeAccountRecipe } from '../../../../shared/agent-session/lifecycle/agent-session-acquired-account'
@@ -107,6 +109,8 @@ export type StructuredAgentSessionEndedEvent = {
   /** Absent means provider exit without extra detail; host faults retain their own classification. */
   failure?: SubmissionRejectionFact
   cause: 'unexpected-exit' | 'requested-close'
+  /** An unexpected exit Orca caused by stopping the agent after its own failure; log only. */
+  closedByOrca?: true
   deathEvidenceKind?: 'kill-delivered'
   /** Execution-host observations from a requested provider close, when available. */
   processExit?: {
@@ -213,6 +217,7 @@ export type StructuredAgentSessionAdapter = StructuredAgentSessionAdapterStop & 
   }): Promise<AgentSessionDispatchOutcome>
   /** Narrow declared rewind per session; agent supplies the resting-session answer. */
   rewindSupport?(sessionId: string, agent?: string): AgentSessionRewindSupport
+  prepareRewind?: PrepareStructuredRewind
   /** Observe lost-reply rewind effects without repeating; keptTurnId null means no turns retained. */
   recoverRewind?(input: {
     sessionId: string
@@ -220,6 +225,7 @@ export type StructuredAgentSessionAdapter = StructuredAgentSessionAdapterStop & 
     signal?: AbortSignal
     beforeTurnId: string
     keptTurnId: string | null
+    threadId?: string
   }): Promise<{ ok: true } | { ok: false; reason: AgentSessionRewindReason }>
   rewind?(input: {
     sessionId: string
@@ -324,7 +330,7 @@ export type StructuredAgentSessionAdapter = StructuredAgentSessionAdapterStop & 
   /** Copy the provider conversation without changing the chat’s ID; omit for CLI-based forks. */
   copyConversation?(
     input: StructuredAgentSessionConversationCopyInput
-  ): Promise<AiVaultConversationCopy>
+  ): Promise<AiVaultConversationCopy & { resumeCursor?: string; coverage?: NativeCopyCoverage }>
   /** Give the agent's own conversation the user's chat name, as the agent's own rename would:
    *  through the live child holding that conversation, otherwise at rest. Best effort. */
   renameProviderSession?(input: {

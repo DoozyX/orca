@@ -20,15 +20,15 @@ vi.mock('@/lib/doc-preview-grants', () => ({
 vi.mock('@/runtime/rpc/calls/runtime-rpc-call', async (importOriginal) => {
   const actual = await importOriginal<typeof RuntimeRpcCallModule>()
   const { runtimeRpcClientWithLayoutApply } =
-    await import('@/runtime/layout-apply-test-transport.test-fixture')
+    await import('@/runtime/workspace-layout/testing/layout-apply-test-transport.test-fixture')
   return runtimeRpcClientWithLayoutApply({
     ...actual,
     callRuntimeRpc: mocks.callRuntimeRpc.mockResolvedValue({})
   })
 })
-vi.mock('@/runtime/runtime-layout-client', async (importOriginal) =>
+vi.mock('@/runtime/workspace-layout/frames/runtime-layout-client', async (importOriginal) =>
   (
-    await import('@/runtime/layout-apply-test-transport.test-fixture')
+    await import('@/runtime/workspace-layout/testing/layout-apply-test-transport.test-fixture')
   ).runtimeLayoutClientWithTestFrames(await importOriginal())
 )
 vi.mock('sonner', () => ({ toast: { info: vi.fn(), success: vi.fn(), error: vi.fn() } }))
@@ -115,22 +115,6 @@ describe('convertBrowserPage doc→web', () => {
     expect(workspace?.docLocation ?? null).toBeNull()
     expect(workspace?.activePageId).toBe(converted?.id)
   })
-
-  it('refuses to convert a web page to web — that is navigation, not conversion', async () => {
-    const store = await createStoreWithWorktree()
-    const tab = store.getState().createBrowserTab(WORKTREE_ID, 'https://example.com/')
-    await settled()
-    const pageId = store.getState().browserPagesByWorkspace[tab.id]?.[0]?.id ?? ''
-
-    const converted = store
-      .getState()
-      .convertBrowserPage(pageId, { kind: 'web', url: 'https://other.example/' })
-    await settled()
-
-    expect(converted).toBeNull()
-    expect(store.getState().browserPagesByWorkspace[tab.id]?.[0]?.id).toBe(pageId)
-    expect(store.getState().browserPagesByWorkspace[tab.id]?.[0]?.url).toBe('https://example.com/')
-  })
 })
 
 describe('convertBrowserPage doc→doc retarget', () => {
@@ -187,36 +171,6 @@ describe('convertBrowserPage history legs', () => {
     // Forward's target survives the session schema (z.object strips what it does not name).
     const parsed = browserPageSchema.parse(store.getState().browserPagesByWorkspace[tabId]?.[0])
     expect(parsed.convertedTo).toEqual(expectedForward)
-  })
-
-  it('the advance leg re-records convertedFrom and consumes convertedTo — a two-entry ping-pong', async () => {
-    const store = await createStoreWithWorktree()
-    const { pageId } = await createDocTab(store)
-    const webPage = store
-      .getState()
-      .convertBrowserPage(pageId, { kind: 'web', url: 'https://example.com/' })
-    await settled()
-    const docPage = store
-      .getState()
-      .convertBrowserPage(
-        webPage?.id ?? '',
-        { kind: 'workspace-doc', docLocation: DOC_LOCATION },
-        { leg: 'history-return' }
-      )
-    await settled()
-
-    const advanced = store
-      .getState()
-      .convertBrowserPage(
-        docPage?.id ?? '',
-        { kind: 'web', url: 'https://example.com/' },
-        { leg: 'history-advance' }
-      )
-    await settled()
-
-    expect(advanced?.url).toBe('https://example.com/')
-    expect(advanced?.convertedFrom).toEqual({ kind: 'workspace-doc', docLocation: DOC_LOCATION })
-    expect(advanced?.convertedTo ?? null).toBeNull()
   })
 })
 

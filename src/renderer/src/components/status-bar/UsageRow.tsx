@@ -1,7 +1,7 @@
 import React from 'react'
 import { cn } from '@/lib/utils'
 import { translate } from '@/i18n/i18n'
-import { useTranslate } from '@/i18n/use-translate'
+import { useTranslate, type Translate } from '@/i18n/use-translate'
 import {
   formatRateLimitWindowChipLabel,
   formatWindowLabel
@@ -24,8 +24,8 @@ export type UsageSection = { label: string; window: RateLimitWindow }
 // Windows/buckets that actually carry data — absent limits arrive as null, but a
 // partial/rehydrated provider can also carry an undefined window; both must be
 // dropped so downstream consumers never dereference `window.usedPercent`.
-export function usedSections(p: ProviderRateLimits): UsageSection[] {
-  return getWindowSections(p).filter(
+export function usedSections(p: ProviderRateLimits, t?: Translate): UsageSection[] {
+  return getWindowSections(p, t).filter(
     (s): s is UsageSection => s.window !== null && s.window !== undefined
   )
 }
@@ -52,14 +52,17 @@ function shortLabel(
     : formatWindowLabel(section.window.windowMinutes)
 }
 
-export function getTightestUsageSection(p: ProviderRateLimits): UsageSection | null {
+export function getTightestUsageSection(
+  p: ProviderRateLimits,
+  t: Translate = translate
+): UsageSection | null {
   if (p.provider === 'omp' && p.daily) {
     return {
-      label: translate('auto.components.status.bar.tooltip.omp.daily', 'Daily'),
+      label: t('auto.components.status.bar.tooltip.omp.daily', 'Daily'),
       window: p.daily
     }
   }
-  const sections = usedSections(p)
+  const sections = usedSections(p, t)
   if (sections.length === 0) {
     return null
   }
@@ -73,14 +76,16 @@ export function getTightestUsageSection(p: ProviderRateLimits): UsageSection | n
   return { ...tightest, label: shortLabel(p, tightest, true) }
 }
 
-export function getUsageHeadlineSection(p: ProviderRateLimits): UsageSection | null {
+export function getUsageHeadlineSection(p: ProviderRateLimits, t?: Translate): UsageSection | null {
   if (p.provider === 'cursor') {
-    const primary = usedSections(p).find((section) => section.label === CURSOR_MODELS_BUCKET_NAME)
+    const primary = usedSections(p, t).find(
+      (section) => section.label === CURSOR_MODELS_BUCKET_NAME
+    )
     if (primary) {
       return { ...primary, label: shortLabel(p, primary, true) }
     }
   }
-  return getTightestUsageSection(p)
+  return getTightestUsageSection(p, t)
 }
 
 // The soonest-resetting window summarizes the agent's next reset in one line.
@@ -144,12 +149,12 @@ export function UsageRow({
   selected?: boolean
 }): React.JSX.Element {
   const t = useTranslate()
-  const sections = usedSections(p)
+  const sections = usedSections(p, t)
   const hasUsage = sections.length > 0
   const name = getProviderDisplayName(p.provider)
   const plan = formatPlanLabel(p.planType)
   const reset = hasUsage ? soonestResetLabel(sections, now) : null
-  const tightest = mode === 'compact' ? getUsageHeadlineSection(p) : null
+  const tightest = mode === 'compact' ? getUsageHeadlineSection(p, t) : null
 
   return (
     <div data-usage-mode={mode} className="flex min-w-0 flex-1 flex-col gap-1">
