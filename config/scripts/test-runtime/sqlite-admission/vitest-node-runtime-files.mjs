@@ -1,4 +1,4 @@
-import { findSqliteRuntimeTests } from './vitest-sqlite-runtime-scan.mjs'
+import { findSqliteRuntimeTests, listUnitTestFiles } from './vitest-sqlite-runtime-scan.mjs'
 
 // SQLite publication, native bindings, worker IPC, socket liveness, and V8 retention use Node.
 const NODE_RUNTIME_INCLUDE = [
@@ -9,6 +9,10 @@ const NODE_RUNTIME_INCLUDE = [
   'config/scripts/ci/workflow-contracts/cloud-security-history-workflow.test.mjs',
   // Bundled schema data URLs require Node's module loader.
   'config/scripts/build/mobile-web-app/build-mobile-web-app-bundle.test.mjs',
+  // Bun's fs.rm reports ENOTEMPTY, not Node's EACCES, for a read-only directory; the script runs under Node.
+  'config/scripts/worktree-storage/reclaim-worktree-generated-files.test.mjs',
+  // Bun closes a child's stdin without the EPIPE error Node emits when the child closed its read end.
+  'src/main/text-generation/source-control-wsl-prompt.test.ts',
   'src/main/ssh/legacy-relay/endpoints/ssh-relay-endpoint-incumbent-shell.integration.test.ts',
   'src/main/ssh/remote-exec/ssh-remote-commands.test.ts',
   'src/packages/process-host/src/run-process.test.ts',
@@ -97,6 +101,11 @@ const NODE_RUNTIME_INCLUDE = [
   'src/main/agent-hooks/server/testing/http/server-transport-interference.test.ts',
   // Reads the saved rows read-only after the writer closes; Bun's macOS SQLite refuses a WAL file then.
   'src/main/agent-hooks/server-last-status-monitored-work.test.ts',
+  'src/main/ipc/notifications-external-acknowledgement.test.ts',
+  'src/main/ipc/notifications-subject-retirement.test.ts',
+  'src/main/runtime/push/notifications/mobile-notification-dismissal-read-failure.test.ts',
+  'src/main/runtime/push/notifications/mobile-notification-dismissal-store.test.ts',
+  'tests/e2e/helpers/persisted-profile-state.unit.test.ts',
   'src/main/plugins/workers/plugin-worker-supervision.integration.test.ts',
   'src/main/plugins/workers/plugin-worker-dev-restart-storage.integration.test.ts',
   // Worker TypeScript loads through node:module registerHooks, which Bun lacks.
@@ -183,7 +192,14 @@ const NODE_RUNTIME_INCLUDE = [
   'config/scripts/test-runtime/node-worker/vitest-node-runtime-pool.test.ts'
 ]
 
+// These restart the hook server, which reads its saved rows read-only after the writer closes;
+// Bun's macOS SQLite refuses a WAL file then. Listed per file because the shared-worker split matches no globs.
+const NODE_RUNTIME_DIRECTORIES = ['src/main/agent-hooks/server/testing/']
+
 /** `filters` limits the SQLite import scan to the tests a filtered CLI run can select. */
 export function getNodeRuntimeInclude({ filters } = {}) {
-  return [...NODE_RUNTIME_INCLUDE, ...findSqliteRuntimeTests({ filters })]
+  const directoryTests = listUnitTestFiles().filter((file) =>
+    NODE_RUNTIME_DIRECTORIES.some((directory) => file.startsWith(directory))
+  )
+  return [...NODE_RUNTIME_INCLUDE, ...directoryTests, ...findSqliteRuntimeTests({ filters })]
 }
