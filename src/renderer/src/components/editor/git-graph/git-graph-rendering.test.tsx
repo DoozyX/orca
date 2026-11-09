@@ -16,11 +16,16 @@ import * as commitSupport from '@/runtime/source-control/git/git-commit-actions-
 import { useGitGraphHistory } from './use-git-graph-history'
 import type { GitHistoryResult } from '../../../../../shared/git/history/git-history-types'
 
-const { getHistory, getRefs } = vi.hoisted(() => ({ getHistory: vi.fn(), getRefs: vi.fn() }))
+const { getHistory, getRefs, getStatus } = vi.hoisted(() => ({
+  getHistory: vi.fn(),
+  getRefs: vi.fn(),
+  getStatus: vi.fn()
+}))
 vi.mock('@/runtime/source-control/git/runtime-git-status-client', async (original) => ({
   ...(await original<object>()),
   getRuntimeGitHistory: getHistory,
-  getRuntimeGitRefs: getRefs
+  getRuntimeGitRefs: getRefs,
+  getRuntimeGitStatus: getStatus
 }))
 vi.mock('@/runtime/source-control/git/runtime-git-diff-client', async (original) => ({
   ...(await original<object>()),
@@ -45,6 +50,7 @@ document.body.appendChild(container)
 let root = createRoot(container)
 const initialState = useAppStore.getState()
 beforeEach(() => {
+  getStatus.mockReset().mockResolvedValue({ entries: [] })
   useAppStore.setState({
     repos: [repo],
     worktreesByRepo: { r: [local] },
@@ -189,7 +195,9 @@ it('keeps an older selection, loaded depth and scroll through refresh', async ()
     await controller.loadMore()
     await controller.loadMore()
   })
-  const scroll = container.querySelector<HTMLDivElement>('div.overflow-y-auto')!
+  const scroll = container.querySelector<HTMLDivElement>(
+    'div.overflow-x-auto > div.overflow-y-auto'
+  )!
   await act(async () => {
     Array.from(container.querySelectorAll('button'))
       .find((button) => button.textContent === 'Commit 110')!
@@ -301,7 +309,9 @@ it('bounds refresh to one extra page when the selected commit has vanished', asy
     items: remaining.slice(options.skip, options.skip + 50),
     hasMore: options.skip < 250
   }))
-  const scroll = container.querySelector<HTMLDivElement>('div.overflow-y-auto')!
+  const scroll = container.querySelector<HTMLDivElement>(
+    'div.overflow-x-auto > div.overflow-y-auto'
+  )!
   await act(async () => {
     scroll.scrollTop = 2400
     controller.scrollOffset = 2400
@@ -310,7 +320,9 @@ it('bounds refresh to one extra page when the selected commit has vanished', asy
   expect(getHistory).toHaveBeenCalledTimes(4)
   expect(container.querySelectorAll('[data-current]')).toHaveLength(200)
   expect(container.querySelector('[data-current="true"] button[title="Commit 0"]')).not.toBeNull()
-  expect(container.querySelector('aside h2')?.textContent).toBe('Commit 0')
+  expect(container.querySelector('[data-testid="git-graph-commit-message"]')?.textContent).toBe(
+    'Commit 0'
+  )
   expect(scroll.scrollTop).toBe(0)
 })
 
@@ -336,7 +348,9 @@ it('keeps a newer selection and its details during refresh and after a partial f
   })
   expect(container.querySelectorAll('[data-current]')).toHaveLength(150)
   expect(container.querySelector('[data-current="true"] button[title="Commit 120"]')).not.toBeNull()
-  expect(container.querySelector('aside h2')?.textContent).toBe('Commit 120')
+  expect(container.querySelector('[data-testid="git-graph-commit-message"]')?.textContent).toBe(
+    'Commit 120'
+  )
 
   getHistory
     .mockResolvedValueOnce(page(0))
@@ -346,7 +360,9 @@ it('keeps a newer selection and its details during refresh and after a partial f
   })
   expect(container.querySelectorAll('[data-current]')).toHaveLength(150)
   expect(container.querySelector('[data-current="true"] button[title="Commit 120"]')).not.toBeNull()
-  expect(container.querySelector('aside h2')?.textContent).toBe('Commit 120')
+  expect(container.querySelector('[data-testid="git-graph-commit-message"]')?.textContent).toBe(
+    'Commit 120'
+  )
 })
 
 it.each(['local', 'ssh:A'] as const)(
@@ -398,7 +414,9 @@ it.each(['local', 'ssh:A'] as const)(
           (button) => button.textContent === 'second'
         )!
         commit.click()
-        const scroll = container.querySelector<HTMLDivElement>('div.overflow-y-auto')!
+        const scroll = container.querySelector<HTMLDivElement>(
+          'div.overflow-x-auto > div.overflow-y-auto'
+        )!
         scroll.scrollTop = 144
         scroll.dispatchEvent(new Event('scroll'))
       })
@@ -416,7 +434,10 @@ it.each(['local', 'ssh:A'] as const)(
       )
       await act(async () => root.render(render()))
       expect(container.querySelector('[data-current="true"]')?.textContent).toContain('second')
-      expect(container.querySelector<HTMLDivElement>('div.overflow-y-auto')?.scrollTop).toBe(144)
+      expect(
+        container.querySelector<HTMLDivElement>('div.overflow-x-auto > div.overflow-y-auto')
+          ?.scrollTop
+      ).toBe(144)
       expect(getHistory).toHaveBeenCalledTimes(1)
       await act(async () => root.render(null))
       useAppStore.setState({
@@ -623,6 +644,54 @@ it('applies checkbox choices once on picker close, with no choices returning to 
   expect(onChange).toHaveBeenCalledTimes(2)
   await openPicker()
   expect(document.querySelector('[role="checkbox"]')?.getAttribute('aria-checked')).toBe('false')
+})
+
+it('dims commits by authors outside the picked set until cleared', async () => {
+  const authored = (id: string, author: string, authorEmail: string) => ({
+    id,
+    subject: id,
+    message: id,
+    parentIds: [],
+    author,
+    authorEmail
+  })
+  getHistory.mockReset().mockResolvedValue({
+    ...result,
+    refs: 'all',
+    items: [
+      authored('c1', 'Ada Lovelace', 'ada@example.com'),
+      authored('c2', 'Grace Hopper', 'grace@example.com'),
+      authored('c3', 'Ada Lovelace', 'ADA@example.com')
+    ]
+  })
+  await act(async () =>
+    root.render(
+      <TooltipProvider>
+        <GitGraphTab worktreeId={workspaceId} />
+      </TooltipProvider>
+    )
+  )
+  const dimmedIds = () =>
+    Array.from(container.querySelectorAll('[data-current]'))
+      .filter((row) => row.hasAttribute('data-dimmed'))
+      .map((row) => row.querySelector('button')!.title)
+  expect(dimmedIds()).toEqual([])
+  await act(async () => {
+    container.querySelector<HTMLButtonElement>('button[aria-label="Highlight authors"]')!.click()
+  })
+  await act(async () => {
+    Array.from(document.body.querySelectorAll<HTMLElement>('label'))
+      .find((label) => label.textContent === 'Ada Lovelace2')!
+      .querySelector('button')!
+      .click()
+  })
+  expect(dimmedIds()).toEqual(['c2'])
+  await act(async () => {
+    Array.from(document.body.querySelectorAll('button'))
+      .find((button) => button.textContent === 'Clear')!
+      .click()
+  })
+  expect(dimmedIds()).toEqual([])
 })
 
 it('keeps the confirm strip across tab switches, discarding it on navigation, filter change and close', async () => {

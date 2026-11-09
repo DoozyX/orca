@@ -6,4 +6,6 @@ export type GitGraphHistoryView = {
   loading: boolean
   selectedId?: string
   revealId?: string
+  authorHighlight: ReadonlySet<string>
+  disposed?: boolean
 }

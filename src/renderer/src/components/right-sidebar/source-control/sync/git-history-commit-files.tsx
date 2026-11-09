@@ -8,6 +8,10 @@ import {
   toSourceControlRowOpenEvent,
   type SourceControlRowOpenEvent
 } from '../listing/split-open'
+import {
+  SOURCE_CONTROL_TREE_FILE_PADDING_PX,
+  SOURCE_CONTROL_TREE_INDENT_PX
+} from '../listing/row-layout'
 import { FileTypeIcon } from '@/components/FileTypeIcon'
 import { basename, dirname } from '@/lib/path'
 import { useIntlLocale, useTranslate } from '@/i18n/use-translate'
@@ -20,22 +24,33 @@ export type GitHistoryCommitFilesState =
   | { status: 'error'; error: string }
   | { status: 'ready'; entries: GitBranchChangeEntry[] }
 
-function CommitFileRow({
+export function CommitFileRow<
+  E extends { path: string; status: GitFileStatus; added?: number; removed?: number }
+>({
   entry,
+  depth,
   onOpen
 }: {
-  entry: GitBranchChangeEntry
-  onOpen: (entry: GitBranchChangeEntry, event: SourceControlRowOpenEvent) => void
+  entry: E
+  // Set for tree rows: indent by depth and drop the folder hint the tree already shows.
+  depth?: number
+  onOpen: (entry: E, event: SourceControlRowOpenEvent) => void
 }): React.JSX.Element {
-  const status = entry.status as GitFileStatus
+  const status = entry.status
   const fileName = basename(entry.path)
   const parentDir = dirname(entry.path)
-  const dirPath = parentDir === '.' ? '' : parentDir
+  const dirPath = parentDir === '.' || depth !== undefined ? '' : parentDir
 
   return (
     <button
       type="button"
-      className="group flex w-full min-w-0 cursor-pointer items-center gap-1 py-1 pl-9 pr-3 text-left text-xs transition-colors hover:bg-accent/40"
+      className="group flex w-full min-w-0 cursor-pointer items-center gap-1 py-1 pr-3 text-left text-xs transition-colors hover:bg-accent/40"
+      style={{
+        paddingLeft:
+          depth === undefined
+            ? '2.25rem'
+            : `${depth * SOURCE_CONTROL_TREE_INDENT_PX + SOURCE_CONTROL_TREE_FILE_PADDING_PX}px`
+      }}
       title={entry.path}
       data-testid="git-history-commit-file"
       onClick={(event) => onOpen(entry, toSourceControlRowOpenEvent(event))}
@@ -75,15 +90,23 @@ function CommitFileRow({
   )
 }
 
+// A custom renderer owns opening files, so the default row handler is only for the default rows.
+type CommitFilesRendering =
+  | {
+      onOpenFile: (entry: GitBranchChangeEntry, event: SourceControlRowOpenEvent) => void
+      renderEntries?: undefined
+    }
+  | { renderEntries: (entries: GitBranchChangeEntry[]) => React.ReactNode; onOpenFile?: undefined }
+
 function CommitFilesBody({
   state,
   onOpenFile,
-  onOpenAll
+  onOpenAll,
+  renderEntries
 }: {
   state: GitHistoryCommitFilesState
-  onOpenFile: (entry: GitBranchChangeEntry, event: SourceControlRowOpenEvent) => void
   onOpenAll?: () => void
-}): React.JSX.Element {
+} & CommitFilesRendering): React.JSX.Element {
   const t = useTranslate()
   if (state.status === 'loading') {
     return <div className="h-6" />
@@ -110,9 +133,11 @@ function CommitFilesBody({
 
   return (
     <>
-      {state.entries.map((entry) => (
-        <CommitFileRow key={entry.path} entry={entry} onOpen={onOpenFile} />
-      ))}
+      {renderEntries
+        ? renderEntries(state.entries)
+        : state.entries.map((entry) => (
+            <CommitFileRow key={entry.path} entry={entry} onOpen={onOpenFile} />
+          ))}
       {onOpenAll && (
         <button
           type="button"
@@ -137,14 +162,14 @@ export function GitHistoryCommitFiles({
   author,
   timestamp,
   onOpenFile,
-  onOpenAll
+  onOpenAll,
+  renderEntries
 }: {
   state: GitHistoryCommitFilesState
   author?: string
   timestamp?: number
-  onOpenFile: (entry: GitBranchChangeEntry, event: SourceControlRowOpenEvent) => void
   onOpenAll?: () => void
-}): React.JSX.Element {
+} & CommitFilesRendering): React.JSX.Element {
   const intlLocale = useIntlLocale()
   const meta = [author, formatGitHistoryTimestamp(timestamp, intlLocale)]
     .filter(Boolean)
@@ -152,7 +177,11 @@ export function GitHistoryCommitFiles({
   return (
     <div className="border-l border-border/60 bg-muted/20">
       {meta && <div className="py-1 pl-9 pr-3 text-[11px] text-muted-foreground">{meta}</div>}
-      <CommitFilesBody state={state} onOpenFile={onOpenFile} onOpenAll={onOpenAll} />
+      <CommitFilesBody
+        state={state}
+        onOpenAll={onOpenAll}
+        {...(renderEntries ? { renderEntries } : { onOpenFile })}
+      />
     </div>
   )
 }

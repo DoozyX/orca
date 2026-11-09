@@ -1,4 +1,9 @@
-import type { GitHistoryExecutor, GitHistoryItemRef, GitHistoryRefs } from './git-history-types'
+import {
+  GIT_HISTORY_MAX_REFS,
+  type GitHistoryExecutor,
+  type GitHistoryItemRef,
+  type GitHistoryRefs
+} from './git-history-types'
 import { gitHistoryRefFromFullName } from './git-history-log-parser'
 
 export function isGitHistoryRefName(name: string): boolean {
@@ -11,7 +16,7 @@ export function isGitHistoryRefName(name: string): boolean {
 export function validateHistoryRefs(refs: GitHistoryRefs): void {
   if (
     Array.isArray(refs) &&
-    (refs.length > 1000 || refs.some((name) => !isGitHistoryRefName(name)))
+    (refs.length > GIT_HISTORY_MAX_REFS || refs.some((name) => !isGitHistoryRefName(name)))
   ) {
     throw new Error('Expected full branch or tag ref names')
   }

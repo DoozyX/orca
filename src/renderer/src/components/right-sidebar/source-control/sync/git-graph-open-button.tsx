@@ -1,14 +1,7 @@
-import { useEffect, useState } from 'react'
 import { SquareArrowOutUpRight } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { useSourceControlState } from '../panel/worktree-scope'
-import {
-  gitGraphScope,
-  gitGraphSupport,
-  gitGraphUpdateMessage,
-  openGitGraph,
-  probeGitGraphSupport
-} from '@/lib/git-graph-tab'
+import { useGitGraphSupport } from './use-git-graph-support'
+import { gitGraphUpdateMessage, openGitGraph } from '@/lib/git-graph-tab'
 import { toSourceControlRowOpenEvent, type SourceControlRowOpenEvent } from '../listing/split-open'
 import { useTranslate } from '@/i18n/use-translate'
 import { CommitsHeaderIconButton } from './commits-header-icon-button'
@@ -21,30 +14,7 @@ export function GitGraphOpenButton({
   onOpen?: (event: SourceControlRowOpenEvent) => void
 }) {
   const t = useTranslate()
-  // Hidden section bodies stop these subscriptions; a primitive key keeps unrelated writes from rendering.
-  const owner = useSourceControlState((state) =>
-    JSON.stringify([worktreeId, gitGraphScope(worktreeId, state)?.route])
-  )
-  const status = useSourceControlState((state) => {
-    const environmentId = gitGraphScope(worktreeId, state)?.route.runtimeEnvironmentId
-    return environmentId ? state.runtimeStatusByEnvironmentId.get(environmentId) : undefined
-  })
-  const [probe, setProbe] = useState<{ owner: string; support: boolean | null }>()
-  const support = probe?.owner === owner ? probe.support : null
-  useEffect(() => {
-    let current = true
-    setProbe({ owner, support: gitGraphSupport(worktreeId) })
-    void probeGitGraphSupport(worktreeId)
-      .then((value) => {
-        if (current) {
-          setProbe({ owner, support: value })
-        }
-      })
-      .catch(() => {})
-    return () => {
-      current = false
-    }
-  }, [worktreeId, owner, status])
+  const support = useGitGraphSupport(worktreeId)
   return (
     <Tooltip>
       <TooltipTrigger asChild>

@@ -85,6 +85,18 @@ export function gitGraphScope(
     : null
 }
 
+export function gitGraphRuntimeContext(
+  worktreeId: string,
+  scope: NonNullable<ReturnType<typeof gitGraphScope>>
+) {
+  return {
+    target: scope.target,
+    worktreeId,
+    worktreePath: scope.worktree.path,
+    connectionId: scope.connectionId ?? undefined
+  }
+}
+
 export function gitGraphSupport(worktreeId: string): boolean | null {
   const scope = gitGraphScope(worktreeId)
   if (!scope) {
@@ -121,8 +133,11 @@ export function gitGraphUpdateMessage(worktreeId: string, t: Translate = transla
 
 export async function openGitGraph(
   worktreeId: string,
-  // Lazy so a split is created only when a new tab actually opens.
-  resolveTargetGroupId?: () => string | undefined
+  options?: {
+    afterOpen?: (scope: NonNullable<ReturnType<typeof gitGraphScope>>) => Promise<void>
+    // Lazy so a split is created only when a new tab actually opens.
+    resolveTargetGroupId?: () => string | undefined
+  }
 ): Promise<void> {
   const supported = await probeGitGraphSupport(worktreeId)
   if (!supported) {
@@ -140,21 +155,22 @@ export async function openGitGraph(
   const label = translate('gitGraph.title', 'Git Graph')
   if (state.openFiles.some((file) => file.id === id)) {
     openWorkspaceEditorItem(state, id, worktreeId, label, 'git-graph')
-    return
-  }
-  state.openFile(
-    {
-      filePath: id,
-      relativePath: label,
-      worktreeId,
-      runtimeEnvironmentId: scope.route.runtimeEnvironmentId,
-      language: 'plaintext',
-      operationProvenance: {
-        generation: captureWorktreeOperationGenerationSnapshot(scope.route),
-        ownershipProjection: 'explicit'
+  } else {
+    state.openFile(
+      {
+        filePath: id,
+        relativePath: label,
+        worktreeId,
+        runtimeEnvironmentId: scope.route.runtimeEnvironmentId,
+        language: 'plaintext',
+        operationProvenance: {
+          generation: captureWorktreeOperationGenerationSnapshot(scope.route),
+          ownershipProjection: 'explicit'
+        },
+        mode: 'git-graph'
       },
-      mode: 'git-graph'
-    },
-    { reopenId: id, preview: false, targetGroupId: resolveTargetGroupId?.() }
-  )
+      { reopenId: id, preview: false, targetGroupId: options?.resolveTargetGroupId?.() }
+    )
+  }
+  await options?.afterOpen?.(scope)
 }

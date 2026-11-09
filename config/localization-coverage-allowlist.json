@@ -264,5 +264,13 @@
     "text": "text-[13px] leading-5",
     "dynamic": false,
     "count": 1
+  },
+  {
+    "filePath": "src/renderer/src/components/editor/git-graph/git-graph-wip-items.ts",
+    "kind": "object-property:message",
+    "text": "// WIP",
+    "dynamic": false,
+    "count": 1,
+    "reason": "Fixed WIP row marker from the approved Git Graph visual, not prose; it is a code-comment style tag shown verbatim."
   }
 ]

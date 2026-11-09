@@ -4,6 +4,7 @@ import {
   GIT_HISTORY_OUTGOING_CHANGES_ID,
   addIncomingOutgoingChangesHistoryItems
 } from './git-history-boundary-rows'
+import { isGitHistoryWipId } from './git-history-wip-rows'
 import {
   GIT_HISTORY_BASE_REF_COLOR,
   GIT_HISTORY_LANE_COLORS,
@@ -14,13 +15,15 @@ import {
 export type GitHistoryGraphNode = {
   id: string
   color: GitHistoryGraphColorId
+  /** Lane runs from an uncommitted-changes row to its commit. */
+  dashed?: true
 }
 
 export type GitHistoryItemViewModel = {
   historyItem: GitHistoryItem
   inputSwimlanes: GitHistoryGraphNode[]
   outputSwimlanes: GitHistoryGraphNode[]
-  kind: 'HEAD' | 'node' | 'incoming-changes' | 'outgoing-changes'
+  kind: 'HEAD' | 'node' | 'incoming-changes' | 'outgoing-changes' | 'wip'
 }
 
 function rotate(index: number, length: number): number {
@@ -28,7 +31,7 @@ function rotate(index: number, length: number): number {
 }
 
 function cloneNode(node: GitHistoryGraphNode): GitHistoryGraphNode {
-  return { id: node.id, color: node.color }
+  return { ...node }
 }
 
 function resolveNodeColor(
@@ -125,7 +128,11 @@ export function buildGitHistoryViewModels(
   for (const historyItem of historyItems) {
     const historyItemId = historyItem.id
     const firstParentId = historyItem.parentIds[0]
-    const kind = historyItemId === currentRef?.revision ? 'HEAD' : 'node'
+    const kind = isGitHistoryWipId(historyItemId)
+      ? 'wip'
+      : historyItemId === currentRef?.revision
+        ? 'HEAD'
+        : 'node'
     const inputSwimlanes = (viewModels.at(-1)?.outputSwimlanes ?? []).map(cloneNode)
     const outputSwimlanes: GitHistoryGraphNode[] = []
     let firstParentAdded = false
@@ -171,7 +178,8 @@ export function buildGitHistoryViewModels(
 
       outputSwimlanes.push({
         id: historyItem.parentIds[index]!,
-        color: colorIdentifier
+        color: colorIdentifier,
+        ...(kind === 'wip' ? { dashed: true as const } : {})
       })
     }
 

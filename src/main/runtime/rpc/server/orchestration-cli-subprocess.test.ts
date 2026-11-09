@@ -53,10 +53,6 @@ async function runBuiltCli(
   }
 }
 
-describeIfBuilt('orca orchestration check --wait subprocess (§3.4)', () => {})
-
-describeIfBuilt('orca orchestration reset subprocess', () => {})
-
 describeIfBuilt('orca orchestration task readiness subprocess', () => {
   it('creates a late dependent as ready through the built CLI and runtime', async () => {
     const [{ OrcaRuntimeService }, { OrchestrationDb }, { OrcaRuntimeRpcServer }] =
@@ -152,8 +148,4 @@ describeIfBuilt('orca orchestration task readiness subprocess', () => {
       rmSync(userDataPath, { recursive: true, force: true })
     }
   }, 30_000)
-})
-
-describeIfBuilt('native caller subprocess over durable records', () => {
-  // Real CLI subprocess round trips include store reopen, retry/refusal checks and IPC cleanup.
 })

@@ -22,6 +22,7 @@ export const GIT_HISTORY_LANE_COLORS: readonly GitHistoryGraphColorId[] = [
 
 export const GIT_HISTORY_DEFAULT_LIMIT = 50
 export const GIT_HISTORY_MAX_LIMIT = 200
+export const GIT_HISTORY_MAX_REFS = 1000
 
 export type GitHistoryRefCategory = 'branches' | 'remote branches' | 'tags' | 'commits'
 
