@@ -4,7 +4,7 @@ import {
   shouldOpenSourceControlRowAsPreview,
   type SourceControlRowOpenEvent
 } from '@/components/right-sidebar/source-control/listing/split-open'
-import type { gitGraphScope } from '@/lib/git-graph-tab'
+import type { gitGraphScope } from '@/lib/source-control/graph/git-graph-tab'
 import type { GitStatusEntry } from '../../../../../shared/git/status/git-status-types'
 import type { GitGraphWipWorkspace } from './git-graph-wip-items'
 

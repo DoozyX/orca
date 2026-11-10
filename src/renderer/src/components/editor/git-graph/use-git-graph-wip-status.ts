@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAppStore } from '@/store'
 import { selectWorktreesByRepo } from '@/store/workspaces/catalog/workspace-record-fields'
-import type { gitGraphScope } from '@/lib/git-graph-tab'
+import type { gitGraphScope } from '@/lib/source-control/graph/git-graph-tab'
 import { getRuntimeGitStatus } from '@/runtime/source-control/git/runtime-git-status-client'
 import { forEachWithConcurrency } from '../../../../../shared/map-with-concurrency'
 import type { GitStatusEntry } from '../../../../../shared/git/status/git-status-types'

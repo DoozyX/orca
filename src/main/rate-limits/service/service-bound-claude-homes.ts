@@ -1,4 +1,4 @@
-import { fetchBoundClaudeHomeUsage } from '../claude-bound-home-usage'
+import { fetchBoundClaudeHomeUsage } from '../providers/claude/claude-bound-home-usage'
 import { RateLimitServiceInactiveAccounts } from './service-inactive-accounts'
 import { INACTIVE_FETCH_DEBOUNCE_MS } from './service-types'
 

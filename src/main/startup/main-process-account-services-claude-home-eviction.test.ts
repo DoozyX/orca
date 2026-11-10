@@ -21,7 +21,7 @@ const evictBoundClaudeHomeUsage = vi.fn()
 
 vi.mock('electron', () => ({ app: { getPath: () => '/tmp/orca-test-home' } }))
 
-vi.mock('../rate-limits/service', () => ({
+vi.mock('../rate-limits/service/rate-limit-service', () => ({
   RateLimitService: class {
     evictBoundClaudeHomeUsage = evictBoundClaudeHomeUsage
     start = vi.fn()
@@ -102,13 +102,13 @@ vi.mock('../agent-hooks/server/agent-hook-server', () => ({
 vi.mock('../browser/guest-lifecycle/manager/browser-manager', () => ({
   browserManager: { setSettingsResolver: vi.fn() }
 }))
-vi.mock('../rate-limits/codex-rate-limit-target', () => ({
+vi.mock('../rate-limits/providers/codex/codex-rate-limit-target', () => ({
   getInitialCodexRateLimitTarget: () => undefined
 }))
-vi.mock('../rate-limits/claude-rate-limit-target', () => ({
+vi.mock('../rate-limits/providers/claude/claude-rate-limit-target', () => ({
   getInitialClaudeRateLimitTarget: () => undefined
 }))
-vi.mock('../rate-limits/account-runtime-target-sync', () => ({
+vi.mock('../rate-limits/service/account-runtime-target-sync', () => ({
   createAccountRuntimeTargetSettingsSync: () => vi.fn(async () => {})
 }))
 vi.mock('../rate-limits/bound-claude-home-bindings', () => ({

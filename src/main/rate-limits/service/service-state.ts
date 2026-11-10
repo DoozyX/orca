@@ -7,7 +7,7 @@ import type {
   ProviderRateLimits,
   RateLimitState
 } from '../../../shared/rate-limit-types'
-import type { AntigravityAccountUsageRecorder } from '../antigravity-account-usage'
+import type { AntigravityAccountUsageRecorder } from '../providers/antigravity/antigravity-account-usage'
 import {
   type ActiveRateLimitProvider,
   type InactiveCodexAccountInfo,
@@ -21,15 +21,15 @@ import {
   type MuseUsageEnabledResolver,
   type ZcodePlanRateLimitConfig,
   type GeminiCliOAuthEnabledResolver,
-  type NormalizedCodexAccountSelectionTarget,
-  type NormalizedClaudeAccountSelectionTarget,
-  type InactiveClaudeAccountInfo,
   type BoundClaudeHomeCacheRow,
   type BoundClaudeHomesResolver,
-  type NetworkProxySettings,
   DEFAULT_POLL_MS
 } from './service-types'
-import { readGrokAuthSession } from '../grok-auth'
+import type { NormalizedCodexAccountSelectionTarget } from '../../../shared/codex-selection-lane'
+import type { NormalizedClaudeAccountSelectionTarget } from '../../claude-accounts/runtime-selection'
+import type { InactiveClaudeAccount } from '../providers/claude/claude-managed-account-usage'
+import type { NetworkProxySettings } from '../../../shared/network-proxy'
+import { readGrokAuthSession } from '../providers/grok/grok-auth'
 
 export abstract class RateLimitServiceState {
   protected state: InternalRateLimitState = {
@@ -129,7 +129,7 @@ export abstract class RateLimitServiceState {
   protected antigravityAccountUsageRecorder: AntigravityAccountUsageRecorder | null = null
   protected antigravityAccounts: AntigravityAccountUsage[] = []
   protected museUsageEnabledResolver: MuseUsageEnabledResolver | null = null
-  protected inactiveClaudeAccountsResolver: (() => InactiveClaudeAccountInfo[]) | null = null
+  protected inactiveClaudeAccountsResolver: (() => InactiveClaudeAccount[]) | null = null
   protected inactiveCodexAccountsResolver: (() => InactiveCodexAccountInfo[]) | null = null
   protected networkProxySettingsResolver: (() => NetworkProxySettings) | null = null
   protected inactiveClaudeCache = new Map<string, ProviderRateLimits>()

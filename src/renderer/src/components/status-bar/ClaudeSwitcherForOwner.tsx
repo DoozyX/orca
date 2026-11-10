@@ -4,7 +4,7 @@ import { useProviderAccountList } from './use-provider-account-list'
 import { providerChatAccountControl } from './ProviderAccountChatButton'
 import React, { useCallback, useRef, useState } from 'react'
 import { useAppStore } from '../../store'
-import type { AccountOwner } from '@/lib/wsl-host-account-owner'
+import type { AccountOwner } from '@/runtime/provider-accounts/ownership/wsl-host-account-owner'
 import { runtimeTargetEnvironmentId } from '@/runtime/rpc/targets/runtime-client-target'
 import {
   selectClaudeProviderAccount,
@@ -32,7 +32,7 @@ import {
   normalizeClaudeStatusRuntimeTarget,
   resolveClaudeStatusAccountState
 } from './status-bar-claude-accounts'
-import { handleRunningClaudeSessionsAfterSwitch } from '@/lib/claude-account-switch-sessions'
+import { handleRunningClaudeSessionsAfterSwitch } from '@/lib/provider-accounts/claude-account-switch-sessions'
 import { AccountRuntimeToggle } from './StatusBarAccountControls'
 import {
   InlineUsageBars,
@@ -43,7 +43,7 @@ import { AccountSwitchSection, AccountSwitchSignedOutHeading } from './AccountSw
 import { AccountSwitchRowItem } from './AccountSwitchRowItem'
 import { BoundClaudeHomesSection } from './BoundClaudeHomesSection'
 import { ProviderDetailsMenu } from './ProviderDetailsMenu'
-import { signInToClaudeAccount } from '@/lib/claude-account-sign-in'
+import { signInToClaudeAccount } from '@/lib/provider-accounts/claude-account-sign-in'
 
 // Retain account switch/reset drill-in even though the footer now opens UsageRosterPanel.
 export function ClaudeSwitcherForOwner({

@@ -1,6 +1,10 @@
 import { refuseWslHostWindowsDrivePath } from '../terminal/launch/wsl-host-windows-drive-guard'
 import type { FolderWorkspace } from '../../../shared/folder-workspaces/folder-workspace-types'
-import type { ProjectGroup, ProjectGroupUpdate } from '../../../shared/project-group-types'
+import type {
+  ProjectGroup,
+  ProjectGroupMutation,
+  ProjectGroupUpdate
+} from '../../../shared/project-group-types'
 import type { Repo } from '../../../shared/repo-types'
 import type {
   FolderWorkspacePathStatus,
@@ -117,6 +121,18 @@ export class RuntimeProjectGroupController {
       this.deps.notifyReposChanged()
     }
     return { deleted }
+  }
+
+  async updateGroups(mutations: readonly ProjectGroupMutation[]): Promise<ProjectGroup[] | null> {
+    const store = this.deps.getStore()
+    if (!store?.updateProjectGroups) {
+      throw new Error('runtime_unavailable')
+    }
+    const updated = store.updateProjectGroups(mutations)
+    if (updated?.length) {
+      this.deps.notifyReposChanged()
+    }
+    return updated
   }
 
   async moveProject(

@@ -6,6 +6,7 @@ import type { ProviderRateLimits } from '../../../../shared/rate-limit-types'
 
 const state = vi.hoisted(() => ({ narrow: false }))
 vi.mock('@/i18n/i18n', () => ({
+  i18n: { language: 'en' },
   translate: (_key: string, fallback: string, values?: Record<string, string | number>) =>
     fallback.replace(/{{(\w+)}}/g, (_, key: string) => String(values?.[key] ?? key))
 }))
