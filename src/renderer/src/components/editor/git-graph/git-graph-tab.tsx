@@ -32,7 +32,7 @@ import { openGitGraphWipEntry } from './open-git-graph-wip-entry'
 import { useGitGraphRows } from './use-git-graph-rows'
 import { isGitHistoryWipId } from '../../../../../shared/git/history/git-history-wip-rows'
 import { cn } from '@/lib/utils'
-import { GIT_GRAPH_REFRESH_EVENT } from '@/lib/git-graph-tab'
+import { GIT_GRAPH_REFRESH_EVENT } from '@/lib/source-control/graph/git-graph-refresh-event'
 import { useIntlLocale, useTranslate } from '@/i18n/use-translate'
 
 const sameGroup = () => undefined

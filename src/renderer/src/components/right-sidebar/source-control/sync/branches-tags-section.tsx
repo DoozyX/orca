@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { openGitGraph, GIT_GRAPH_REFRESH_EVENT } from '@/lib/git-graph-tab'
+import { openGitGraph } from '@/lib/source-control/graph/git-graph-tab'
+import { GIT_GRAPH_REFRESH_EVENT } from '@/lib/source-control/graph/git-graph-refresh-event'
 import { useTranslate } from '@/i18n/use-translate'
 import { GitRefTree } from '@/components/editor/git-graph/git-ref-tree'
 import { gitGraphOldServerMessage } from '@/components/editor/git-graph/git-graph-ref-messages'

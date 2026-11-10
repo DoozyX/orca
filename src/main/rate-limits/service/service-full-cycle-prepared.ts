@@ -1,11 +1,9 @@
 import type { SettledProviderResult } from './service-sibling-provider-result'
-import type {
-  ClaudeRuntimeAuthPreparation,
-  InternalRateLimitState,
-  NormalizedClaudeAccountSelectionTarget,
-  NormalizedCodexAccountSelectionTarget,
-  ProviderRateLimits
-} from './service-types'
+import type { ClaudeRuntimeAuthPreparation } from '../../claude-accounts/runtime-auth/runtime-auth-types'
+import type { InternalRateLimitState } from './service-types'
+import type { NormalizedClaudeAccountSelectionTarget } from '../../claude-accounts/runtime-selection'
+import type { NormalizedCodexAccountSelectionTarget } from '../../../shared/codex-selection-lane'
+import type { ProviderRateLimits } from '../../../shared/rate-limit-types'
 
 export type FetchAllCyclePrepared = {
   claudeTarget: NormalizedClaudeAccountSelectionTarget

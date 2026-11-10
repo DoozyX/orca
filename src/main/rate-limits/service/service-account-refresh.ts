@@ -1,15 +1,19 @@
-import { consumeCodexRateLimitResetCredit } from '../codex-fetcher'
+import { consumeCodexRateLimitResetCredit } from '../providers/codex/codex-fetcher'
 import { RateLimitServiceBoundClaudeHomes } from './service-bound-claude-homes'
 import { hasUsageWindows } from './service-result-policy'
 import {
   normalizeCodexAccountSelectionTarget,
+  type CodexAccountSelectionTarget
+} from '../../../shared/codex-selection-lane'
+import {
   normalizeClaudeAccountSelectionTarget,
-  type CodexAccountSelectionTarget,
-  type ClaudeAccountSelectionTarget,
-  type RateLimitRuntimeTarget,
-  type RateLimitState,
-  type CodexRateLimitResetResult
-} from './service-types'
+  type ClaudeAccountSelectionTarget
+} from '../../claude-accounts/runtime-selection'
+import type {
+  RateLimitRuntimeTarget,
+  RateLimitState,
+  CodexRateLimitResetResult
+} from '../../../shared/rate-limit-types'
 
 export abstract class RateLimitServiceAccountRefresh extends RateLimitServiceBoundClaudeHomes {
   async refresh(): Promise<RateLimitState> {

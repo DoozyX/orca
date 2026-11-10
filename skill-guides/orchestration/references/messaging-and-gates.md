@@ -32,3 +32,7 @@ pointer started a turn, and `queued` means the worker's chat holds the pointer
 and sends it when the current turn ends, so the running turn does not see it.
 Put a scope change for a running worker in a new Task or a stop-and-relaunch
 instead. A send without `delivery` claims nothing about when the worker sees it.
+
+To reach an agent on a paired server, use `send --on <server>`; a reply to mail
+from another server needs no flag. See
+[Placement and remote execution](placement-and-remote.md).

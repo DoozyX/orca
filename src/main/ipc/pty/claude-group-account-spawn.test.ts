@@ -19,7 +19,7 @@ import { createClaudeBoundHomeOverride } from '../../claude-accounts/claude-boun
 import { installClaudeProfileRouter } from '../../claude-accounts/claude-profile-installed-router'
 
 // Only the credential-store read is substituted; binding, preflight, and spawn options are real.
-vi.mock('../../rate-limits/claude-oauth-credentials', () => ({
+vi.mock('../../rate-limits/providers/claude/claude-oauth-credentials', () => ({
   readClaudeConfigDirScopedOAuthCredentials: async () => ({
     token: 'fixture',
     source: 'credentials-file'

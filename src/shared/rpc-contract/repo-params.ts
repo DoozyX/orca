@@ -97,6 +97,10 @@ export const ProjectGroupSelector = z.object({
   groupId: requiredString('Missing group id')
 })
 
+export const ProjectGroupUpdateMany = z.object({
+  mutations: z.array(ProjectGroupUpdate)
+})
+
 // Why `connectionId` is optional: older clients omit it, and older hosts strip it (bare selector).
 export const ProjectGroupMoveProject = z.object({
   repo: requiredString('Missing repo selector'),

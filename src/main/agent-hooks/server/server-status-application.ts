@@ -14,6 +14,7 @@ import type {
 } from '../../../shared/agent-status/contracts/agent-status-observation'
 import { AGENT_STATUS_2A_CURRENT_PRODUCER_MODE } from '../../../shared/agent-status/transport/agent-status-legacy-adapter'
 import { mainAgentState } from '../../../shared/agent-status/lifecycle/main-agent-status'
+import { previousCodexTurnContext } from '../../../shared/agent-hook-listener/providers/codex-session-start'
 import { admitLegacyAgentStatus } from '../../../shared/agent-hook-listener/listener-state'
 import type { EnrichedAgentHookEventPayload } from './server-types'
 import { agentTypeToPromptSentAgentKind } from './server-status-identity'
@@ -33,7 +34,12 @@ function resolveTurnStartedAt(
     payload.toolAgentId === undefined &&
     payload.isReplay !== true &&
     payload.providerSessionOnly !== true &&
-    isNewTurnEvent(payload.source, payload.hookEventName)
+    isNewTurnEvent(payload.source, payload.hookEventName) &&
+    !(
+      payload.source === 'codex' &&
+      payload.hookEventName === 'SessionStart' &&
+      !payload.hasExplicitPrompt
+    )
   ) {
     return payload.payload.sessionBoundary === true ? undefined : at
   }
@@ -129,9 +135,17 @@ export abstract class AgentHookServerStatusApplication extends AgentHookServerSt
     observedAt?: number,
     restatesPrevious = false
   ): EnrichedAgentHookEventPayload {
+    // Only live submissions open a new turn; cached starts restate historical context.
+    if (
+      !payload.isReplay &&
+      (payload.hookEventName === 'UserPromptSubmit' || payload.hasExplicitPrompt === true)
+    ) {
+      this.activeHookTurnCompletedAtByPaneKey.delete(payload.paneKey)
+    }
     const previous = this.state.lastStatusByPaneKey.get(payload.paneKey) as
       | EnrichedAgentHookEventPayload
       | undefined
+    const previousTurn = previousCodexTurnContext(previous, payload)
     const commandCodeNewTurn =
       previous !== undefined &&
       isCommandCodeNewTurnWhileWorking({
@@ -145,17 +159,17 @@ export abstract class AgentHookServerStatusApplication extends AgentHookServerSt
         incomingPromptInteractionKey: payload.promptInteractionKey
       })
     const stateStartedAt =
-      previous && previous.payload.state === payload.payload.state && !commandCodeNewTurn
-        ? previous.stateStartedAt
+      previousTurn && previousTurn.payload.state === payload.payload.state && !commandCodeNewTurn
+        ? previousTurn.stateStartedAt
         : (observedAt ?? now)
-    const turnStartedAt = resolveTurnStartedAt(previous, payload, observedAt ?? now)
+    const turnStartedAt = resolveTurnStartedAt(previousTurn, payload, observedAt ?? now)
     const evidenceObservedAt = observedAt ?? this.resolveEvidenceObservedAt(payload, previous, now)
     // Why: a clockless replay or an OSC repaint of the row restates the agent's last word,
     // while the row's own clock may be a repaint's (#17).
     const restated = restatesPrevious || (observedAt === undefined && payload.isReplay === true)
     // Why: a relay's row was minted on the relay, which saw the event; main only restates it.
     const { hostTurn, ...turnEnd } = reduceHostTurnEnd(
-      previous,
+      previousTurn,
       payload,
       observedAt ?? now,
       payload.connectionId === null
@@ -182,9 +196,9 @@ export abstract class AgentHookServerStatusApplication extends AgentHookServerSt
         ...turnEnd,
         ...(hostTurn ? { hostTurn } : {})
       },
-      previous,
+      previousTurn,
       leadReplyOf(payload),
-      !!previous && this.sameTerminalOwner(previous, payload)
+      !!previousTurn && this.sameTerminalOwner(previousTurn, payload)
     )
   }
 

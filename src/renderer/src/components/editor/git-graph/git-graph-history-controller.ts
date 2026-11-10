@@ -11,9 +11,9 @@ import { useAppStore } from '@/store'
 import {
   gitGraphRuntimeContext,
   gitGraphScope,
-  gitGraphScopeInputs,
-  GIT_GRAPH_REFRESH_EVENT
-} from '@/lib/git-graph-tab'
+  gitGraphScopeInputs
+} from '@/lib/source-control/graph/git-graph-tab'
+import { GIT_GRAPH_REFRESH_EVENT } from '@/lib/source-control/graph/git-graph-refresh-event'
 import { getRuntimeGitHistory } from '@/runtime/source-control/git/runtime-git-status-client'
 import { translate } from '@/i18n/i18n'
 import { adoptResolvedGitGraphRefs } from './git-graph-resolved-refs'

@@ -9,7 +9,7 @@ import {
   buildCodexStatusSwitchGroups,
   normalizeCodexStatusRuntimeTarget
 } from './status-bar-codex-accounts'
-import { getCodexAccountDisplayLabel } from '@/lib/codex-account-display-label'
+import { getCodexAccountDisplayLabel } from '@/lib/provider-accounts/codex-account-display-label'
 import { getCodexStatusRuntimeKey } from './status-bar-runtime-targets'
 
 export function buildAccountUsageRoster(input: {

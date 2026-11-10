@@ -1,7 +1,7 @@
 import { SquareArrowOutUpRight } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useGitGraphSupport } from './use-git-graph-support'
-import { gitGraphUpdateMessage, openGitGraph } from '@/lib/git-graph-tab'
+import { gitGraphUpdateMessage, openGitGraph } from '@/lib/source-control/graph/git-graph-tab'
 import { toSourceControlRowOpenEvent, type SourceControlRowOpenEvent } from '../listing/split-open'
 import { useTranslate } from '@/i18n/use-translate'
 import { CommitsHeaderIconButton } from './commits-header-icon-button'

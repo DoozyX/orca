@@ -2,7 +2,7 @@ import { statSync } from 'node:fs'
 import type { ResolvedClaudeHomeBinding } from '../../shared/claude-home-binding'
 import { isWindowsAbsolutePathLike } from '../../shared/cross-platform-path'
 import { LOCAL_EXECUTION_HOST_ID } from '../../shared/execution-host'
-import { readClaudeConfigDirScopedOAuthCredentials } from '../rate-limits/claude-oauth-credentials'
+import { readClaudeConfigDirScopedOAuthCredentials } from '../rate-limits/providers/claude/claude-oauth-credentials'
 import { sameClaudeConfigDir } from './claude-config-dir-identity'
 
 /** Why a bound group home cannot be launched against. Never a silent fallback to the shared home:

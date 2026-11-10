@@ -8,6 +8,7 @@ import type { ProjectGroup } from '../../../../../../shared/project-group-types'
 import type { Repo } from '../../../../../../shared/repo-types'
 import { getRootProjectEntryKey } from '../../../../../../shared/root-project-order'
 import {
+  getRootProjectHeaderCountByOccurrenceKey,
   getRootProjectHeaderDragKeys,
   getSidebarRootProjectHeaderKeys,
   measureRootProjectHeaderDragRects,
@@ -256,6 +257,16 @@ describe('root project header drops', () => {
       },
       {
         type: 'header',
+        key: 'repo:remote-x',
+        count: 1,
+        icon: { kind: 'project' },
+        repo: repo('remote-x', { executionHostId: 'runtime:remote' }),
+        anchorRepo: repo('x'),
+        hostId: 'runtime:remote',
+        repeated: true
+      },
+      {
+        type: 'header',
         key: 'repo:y',
         count: 1,
         icon: { kind: 'project' },
@@ -270,13 +281,22 @@ describe('root project header drops', () => {
       'repo:x',
       'host:runtime:remote',
       'group:a',
+      'repo:x',
       'repo:y'
     ])
     expect(getRootProjectHeaderDragKeys(keys, 'group:a', 'runtime:remote')).toEqual([
       'group:a',
+      'repo:x',
       'repo:y'
     ])
-    expect(getRootProjectHeaderDragKeys(keys, 'repo:x', 'runtime:remote')).toBeUndefined()
+    expect(getRootProjectHeaderDragKeys(keys, 'repo:y', 'local')).toBeUndefined()
+    expect([...getRootProjectHeaderCountByOccurrenceKey(keys)]).toEqual([
+      ['["local","group:a"]', 2],
+      ['["local","repo:x"]', 2],
+      ['["runtime:remote","group:a"]', 3],
+      ['["runtime:remote","repo:x"]', 3],
+      ['["runtime:remote","repo:y"]', 3]
+    ])
 
     const container = document.createElement('div')
     for (const [hostId, key] of [

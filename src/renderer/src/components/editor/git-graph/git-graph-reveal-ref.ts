@@ -1,7 +1,7 @@
 import { toast } from 'sonner'
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
-import type { gitGraphScope } from '@/lib/git-graph-tab'
+import type { gitGraphScope } from '@/lib/source-control/graph/git-graph-tab'
 import type { GitGraphHistoryController } from './git-graph-history-controller'
 import { gitGraphHistoryForTab } from './git-graph-tab-controllers'
 import type { GitGraphHistoryView } from './git-graph-history-view'

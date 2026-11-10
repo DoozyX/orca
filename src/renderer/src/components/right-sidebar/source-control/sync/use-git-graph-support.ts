@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useSourceControlState } from '../panel/worktree-scope'
-import { gitGraphScope, gitGraphSupport, probeGitGraphSupport } from '@/lib/git-graph-tab'
+import {
+  gitGraphScope,
+  gitGraphSupport,
+  probeGitGraphSupport
+} from '@/lib/source-control/graph/git-graph-tab'
 
 export function useGitGraphSupport(worktreeId: string): boolean | null {
   // Hidden section bodies stop these subscriptions; a primitive key keeps unrelated writes from rendering.

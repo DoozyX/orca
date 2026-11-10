@@ -2,7 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } fro
 import { getRuntimeGitRefs } from '@/runtime/source-control/git/runtime-git-status-client'
 import { runtimeEnvironmentSupportsCapability } from '@/runtime/rpc/compatibility/runtime-capability-proof'
 import { GIT_HISTORY_REFS_CAPABILITY } from '../../../../../shared/source-control/runtime/git-graph-capabilities'
-import { gitGraphRuntimeContext, gitGraphScope, useGitGraphScope } from '@/lib/git-graph-tab'
+import {
+  gitGraphRuntimeContext,
+  gitGraphScope,
+  useGitGraphScope
+} from '@/lib/source-control/graph/git-graph-tab'
 import { loadGitRefGroups, type LoadedGitRefGroups } from './git-ref-group-loader'
 import { groupGitRefs, gitRefGroupKey, isGitRefListTruncated } from './git-ref-groups'
 import type { GitHistoryItemRef } from '../../../../../shared/git/history/git-history-types'

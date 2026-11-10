@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import type { gitGraphScope } from '@/lib/git-graph-tab'
+import type { gitGraphScope } from '@/lib/source-control/graph/git-graph-tab'
 import {
   buildDefaultGitHistoryColorMap,
   buildGitHistoryViewModels

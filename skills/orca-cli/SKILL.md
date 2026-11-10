@@ -7,11 +7,13 @@ description: >-
   "read/wait/send Orca terminal", "handoff" / "handover" / "give this to another agent", or
   "Orca browser". It also owns single-session terminal work: "session", "sub-agent",
   "create a session", "stop a session", "fork a session", "attach to a session",
-  "worktree session", and troubleshooting a stuck or misconfigured agent terminal. Prefer
-  it over raw git worktree, ad hoc PTYs, or Computer Use when Orca state is involved. Use
-  `orchestration` instead to fan out several agents at once or to supervise them. Use
-  Computer Use only when a visible window needs GUI control that a CLI, filesystem, or API
-  cannot do.
+  "worktree session", and troubleshooting a stuck or misconfigured agent terminal. Also use
+  for opening, testing, screenshotting, or checking how a local or external web page renders
+  while working in Orca, unless the user or project names another browser tool; plain HTTP or
+  API calls (curl, fetch) do not need it. Prefer it over raw git worktree, ad hoc PTYs, or
+  Computer Use when Orca state is involved. Use `orchestration` instead to fan out several
+  agents at once or to supervise them. Use Computer Use only when a visible window needs GUI
+  control that a CLI, filesystem, or API cannot do.
 ---
 
 # Orca CLI
