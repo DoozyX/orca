@@ -28,7 +28,7 @@ import {
   type CloseEntryOptions
 } from './host-client-context-state'
 import type { ConnectionState } from './connection-state'
-import type { HostProfile } from '../hosts/host-profile'
+import type { HostProfile } from '../../host-catalog/host-profile'
 import type { RpcClientContextValue } from './rpc-client-context-contract'
 import { RpcClientContext } from './rpc-client-context-value'
 

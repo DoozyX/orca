@@ -181,6 +181,13 @@ export abstract class AgentHookServerIngestTerminal extends AgentHookServerInges
     const previous = this.state.lastStatusByPaneKey.get(paneKey) as
       | EnrichedAgentHookEventPayload
       | undefined
+    // OSC 7501 names OpenCode 2 `opencode`; the row its hook or launch named keeps the generation.
+    const payload: ParsedAgentStatusPayload =
+      event.fromProgramStatus === true &&
+      event.payload.agentType === 'opencode' &&
+      previous?.payload.agentType === 'opencode2'
+        ? { ...event.payload, agentType: 'opencode2' }
+        : event.payload
     // OpenCode 1 run loads hooks in-process; a hook during the command owns its status.
     const hookOwnsCommand =
       event.yieldsToHookSince !== undefined &&
@@ -190,7 +197,7 @@ export abstract class AgentHookServerIngestTerminal extends AgentHookServerInges
     // Record ordering before removal, which also marks a program turn boundary.
     const workingSince =
       event.fromProgramStatus === true
-        ? this.programStatusFacets.noteState(paneKey, event.payload, now)
+        ? this.programStatusFacets.noteState(paneKey, payload, now)
         : undefined
     if (event.removesProgramStatusRow === true) {
       this.hookSilenceRechecks.cancel(paneKey)
@@ -206,7 +213,7 @@ export abstract class AgentHookServerIngestTerminal extends AgentHookServerInges
     }
     const yieldEndsAt =
       event.fromProgramStatus === true
-        ? programStatusHookYieldEndsAt(previous, event.payload, workingSince)
+        ? programStatusHookYieldEndsAt(previous, payload, workingSince)
         : undefined
     const hookOwnsAgent = yieldEndsAt !== undefined && now < yieldEndsAt
     if (event.fromProgramStatus === true) {
@@ -230,7 +237,7 @@ export abstract class AgentHookServerIngestTerminal extends AgentHookServerInges
       // OSC 7501 uses the hook precedence above; other terminal reports cannot settle child-held work.
       (event.fromProgramStatus !== true &&
         previous?.payload.agentType === 'claude' &&
-        event.payload.agentType === 'claude' &&
+        payload.agentType === 'claude' &&
         isAgentStatusHeldOpenByChildWork(previous.payload) &&
         previous.payload.subagents?.some((subagent) => subagent.state === 'working') === true)
     ) {
@@ -254,11 +261,14 @@ export abstract class AgentHookServerIngestTerminal extends AgentHookServerInges
     // only just acquired one (or moved to another) must still refresh the row it is stamped on.
     const sameHandle =
       sameOwner && previous.terminalHandle === (terminalHandle ?? previous.terminalHandle)
-    const programChildrenUnchanged = programStatusChildrenUnchanged(event, previous?.payload)
+    const programChildrenUnchanged = programStatusChildrenUnchanged(
+      { fromProgramStatus: event.fromProgramStatus, payload },
+      previous?.payload
+    )
     if (
       sameHandle &&
       !previous.restoredUnconfirmed &&
-      terminalStatusPayloadMatchesHook(previous.payload, event.payload, preserveActiveTurnStamp) &&
+      terminalStatusPayloadMatchesHook(previous.payload, payload, preserveActiveTurnStamp) &&
       programChildrenUnchanged
     ) {
       // An authority transfer must refresh enriched subscribers even for an identical payload.
@@ -275,11 +285,11 @@ export abstract class AgentHookServerIngestTerminal extends AgentHookServerInges
     const restatesRow =
       sameOwner &&
       (sameHandle || previous.terminalHandle === undefined) &&
-      terminalStatusPayloadMatchesHook(previous.payload, event.payload, true) &&
+      terminalStatusPayloadMatchesHook(previous.payload, payload, true) &&
       programChildrenUnchanged
     const { preservedProviderSession, preservedMainAgent } = carryOverTerminalStatusIdentity(
       previous,
-      event.payload,
+      payload,
       newRun
     )
     // Terminal observations cannot establish prompt-sent telemetry.
@@ -292,9 +302,7 @@ export abstract class AgentHookServerIngestTerminal extends AgentHookServerInges
         ...(preservedProviderSession ? { providerSession: preservedProviderSession } : {}),
         ...(terminalHandle ? { terminalHandle } : {}),
         ...(restatesRow ? { restatesRow: true as const } : {}),
-        payload: preservedMainAgent
-          ? { ...event.payload, mainAgent: preservedMainAgent }
-          : event.payload
+        payload: preservedMainAgent ? { ...payload, mainAgent: preservedMainAgent } : payload
       },
       undefined,
       event.origin ?? 'osc',
