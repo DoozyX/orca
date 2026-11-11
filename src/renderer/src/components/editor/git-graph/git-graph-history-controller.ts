@@ -151,9 +151,8 @@ export class GitGraphHistoryController {
   get authorHighlight(): ReadonlySet<string> {
     return this.view.getState().authorHighlight
   }
-  setAuthorHighlight = (keys: Iterable<string>): void => {
+  setAuthorHighlight = (keys: Iterable<string>): void =>
     this.view.setState({ authorHighlight: new Set(keys) })
-  }
 
   select = (selectedId: string): void => {
     this.actions.cancel()
@@ -285,14 +284,16 @@ export class GitGraphHistoryController {
       if (!current()) {
         return undefined
       }
-      const result = error !== undefined ? previous : (accumulated ?? previous)
+      // A page that added nothing keeps the result identity, so viewport paging can't repeat it.
+      const stalled = append && !recovered && accumulated?.hasMore && items.length === targetDepth
+      const result = error !== undefined || stalled ? previous : (accumulated ?? previous)
       const selection = this.view.getState().selectedId
-      const selectedId = resolveGitGraphSelection(result?.items, selection)
-      const selectionGone = selection !== undefined && selection !== selectedId
+      const { selectedId, selectionGone } = resolveGitGraphSelection(result?.items, selection)
       if (selectionGone) {
         this.actions.cancel()
         this.scrollOffset = 0
       }
+      this.pending = undefined
       this.view.setState({
         result,
         error,

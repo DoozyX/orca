@@ -72,11 +72,12 @@ export function summarizeGitGraphWipCounts(entries: readonly GitStatusEntry[]): 
 export function resolveGitGraphSelection(
   items: readonly GitHistoryItem[] | undefined,
   selection: string | undefined
-): string | undefined {
-  if (selection !== undefined && isGitHistoryWipId(selection)) {
-    return selection
-  }
-  return items?.find((item) => item.id === selection)?.id ?? items?.[0]?.id
+): { selectedId: string | undefined; selectionGone: boolean } {
+  const selectedId =
+    selection !== undefined && isGitHistoryWipId(selection)
+      ? selection
+      : (items?.find((item) => item.id === selection)?.id ?? items?.[0]?.id)
+  return { selectedId, selectionGone: selection !== undefined && selection !== selectedId }
 }
 
 // A WIP row is synthetic and never in the commit ids, so it must not trigger extra paging.

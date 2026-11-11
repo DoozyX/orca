@@ -33,7 +33,7 @@ vi.mock('./ProviderDetailsMenu', () => ({
   ProviderDetailsMenu: ({ triggerContent }: { triggerContent: ReactNode }) => triggerContent,
   CLOSE_ALL_CONTEXT_MENUS_EVENT: 'close-menus'
 }))
-vi.mock('@/lib/desktop-window-chrome', () => ({ isPairedWebClientWindow: () => true }))
+vi.mock('@/app-shell/chrome/desktop-window-chrome', () => ({ isPairedWebClientWindow: () => true }))
 vi.mock('@/components/ui/dropdown-menu', () => ({
   DropdownMenu: ({ children }: PropsWithChildren) => children,
   DropdownMenuTrigger: ({ children }: PropsWithChildren) => children,

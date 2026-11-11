@@ -22,6 +22,7 @@ import { useGitGraphHistory, gitGraphFilterSupported } from './use-git-graph-his
 import { GitGraphFilter } from './git-graph-filter'
 import { GitGraphAuthorFilter } from './git-graph-author-filter'
 import { gitGraphAuthorKey } from './git-graph-author-key'
+import { usePageWhileEndInView } from './git-graph-viewport-paging'
 import { GitGraphDetails } from './git-graph-details'
 import type { GitGraphFileSort } from './git-graph-file-list'
 import { GitGraphRefRail } from './git-graph-ref-rail'
@@ -31,7 +32,7 @@ import { GitGraphWipRow } from './git-graph-wip-row'
 import { openGitGraphWipEntry } from './open-git-graph-wip-entry'
 import { useGitGraphRows } from './use-git-graph-rows'
 import { isGitHistoryWipId } from '../../../../../shared/git/history/git-history-wip-rows'
-import { cn } from '@/lib/utils'
+import { cn } from '@/lib/class-names'
 import { GIT_GRAPH_REFRESH_EVENT } from '@/lib/source-control/graph/git-graph-refresh-event'
 import { useIntlLocale, useTranslate } from '@/i18n/use-translate'
 
@@ -46,7 +47,7 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
   const t = useTranslate()
   const intlLocale = useIntlLocale()
   const history = useGitGraphHistory(worktreeId)
-  const { result, scope, selectedId, revealId, controller } = history
+  const { result, scope, selectedId, revealId, controller, loading } = history
   const commitActionSupport = useGitGraphCommitActionSupport(scope)
   const workspaces = useGitGraphWorkspaces(scope)
   const { rows, wipById, refreshWip } = useGitGraphRows(scope, result, history.filter)
@@ -102,6 +103,10 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
     overscan: 12,
     getItemKey: (index) => rows[index]!.historyItem.id
   })
+  const virtualItems = virtualizer.getVirtualItems()
+  // Null while the pane has no height; read after getVirtualItems() recomputes it.
+  const lastVisibleIndex = virtualizer.range?.endIndex ?? -1
+  usePageWhileEndInView(controller, result, loading, rows.length, lastVisibleIndex)
   // A WIP selection outlives its row (clean, hidden or failed status), so show the newest commit instead.
   const selected = (
     rows.find((row) => row.historyItem.id === selectedId) ??
@@ -250,13 +255,6 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
               if (element) {
                 controller.scrollOffset = element.scrollTop
               }
-              if (
-                element &&
-                element.scrollHeight - element.scrollTop - element.clientHeight < 200 &&
-                !history.loading
-              ) {
-                void history.loadMore()
-              }
             }}
           >
             <div
@@ -266,7 +264,7 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
                 minWidth: draftGraphWidth + FIXED_COLUMNS_WIDTH
               }}
             >
-              {virtualizer.getVirtualItems().map((virtualRow) => {
+              {virtualItems.map((virtualRow) => {
                 const viewModel = rows[virtualRow.index]!
                 const item = viewModel.historyItem
                 const wipWorkspace = wipById.get(item.id)

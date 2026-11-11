@@ -1,7 +1,7 @@
 import { Minus, Pencil, Plus, type LucideIcon } from 'lucide-react'
 import { GitHistoryGraphSvg } from '@/components/right-sidebar/source-control/sync/git-history-graph-svg'
 import type { GitHistoryItemViewModel } from '../../../../../shared/git/history/git-history-graph'
-import { cn } from '@/lib/utils'
+import { cn } from '@/lib/class-names'
 import { useTranslate } from '@/i18n/use-translate'
 import { gitGraphWipBranchLabel, summarizeGitGraphWipCounts } from './git-graph-wip-items'
 import type { GitGraphWipWorkspace } from './git-graph-wip-items'

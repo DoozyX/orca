@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/context-menu'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { useAppStore } from '@/store'
+import { useAppStore } from '@/store/index'
 import { selectWorktreesByRepo } from '@/store/workspaces/catalog/workspace-record-fields'
 import type { gitGraphScope } from '@/lib/source-control/graph/git-graph-tab'
 import {
@@ -26,7 +26,7 @@ import type {
   GitHistoryItemRef
 } from '../../../../../shared/git/history/git-history-types'
 import type { Worktree } from '../../../../../shared/worktree/types'
-import { cn } from '@/lib/utils'
+import { cn } from '@/lib/class-names'
 
 export function useGitGraphWorkspaces(scope: ReturnType<typeof gitGraphScope>) {
   const worktrees = useAppStore(selectWorktreesByRepo)
