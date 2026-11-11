@@ -250,9 +250,11 @@ surface it; dispatch nothing downstream on that body.
 4. **PR.** Sync the branch onto the current base, rerun the full suite plus the
    repository's lint, format, and build checks, then land it by the manifest's
    landing policy: a PR/MR, a direct merge, or the repository's own endgame.
-5. **Green CI.** Watch the checks. A mechanical fix pushes directly; a fix that
-   touches logic takes one more review round on the new commits. A task is `done`
-   only when the verdict is clean (nits and defers may be listed), the PR exists
+5. **Green CI.** A cheap inspection agent watches the checks (the PR's, or the
+   target branch's after a direct merge) with one bounded blocking command, never
+   a poll loop. A mechanical fix pushes directly; a fix that touches logic takes
+   one more review round on the new commits. A task is `done` only when the
+   verdict is clean (nits and defers may be listed), the PR exists
    or the endgame has landed, and all checks are green (see the manifest's CI baseline).
 
 Load `references/task-pipeline.md` for the mechanics of each stage.

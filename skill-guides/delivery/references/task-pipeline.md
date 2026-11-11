@@ -352,10 +352,15 @@ record that instead.
 
 ## 5. Green CI
 
-Run a cheap inspection subagent for the open PRs rather than polling from the
-coordinator. It runs the host's check command, writes a compact status artifact,
-and on failure pulls the failing log into the task's directory. You read the
-deciding green or red summary and route the result to the still-live implementer.
+Run a cheap inspection subagent rather than polling from the coordinator. It
+watches the open PR's checks or, after a direct merge or another no-PR endgame,
+the target branch's checks at the landed sha. It runs the host's blocking check
+command once in the foreground under its own deadline (the agent tool's
+timeout); on deadline it reports the checks unfinished. Neither it nor the
+coordinator runs a sleep, poll, or heartbeat loop. It writes a compact status
+artifact, and on failure pulls the failing log into the task's directory. You
+read the deciding green or red summary and route the result to the still-live
+implementer.
 
 A mechanical fix — lint, format, a flaky rerun — pushes directly. A fix that
 touches logic is a `budget.md` `fix` row with `reason` `ci:<failing check>`, then
