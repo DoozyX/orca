@@ -26,7 +26,9 @@ type Refusal = {
 
 type RailProps = {
   worktreeId: string
-  history: ReturnType<typeof useGitGraphHistory>
+  // Not the whole history: holding its result would keep replaced pages alive while the rail is open.
+  history: Pick<ReturnType<typeof useGitGraphHistory>, 'filter' | 'changeFilter' | 'controller'>
+  currentRefId: string | undefined
   reloadKey: number
 }
 
@@ -41,6 +43,7 @@ export function GitGraphRefRail(props: RailProps) {
 function GitGraphRefRailForOwner({
   worktreeId,
   history,
+  currentRefId,
   reloadKey,
   owner,
   requests
@@ -65,7 +68,6 @@ function GitGraphRefRailForOwner({
     raised.anyGroupCapped === anyGroupCapped
       ? raised
       : undefined
-  const currentRefId = history.result?.currentRef?.id
   const allRefIds = useMemo(
     () => (groupsComplete && allRefs ? allRefs.map((ref) => ref.id) : undefined),
     [groupsComplete, allRefs]

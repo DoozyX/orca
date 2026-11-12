@@ -6,7 +6,7 @@ import {
 } from './computer-provider-lifecycle'
 import { RuntimeClientError } from './runtime-client-error'
 import { ComputerTreeBaselines } from './computer-snapshot-tree-diff'
-import type { ComputerProviderCapabilities } from '../../shared/runtime-types'
+import type { ComputerProviderCapabilities } from '../../shared/computer-use-runtime-types'
 
 type SidecarRequest = {
   id: number

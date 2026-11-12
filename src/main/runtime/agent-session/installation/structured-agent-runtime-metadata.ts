@@ -16,7 +16,7 @@ import { supportsClaudeStructuredLocation } from '../../../claude/structured/lau
 import { supportsAcpStructuredLocation } from '../../../acp/session/acp-structured-location-support'
 import { PI_RPC_RUNTIME_METADATA } from '../../../pi/rpc-runtime-metadata'
 import { resolveClaudeStructuredAccountHome } from '../../../claude/claude-structured-account-home'
-import { getClaudeProfileRouter } from '../../../claude-accounts/claude-profile-installed-router'
+import { getClaudeProfileRouter } from '../../../claude-accounts/profiles/routing/claude-profile-installed-router'
 import { resolveStructuredCodexAccountHomePath } from '../environment/structured-agent-account-home'
 import {
   acpModelCatalogDiscovery,

@@ -1,5 +1,5 @@
 import { resolve } from 'node:path'
-import { claudeConfigDirKeychainAliases } from '../claude-accounts/keychain'
+import { claudeConfigDirKeychainAliases } from '../claude-accounts/runtime-auth/keychain'
 
 /** Case-folded wherever the filesystem is: a spelling difference on macOS or Windows names one
  *  directory, and refusing it blocks work the binding was meant to allow. Linux stays

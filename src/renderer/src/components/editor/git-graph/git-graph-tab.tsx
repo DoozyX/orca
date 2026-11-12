@@ -1,11 +1,11 @@
+import { getGitGraphViewport, setGitGraphViewport } from './git-graph-tab-controllers'
 import {
   GitGraphCommitActionControls,
   GitGraphCommitConfirmStrip,
   useGitGraphCommitActionSupport
 } from './git-graph-commit-action-controls'
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useState } from 'react'
 import { useSidebarResize } from '@/hooks/useSidebarResize'
-import { useVirtualizer } from '@tanstack/react-virtual'
 import { PanelLeft, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -18,6 +18,7 @@ import {
 } from '@/components/right-sidebar/source-control/sync/git-history-graph-svg'
 import { useGitHistoryCommitActions } from '@/components/right-sidebar/source-control/sync/use-git-history-commit-actions'
 import { formatGitHistoryTimestamp } from '@/components/right-sidebar/source-control/sync/git-history-format'
+import { useGitGraphViewport } from './use-git-graph-viewport'
 import { useGitGraphHistory, gitGraphFilterSupported } from './use-git-graph-history'
 import { GitGraphFilter } from './git-graph-filter'
 import { GitGraphAuthorFilter } from './git-graph-author-filter'
@@ -31,7 +32,6 @@ import { GitGraphWipDetails } from './git-graph-wip-details'
 import { GitGraphWipRow } from './git-graph-wip-row'
 import { openGitGraphWipEntry } from './open-git-graph-wip-entry'
 import { useGitGraphRows } from './use-git-graph-rows'
-import { isGitHistoryWipId } from '../../../../../shared/git/history/git-history-wip-rows'
 import { cn } from '@/lib/class-names'
 import { GIT_GRAPH_REFRESH_EVENT } from '@/lib/source-control/graph/git-graph-refresh-event'
 import { useIntlLocale, useTranslate } from '@/i18n/use-translate'
@@ -47,22 +47,18 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
   const t = useTranslate()
   const intlLocale = useIntlLocale()
   const history = useGitGraphHistory(worktreeId)
-  const { result, scope, selectedId, revealId, controller, loading } = history
+  const { result, scope, selectedId, revealId, controller, loading, filter, changeFilter } = history
+  const railHistory = { filter, changeFilter, controller }
   const commitActionSupport = useGitGraphCommitActionSupport(scope)
   const workspaces = useGitGraphWorkspaces(scope)
-  const { rows, wipById, refreshWip } = useGitGraphRows(scope, result, history.filter)
-  const maxGraphWidth = useMemo(
-    () =>
-      rows.reduce(
-        (width, row) =>
-          Math.max(
-            width,
-            (Math.max(row.inputSwimlanes.length, row.outputSwimlanes.length) + 1) * LANE_WIDTH
-          ),
-        132
-      ),
-    [rows]
-  )
+  const {
+    rows,
+    maxWidth: maxGraphWidth,
+    selected,
+    revealIndex,
+    wipById,
+    refreshWip
+  } = useGitGraphRows(scope, result, filter, LANE_WIDTH, selectedId, revealId)
   const [railOpen, setRailOpen] = useState(true)
   const [fileSort, setFileSort] = useState(controller.fileSort)
   const [refsEpoch, setRefsEpoch] = useState(0)
@@ -79,7 +75,7 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
   const [draftGraphWidth, setDraftGraphWidth] = useState(graphWidth)
   const commitGraphWidth = useCallback(
     (width: number) => {
-      controller.graphWidth = width
+      setGitGraphViewport(controller, 'graphWidth', width)
       setGraphWidth(width)
     },
     [controller]
@@ -94,42 +90,30 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
     onDraftWidthChange: setDraftGraphWidth
   })
   const columns = `160px ${draftGraphWidth}px minmax(200px,1fr) 120px 100px 72px`
-  const scroll = useRef<HTMLDivElement>(null)
-  const virtualizer = useVirtualizer({
-    count: rows.length,
-    initialOffset: () => history.controller.scrollOffset,
-    getScrollElement: () => scroll.current,
-    estimateSize: () => ROW_HEIGHT,
-    overscan: 12,
-    getItemKey: (index) => rows[index]!.historyItem.id
-  })
-  const virtualItems = virtualizer.getVirtualItems()
-  // Null while the pane has no height; read after getVirtualItems() recomputes it.
-  const lastVisibleIndex = virtualizer.range?.endIndex ?? -1
+  const getScrollOffset = useCallback(
+    () => getGitGraphViewport(controller, 'scrollOffset'),
+    [controller]
+  )
+  const saveScrollOffset = useCallback(
+    (offset: number) => setGitGraphViewport(controller, 'scrollOffset', offset),
+    [controller]
+  )
+  const {
+    scroll: scrollRef,
+    items: virtualRows,
+    lastVisible: lastVisibleIndex,
+    height: virtualHeight,
+    onScroll,
+    reveal: revealRow
+  } = useGitGraphViewport(rows.length, getScrollOffset, saveScrollOffset, ROW_HEIGHT)
   usePageWhileEndInView(controller, result, loading, rows.length, lastVisibleIndex)
-  // A WIP selection outlives its row (clean, hidden or failed status), so show the newest commit instead.
-  const selected = (
-    rows.find((row) => row.historyItem.id === selectedId) ??
-    (selectedId !== undefined && isGitHistoryWipId(selectedId)
-      ? rows.find((row) => !isGitHistoryWipId(row.historyItem.id))
-      : undefined)
-  )?.historyItem
   const selectedWip = selected ? wipById.get(selected.id) : undefined
   useLayoutEffect(() => {
-    if (scroll.current) {
-      scroll.current.scrollTop = controller.scrollOffset
-    }
-  }, [controller])
-  useLayoutEffect(() => {
-    if (!revealId) {
-      return
-    }
-    const index = rows.findIndex((row) => row.historyItem.id === revealId)
-    if (index !== -1) {
-      virtualizer.scrollToIndex(index)
+    if (revealIndex !== undefined) {
+      revealRow(revealIndex)
       controller.clearReveal()
     }
-  }, [rows, revealId, virtualizer, controller])
+  }, [revealIndex, revealRow, controller])
   const changeFileSort = (sort: GitGraphFileSort) => {
     controller.fileSort = sort
     setFileSort(sort)
@@ -164,9 +148,9 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
           <GitGraphFilter
             worktreeId={worktreeId}
             executionHostId={history.controller.executionHostId}
-            filter={history.filter}
+            filter={filter}
             supported={gitGraphFilterSupported(result)}
-            onChange={history.changeFilter}
+            onChange={changeFilter}
           />
         </div>
         <Tooltip>
@@ -192,7 +176,12 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
       )}
       <div className="flex min-h-0 flex-1">
         {railOpen && (
-          <GitGraphRefRail worktreeId={worktreeId} history={history} reloadKey={refsEpoch} />
+          <GitGraphRefRail
+            worktreeId={worktreeId}
+            history={railHistory}
+            currentRefId={history.result?.currentRef?.id}
+            reloadKey={refsEpoch}
+          />
         )}
         <div className="flex min-w-0 flex-1 flex-col overflow-x-auto scrollbar-sleek">
           <div
@@ -248,23 +237,15 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
             <span>{t('gitGraph.sha', 'SHA')}</span>
           </div>
           <div
-            ref={scroll}
+            ref={scrollRef}
             className="min-h-0 flex-1 overflow-y-auto scrollbar-sleek"
-            onScroll={() => {
-              const element = scroll.current
-              if (element) {
-                controller.scrollOffset = element.scrollTop
-              }
-            }}
+            onScroll={onScroll}
           >
             <div
               className="relative min-w-max"
-              style={{
-                height: virtualizer.getTotalSize(),
-                minWidth: draftGraphWidth + FIXED_COLUMNS_WIDTH
-              }}
+              style={{ height: virtualHeight, minWidth: draftGraphWidth + FIXED_COLUMNS_WIDTH }}
             >
-              {virtualItems.map((virtualRow) => {
+              {virtualRows.map((virtualRow) => {
                 const viewModel = rows[virtualRow.index]!
                 const item = viewModel.historyItem
                 const wipWorkspace = wipById.get(item.id)
@@ -311,7 +292,11 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
                           />
                         </div>
                         <div className="min-w-0 overflow-hidden">
-                          <GitHistoryGraphSvg viewModel={viewModel} variant="avatar" />
+                          <GitHistoryGraphSvg
+                            viewModel={viewModel}
+                            variant="avatar"
+                            visibleWidth={draftGraphWidth}
+                          />
                         </div>
                         <button
                           className="min-w-0 truncate pr-3 text-left"

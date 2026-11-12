@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { ComputerProviderLifecycle } from './computer-provider-lifecycle'
-import { MacOSNativeProviderClient } from './macos-native-provider-client'
+import { MacOSNativeProviderClient } from './macos-native/macos-native-provider-client'
 
 describe('ComputerProviderLifecycle', () => {
   // #14: a status peek must never create a provider, which would start a helper just to look.

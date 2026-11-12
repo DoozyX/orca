@@ -9,6 +9,7 @@ import { createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { GitGraphTab } from './git-graph-tab'
+import { stubGitGraphViewport } from './git-graph-viewport.test-fixtures'
 import type { GitHistoryResult } from '../../../../../shared/git/history/git-history-types'
 
 const { getHistory, getStatus } = vi.hoisted(() => ({ getHistory: vi.fn(), getStatus: vi.fn() }))
@@ -21,15 +22,6 @@ vi.mock('@/runtime/source-control/git/runtime-git-status-client', async (origina
 vi.mock('@/runtime/source-control/git/runtime-git-diff-client', async (original) => ({
   ...(await original<object>()),
   getRuntimeGitCommitCompare: vi.fn(async () => ({ summary: { status: 'ready' }, entries: [] }))
-}))
-vi.mock('@tanstack/react-virtual', () => ({
-  useVirtualizer: (options: { count: number }) => ({
-    getTotalSize: () => options.count * 28,
-    getVirtualItems: () =>
-      Array.from({ length: options.count }, (_, index) => ({ index, start: index * 28 })),
-    measureElement: () => {},
-    scrollToIndex: () => {}
-  })
 }))
 
 const container = document.createElement('div')
@@ -83,6 +75,7 @@ const edit = (path: string, area: 'staged' | 'unstaged'): GitStatusEntry => ({
 let dirtyPaths = new Set<string>()
 
 beforeEach(() => {
+  stubGitGraphViewport(520)
   dirtyPaths = new Set(['/other', '/detached'])
   getHistory.mockReset().mockResolvedValue(result)
   getStatus.mockReset().mockImplementation(async (context: { worktreePath: string }) => ({
@@ -183,7 +176,14 @@ it('shows the newest commit when the selected WIP row goes away', async () => {
 })
 
 it('does not page deeper on refresh while a WIP row is selected', async () => {
-  getHistory.mockResolvedValue({ ...result, hasMore: true })
+  // A full pane, so viewport paging stays out of the count.
+  const filler = Array.from({ length: 40 }, (_, i) => ({
+    id: `c${i}`,
+    subject: `c${i}`,
+    message: `c${i}`,
+    parentIds: []
+  }))
+  getHistory.mockResolvedValue({ ...result, items: [...result.items, ...filler], hasMore: true })
   await renderGraph()
   await selectWip('r::/other')
   getHistory.mockClear()

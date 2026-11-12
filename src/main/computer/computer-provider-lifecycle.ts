@@ -1,10 +1,10 @@
-import type { MacOSNativeHelperIdentity } from './macos-native-helper-identity'
-import { MacOSNativeProviderClient } from './macos-native-provider-client'
-import { shouldUseMacOSNativeProvider } from './macos-native-provider-availability'
+import type { MacOSNativeHelperIdentity } from './macos-native/macos-native-helper-identity'
+import { MacOSNativeProviderClient } from './macos-native/macos-native-provider-client'
+import { shouldUseMacOSNativeProvider } from './macos-native/macos-native-provider-availability'
 import {
   DesktopScriptProviderClient,
   shouldUseDesktopScriptProvider
-} from './desktop-script-provider-client'
+} from './desktop-script/desktop-script-provider-client'
 
 type ComputerProvider = MacOSNativeProviderClient | DesktopScriptProviderClient
 

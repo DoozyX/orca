@@ -267,6 +267,7 @@ export abstract class RateLimitServiceFullCyclePreparation extends RateLimitServ
       codexFetchGated,
       codexStateBeforeFetch,
       codexProvenance,
+      codexHomePath,
       codexGeneration,
       opencodeConfigChanged,
       opencodeGeneration,
