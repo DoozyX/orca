@@ -9,7 +9,7 @@ import type {
   StructuredAgentCommandSettings
 } from '../../../native-chat/structured-agent-command-resolution'
 import type { NativeChatShellEnvironmentPolicy } from '../../../../shared/native-chat/native-chat-shell-environment'
-import type { ClaudeStructuredAuthPolicy } from '../../../claude-accounts/claude-structured-auth-policy'
+import type { ClaudeStructuredAuthPolicy } from '../../../claude-accounts/runtime-auth/claude-structured-auth-policy'
 import type { ClaudeStructuredLaunchPartDeps } from '../../../claude/structured/launch/claude-structured-launch-resolution'
 import type { RuntimeAgentAccountHomeResolver } from '../model-catalog/structured-agent-model-catalog-wiring'
 import type { ClaudeCliFlagSupport } from '../../../claude/claude-cli-flag-support'

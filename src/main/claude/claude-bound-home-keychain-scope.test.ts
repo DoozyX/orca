@@ -6,7 +6,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, describe, expect, it, vi } from 'vitest'
-import type * as ClaudeKeychain from '../claude-accounts/keychain'
+import type * as ClaudeKeychain from '../claude-accounts/runtime-auth/keychain'
 
 const LEGACY_SHARED_CREDENTIALS = JSON.stringify({
   claudeAiOauth: { accessToken: 'personal-token', refreshToken: 'personal-refresh' }
@@ -18,7 +18,7 @@ const readActiveClaudeKeychainCredentialsStrict = vi.fn(async (configDir?: strin
 )
 const readActiveClaudeKeychainCredentials = vi.fn(async () => LEGACY_SHARED_CREDENTIALS)
 
-vi.mock('../claude-accounts/keychain', async (importActual) => ({
+vi.mock('../claude-accounts/runtime-auth/keychain', async (importActual) => ({
   ...(await importActual<typeof ClaudeKeychain>()),
   readActiveClaudeKeychainCredentials,
   readActiveClaudeKeychainCredentialsStrict

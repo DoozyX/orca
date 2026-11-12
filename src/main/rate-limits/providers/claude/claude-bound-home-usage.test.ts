@@ -1,6 +1,6 @@
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { readActiveClaudeKeychainCredentialsStrict } from '../../../claude-accounts/keychain'
+import { readActiveClaudeKeychainCredentialsStrict } from '../../../claude-accounts/runtime-auth/keychain'
 import { fetchBoundClaudeHomeUsage } from './claude-bound-home-usage'
 import { fetchClaudeOAuthUsage } from './claude-oauth-usage-request'
 import { okProvider } from '../../service/rate-limit-service-test-harness'
@@ -273,7 +273,7 @@ vi.mock('node:worker_threads', async (importOriginal) => {
 // Why the read exports survive: deciding whether a bound directory is signed in *requires* reading
 // its scoped Keychain item on macOS. They are stubbed so the suite never depends on — or reads —
 // the developer's real Keychain; every write export still throws.
-vi.mock('../../../claude-accounts/keychain', async (importOriginal) => ({
+vi.mock('../../../claude-accounts/runtime-auth/keychain', async (importOriginal) => ({
   ...ratchet.guardModule(await importOriginal<object>(), 'keychain'),
   readActiveClaudeKeychainCredentialsStrict: vi.fn(async () => null)
 }))

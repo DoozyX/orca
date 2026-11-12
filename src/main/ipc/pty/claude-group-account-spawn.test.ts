@@ -15,8 +15,8 @@ import { createRuntimePtySpawnState } from './runtime/spawn-state'
 import type { PtyRuntimeControllerDeps } from './runtime/controller-deps'
 import { prepareRuntimePtySpawn } from './runtime/spawn-preflight'
 import { buildRuntimePtySpawnOptions } from './runtime/spawn-options'
-import { createClaudeBoundHomeOverride } from '../../claude-accounts/claude-bound-home-route'
-import { installClaudeProfileRouter } from '../../claude-accounts/claude-profile-installed-router'
+import { createClaudeBoundHomeOverride } from '../../claude-accounts/profiles/routing/claude-bound-home-route'
+import { installClaudeProfileRouter } from '../../claude-accounts/profiles/routing/claude-profile-installed-router'
 
 // Only the credential-store read is substituted; binding, preflight, and spawn options are real.
 vi.mock('../../rate-limits/providers/claude/claude-oauth-credentials', () => ({

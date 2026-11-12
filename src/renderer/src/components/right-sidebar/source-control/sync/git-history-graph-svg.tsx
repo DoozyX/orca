@@ -4,7 +4,6 @@ import type { GitHistoryGraphColorId } from '../../../../../../shared/git/histor
 import {
   getGitHistoryItemColor,
   getGitHistoryItemLaneIndex,
-  getGitHistoryMergeParentLaneIndex,
   type GitHistoryItemViewModel
 } from '../../../../../../shared/git/history/git-history-graph'
 
@@ -49,11 +48,13 @@ function GraphPath({
 
 export function GitHistoryGraphSvg({
   viewModel,
+  visibleWidth,
   variant = 'compact',
   rowHeight = GIT_HISTORY_GRAPH_METRICS[variant].rowHeight,
   laneWidth = GIT_HISTORY_GRAPH_METRICS[variant].laneWidth
 }: {
   viewModel: GitHistoryItemViewModel
+  visibleWidth?: number
   variant?: 'compact' | 'avatar'
   rowHeight?: number
   laneWidth?: number
@@ -66,6 +67,8 @@ export function GitHistoryGraphSvg({
   const inputIndex = inputSwimlanes.findIndex((node) => node.id === historyItem.id)
   const circleIndex = getGitHistoryItemLaneIndex(viewModel)
   const circleColor = gitHistoryNodeColor(viewModel)
+  const intersects = (left: number, right: number, extent = 0.5): boolean =>
+    visibleWidth === undefined || (right + extent >= 0 && left - extent <= visibleWidth)
 
   // Four dashes per row keep the pattern continuous across row boundaries.
   const dashFor = (node: { dashed?: true } | undefined) =>
@@ -76,7 +79,14 @@ export function GitHistoryGraphSvg({
   for (let index = 0; index < inputSwimlanes.length; index += 1) {
     const color = inputSwimlanes[index]!.color
     if (inputSwimlanes[index]!.id === historyItem.id) {
-      if (index !== circleIndex) {
+      if (
+        index !== circleIndex &&
+        intersects(
+          laneWidth * Math.min(index, circleIndex + 1),
+          laneWidth * (index + 1),
+          laneWidth + 0.5
+        )
+      ) {
         paths.push({
           color,
           dashLength: dashFor(inputSwimlanes[index]),
@@ -86,7 +96,7 @@ export function GitHistoryGraphSvg({
             `H ${laneWidth * (circleIndex + 1)}`
           ].join(' ')
         })
-      } else if (historyItem.parentIds.length > 0) {
+      } else if (index === circleIndex && historyItem.parentIds.length > 0) {
         outputSwimlaneIndex += 1
       }
       continue
@@ -96,13 +106,23 @@ export function GitHistoryGraphSvg({
       outputSwimlaneIndex < outputSwimlanes.length &&
       inputSwimlanes[index]!.id === outputSwimlanes[outputSwimlaneIndex]!.id
     ) {
-      if (index === outputSwimlaneIndex) {
+      if (
+        index === outputSwimlaneIndex &&
+        intersects(laneWidth * (index + 1), laneWidth * (index + 1))
+      ) {
         paths.push({
           color,
           dashLength: dashFor(inputSwimlanes[index]),
           d: `M ${laneWidth * (index + 1)} 0 V ${rowHeight}`
         })
-      } else {
+      } else if (
+        index !== outputSwimlaneIndex &&
+        intersects(
+          laneWidth * Math.min(index + 1, outputSwimlaneIndex + 1),
+          laneWidth * Math.max(index + 1, outputSwimlaneIndex + 1),
+          curveRadius + 0.5
+        )
+      ) {
         paths.push({
           color,
           dashLength: dashFor(inputSwimlanes[index]),
@@ -124,10 +144,24 @@ export function GitHistoryGraphSvg({
     }
   }
 
+  const parentOutputIndices =
+    historyItem.parentIds.length > 1 ? new Map<string, number>() : undefined
+  if (parentOutputIndices) {
+    for (let index = 0; index < outputSwimlanes.length; index += 1) {
+      parentOutputIndices.set(outputSwimlanes[index]!.id, index)
+    }
+  }
   for (let index = 1; index < historyItem.parentIds.length; index += 1) {
     const parentId = historyItem.parentIds[index]!
-    const parentOutputIndex = getGitHistoryMergeParentLaneIndex(viewModel, parentId)
-    if (parentOutputIndex === -1) {
+    const parentOutputIndex = parentOutputIndices!.get(parentId)
+    if (
+      parentOutputIndex === undefined ||
+      !intersects(
+        laneWidth * Math.min(parentOutputIndex, circleIndex + 1),
+        laneWidth * Math.max(parentOutputIndex + 1, circleIndex + 1),
+        laneWidth + 0.5
+      )
+    ) {
       continue
     }
     paths.push({
@@ -142,14 +176,15 @@ export function GitHistoryGraphSvg({
     })
   }
 
-  if (inputIndex !== -1) {
+  const cx = laneWidth * (circleIndex + 1)
+  if (inputIndex !== -1 && intersects(cx, cx)) {
     paths.push({
       color: inputSwimlanes[inputIndex]!.color,
       dashLength: dashFor(inputSwimlanes[inputIndex]),
       d: `M ${laneWidth * (circleIndex + 1)} 0 V ${rowHeight / 2}`
     })
   }
-  if (historyItem.parentIds.length > 0) {
+  if (historyItem.parentIds.length > 0 && intersects(cx, cx)) {
     paths.push({
       color: circleColor,
       dashLength: viewModel.kind === 'wip' ? rowHeight / 8 : undefined,
@@ -157,7 +192,6 @@ export function GitHistoryGraphSvg({
     })
   }
 
-  const cx = laneWidth * (circleIndex + 1)
   const cy = nodeY
   const width =
     laneWidth * (Math.max(inputSwimlanes.length, outputSwimlanes.length, circleIndex + 1, 1) + 1)
@@ -167,6 +201,15 @@ export function GitHistoryGraphSvg({
     viewModel.kind === 'wip'
   const isMergeNode = historyItem.parentIds.length > 1
   const showAvatar = variant === 'avatar' && !isBoundaryNode
+  const circleExtent = showAvatar
+    ? AVATAR_SIZE / 2
+    : isBoundaryNode || viewModel.kind === 'HEAD'
+      ? CIRCLE_RADIUS + 3 + CIRCLE_STROKE_WIDTH / 2
+      : isMergeNode
+        ? CIRCLE_RADIUS + 1
+        : CIRCLE_RADIUS
+  const showCircle = intersects(cx, cx, circleExtent)
+  const showDot = showCircle && !showAvatar
 
   const svg = (
     <svg
@@ -179,7 +222,7 @@ export function GitHistoryGraphSvg({
       {paths.map((path) => (
         <GraphPath key={path.d} {...path} />
       ))}
-      {!showAvatar && viewModel.kind === 'HEAD' && (
+      {showDot && viewModel.kind === 'HEAD' && (
         <>
           <circle
             cx={cx}
@@ -192,7 +235,7 @@ export function GitHistoryGraphSvg({
           <circle cx={cx} cy={cy} r={CIRCLE_STROKE_WIDTH} fill="var(--background)" />
         </>
       )}
-      {isBoundaryNode && (
+      {showCircle && isBoundaryNode && (
         <>
           <circle
             cx={cx}
@@ -221,13 +264,13 @@ export function GitHistoryGraphSvg({
           />
         </>
       )}
-      {!showAvatar && !isBoundaryNode && viewModel.kind !== 'HEAD' && isMergeNode && (
+      {showDot && !isBoundaryNode && viewModel.kind !== 'HEAD' && isMergeNode && (
         <>
           <circle cx={cx} cy={cy} r={CIRCLE_RADIUS + 1} fill={graphColor(circleColor)} />
           <circle cx={cx} cy={cy} r={CIRCLE_RADIUS - 1.5} fill="var(--background)" />
         </>
       )}
-      {!showAvatar && !isBoundaryNode && viewModel.kind !== 'HEAD' && !isMergeNode && (
+      {showDot && !isBoundaryNode && viewModel.kind !== 'HEAD' && !isMergeNode && (
         <circle cx={cx} cy={cy} r={CIRCLE_RADIUS} fill={graphColor(circleColor)} />
       )}
     </svg>
@@ -238,14 +281,16 @@ export function GitHistoryGraphSvg({
   return (
     <div className="relative flex shrink-0" style={{ width, height: rowHeight }}>
       {svg}
-      <div className="absolute" style={{ left: cx - AVATAR_SIZE / 2, top: cy - AVATAR_SIZE / 2 }}>
-        <GitAuthorAvatar
-          name={historyItem.author}
-          email={historyItem.authorEmail}
-          size={AVATAR_SIZE}
-          ringColor={circleColor}
-        />
-      </div>
+      {showCircle && (
+        <div className="absolute" style={{ left: cx - AVATAR_SIZE / 2, top: cy - AVATAR_SIZE / 2 }}>
+          <GitAuthorAvatar
+            name={historyItem.author}
+            email={historyItem.authorEmail}
+            size={AVATAR_SIZE}
+            ringColor={circleColor}
+          />
+        </div>
+      )}
     </div>
   )
 }

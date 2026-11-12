@@ -2,7 +2,7 @@ import type { ClaudeRateLimitAccountsState } from '../../shared/managed-account-
 import {
   getSelectedClaudeAccountIdForTarget,
   type ClaudeAccountSelectionTarget
-} from '../claude-accounts/runtime-selection'
+} from '../claude-accounts/selection/runtime-selection'
 
 export function selectedClaudeAccountId(
   state: ClaudeRateLimitAccountsState,

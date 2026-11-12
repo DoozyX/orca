@@ -7,6 +7,7 @@ import { createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { GitGraphTab } from './git-graph-tab'
+import { stubGitGraphViewport } from './git-graph-viewport.test-fixtures'
 import type { GitHistoryResult } from '../../../../../shared/git/history/git-history-types'
 
 const { getHistory, getRefs, getStatus } = vi.hoisted(() => ({
@@ -24,6 +25,7 @@ vi.mock('@/runtime/source-control/git/runtime-git-diff-client', async (original)
   ...(await original<object>()),
   getRuntimeGitCommitCompare: vi.fn(async () => ({ summary: { status: 'ready' }, entries: [] }))
 }))
+// The ref tree still virtualizes with TanStack; render every node.
 vi.mock('@tanstack/react-virtual', () => ({
   useVirtualizer: (options: { count: number; getScrollElement: () => HTMLElement | null }) => ({
     getTotalSize: () => options.count * 28,
@@ -43,6 +45,7 @@ document.body.appendChild(container)
 let root = createRoot(container)
 const initialState = useAppStore.getState()
 beforeEach(() => {
+  stubGitGraphViewport(520)
   getStatus.mockReset().mockResolvedValue({ entries: [] })
   useAppStore.setState({
     repos: [repo],

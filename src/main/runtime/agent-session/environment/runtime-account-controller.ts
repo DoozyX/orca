@@ -27,7 +27,7 @@ import type { CommitMessageAgentEnvironmentResolvers } from '../../../text-gener
 import {
   getClaudeSelectionTargetForAccount,
   type ClaudeAccountSelectionTarget
-} from '../../../claude-accounts/runtime-selection'
+} from '../../../claude-accounts/selection/runtime-selection'
 import { selectedClaudeAccountId } from '../../runtime-selected-claude-account-id'
 import {
   hostAccountsManagedByDesktopMessage,
