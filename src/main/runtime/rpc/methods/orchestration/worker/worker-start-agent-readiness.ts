@@ -28,6 +28,7 @@ export async function waitForWorkerStartAgentReady(
   })
   // The wait rebinds only a known incarnation, so a new handle always comes with one.
   if (ready.handle !== fromHandle && processIncarnation !== null) {
+    // A reused (not created) pane has no custody row yet, so a false result is expected here.
     stage.db.rebindWorkerTerminalResourceHandle({
       dispatchId: stage.dispatchId,
       fromHandle,

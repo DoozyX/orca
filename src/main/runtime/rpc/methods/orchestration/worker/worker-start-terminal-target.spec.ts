@@ -202,13 +202,15 @@ export function registerWorkerStartTerminalTargetTests(): void {
         })
       const task = h.db.createTask({ spec: 'reminted pane', runId: h.activeRunId })
 
-      const result = (await h.call('orchestration.workerStart', {
+      const started = await h.call('orchestration.workerStart', {
         task: task.id,
         from: 'term_coord',
         agent: 'codex'
-      })) as { dispatchId: string; state: string }
+      })
 
-      expect(result.state).toBe('ready')
+      expect(started).toMatchObject({ state: 'ready', dispatchId: expect.any(String) })
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: asserted to carry a dispatchId just above.
+      const result = started as { dispatchId: string }
       expect(h.runtime.waitForTerminal).toHaveBeenLastCalledWith(
         'term_reminted',
         expect.objectContaining({ condition: 'tui-idle' })
