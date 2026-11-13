@@ -27,6 +27,7 @@ import { resolveAgentAccountRestartResumeStartup } from '../agent-account-restar
 import { isSessionHeldByAnotherPane } from '../../identity/claude-session-pane-holders'
 import { isClaudePaneOnAccount, resolveClaudePaneFolder } from './claude-pane-account-folder'
 import type { ClaudeHostFolders } from './claude-pane-account-folder'
+import { claudeAssignedWorktreeMatcher } from './claude-pane-assigned-account'
 import {
   getCodexAccountSwitchLaneMatcher,
   isForeignMachineCodexPtyId,
@@ -101,7 +102,12 @@ function* localClaudePanes(
   target: CodexAccountSelectionTarget
 ): Generator<LocalClaudePane> {
   const isLaneInScope = getCodexAccountSwitchLaneMatcher({ owner, target })
+  const hasAssignedAccount = claudeAssignedWorktreeMatcher(state)
   for (const [worktreeId, tabs] of Object.entries(state.tabsByWorktree)) {
+    // Why: a group or project pins this worktree's account, so the global selection never reaches it.
+    if (hasAssignedAccount(worktreeId)) {
+      continue
+    }
     for (const tab of tabs) {
       const boundPtyIds = state.ptyIdsByTabId[tab.id] ?? []
       const leaves = state.terminalLayoutsByTabId[tab.id]?.ptyIdsByLeafId ?? {}

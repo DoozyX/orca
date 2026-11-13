@@ -1,5 +1,6 @@
 import type { ProviderAccountsSnapshot } from '@/runtime/provider-accounts/observations/runtime-provider-accounts-client'
 import type { ProviderRateLimits, RateLimitState } from '../../../../shared/rate-limit-types'
+import type { ClaudeAccountAssignment } from '../../../../shared/claude-account-assignment'
 import { providerUsageEntry, type AccountUsageEntry } from './account-usage-entry'
 import {
   buildClaudeStatusSwitchGroups,
@@ -17,8 +18,10 @@ export function buildAccountUsageRoster(input: {
   accounts: ProviderAccountsSnapshot
   rateLimits: RateLimitState
   ownerKey: string
+  /** What the focused workspace's group or project pins; this computer's host accounts only. */
+  claudeAssignment: ClaudeAccountAssignment | null
 }): AccountUsageEntry[] {
-  const { accounts, rateLimits, ownerKey } = input
+  const { accounts, rateLimits, ownerKey, claudeAssignment } = input
   return input.providers.flatMap((provider): AccountUsageEntry[] => {
     if (provider.provider !== 'claude' && provider.provider !== 'codex') {
       return [
@@ -62,15 +65,25 @@ export function buildAccountUsageRoster(input: {
             label: group.runtimeTarget.runtime === 'wsl' ? `${label} · ${group.label}` : label,
             runtimeTarget: group.runtimeTarget,
             selected,
+            assignedBy:
+              isClaude &&
+              claudeAssignment !== null &&
+              claudeAssignment.accountId === account.id &&
+              group.runtimeTarget.runtime === 'host'
+                ? claudeAssignment.source
+                : null,
             limits,
             isFetching: selected ? provider.status === 'fetching' : (preview?.isFetching ?? false),
             updatedAt: limits?.updatedAt ?? 0
           }
         })
     )
+    // Why assigned first: it is the account the focused workspace runs, ahead of the global one.
     return entries.sort(
       (a, b) =>
-        Number(b.selected) - Number(a.selected) || (a.label ?? '').localeCompare(b.label ?? '')
+        Number(b.assignedBy !== null) - Number(a.assignedBy !== null) ||
+        Number(b.selected) - Number(a.selected) ||
+        (a.label ?? '').localeCompare(b.label ?? '')
     )
   })
 }

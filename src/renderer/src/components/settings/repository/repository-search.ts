@@ -18,6 +18,7 @@ import {
 } from './worktrees/repository-git-worktree-search-entries'
 import { getRepositoryFormatterSearchEntry } from './RepositoryFormatterSection'
 import { getRepositoryAgentTrustSearchEntry } from './RepositoryAgentTrustSection'
+import { getRepositoryClaudeAccountSearchEntry } from './RepositoryClaudeAccountSection'
 
 type RepositoryPaneSearchOptions = {
   isLocalWindowsProject?: boolean
@@ -206,6 +207,10 @@ function getRepositorySearchParts(
   const { removeProject, sidebarVisibility } = getRepositoryPresenceSearchEntries(repo, t)
   return {
     agentTrust: getRepositoryAgentTrustSearchEntry(),
+    claudeAccount:
+      getRepoExecutionHostId(repo) === LOCAL_EXECUTION_HOST_ID
+        ? [getRepositoryClaudeAccountSearchEntry()]
+        : [],
     jira,
     displayName,
     icon,
@@ -229,6 +234,7 @@ export function getRepositoryPaneSearchEntries(
   const entries = [
     getRepositoryFormatterSearchEntry(t),
     parts.agentTrust,
+    ...parts.claudeAccount,
     parts.jira,
     parts.displayName,
     parts.icon
@@ -265,7 +271,13 @@ export function getRepositoryPaneSearchMetadata(
 ) {
   const parts = getRepositorySearchParts(repo, options, t)
   const worktrees = isFolderRepo(repo) ? undefined : getRepositoryGitWorktreeSearchMetadata(repo, t)
-  const identity = [parts.agentTrust, parts.jira, parts.displayName, parts.icon]
+  const identity = [
+    parts.agentTrust,
+    ...parts.claudeAccount,
+    parts.jira,
+    parts.displayName,
+    parts.icon
+  ]
   if (parts.github) {
     identity.push(parts.github)
   }

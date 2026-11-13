@@ -7289,7 +7289,9 @@
           "hostVmSetupFailed": "Setup failed",
           "hostVmSuspended": "Suspended",
           "hostVmWaking": "Waking…",
-          "hostVmProvisioning": "Provisioning…"
+          "hostVmProvisioning": "Provisioning…",
+          "projectGroupSettings": "Group settings…",
+          "groupSettingsSaveFailed": "Failed to save group settings"
         },
         "WorktreeMetaDialog": {
           "3db0a2a593": "Cancel",
@@ -8051,6 +8053,13 @@
           "browseFolder": "Browse folder…",
           "cloneFromUrl": "Clone from URL…",
           "createNewProject": "Create new project…"
+        },
+        "ProjectGroupSettingsDialog": {
+          "title": "Group Settings",
+          "description": "Settings for {{value0}} and the groups nested inside it.",
+          "cancel": "Cancel",
+          "saving": "Saving...",
+          "save": "Save"
         }
       },
       "shared": {
@@ -20079,6 +20088,19 @@
       },
       "NewWorkspaceComposerFooter": {
         "create": "Create"
+      },
+      "claudeAccountAssignment": {
+        "label": "Claude account",
+        "followGlobal": "Follow global account",
+        "followGroup": "From group {{group}}: {{email}}",
+        "signedOutAccount": "{{email}} (signed out)",
+        "groupHint": "Claude terminals and chats in this group run under this account. A project can override it in its settings.",
+        "noAccounts": "Add a Claude account in Settings → Accounts to assign one here.",
+        "projectDescription": "Claude terminals and chats in this project run under this account instead of the global one.",
+        "keywordAccount": "account",
+        "keywordSubscription": "subscription",
+        "chipFromGroup": "{{account}} · this workspace uses it (group {{name}})",
+        "chipFromProject": "{{account}} · this workspace uses it (project {{name}})"
       }
     },
     "i18n": {

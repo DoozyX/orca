@@ -2,6 +2,7 @@ import type {
   ProviderRateLimits,
   RateLimitRuntimeTarget
 } from '../../../../shared/rate-limit-types'
+import type { ClaudeAccountAssignmentSource } from '../../../../shared/claude-account-assignment'
 import type { StatusBarUsageMode } from '../../../../shared/status-bar-usage-mode'
 import type { Translate } from '@/i18n/use-translate'
 import { usageChipShowsPercentage, type UsageUnitLabelState } from './usage-unit-label'
@@ -13,6 +14,8 @@ export type AccountUsageEntry = {
   label: string | null
   runtimeTarget: RateLimitRuntimeTarget | null
   selected: boolean
+  /** The group or project that pins this account for the focused workspace. */
+  assignedBy: ClaudeAccountAssignmentSource | null
   limits: ProviderRateLimits | null
   isFetching: boolean
   updatedAt: number
@@ -26,6 +29,7 @@ export function providerUsageEntry(limits: ProviderRateLimits): AccountUsageEntr
     label: null,
     runtimeTarget: null,
     selected: true,
+    assignedBy: null,
     limits,
     isFetching: limits.status === 'fetching',
     updatedAt: limits.updatedAt

@@ -191,6 +191,26 @@ describe('findMovableClaudeSessions', () => {
     ])
   })
 
+  it('leaves a session alone when its project pins a Claude account', async () => {
+    seedPanes([{ n: 1, agentType: 'claude', configDir: FOLDER_A }])
+    expect(await movable()).toEqual(['pty-1'])
+
+    useAppStore.setState({
+      repos: [
+        {
+          id: 'wt1',
+          path: '/repo',
+          displayName: 'Repo',
+          badgeColor: '#000000',
+          addedAt: 1,
+          claudeAccountId: 'acct-a'
+        }
+      ]
+    })
+    expect(await scan()).toEqual({ onAccount: [], elsewhere: [], cantMove: [] })
+    useAppStore.setState({ repos: [] })
+  })
+
   it('leaves a node or python program the user started in a pane Claude has left', async () => {
     seedPanes([
       { n: 1, agentType: 'claude' },

@@ -13,7 +13,10 @@ import { useTranslate } from '@/i18n/use-translate'
 import { getFolderWorkspacePathStatusDescription } from '@/lib/workspace/paths/folder-workspace-path-status'
 import type { ProjectGroup } from '../../../../../../shared/project-group-types'
 import type { FolderWorkspacePathStatus } from '../../../../../../shared/folder-workspaces/folder-workspace-path-status'
-import type { ExecutionHostId } from '../../../../../../shared/execution-host'
+import {
+  LOCAL_EXECUTION_HOST_ID,
+  type ExecutionHostId
+} from '../../../../../../shared/execution-host'
 import { getFolderProjectGroupRefreshHandler } from './project-group-folder-refresh'
 import { REPO_HEADER_ACTION_BUTTON_CLASS } from './repo-header-action-button-class'
 import {
@@ -22,6 +25,12 @@ import {
   stopRepoHeaderMenuEvent
 } from './header-event-guards'
 
+export type ProjectGroupHeaderRowHandlers = {
+  onRenameProjectGroup: (groupId: string, currentName: string, hostId?: ExecutionHostId) => void
+  onDeleteProjectGroup: (groupId: string, groupName: string, hostId?: ExecutionHostId) => void
+  onOpenProjectGroupSettings: (groupId: string, hostId?: ExecutionHostId) => void
+}
+
 export function ProjectGroupHeaderMenu({
   groupId,
   hostId,
@@ -29,16 +38,18 @@ export function ProjectGroupHeaderMenu({
   projectGroup,
   onRefreshProjectGroup,
   onRename,
-  onDelete
+  onDelete,
+  onOpenSettings
 }: {
   groupId: string
-  /** Owner host of the group row, so rename/delete route to the host that holds it. */
+  /** Owner host of the group row, so rename/delete/settings route to the host that holds it. */
   hostId?: ExecutionHostId
   label: string
   projectGroup: ProjectGroup | null
   onRefreshProjectGroup?: (projectGroup: ProjectGroup) => void
   onRename: (groupId: string, currentName: string, hostId?: ExecutionHostId) => void
   onDelete: (groupId: string, groupName: string, hostId?: ExecutionHostId) => void
+  onOpenSettings: (groupId: string, hostId?: ExecutionHostId) => void
 }): React.JSX.Element {
   const t = useTranslate()
   const onRefresh = getFolderProjectGroupRefreshHandler(projectGroup, onRefreshProjectGroup)
@@ -84,6 +95,15 @@ export function ProjectGroupHeaderMenu({
         <DropdownMenuItem onSelect={() => onRename(groupId, label, hostId)}>
           {t('auto.components.sidebar.WorktreeList.4d7b73658c', 'Rename group')}
         </DropdownMenuItem>
+        {/* Group settings hold only the Claude account, which exists on this computer. */}
+        {hostId === LOCAL_EXECUTION_HOST_ID ? (
+          <DropdownMenuItem
+            data-project-group-menu-item="settings"
+            onSelect={() => onOpenSettings(groupId, hostId)}
+          >
+            {t('auto.components.sidebar.WorktreeList.projectGroupSettings', 'Group settings…')}
+          </DropdownMenuItem>
+        ) : null}
         <DropdownMenuItem variant="destructive" onSelect={() => onDelete(groupId, label, hostId)}>
           {t('auto.components.sidebar.WorktreeList.902115cdbe', 'Delete group')}
         </DropdownMenuItem>

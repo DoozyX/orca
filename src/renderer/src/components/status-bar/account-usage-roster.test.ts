@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { createEmptyRateLimitState } from '../../../../shared/rate-limit-state-factory'
 import type { ProviderRateLimits } from '../../../../shared/rate-limit-types'
 import type { ProviderAccountsSnapshot } from '@/runtime/provider-accounts/observations/runtime-provider-accounts-client'
+import type { ClaudeAccountAssignment } from '../../../../shared/claude-account-assignment'
 import { buildAccountUsageRoster } from './account-usage-roster'
 
 function limits(provider: 'claude' | 'codex', usedPercent: number): ProviderRateLimits {
@@ -55,12 +56,15 @@ function fixture() {
       }
     ]
   })
-  return {
+  const claudeAssignment: ClaudeAccountAssignment | null = null
+  const input: Parameters<typeof buildAccountUsageRoster>[0] = {
     providers: [limits('claude', 8), limits('codex', 15)],
     accounts,
     rateLimits,
-    ownerKey: 'local'
+    ownerKey: 'local',
+    claudeAssignment
   }
+  return input
 }
 
 describe('account usage roster', () => {
@@ -73,6 +77,21 @@ describe('account usage roster', () => {
       ['codex-second', 70]
     ])
     expect(new Set(entries.map((entry) => entry.key)).size).toBe(4)
+  })
+  it("leads with the account the focused workspace's group pins, ahead of the global one", () => {
+    const input = fixture()
+    input.claudeAssignment = {
+      accountId: 'second',
+      source: { kind: 'group', groupId: 'g1', name: 'Work' }
+    }
+    const claude = buildAccountUsageRoster(input).filter((entry) => entry.provider === 'claude')
+    expect(
+      claude.map((entry) => [entry.accountId, entry.assignedBy?.name, entry.selected])
+    ).toEqual([
+      ['second', 'Work', false],
+      ['first', undefined, true]
+    ])
+    expect(claude[0]?.limits?.session?.usedPercent).toBe(58)
   })
   it('distinguishes Claude accounts that share an email', () => {
     const input = fixture()
