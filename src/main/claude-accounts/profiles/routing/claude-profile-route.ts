@@ -1,4 +1,4 @@
-import { readdirSync } from 'node:fs'
+import { readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import type {
   ClaudeAccountAssignment,
@@ -60,13 +60,9 @@ export function resolveClaudeRoute(
 }
 
 /** Every per-project pointer an open pane may hold, re-resolved; unloaded catalogs keep theirs. */
-export function claudeScopePointerRoutes(sources: ClaudeRouteSources): ClaudeRoute[] {
-  let projectIds: string[]
-  try {
-    projectIds = readdirSync(sources.scopePointerDir)
-  } catch {
-    return []
-  }
+async function claudeScopePointerRoutes(sources: ClaudeRouteSources): Promise<ClaudeRoute[]> {
+  // No folder yet means no pane has been given a per-project pointer.
+  const projectIds = await readdir(sources.scopePointerDir).catch(() => [])
   const routes: ClaudeRoute[] = []
   for (const projectId of projectIds) {
     try {
@@ -111,5 +107,19 @@ export function claudeTerminalBaseEnv(pointerPath: string, env: NodeJS.ProcessEn
   return {
     [CLAUDE_PROFILE_POINTER_ENV]: pointerPath,
     ...(userConfigDir ? { [CLAUDE_USER_CONFIG_DIR_ENV]: userConfigDir } : {})
+  }
+}
+
+/** Never rejects: a pointer that cannot be rewritten keeps its last account and is logged. */
+export async function publishClaudeScopePointers(
+  sources: ClaudeRouteSources,
+  write: (route: ClaudeRoute) => void
+): Promise<void> {
+  try {
+    for (const route of await claudeScopePointerRoutes(sources)) {
+      write(route)
+    }
+  } catch (error) {
+    console.warn('[claude-profile] Could not update the per-project Claude pointers:', error)
   }
 }

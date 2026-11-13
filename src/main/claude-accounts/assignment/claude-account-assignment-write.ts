@@ -30,9 +30,5 @@ export function assertClaudeAccountAssignable(
 
 /** Open panes re-read their project's pointer, so an assignment change must republish them. */
 export function republishClaudeAccountAssignments(): void {
-  try {
-    getClaudeProfileRouter()?.publishScopePointers()
-  } catch (error) {
-    console.warn('[claude-profile] Could not update the per-project Claude pointers:', error)
-  }
+  void getClaudeProfileRouter()?.publishScopePointers()
 }

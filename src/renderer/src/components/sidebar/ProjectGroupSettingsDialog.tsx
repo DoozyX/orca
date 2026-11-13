@@ -72,7 +72,7 @@ export function ProjectGroupSettingsDialog({
               id={pickerId}
               value={draft}
               accounts={accounts}
-              followLabel={claudeAccountFollowLabel(inherited, accounts)}
+              followLabel={claudeAccountFollowLabel(inherited, accounts, t)}
               disabled={submitting}
               ariaLabel={t('auto.components.claudeAccountAssignment.label', 'Claude account')}
               onChange={setDraft}

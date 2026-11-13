@@ -209,7 +209,7 @@ function getRepositorySearchParts(
     agentTrust: getRepositoryAgentTrustSearchEntry(),
     claudeAccount:
       getRepoExecutionHostId(repo) === LOCAL_EXECUTION_HOST_ID
-        ? [getRepositoryClaudeAccountSearchEntry()]
+        ? [getRepositoryClaudeAccountSearchEntry(t)]
         : [],
     jira,
     displayName,

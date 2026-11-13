@@ -1,4 +1,5 @@
 import type { AppState } from '@/store/types'
+import { selectFolderWorkspaces } from '@/store/workspaces/catalog/workspace-record-fields'
 import {
   hostClaudeAccountIds,
   resolveClaudeAccountAssignmentForWorkspace
@@ -8,7 +9,7 @@ import {
 export function claudeAssignedWorktreeMatcher(state: AppState): (worktreeId: string) => boolean {
   const catalog = {
     repos: state.repos,
-    folderWorkspaces: state.folderWorkspaces,
+    folderWorkspaces: selectFolderWorkspaces(state),
     groups: state.projectGroups,
     knownAccountIds: hostClaudeAccountIds(state.settings?.claudeManagedAccounts ?? [])
   }

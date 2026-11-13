@@ -153,7 +153,7 @@ describe('ClaudeProfileRouter account assignments', () => {
     await expect(f.router.prepareLaunch()).resolves.toMatchObject({ provenance: 'profile:a' })
   })
 
-  it('gives a project pane its own pointer and rewrites it when the assignment changes', () => {
+  it('gives a project pane its own pointer and rewrites it when the assignment changes', async () => {
     const f = fixture()
     const env = f.router.terminalEnv(undefined, { workspaceId: 'repo-work::/w' })
     expect(env.ORCA_CLAUDE_PROFILE_POINTER).toBe(f.scopePointer('repo-work'))
@@ -161,17 +161,19 @@ describe('ClaudeProfileRouter account assignments', () => {
     expect(readFileSync(f.scopePointer('repo-work'), 'utf8')).toBe(f.home('b'))
 
     f.catalog.groups[0].claudeAccountId = 'c'
-    f.router.publishScopePointers()
+    await f.router.publishScopePointers()
     expect(readFileSync(f.scopePointer('repo-work'), 'utf8')).toBe(f.home('c'))
 
     delete f.catalog.groups[0].claudeAccountId
-    f.router.publishScopePointers()
+    await f.router.publishScopePointers()
     expect(readFileSync(f.scopePointer('repo-work'), 'utf8')).toBe(f.home('a'))
 
     // A global switch reaches the unassigned project's open panes through the same file.
     f.settings.activeClaudeManagedAccountId = 'b'
     f.router.publish()
-    expect(readFileSync(f.scopePointer('repo-work'), 'utf8')).toBe(f.home('b'))
+    await vi.waitFor(() =>
+      expect(readFileSync(f.scopePointer('repo-work'), 'utf8')).toBe(f.home('b'))
+    )
   })
 
   it('keeps the global pointer for a pane with no workspace', () => {

@@ -17,7 +17,7 @@ import {
   claudeRouteLaunchEnv,
   claudeRoutePreparation,
   claudeTerminalBaseEnv,
-  claudeScopePointerRoutes,
+  publishClaudeScopePointers,
   resolveClaudeRoute,
   type ClaudeRoute,
   type ClaudeRouteSources
@@ -181,7 +181,7 @@ export class ClaudeProfileRouter {
   /** Publish the pointer before starting background setup. */
   publish(): void {
     const managed = this.writePointer()
-    this.publishScopePointers()
+    void this.publishScopePointers()
     if (!managed) {
       return
     }
@@ -193,10 +193,8 @@ export class ClaudeProfileRouter {
   }
 
   /** Rewrite every per-project pointer an open pane may hold. */
-  publishScopePointers(): void {
-    for (const route of claudeScopePointerRoutes(this.routeSources)) {
-      this.writePointer(route)
-    }
+  publishScopePointers(): Promise<void> {
+    return publishClaudeScopePointers(this.routeSources, (route) => this.writePointer(route))
   }
 
   private writePointer(route: ClaudeRoute = this.route()): boolean {
