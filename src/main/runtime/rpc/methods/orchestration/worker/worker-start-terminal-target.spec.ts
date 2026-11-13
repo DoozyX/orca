@@ -181,6 +181,45 @@ export function registerWorkerStartTerminalTargetTests(): void {
     })
   })
 
+  // #29: a session-graph reload remints a live pane's handle while worker-start waits on it.
+  describe('a worker start whose pane is reminted while it waits for the agent', () => {
+    const h = createOrchestrationWorkerReleaseHarness()
+    beforeEach(() => h.setup())
+    afterEach(() => h.cleanup())
+
+    it('waits once more on the same process under its new handle and binds the worker to it', async () => {
+      vi.spyOn(h.runtime, 'getTerminalHandleForPaneKey').mockImplementation((paneKey) =>
+        paneKey === h.workerPaneKey ? 'term_reminted' : null
+      )
+      vi.mocked(h.runtime.waitForTerminal)
+        .mockRejectedValueOnce(new Error('terminal_handle_stale'))
+        .mockResolvedValueOnce({
+          handle: 'term_reminted',
+          condition: 'tui-idle',
+          satisfied: true,
+          status: 'running',
+          exitCode: null
+        })
+      const task = h.db.createTask({ spec: 'reminted pane', runId: h.activeRunId })
+
+      const result = (await h.call('orchestration.workerStart', {
+        task: task.id,
+        from: 'term_coord',
+        agent: 'codex'
+      })) as { dispatchId: string; state: string }
+
+      expect(result.state).toBe('ready')
+      expect(h.runtime.waitForTerminal).toHaveBeenLastCalledWith(
+        'term_reminted',
+        expect.objectContaining({ condition: 'tui-idle' })
+      )
+      expect(h.db.getWorkerTerminalResourceByOwner(result.dispatchId)?.terminal_handle).toBe(
+        'term_reminted'
+      )
+      expect(h.db.getWorkerDispatch(result.dispatchId)?.agent_terminal_handle).toBe('term_reminted')
+    })
+  })
+
   describe('composer-marker first dispatch readiness', () => {
     const h = createOrchestrationWorkerReleaseHarness()
     afterEach(() => h.cleanup())
