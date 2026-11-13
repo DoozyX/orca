@@ -15,7 +15,6 @@ import {
   structuredAgentSessionAdoptAttach,
   type StructuredAgentSessionCreateIntentInput
 } from '../agent-session/structured-agent-session-create-adoption'
-import { adoptedStructuredAgentAccountHome } from '../agent-session/environment/structured-agent-account-home'
 import type { AgentSessionAttachParams } from '../../native-chat/agent-session-wire/acquisition/structured-agent-session-attach'
 import {
   resolveHostStructuredAgentCreateSupport,
@@ -239,7 +238,7 @@ export abstract class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport exte
       location,
       provider: input.agent,
       agent: input.agent,
-      accountHome: adoptedStructuredAgentAccountHome(selectedAccountHome, adoption?.accountHome),
+      accountHome: adoption ? adoption.accountHome : selectedAccountHome,
       ...(options ? { options } : {}),
       ...(input.resumeFrom && adoption
         ? {

@@ -48,8 +48,6 @@ export type RuntimeProjectGroupDependencies = {
     connectionId?: string
   ) => Promise<{ finish(removed: boolean): Promise<void> }>
   cleanupRemovedFolderWorkspaceState: (worktreeId: string) => void | Promise<void>
-  /** A group's bound CLAUDE_CONFIG_DIR may now resolve elsewhere, or nowhere. */
-  onClaudeHomeBindingChanged: (groupId: string) => void
   emitWorktreeLifecycle: (event: RuntimeWorktreeLifecycleEvent) => void
 }
 
@@ -102,9 +100,6 @@ export class RuntimeProjectGroupController {
     }
     const updated = store.updateProjectGroup(groupId, updates)
     if (updated) {
-      if ('claudeConfigDir' in updates) {
-        this.deps.onClaudeHomeBindingChanged(groupId)
-      }
       this.deps.notifyReposChanged()
     }
     return updated
@@ -117,7 +112,6 @@ export class RuntimeProjectGroupController {
     }
     const deleted = store.deleteProjectGroup(groupId)
     if (deleted) {
-      this.deps.onClaudeHomeBindingChanged(groupId)
       this.deps.notifyReposChanged()
     }
     return { deleted }

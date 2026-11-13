@@ -54,13 +54,6 @@ export const TriStateLinkedIssue = z
   .pipe(z.union([z.number(), z.null(), z.undefined()]))
   .optional()
 
-// Blank means null so an emptied field clears instead of folding into "no update" like OptionalString.
-// Reject wrong types rather than absorb them; an absent field still means "no update" for older peers.
-export const ClearableString = z
-  .union([z.string(), z.null()])
-  .optional()
-  .transform((value) => (typeof value === 'string' && value.trim().length === 0 ? null : value))
-
 // Legacy browser targeting permits empty worktree (“any worktree”) but requires a nonempty page; preserve that asymmetry.
 export const BrowserTarget = z.object({
   worktree: OptionalPlainString,

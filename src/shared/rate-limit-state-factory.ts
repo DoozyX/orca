@@ -25,7 +25,6 @@ export function createEmptyRateLimitState(overrides: Partial<RateLimitState> = {
     codexTarget: { runtime: 'host', wslDistro: null },
     inactiveClaudeAccounts: [],
     inactiveCodexAccounts: [],
-    boundClaudeHomes: [],
     antigravityAccounts: [],
     ...overrides
   }

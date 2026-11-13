@@ -193,8 +193,7 @@ export function applyAgentSessionReservation(
     existing.provider !== request.provider ||
     !agentSessionAccountHomesEqual(existing.accountHome, request.accountHome)
   ) {
-    // Location/provider/account define identity; changing any would fork the session. The binding
-    // marker picks the gating account, so gaining or losing it at the same path is an account change.
+    // Location/provider/account define identity; changing any would fork the session.
     throw agentSessionRefusalError('agent_session_conflict', { reason: 'identityMismatch' })
   }
   // Recreate only never-bound conversations whose last attempt is proven gone.

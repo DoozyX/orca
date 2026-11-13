@@ -1,7 +1,6 @@
 import type { ClaudeRuntimeAuthPreparation } from '../claude-accounts/runtime-auth/runtime-auth-types'
 import { applyClaudeEnvPatch } from '../claude-accounts/runtime-auth/environment'
-import type { ClaudeLaunchScope } from '../claude-accounts/profiles/routing/claude-bound-home-route'
-import { ClaudeBoundHomeRefusalError } from '../claude/claude-bound-home-refusal'
+import type { ClaudeLaunchScope } from '../claude-accounts/profiles/routing/claude-launch-scope'
 import { readShellStartupEnvVar } from '../pty/shell-startup/shell-startup-env'
 import { parseWslUncPath } from '../../shared/wsl-paths'
 import {
@@ -112,7 +111,6 @@ export async function prepareLocalCommitMessageAgentEnv(
   agentId: string,
   resolvers: CommitMessageAgentEnvironmentResolvers | undefined,
   target?: CommitMessageAgentRuntimeTarget,
-  /** The workspace the message is for: its project group may bind its own Claude home. */
   scope?: ClaudeLaunchScope
 ): Promise<{ ok: true; env?: NodeJS.ProcessEnv } | { ok: false; error: string }> {
   // Host agents need shell proxies/tokens; WSL resolves them in the guest.
@@ -165,9 +163,6 @@ export async function prepareLocalCommitMessageAgentEnv(
     }
   } catch (error) {
     console.error('[commit-message] Failed to prepare agent environment:', error)
-    if (error instanceof ClaudeBoundHomeRefusalError) {
-      return { ok: false, error: error.message }
-    }
     return {
       ok: false,
       error: 'Failed to prepare the selected agent account for commit message generation.'

@@ -10,7 +10,6 @@ import type {
 } from '../../../native-chat/agent-launch/structured-agent-command-resolution'
 import type { NativeChatShellEnvironmentPolicy } from '../../../../shared/native-chat/native-chat-shell-environment'
 import type { ClaudeStructuredAuthPolicy } from '../../../claude-accounts/runtime-auth/claude-structured-auth-policy'
-import type { ClaudeStructuredLaunchPartDeps } from '../../../claude/structured/launch/claude-structured-launch-resolution'
 import type { RuntimeAgentAccountHomeResolver } from '../model-catalog/structured-agent-model-catalog-wiring'
 import type { ClaudeCliFlagSupport } from '../../../claude/cli-capabilities/claude-cli-flag-support'
 import type { StructuredAgentSessionLogger } from '../../../native-chat/agent-session-wire/host/structured-agent-session-logger'
@@ -56,8 +55,6 @@ export type StructuredAgentSessionRuntimeDeps = StructuredAgentSessionTransportO
   resolveAgentLaunchEnv?: (agent: string) => Record<string, string>
   /** The settings a per-agent Command override is read from, for the same agents. */
   resolveAgentCommandSettings?: () => StructuredAgentCommandSettings
-  /** The workspace group's current Claude binding, for the "this chat predates the binding" check. */
-  readClaudeHomeBinding?: ClaudeStructuredLaunchPartDeps['readClaudeHomeBinding']
   resolveEnvironment?: () => Promise<NodeJS.ProcessEnv>
   /** Which login-shell variables Codex and Claude children inherit; absent inherits all. */
   resolveShellEnvironmentPolicy?: () => NativeChatShellEnvironmentPolicy

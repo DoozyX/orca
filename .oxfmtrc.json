@@ -10,7 +10,6 @@
     "resources/plugins/launch/*/**",
     ".github/actions/cloud-sql-rollout-lease/**",
     ".anti-slop-plugin/**",
-    "src/main/rate-limits/providers/claude/__fixtures__/bound-claude-home/unreadable/**",
     "src/main/runtime/__fixtures__/*.timing.json",
     "src/shared/workspace-setup/__fixtures__/setup-script-imports/**",
     "resources/skills/released-digests.json",

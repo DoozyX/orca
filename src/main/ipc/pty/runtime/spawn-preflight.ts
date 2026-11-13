@@ -100,8 +100,7 @@ export async function prepareRuntimePtySpawn(
   ctx.expectedWslDistro = target.expectedWslDistro
   ctx.wslHoldReadAnchor = target.wslHoldReadAnchor
   ctx.codexSelectionTarget = target.codexSelectionTarget
-  // Why the env before routing: a bound home refuses a CLAUDE_CONFIG_DIR the launch itself names.
-  const claudeScope = { workspaceId: args.worktreeId, launchEnv: args.env }
+  const claudeScope = { workspaceId: args.worktreeId }
   args.env = withClaudeProfileTerminalEnv(
     args.env,
     args.connectionId,

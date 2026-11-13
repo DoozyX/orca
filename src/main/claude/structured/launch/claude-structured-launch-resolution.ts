@@ -1,4 +1,5 @@
 import type { ClaudeAccountRecipe } from '../../../../shared/agent-session/lifecycle/agent-session-acquired-account'
+import { prepareClaudeLaunchAccount } from './claude-launch-account'
 import { assertStructuredAgentResolutionCurrent } from '../../../native-chat/agent-launch/structured-agent-command-resolution'
 import { activeProviderContext } from '../../../../shared/agent-session/agent-session-provider-context'
 import { getClaudeProfileRouter } from '../../../claude-accounts/profiles/routing/claude-profile-installed-router'
@@ -31,15 +32,9 @@ import type {
 } from '../../cli-capabilities/claude-cli-flag-support'
 import { resolveClaudeLaunchFlags } from './claude-structured-launch-flags'
 import { withNativeChatVisualsEnv } from '../../../native-chat/conversation-files/native-chat-visuals-delivery'
-import {
-  claudeLaunchResumesTranscript,
-  prepareBoundAccount,
-  resolveClaudeBoundHomeForLaunch,
-  type ClaudeBoundHomeLaunchDeps
-} from './claude-structured-launch-home'
+import { claudeLaunchResumesTranscript } from './claude-structured-launch-home'
 import type { StructuredAgentLaunchPartResolver } from '../../../runtime/agent-session/launch/structured-agent-launch-composition'
 import { claudeSessionIdForOrcaSession } from '../claude-structured-session-id'
-import { claudeChildLaunchEnv } from '../../claude-structured-account-home'
 import {
   pendingAgentSessionRewindFork,
   type AgentSessionRewindFork
@@ -138,13 +133,12 @@ export type ClaudeStructuredLaunch = {
   forkedFromKey?: string
 }
 
-export type ClaudeStructuredLaunchPartDeps = ClaudeBoundHomeLaunchDeps & {
+export type ClaudeStructuredLaunchPartDeps = {
   resolveLaunchArgs: () => Promise<string[]> | string[]
   resolveCommand?: ClaudeEnvDeps['resolveCommand']
   /** Explicit policy identifies the account for sign-in errors; use claudeStructuredAuthPolicyForSettings. */
   resolveAuthPolicy: () => Promise<ClaudeStructuredAuthPolicy> | ClaudeStructuredAuthPolicy
-  /** The host's chat attachment store: files a client attached live there, outside the workspace,
-   *  and the agent reads them without asking. */
+  /** Host attachment store outside the workspace, granted to the agent at launch. */
   attachmentDirectory?: string
   /** Omit version-gated flags when support cannot be checked. */
   cliFlags?: Pick<ClaudeCliFlagSupport, 'check'>
@@ -192,10 +186,6 @@ export function claudeStructuredLaunchPart(
     const { record } = basis
     const accountHome = requireLegacyAgentSessionAccountHome(record.accountHome)
     const router = getClaudeProfileRouter()
-    // Why the child's whole env: an ambient CLAUDE_CONFIG_DIR reaches the CLI whether or not the overlay names one.
-    const childEnv = claudeChildLaunchEnv(basis.launchEnv())
-    const boundHome = resolveClaudeBoundHomeForLaunch(deps, record.location, accountHome, childEnv)
-    // A Claude record's chain holds only Claude handles; the launch admission refuses anything else.
     const active = activeProviderContext(record)
     const head = active.head?.handle ?? null
     if (
@@ -251,7 +241,7 @@ export function claudeStructuredLaunchPart(
     const resumes = async (claudeConfigDir: string): Promise<boolean> =>
       (head !== null || active.pendingClear) &&
       (await claudeLaunchResumesTranscript({
-        router: boundHome ? undefined : router,
+        router,
         leafUuid,
         providerSessionId,
         claudeConfigDir,
@@ -260,7 +250,7 @@ export function claudeStructuredLaunchPart(
         hasTranscript: deps.hasTranscript
       }))
     // Fixed homes can be checked before the final account-routing recheck.
-    const resumedWithoutRouter = !boundHome && router ? undefined : await resumes(accountHome.path)
+    const resumedWithoutRouter = router ? undefined : await resumes(accountHome.path)
     // Resolve auth after awaited launch preparation; account routing is rechecked below.
     const { command, prefixArgs, env } = await resolveClaudeStructuredInvocation(
       envDeps,
@@ -276,14 +266,13 @@ export function claudeStructuredLaunchPart(
       sources,
       { runtimeOnPath: false }
     )
-    const bound = { boundHome, launchEnv: childEnv, assertUsable: deps.assertBoundHomeUsable }
-    const accountRecipe = await prepareBoundAccount(router, env, accountHome.path, bound)
+    const accountRecipe = await prepareClaudeLaunchAccount(router, env, accountHome.path)
     const launchHome = accountRecipe.home
     const resumesTranscript = resumedWithoutRouter ?? (await resumes(launchHome))
     if (fork?.throughEntryId && !resumesTranscript) {
       // Fork sources must pass the same account-history check as resumes.
       await claudeLaunchResumesTranscript({
-        router: boundHome ? undefined : router,
+        router,
         leafUuid: fork.throughEntryId,
         providerSessionId: fork.sourceSessionId,
         claudeConfigDir: launchHome,

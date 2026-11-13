@@ -2,21 +2,16 @@ import { join } from 'node:path'
 import { isDirectory } from '../claude-profile-homes'
 // Keep the router setup graph out of scan workers.
 import type { ClaudeProfileRouter } from './claude-profile-router'
-import type { ClaudeBoundHomeOverride, ClaudeLaunchScope } from './claude-bound-home-route'
+import type { ClaudeLaunchScope } from './claude-launch-scope'
 import type { ClaudeWslProfileRouter } from '../wsl/claude-profile-wsl-router'
 import type { ClaudeAccountSelectionTarget } from '../../selection/runtime-selection'
 import type { ClaudeObservedConfigDirs } from './claude-observed-config-dirs'
 
 let installed: ClaudeProfileRouter | undefined
-let installedBoundHome: ClaudeBoundHomeOverride | undefined
 
 /** Installed by the desktop's account services; workers, child processes and orcad have none. */
-export function installClaudeProfileRouter(
-  router: ClaudeProfileRouter | undefined,
-  boundHome?: ClaudeBoundHomeOverride
-): void {
+export function installClaudeProfileRouter(router: ClaudeProfileRouter | undefined): void {
   installed = router
-  installedBoundHome = boundHome
 }
 
 export function getClaudeProfileRouter(): ClaudeProfileRouter | undefined {
@@ -43,10 +38,7 @@ export function getClaudeWslProfileRouter(): ClaudeWslProfileRouter | undefined 
   return installedWsl
 }
 
-/**
- * A local or WSL pane's env with the routed account's pointer added; SSH panes keep theirs.
- * A pane in a project group bound to its own Claude home runs there instead, with no pointer.
- */
+/** A local or WSL pane's env with the routed account's pointer added; SSH panes keep theirs. */
 export function withClaudeProfileTerminalEnv<Env extends Record<string, string> | undefined>(
   env: Env,
   connectionId: string | null | undefined,
@@ -56,8 +48,7 @@ export function withClaudeProfileTerminalEnv<Env extends Record<string, string> 
   if (connectionId) {
     return env
   }
-  const profileEnv =
-    installedBoundHome?.terminalEnv(target, scope) ?? installed?.terminalEnv(target)
+  const profileEnv = installed?.terminalEnv(target, scope)
   return profileEnv ? { ...env, ...profileEnv } : env
 }
 

@@ -40,15 +40,12 @@ async function resolveClientSuppliedAttach(params: z.infer<typeof AttachParams>,
       reason: 'hostUnsupported'
     })
   }
-  // Why: only the host can prove a project group's bound account home.
-  const { binding: _clientBinding, ...accountHome } = params.accountHome
-  // Reservation seeds options only when it creates a record.
+  // Reservation applies options only to a record it creates, so an existing chat is never reseeded.
   const permissionMode = ctx.runtime.structuredAgentSessionLaunchSeedOptions(params.agent)?.[
     AGENT_CHAT_PERMISSION_MODE_OPTION_ID
   ]
   const attachParams: AgentSessionAttachParams = {
     ...params,
-    accountHome,
     ...(permissionMode
       ? { options: { [AGENT_CHAT_PERMISSION_MODE_OPTION_ID]: permissionMode } }
       : {})

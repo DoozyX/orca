@@ -12,16 +12,11 @@ import {
 
 const CLAUDE_TRANSCRIPT_IMPORT = directoryTranscriptImport({
   conversationStore: ({ accountHomePath }) => join(accountHomePath, 'projects'),
-  // A bound group offers its own home alone: the shared `~/.claude` is another organisation's
-  // account, and a miss must refuse rather than commit the session there.
-  accountHomeCandidates: ({ selectedAccountHomePath, selectedAccountHomeBound }) =>
-    selectedAccountHomeBound
-      ? [selectedAccountHomePath]
-      : [
-          selectedAccountHomePath,
-          join(homedir(), '.claude'),
-          ...(getClaudeProfileRouter()?.accountHomes() ?? [])
-        ],
+  accountHomeCandidates: ({ selectedAccountHomePath }) => [
+    selectedAccountHomePath,
+    join(homedir(), '.claude'),
+    ...(getClaudeProfileRouter()?.accountHomes() ?? [])
+  ],
   findTranscript: ({ providerSessionId, store, workspaceCwd, strictErrors }) =>
     resolveSessionFilePath('claude', providerSessionId, {
       claudeProjectsDir: store,

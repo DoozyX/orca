@@ -1,6 +1,7 @@
 import type React from 'react'
 import type { FolderWorkspacePathStatus } from '../../../../../../shared/folder-workspaces/folder-workspace-path-status'
 import type { ProjectGroup } from '../../../../../../shared/project-group-types'
+import type { ExecutionHostId } from '../../../../../../shared/execution-host'
 import type {
   WorkspaceStatus,
   WorkspaceStatusDefinition
@@ -9,9 +10,8 @@ import type { WorktreeGroupBy } from '../../../../../../shared/sidebar-list/row-
 import type { WorktreeSidebarHeaderDrag } from '../drag/use-header-drag'
 import type { ProjectHeaderHostContext } from './project-header-host-context'
 import type { RepoHeaderProjectActions } from './repo-header-project-actions'
-import type { ProjectGroupHeaderRowHandlers } from './project-group-header-actions'
 
-export type SectionHeaderRowContext = ProjectGroupHeaderRowHandlers & {
+export type SectionHeaderRowContext = {
   groupBy: WorktreeGroupBy
   projectHeaderHostContexts?: ReadonlyMap<string, ProjectHeaderHostContext>
   collapsedGroups: Set<string>
@@ -28,6 +28,8 @@ export type SectionHeaderRowContext = ProjectGroupHeaderRowHandlers & {
   toggleGroupWithScrollAnchor: (groupKey: string) => void
   toggleAllProjects?: () => void
   projectActions: RepoHeaderProjectActions
+  onRenameProjectGroup: (groupId: string, currentName: string, hostId?: ExecutionHostId) => void
+  onDeleteProjectGroup: (groupId: string, groupName: string, hostId?: ExecutionHostId) => void
   onRefreshProjectGroup?: (projectGroup: ProjectGroup) => void
   onCreateFolderWorkspace: (projectGroup: ProjectGroup) => void
   onWorkspaceStatusDragOver: (event: React.DragEvent, status: WorkspaceStatus) => void

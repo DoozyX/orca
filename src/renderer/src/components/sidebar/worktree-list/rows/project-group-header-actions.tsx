@@ -22,12 +22,6 @@ import {
   stopRepoHeaderMenuEvent
 } from './header-event-guards'
 
-export type ProjectGroupHeaderRowHandlers = {
-  onRenameProjectGroup: (groupId: string, currentName: string, hostId?: ExecutionHostId) => void
-  onDeleteProjectGroup: (groupId: string, groupName: string, hostId?: ExecutionHostId) => void
-  onOpenProjectGroupSettings: (groupId: string, hostId?: ExecutionHostId) => void
-}
-
 export function ProjectGroupHeaderMenu({
   groupId,
   hostId,
@@ -35,18 +29,16 @@ export function ProjectGroupHeaderMenu({
   projectGroup,
   onRefreshProjectGroup,
   onRename,
-  onDelete,
-  onOpenSettings
+  onDelete
 }: {
   groupId: string
-  /** Owner host of the group row, so rename/delete/settings route to the host that holds it. */
+  /** Owner host of the group row, so rename/delete route to the host that holds it. */
   hostId?: ExecutionHostId
   label: string
   projectGroup: ProjectGroup | null
   onRefreshProjectGroup?: (projectGroup: ProjectGroup) => void
   onRename: (groupId: string, currentName: string, hostId?: ExecutionHostId) => void
   onDelete: (groupId: string, groupName: string, hostId?: ExecutionHostId) => void
-  onOpenSettings: (groupId: string, hostId?: ExecutionHostId) => void
 }): React.JSX.Element {
   const t = useTranslate()
   const onRefresh = getFolderProjectGroupRefreshHandler(projectGroup, onRefreshProjectGroup)
@@ -91,12 +83,6 @@ export function ProjectGroupHeaderMenu({
         ) : null}
         <DropdownMenuItem onSelect={() => onRename(groupId, label, hostId)}>
           {t('auto.components.sidebar.WorktreeList.4d7b73658c', 'Rename group')}
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          data-project-group-menu-item="settings"
-          onSelect={() => onOpenSettings(groupId, hostId)}
-        >
-          {t('auto.components.sidebar.WorktreeList.projectGroupSettings', 'Group settings\u2026')}
         </DropdownMenuItem>
         <DropdownMenuItem variant="destructive" onSelect={() => onDelete(groupId, label, hostId)}>
           {t('auto.components.sidebar.WorktreeList.902115cdbe', 'Delete group')}

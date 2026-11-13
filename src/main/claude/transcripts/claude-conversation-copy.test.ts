@@ -1,5 +1,5 @@
 import './claude-conversation-worker.test-fixture'
-import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
@@ -44,14 +44,7 @@ afterEach(async () => {
   await rm(root, { force: true, recursive: true })
 })
 
-function copy(
-  uuid: string,
-  settled: boolean,
-  before?: string,
-  opener?: string,
-  source = SOURCE,
-  groupId?: string
-) {
+function copy(uuid: string, settled: boolean, before?: string, opener?: string, source = SOURCE) {
   return copyClaudeConversation({
     identity: {
       sessionId: 'orca-source',
@@ -61,11 +54,7 @@ function copy(
       providerHandle: null
     },
     providerSessionId: source,
-    accountHome: {
-      variable: 'CLAUDE_CONFIG_DIR',
-      path: selectedHome,
-      ...(groupId ? { binding: { kind: 'project-group' as const, groupId } } : {})
-    },
+    accountHome: { variable: 'CLAUDE_CONFIG_DIR', path: selectedHome },
     title: 'Source fork',
     checkpoint: {
       selectedItemId: uuid,
@@ -76,16 +65,6 @@ function copy(
     }
   })
 }
-
-it('refuses another account home for a project-group bound chat', async () => {
-  const prefix = rows.slice(0, 28)
-  await writeFile(sourcePath, `${prefix.map((row) => JSON.stringify(row)).join('\n')}\n`)
-  const assistant = prefix.findLast((row) => row.type === 'assistant')!
-  await expect(copy(assistant.uuid, true, undefined, undefined, SOURCE, 'group-1')).rejects.toThrow(
-    'Claude could not find the saved context'
-  )
-  await expect(readdir(selectedHome)).rejects.toThrow('ENOENT')
-})
 
 it('uses the settled native root when the streamed final frame was lost after a recorded tool result', async () => {
   await writeFile(

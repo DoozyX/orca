@@ -14,11 +14,7 @@ import {
 } from './profiles/routing/claude-profile-installed-router'
 import { ClaudeObservedConfigDirs } from './profiles/routing/claude-observed-config-dirs'
 import type { ClaudeAccountSelectionTarget } from './selection/runtime-selection'
-import type { ClaudeHomeBindingCatalogSource } from '../claude/claude-structured-account-home'
-import {
-  createClaudeBoundHomeOverride,
-  type ClaudeLaunchScope
-} from './profiles/routing/claude-bound-home-route'
+import type { ClaudeLaunchScope } from './profiles/routing/claude-launch-scope'
 import type { ClaudeRuntimeAuthPreparation } from './runtime-auth/runtime-auth-types'
 
 /** `readPath` exposes a guest configDir to the host through UNC on WSL. */
@@ -31,13 +27,12 @@ export class ClaudeRuntimeAuthService {
   private mutationQueue: Promise<unknown> = Promise.resolve()
 
   constructor(
-    private readonly store: Pick<Store, 'getSettings'> & ClaudeHomeBindingCatalogSource,
+    private readonly store: Pick<Store, 'getSettings'>,
     private readonly isDistroRunning: (distro: string) => Promise<boolean> = isWslDistroRunning
   ) {
     const args = { getSettings: () => store.getSettings(), dataRoot: this.dataRoot }
-    const boundHome = createClaudeBoundHomeOverride(store)
-    this.router = new ClaudeProfileRouter({ ...args, boundHome })
-    installClaudeProfileRouter(this.router, boundHome)
+    this.router = new ClaudeProfileRouter(args)
+    installClaudeProfileRouter(this.router)
     installClaudeObservedConfigDirs(
       new ClaudeObservedConfigDirs(join(this.dataRoot, 'claude-observed-config-dirs.json'), () =>
         store.getSettings()
@@ -50,7 +45,6 @@ export class ClaudeRuntimeAuthService {
     })
   }
 
-  /** `scope` names the launch's workspace, whose project group may bind its own Claude home. */
   prepareForClaudeLaunch(
     target?: ClaudeAccountSelectionTarget,
     scope?: ClaudeLaunchScope

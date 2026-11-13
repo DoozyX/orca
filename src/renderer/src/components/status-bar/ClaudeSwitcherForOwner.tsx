@@ -41,7 +41,6 @@ import {
 } from './InlineProviderUsage'
 import { AccountSwitchSection, AccountSwitchSignedOutHeading } from './AccountSwitchList'
 import { AccountSwitchRowItem } from './AccountSwitchRowItem'
-import { BoundClaudeHomesSection } from './BoundClaudeHomesSection'
 import { ProviderDetailsMenu } from './ProviderDetailsMenu'
 import { signInToClaudeAccount } from '@/lib/provider-accounts/claude-account-sign-in'
 
@@ -66,8 +65,6 @@ export function ClaudeSwitcherForOwner({
   const recordFeatureInteraction = useAppStore((s) => s.recordFeatureInteraction)
   const refreshClaudeRateLimitsForTarget = useAppStore((s) => s.refreshClaudeRateLimitsForTarget)
   const fetchInactiveClaudeAccountUsage = useAppStore((s) => s.fetchInactiveClaudeAccountUsage)
-  const boundClaudeHomes = useAppStore((s) => s.rateLimits.boundClaudeHomes)
-  const projectGroups = useAppStore((s) => s.projectGroups)
   const runtimeTarget = chatAction?.target ?? owner.target
   const wslHostDistro = chatAction ? null : owner.wslHostDistro
   const activeRuntimeEnvironmentId = runtimeTargetEnvironmentId(runtimeTarget)
@@ -325,7 +322,6 @@ export function ClaudeSwitcherForOwner({
         heading={t('auto.components.status.bar.StatusBar.d450654fa2', 'Claude Account')}
         targets={selectedGroup?.targets ?? []}
         panelShowsActiveAccount={!hasActiveRuntimeEnvironment}
-        afterList={<BoundClaudeHomesSection rows={boundClaudeHomes} groups={projectGroups} />}
         onOpenSettings={() => {
           openSettingsTarget({
             pane: 'accounts',

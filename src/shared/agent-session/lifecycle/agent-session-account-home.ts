@@ -1,11 +1,7 @@
 /** Durable account binding: existing single-directory records or OpenCode's data context. */
 
 import type { AgentSessionStoredAgent } from './agent-session-stored-agent'
-import {
-  MAX_ID_LENGTH,
-  MAX_PATH_LENGTH,
-  isBoundedString
-} from './agent-session-record-field-limits'
+import { MAX_PATH_LENGTH } from './agent-session-record-field-limits'
 
 export { MAX_PATH_LENGTH }
 
@@ -16,8 +12,6 @@ export type LegacyAgentSessionAccountHome = {
   variable: string
   /** Host-resolved absolute path in the execution host's own path syntax. */
   path: string
-  /** Present when a project-group binding chose this home. Host-set; a client may never supply it. */
-  binding?: { kind: 'project-group'; groupId: string }
 }
 
 export type OpenCodeAccountLocator =
@@ -61,9 +55,7 @@ export function agentSessionAccountHomesEqual(
     return (
       isLegacyAgentSessionAccountHome(right) &&
       left.variable === right.variable &&
-      left.path === right.path &&
-      left.binding?.kind === right.binding?.kind &&
-      left.binding?.groupId === right.binding?.groupId
+      left.path === right.path
     )
   }
   if (isLegacyAgentSessionAccountHome(right)) {
@@ -126,21 +118,6 @@ function isBoundedAccountString(value: unknown, max: number): value is string {
   )
 }
 
-function isAccountHomeBinding(value: unknown): value is LegacyAgentSessionAccountHome['binding'] {
-  if (value === undefined) {
-    return true
-  }
-  if (typeof value !== 'object' || value === null) {
-    return false
-  }
-  return (
-    'kind' in value &&
-    value.kind === 'project-group' &&
-    'groupId' in value &&
-    isBoundedString(value.groupId, MAX_ID_LENGTH)
-  )
-}
-
 const ENVIRONMENT_VARIABLE_NAME = /^[A-Za-z_][A-Za-z0-9_]{0,127}$/
 const PROFILE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
@@ -157,8 +134,7 @@ export function isAgentSessionAccountHome(value: unknown): value is AgentSession
       typeof value.variable === 'string' &&
       ENVIRONMENT_VARIABLE_NAME.test(value.variable) &&
       'path' in value &&
-      isBoundedAccountString(value.path, MAX_PATH_LENGTH) &&
-      isAccountHomeBinding('binding' in value ? value.binding : undefined)
+      isBoundedAccountString(value.path, MAX_PATH_LENGTH)
     )
   }
   if (

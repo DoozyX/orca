@@ -14,14 +14,12 @@ export type ProjectGroup = {
   rootProjectOrder?: number
   isCollapsed: boolean
   color: string | null
-  /** Absolute CLAUDE_CONFIG_DIR every Orca-launched Claude session in this group runs under. */
-  claudeConfigDir?: string | null
   createdAt: number
   updatedAt: number
 }
 
 export type ProjectGroupUpdate = Partial<
-  Pick<ProjectGroup, 'name' | 'isCollapsed' | 'tabOrder' | 'color' | 'claudeConfigDir'>
+  Pick<ProjectGroup, 'name' | 'isCollapsed' | 'tabOrder' | 'color'>
 > & { rootProjectOrder?: number | null }
 
 export type ProjectGroupMutation = { groupId: string; updates: ProjectGroupUpdate }

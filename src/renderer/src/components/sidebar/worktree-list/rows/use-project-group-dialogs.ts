@@ -4,7 +4,6 @@ import { useAppStore } from '@/store'
 import { projectRemovalTargets } from '../../workspace-actions/deletion/removal-unsaved-files'
 import { confirmUnsavedDiscard } from '@/store/slices/worktrees/teardown/removed-workspace-unsaved-files'
 import { translate } from '@/i18n/i18n'
-import { useProjectGroupSettingsDialog } from './use-project-group-settings-dialog'
 import { selectProjectGroupRemovalTargets } from '@/store/project-groups/project-group-removal-targets'
 import type { ProjectGroup } from '../../../../../../shared/project-group-types'
 import type { Repo } from '../../../../../../shared/repo-types'
@@ -93,7 +92,6 @@ export function useProjectGroupDialogs(args: {
   const refreshingGroupIds = useRef(new Set<string>())
   const [nameDialog, setNameDialog] = useState<ProjectGroupNameDialogState | null>(null)
   const [deleteDialog, setDeleteDialog] = useState<ProjectGroupDeleteDialogState | null>(null)
-  const settings = useProjectGroupSettingsDialog(projectGroups, updateProjectGroup)
 
   const handleCreateGroupFromRepo = useCallback((repo: Repo) => {
     setNameDialog({ type: 'create-from-repo', repo })
@@ -271,7 +269,6 @@ export function useProjectGroupDialogs(args: {
     setNameDialog,
     deleteDialog,
     setDeleteDialog,
-    ...settings,
     deleteProjectCount,
     deleteProjectNames,
     removeContainedProjects,

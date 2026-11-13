@@ -22,8 +22,7 @@ import type {
   MuseUsageEnabledResolver,
   ZcodePlanRateLimitConfig,
   GeminiCliOAuthEnabledResolver,
-  InactiveCodexAccountInfo,
-  BoundClaudeHomesResolver
+  InactiveCodexAccountInfo
 } from './service-types'
 import {
   type ClaudeAccountSelectionTarget,
@@ -109,12 +108,6 @@ export class RateLimitService extends RateLimitServiceAccountRefresh {
     this.inactiveClaudeAccountsGeneration += 1
   }
 
-  setBoundClaudeHomesResolver(resolver: BoundClaudeHomesResolver): void {
-    this.boundClaudeHomesResolver = resolver
-    this.boundClaudeHomesGeneration += 1
-    this.pruneBoundClaudeHomeState()
-  }
-
   setInactiveCodexAccountsResolver(resolver: () => InactiveCodexAccountInfo[]): void {
     this.inactiveCodexAccountsResolver = resolver
     this.inactiveCodexAccountsGeneration += 1
@@ -178,7 +171,6 @@ export class RateLimitService extends RateLimitServiceAccountRefresh {
     this.clearQueuedFetches()
     this.inactiveClaudeFetching.clear()
     this.inactiveCodexFetching.clear()
-    this.boundClaudeHomeFetching.clear()
     this.resolveAndClearFetchIdleWaiters()
     this.stopTimer()
     this.clearDeferredStartupRefresh()
@@ -190,7 +182,6 @@ export class RateLimitService extends RateLimitServiceAccountRefresh {
   getState(): RateLimitState {
     this.pruneInactiveClaudeState()
     this.pruneInactiveCodexState()
-    this.pruneBoundClaudeHomeState()
     return {
       ...this.state,
       // Filesystem-stored cookie presence keeps MiniMax visible across renderer reloads.
@@ -210,7 +201,6 @@ export class RateLimitService extends RateLimitServiceAccountRefresh {
         this.inactiveCodexCache,
         this.inactiveCodexFetching
       ),
-      boundClaudeHomes: this.buildBoundClaudeHomeArray(),
       antigravityAccounts: this.antigravityAccounts
     }
   }

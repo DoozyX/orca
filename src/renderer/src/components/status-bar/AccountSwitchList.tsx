@@ -61,21 +61,18 @@ export function AccountSwitchSection({
   targets,
   panelShowsActiveAccount,
   onOpenSettings,
-  afterList,
   children
 }: {
   heading: string
   targets: readonly { active: boolean }[]
   panelShowsActiveAccount: boolean
   onOpenSettings: () => void
-  afterList?: React.ReactNode
   children: React.ReactNode
 }): React.JSX.Element {
   const t = useTranslate()
   if (panelShowsActiveAccount && targets.length === 1 && targets[0].active) {
     return (
       <>
-        {afterList}
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={onOpenSettings}>
           <UserPlus className="size-3.5" />
@@ -87,7 +84,6 @@ export function AccountSwitchSection({
   return (
     <>
       <AccountSwitchList heading={heading}>{children}</AccountSwitchList>
-      {afterList}
       <DropdownMenuSeparator />
       <DropdownMenuItem onSelect={onOpenSettings}>
         {t('auto.components.status.bar.StatusBar.75ded02687', 'Manage Accounts…')}

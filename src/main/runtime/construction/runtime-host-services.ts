@@ -100,7 +100,6 @@ export abstract class OrcaRuntimeWithPreservedBranchCleanup extends OrcaRuntimeW
     | null
 
   protected readonly onTerminalSideEffects!: HostBindings['onTerminalSideEffects'] | null
-  protected readonly assertClaudeBoundHomeUsableFn!: HostBindings['assertClaudeBoundHomeUsable']
 
   protected readonly onClaudeTerminalEvidence!: HostBindings['onClaudeTerminalEvidence'] | null
 
@@ -299,7 +298,6 @@ export abstract class OrcaRuntimeWithPreservedBranchCleanup extends OrcaRuntimeW
       this.acquireFileWatcherRemoval(path, connectionId),
     teardownFolderWorkspacePtys: (worktreeId, connectionId) =>
       teardownRuntimeFolderWorkspacePtys(this, worktreeId, connectionId),
-    onClaudeHomeBindingChanged: (groupId) => this.accounts.evictBoundClaudeHomeUsage(groupId),
     cleanupRemovedFolderWorkspaceState: (worktreeId): void | Promise<void> => {
       // Retire runs after the awaited store cleanup, so the delete cannot
       // report before the Codex pretrust purge lands; failures degrade here.

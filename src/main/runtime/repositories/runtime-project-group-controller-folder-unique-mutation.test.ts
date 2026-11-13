@@ -65,8 +65,7 @@ function createController(rows: FolderWorkspace[], onTeardown: () => void = () =
     teardownFolderWorkspacePtys: teardown,
     acquireFileWatcherRemoval: async () => ({ finish: async () => undefined }),
     cleanupRemovedFolderWorkspaceState: cleanup,
-    emitWorktreeLifecycle: () => undefined,
-    onClaudeHomeBindingChanged: () => undefined
+    emitWorktreeLifecycle: () => undefined
   })
   return { controller, state, teardown, cleanup }
 }

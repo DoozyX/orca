@@ -1,7 +1,3 @@
-import {
-  isLegacyAgentSessionAccountHome,
-  type AgentSessionAccountHome
-} from '../../../../shared/agent-session/lifecycle/agent-session-account-home'
 import type { AgentSessionAccountKind } from '../../../../shared/agent-session/agent-session-availability'
 import type { GlobalSettings } from '../../../../shared/global-settings-types'
 import { normalizeRuntimePathForComparison } from '../../../../shared/cross-platform-path'
@@ -71,34 +67,6 @@ export async function resolveStructuredCodexAccountHomePath(
   )
 }
 
-/** The home a launch would pin right now, for reads with no session record (the model catalog). */
-export async function resolveRecordlessStructuredAgentAccountHome(input: {
-  agent: 'claude' | 'codex'
-  launchEnv: NodeJS.ProcessEnv
-  getClaudeConfigDirectory: StructuredClaudeAccountHomeDeps['getClaudeConfigDirectory']
-  resolveCodexLaunchHome: StructuredCodexAccountHomeDeps['resolveLaunchHome']
-}): Promise<{ variable: 'CLAUDE_CONFIG_DIR' | 'CODEX_HOME'; path: string }> {
-  if (input.agent === 'claude') {
-    return {
-      variable: 'CLAUDE_CONFIG_DIR',
-      path: await resolveStructuredClaudeAccountHomePath({
-        launchEnv: input.launchEnv,
-        wslDistro: null,
-        getClaudeConfigDirectory: input.getClaudeConfigDirectory
-      })
-    }
-  }
-  return {
-    variable: 'CODEX_HOME',
-    // Read-only resolver, never launch prep: a picker mount or discovery read
-    // must not sync homes, start bridges, or clear an account selection.
-    path: await resolveStructuredCodexAccountHomePath({
-      launchEnv: input.launchEnv,
-      resolveLaunchHome: input.resolveCodexLaunchHome
-    })
-  }
-}
-
 export function resolveStructuredCodexAccountKind(
   home: string,
   settings: Partial<
@@ -140,24 +108,4 @@ export function resolveStructuredEnvAccountHomePath(input: {
     input.launchEnv[input.variable] ?? (input.processEnv ?? process.env)[input.variable],
     input.defaultPath(input.homePath ?? homedir())
   )
-}
-
-/** The account home a create commits: the selected one, re-pinned to where an adopted conversation
- *  lives. The group binding stays only while the committed home is still the bound one. */
-export function adoptedStructuredAgentAccountHome(
-  selected: AgentSessionAccountHome,
-  adopted: AgentSessionAccountHome | undefined
-): AgentSessionAccountHome {
-  if (adopted === undefined) {
-    return selected
-  }
-  if (
-    isLegacyAgentSessionAccountHome(selected) &&
-    isLegacyAgentSessionAccountHome(adopted) &&
-    selected.binding &&
-    adopted.path === selected.path
-  ) {
-    return { ...adopted, binding: selected.binding }
-  }
-  return adopted
 }

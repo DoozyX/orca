@@ -6,7 +6,6 @@ import { WorkspaceAttachmentsSchema } from '../../../shared/workspace-attachment
 import { isWorkspaceLinkedItemSourceContextMatch } from '../../../shared/workspace-attachments/workspace-linked-item-source-context'
 import { DiffCommentSchema } from '../../../shared/diff-comment-schema'
 import { normalizeExecutionHostId } from '../../../shared/execution-host'
-import { ClaudeConfigDirBinding } from '../../../shared/rpc-contract/repo-params'
 
 export const ProjectGroupCreateArgs = z.object({
   name: z.string().min(1),
@@ -23,9 +22,7 @@ export const ProjectGroupUpdateArgs = z.object({
     isCollapsed: z.boolean().optional(),
     tabOrder: z.number().finite().optional(),
     rootProjectOrder: z.number().finite().nullable().optional(),
-    color: z.string().nullable().optional(),
-    // Same schema as the RPC hop, so an emptied field clears and a bad path is refused on both.
-    claudeConfigDir: ClaudeConfigDirBinding
+    color: z.string().nullable().optional()
   })
 })
 

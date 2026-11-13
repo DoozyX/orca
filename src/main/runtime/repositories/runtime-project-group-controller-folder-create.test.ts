@@ -53,7 +53,6 @@ function createController() {
     teardownFolderWorkspacePtys: async () => undefined,
     acquireFileWatcherRemoval: unused,
     cleanupRemovedFolderWorkspaceState: () => undefined,
-    onClaudeHomeBindingChanged: () => undefined,
     emitWorktreeLifecycle: () => undefined
   })
   return { controller, createFolderWorkspace, notifyReposChanged }

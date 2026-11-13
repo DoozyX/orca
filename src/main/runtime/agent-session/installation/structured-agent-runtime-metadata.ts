@@ -15,9 +15,11 @@ import { isNativeLocalLocation as supportsCodexStructuredLocation } from '../../
 import { supportsClaudeStructuredLocation } from '../../../claude/structured/launch/claude-structured-location-support'
 import { supportsAcpStructuredLocation } from '../../../acp/session/acp-structured-location-support'
 import { PI_RPC_RUNTIME_METADATA } from '../../../pi/rpc-runtime-metadata'
-import { resolveClaudeStructuredAccountHome } from '../../../claude/claude-structured-account-home'
 import { getClaudeProfileRouter } from '../../../claude-accounts/profiles/routing/claude-profile-installed-router'
-import { resolveStructuredCodexAccountHomePath } from '../environment/structured-agent-account-home'
+import {
+  resolveStructuredClaudeAccountHomePath,
+  resolveStructuredCodexAccountHomePath
+} from '../environment/structured-agent-account-home'
 import {
   acpModelCatalogDiscovery,
   claudeModelCatalogDiscovery,
@@ -164,18 +166,16 @@ export const STRUCTURED_AGENT_RUNTIME_CATALOG: readonly StructuredAgentRuntimeCa
       supportsLocation: supportsClaudeStructuredLocation,
       // Without a router a launch keeps the record's home (resolveClaudeStructuredLaunchHome).
       launchFollowsSelection: () => getClaudeProfileRouter() !== undefined,
-      resolveAccountHome: async ({ launchEnv, location, purpose }, services) => {
-        const { path, binding } = await resolveClaudeStructuredAccountHome({
-          store: services.claudeHomeBindingStore,
-          location,
-          launchEnv,
-          ...(purpose !== 'read' ? { purpose: 'identity' } : {}),
-          getClaudeConfigDirectory: services.getClaudeConfigDirectory,
-          assertBoundHomeUsable: services.assertClaudeBoundHomeUsable
-        })
-        const home = agentSessionAccountHome(CLAUDE_STRUCTURED_AGENT, path)
-        return binding ? { ...home, binding } : home
-      }
+      resolveAccountHome: async ({ launchEnv, location, purpose }, services) =>
+        agentSessionAccountHome(
+          CLAUDE_STRUCTURED_AGENT,
+          await resolveStructuredClaudeAccountHomePath({
+            launchEnv,
+            wslDistro: location?.wslDistro ?? null,
+            ...(purpose !== 'read' ? { purpose: 'identity' } : {}),
+            getClaudeConfigDirectory: services.getClaudeConfigDirectory
+          })
+        )
     }
   },
   ...ACP_LAUNCH_SPECS.map((spec): StructuredAgentRuntimeCatalogEntry => ({

@@ -16,8 +16,6 @@ import type { AgentSessionRecordStore } from '../records/agent-session-record-st
 import type { createStructuredAgentSessionDispatchFollowUps } from '../structured-agent-session-dispatch-followups'
 import type { StructuredAgentSessionRuntimeDeps } from './structured-agent-session-runtime-contract'
 import type { createStructuredAgentEnvironmentResolvers } from '../environment/structured-agent-shell-environment'
-import type { ClaudeHomeBindingCatalogSource } from '../../../claude/claude-structured-account-home'
-import type { AssertClaudeBoundHomeUsable } from '../../../claude/claude-bound-home-refusal'
 import type {
   StructuredClaudeAccountHomeDeps,
   StructuredCodexAccountHomeDeps
@@ -59,9 +57,6 @@ export type StructuredAgentAccountHomeRequest = {
 /** What resolving an account may ask of the runtime around it. */
 export type StructuredAgentAccountHomeServices = {
   getClaudeConfigDirectory: StructuredClaudeAccountHomeDeps['getClaudeConfigDirectory']
-  /** The project catalog a workspace group's Claude home binding is read from. */
-  claudeHomeBindingStore: ClaudeHomeBindingCatalogSource
-  assertClaudeBoundHomeUsable?: AssertClaudeBoundHomeUsable
   /** Codex's home for a launch, prepared for it; and the same answer with no side effects. */
   prepareCodexLaunchHome: StructuredCodexAccountHomeDeps['resolveLaunchHome']
   readCodexLaunchHome: StructuredCodexAccountHomeDeps['resolveLaunchHome']

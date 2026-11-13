@@ -35,8 +35,6 @@ export abstract class OrcaRuntimeWithStructuredSessionAccountHome extends OrcaRu
         },
         {
           getClaudeConfigDirectory: (target) => this.accounts.getClaudeConfigDirectory(target),
-          claudeHomeBindingStore: this.store ?? null,
-          assertClaudeBoundHomeUsable: this.assertClaudeBoundHomeUsableFn,
           prepareCodexLaunchHome: this.prepareCodexStructuredLaunchFn,
           readCodexLaunchHome: this.resolveCodexStructuredLaunchHomeFn,
           workspaceTrustSettings: () => this.requireStore().getSettings(),

@@ -44,7 +44,7 @@ import {
 } from '../../sign-in/claude-account-folder'
 import { resolveLoginShellEnvironment } from '../../../startup/shell-environment/login-shell-environment'
 import { syncClaudeProfileHostPointer } from './claude-profile-host-pointer'
-import type { ClaudeBoundHomeOverride, ClaudeLaunchScope } from './claude-bound-home-route'
+import type { ClaudeLaunchScope } from './claude-launch-scope'
 
 export type ClaudeProfileRouterSettings = Pick<
   GlobalSettings,
@@ -70,7 +70,6 @@ export class ClaudeProfileRouter {
       env?: NodeJS.ProcessEnv
       runSetup?: typeof runClaudeProfileSetupInWorker
       refreshWaitMs?: number
-      boundHome?: ClaudeBoundHomeOverride
     }
   ) {
     this.pointerPath = join(args.dataRoot, 'claude-profiles', 'selected-host')
@@ -169,12 +168,7 @@ export class ClaudeProfileRouter {
   }
 
   /** Refreshes the routed folder first; only a first setup that fails stops the launch. */
-  async prepareLaunch(scope?: ClaudeLaunchScope): Promise<ClaudeRuntimeAuthPreparation> {
-    // Why first: a group's bound home is the user's own; nothing below may set it up or point at it.
-    const bound = this.args.boundHome?.prepareLaunch(scope)
-    if (bound) {
-      return bound
-    }
+  async prepareLaunch(_scope?: ClaudeLaunchScope): Promise<ClaudeRuntimeAuthPreparation> {
     const selected = this.selectedProfile()
     // Only fallback routing needs the shell env; account setup waits for it separately.
     if (!selected || !this.accountLogin(selected.accountId)) {
@@ -271,7 +265,7 @@ export class ClaudeProfileRouter {
   }
 
   /** A broken account selection must not prevent opening a terminal. */
-  terminalEnv(target?: ClaudeAccountSelectionTarget): ClaudeEnvPatch {
+  terminalEnv(target?: ClaudeAccountSelectionTarget, _scope?: ClaudeLaunchScope): ClaudeEnvPatch {
     // Pass the pointer without waiting on the guest.
     if (target?.runtime === 'wsl') {
       return { [CLAUDE_PROFILE_POINTER_ENV]: `~/${wslClaudeProfilePointer(this.args.dataRoot)}` }

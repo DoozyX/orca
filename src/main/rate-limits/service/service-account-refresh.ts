@@ -1,5 +1,5 @@
 import { consumeCodexRateLimitResetCredit } from '../providers/codex/codex-fetcher'
-import { RateLimitServiceBoundClaudeHomes } from './service-bound-claude-homes'
+import { RateLimitServiceInactiveAccounts } from './service-inactive-accounts'
 import { hasUsageWindows } from './service-result-policy'
 import {
   normalizeCodexAccountSelectionTarget,
@@ -16,7 +16,7 @@ import type {
   CodexRateLimitResetResult
 } from '../../../shared/rate-limit-types'
 
-export abstract class RateLimitServiceAccountRefresh extends RateLimitServiceBoundClaudeHomes {
+export abstract class RateLimitServiceAccountRefresh extends RateLimitServiceInactiveAccounts {
   async refresh(): Promise<RateLimitState> {
     // User refresh must bypass recent poll/focus throttles.
     await this.fetchAll({ force: true })

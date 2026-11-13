@@ -56,10 +56,7 @@ export abstract class RuntimeStructuredAgentHost extends OrcaRuntimeWithStartTui
           ? this.structuredAgentLaunchEnv(agent, this.requireStore().getSettings())
           : {},
       resolveAgentCommandSettings: () => this.requireStore().getSettings(),
-      ...structuredAgentAccountResolvers(
-        () => this.requireStore().getSettings(),
-        () => this.store ?? null
-      ),
+      ...structuredAgentAccountResolvers(() => this.requireStore().getSettings()),
       resolveAgentAccountHome: (agent) => this.resolveStructuredAgentAccountHome(agent),
       ...(this.prepareCodexCatalogProbeHomeFn
         ? { prepareCodexCatalogProbeHome: this.prepareCodexCatalogProbeHomeFn }

@@ -11,7 +11,6 @@ import type { OrcaRuntimeWithPreservedBranchCleanup as HostServices } from './ru
 import type { RuntimeEdgeCommandSurface } from './runtime-edge-command-controller'
 import type { OrcaRuntimeWithListManagedWorktrees as ListManagedWorktrees } from '../workspaces/managed-workspace-operations'
 import type { ProjectExecutionRuntimeResolution } from '../../../shared/execution-host/project-execution-runtime'
-import { assertClaudeBoundHomeUsable } from '../../claude/claude-bound-home-refusal'
 import { OrcaRuntimeWithLinearCommands } from '../integrations/linear/linear-commands'
 
 import type { RuntimeStore } from './runtime-store-contract'
@@ -92,7 +91,6 @@ export abstract class OrcaRuntimeWithStateFields extends OrcaRuntimeWithLinearCo
   protected readonly headlessTerminalScrollbackRows: number
   declare protected readonly prepareAiVaultSessionResumeFn: HostServices['prepareAiVaultSessionResumeFn']
   declare protected readonly prepareCodexStructuredLaunchFn: HostServices['prepareCodexStructuredLaunchFn']
-  declare protected readonly assertClaudeBoundHomeUsableFn: HostServices['assertClaudeBoundHomeUsableFn']
   declare protected readonly resolveCodexStructuredLaunchHomeFn: HostServices['resolveCodexStructuredLaunchHomeFn']
   declare protected readonly prepareCodexCatalogProbeHomeFn: HostServices['prepareCodexCatalogProbeHomeFn']
   declare protected readonly agentSessionClaimSigner: HostServices['agentSessionClaimSigner']
@@ -291,8 +289,6 @@ export abstract class OrcaRuntimeWithStateFields extends OrcaRuntimeWithLinearCo
       deps?.headlessTerminalScrollbackRows ?? DESKTOP_TERMINAL_SCROLLBACK_ROWS_DEFAULT
     this.prepareAiVaultSessionResumeFn = deps?.prepareAiVaultSessionResume ?? null
     this.prepareCodexStructuredLaunchFn = deps?.prepareCodexStructuredLaunch ?? null
-    this.assertClaudeBoundHomeUsableFn =
-      deps?.assertClaudeBoundHomeUsable ?? assertClaudeBoundHomeUsable
     this.resolveCodexStructuredLaunchHomeFn = deps?.resolveCodexStructuredLaunchHome ?? null
     this.prepareCodexCatalogProbeHomeFn = deps?.prepareCodexCatalogProbeHome ?? null
     this.agentSessionClaimSigner =

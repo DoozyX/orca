@@ -1,12 +1,10 @@
 import { z } from 'zod'
-import { parseClaudeConfigDirBinding } from '../claude-home-binding'
 
 // Opt-in: a caller holding afterSnapshotId's repos gets `unchanged`; older hosts take no params and ignore it.
 export const RepoList = z.object({
   afterSnapshotId: z.string().min(1).max(128).nullable().optional()
 })
 import {
-  ClearableString,
   OptionalBoolean,
   OptionalFiniteNumber,
   OptionalString,
@@ -73,19 +71,6 @@ export const ProjectGroupCreate = z.object({
   createdFrom: z.enum(['manual', 'folder-scan', 'migration']).optional()
 })
 
-/**
- * Additive optional binding shared by the RPC and Electron IPC hops (remote-wire Rule 1).
- *
- * Why the refusal lives here: `null` and `''` are the two spellings of "clear", and the
- * persistence layer parses an unparseable path to that same `null`. Without this, a user who
- * typed `~/.claude-work` would silently DESTROY the existing binding and be told the save
- * succeeded. Rejecting at the schema hands the caller a real validation error instead.
- */
-export const ClaudeConfigDirBinding = ClearableString.refine(
-  (value) => value === null || value === undefined || parseClaudeConfigDirBinding(value) !== null,
-  { message: 'claudeConfigDir must be an absolute path, or null to clear it' }
-)
-
 export const ProjectGroupUpdate = z.object({
   groupId: requiredString('Missing group id'),
   updates: z.object({
@@ -93,8 +78,7 @@ export const ProjectGroupUpdate = z.object({
     isCollapsed: z.boolean().optional(),
     tabOrder: OptionalFiniteNumber,
     rootProjectOrder: z.number().finite().nullable().optional(),
-    color: OptionalString.nullable().optional(),
-    claudeConfigDir: ClaudeConfigDirBinding
+    color: OptionalString.nullable().optional()
   })
 })
 

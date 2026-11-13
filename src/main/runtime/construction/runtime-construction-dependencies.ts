@@ -19,7 +19,6 @@ import type {
 import type { RuntimeDesktopWindowStatus } from '../../../shared/runtime-session-contracts'
 import type { AgentSessionClaimSigner } from '../agent-session/ownership/agent-session-claim-identity'
 import type { OrchestrationEnvironmentTransport } from '../orchestration/federation/environment-transport'
-import type { AssertClaudeBoundHomeUsable } from '../../claude/claude-bound-home-refusal'
 import type { WorkspaceSleepPlatform } from '../workspaces/sleep/workspace-sleep-platform'
 import type { SessionSearchSettingsApply } from '../integrations/ai-vault/runtime-session-search-settings'
 
@@ -70,8 +69,6 @@ export type RuntimeConstructionDependencies = {
   prepareCodexStructuredLaunch?: (input: {
     launchEnv: NodeJS.ProcessEnv
   }) => string | null | Promise<string | null>
-  /** Seam for the bound-Claude-home usability check; defaults to the real filesystem probe. */
-  assertClaudeBoundHomeUsable?: AssertClaudeBoundHomeUsable
   resolveCodexStructuredLaunchHome?: (input: {
     launchEnv: NodeJS.ProcessEnv
   }) => string | null | Promise<string | null>

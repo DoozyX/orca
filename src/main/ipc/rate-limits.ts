@@ -19,14 +19,9 @@ export function registerRateLimitHandlers(
   ipcMain.handle('rateLimits:refreshClaudeForTarget', (_event, target: RateLimitRuntimeTarget) =>
     rateLimits.refreshClaudeForTarget(target)
   )
-  // Why: the Claude switcher expands both sections at once; keep one channel rather than adding
-  // a second IPC surface (and a second remote-wire shape) for the bound-group rows.
-  ipcMain.handle('rateLimits:fetchInactiveClaudeAccounts', async () => {
-    await Promise.allSettled([
-      rateLimits.fetchInactiveClaudeAccountsOnOpen(),
-      rateLimits.fetchBoundClaudeHomesOnOpen()
-    ])
-  })
+  ipcMain.handle('rateLimits:fetchInactiveClaudeAccounts', () =>
+    rateLimits.fetchInactiveClaudeAccountsOnOpen()
+  )
   ipcMain.handle('rateLimits:fetchInactiveCodexAccounts', () =>
     rateLimits.fetchInactiveCodexAccountsOnOpen()
   )

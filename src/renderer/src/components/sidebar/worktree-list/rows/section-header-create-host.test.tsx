@@ -84,7 +84,6 @@ function headerContext(): SectionHeaderRowContext {
     pinDragOver: false,
     getCachedFolderWorkspacePathStatus: () => null,
     toggleGroupWithScrollAnchor: vi.fn(),
-    onOpenProjectGroupSettings: vi.fn(),
     headerDrag: {
       canReorderRepoHeaders: false,
       canReorderProjectGroupHeaders: false,

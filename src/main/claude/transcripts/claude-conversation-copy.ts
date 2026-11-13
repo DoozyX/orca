@@ -25,12 +25,11 @@ export const copyClaudeConversation: NonNullable<
     AbortSignal.timeout(60_000),
     ...(input.signal ? [input.signal] : [])
   ])
-  const { path: destinationHome, binding } = requireLegacyAgentSessionAccountHome(input.accountHome)
+  const destinationHome = requireLegacyAgentSessionAccountHome(input.accountHome).path
   const router = getClaudeProfileRouter()
-  // A bound group offers its own home alone: another account's transcript must not cross into it.
   const homes = new Set([
     destinationHome,
-    ...(router && !binding ? [...router.accountHomes(), router.systemDefaultHome()] : [])
+    ...(router ? [...router.accountHomes(), router.systemDefaultHome()] : [])
   ])
   for (const home of homes) {
     signal.throwIfAborted()

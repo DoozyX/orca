@@ -21,8 +21,6 @@ export type ClaudeOAuthCredentialReadResult = {
   source: ClaudeOAuthCredentialSource
   keychainUnavailable?: boolean
   unavailable?: boolean
-  /** Carried for a bound home, which Orca never refreshes; the usage endpoint ignores it. */
-  expiresAt?: number
 }
 type ClaudeOAuthCredentialReadOptions = {
   credentialsFileConfigDir?: string
@@ -35,8 +33,7 @@ const schema = z.object({
     .object({
       accessToken: z.string().optional(),
       refreshToken: z.string().optional(),
-      refreshTokenExpiresAt: z.unknown().optional(),
-      expiresAt: z.unknown().optional()
+      refreshTokenExpiresAt: z.unknown().optional()
     })
     .optional()
 })
@@ -53,7 +50,6 @@ export function parseClaudeOAuthCredentialsJson(
       ...(typeof oauth?.refreshTokenExpiresAt === 'number'
         ? { refreshTokenExpiresAt: oauth.refreshTokenExpiresAt }
         : {}),
-      ...(typeof oauth?.expiresAt === 'number' ? { expiresAt: oauth.expiresAt } : {}),
       source
     }
   } catch {
@@ -147,68 +143,5 @@ export function resolveClaudeOAuthCredentialReadOptions(
       readUserClaudeConfigDir(process.env),
     // An unsuffixed lookup is exclusively System default, never a fallback from an account.
     unsuffixedKeychainFallback: !accountDir
-  }
-}
-
-function unavailableKeychainResult(): ClaudeOAuthCredentialReadResult {
-  return { ...emptyClaudeOAuthCredentialReadResult(), keychainUnavailable: true }
-}
-
-/** Exactly this config dir's `.credentials.json`; a bound Claude home is read, never written. */
-export async function readClaudeOAuthCredentialsFile(
-  configDir?: string
-): Promise<ClaudeOAuthCredentialReadResult> {
-  try {
-    return parseClaudeOAuthCredentialsJson(
-      await readFile(
-        path.join(configDir ?? path.join(homedir(), '.claude'), '.credentials.json'),
-        'utf8'
-      ),
-      'credentials-file'
-    )
-  } catch {
-    return emptyClaudeOAuthCredentialReadResult()
-  }
-}
-
-/**
- * Credentials that belong to exactly this config dir: its scoped Keychain item on darwin, then its
- * own `.credentials.json`. No legacy-Keychain fallback: that item answers for System default, so a
- * signed-out bound directory would read as signed in. A locked Keychain is reported as such.
- */
-export async function readClaudeConfigDirScopedOAuthCredentials(
-  configDir: string,
-  options?: {
-    platform?: NodeJS.Platform
-    readScopedKeychain?: (configDir: string) => Promise<string | null>
-  }
-): Promise<ClaudeOAuthCredentialReadResult> {
-  let keychainUnavailable = false
-  if ((options?.platform ?? process.platform) === 'darwin') {
-    const scoped = options?.readScopedKeychain
-      ? await readInjectedScopedKeychain(configDir, options.readScopedKeychain)
-      : await readClaudeCredentialsFromStrictKeychain(configDir, 'scoped-keychain')
-    if (scoped.token || scoped.hasRefreshableCredentials) {
-      return scoped
-    }
-    keychainUnavailable = scoped.keychainUnavailable === true
-  }
-  const file = await readClaudeOAuthCredentialsFile(configDir)
-  return !file.token && !file.hasRefreshableCredentials && keychainUnavailable
-    ? unavailableKeychainResult()
-    : file
-}
-
-async function readInjectedScopedKeychain(
-  configDir: string,
-  read: (configDir: string) => Promise<string | null>
-): Promise<ClaudeOAuthCredentialReadResult> {
-  try {
-    const credentials = await read(configDir)
-    return credentials
-      ? parseClaudeOAuthCredentialsJson(credentials, 'scoped-keychain')
-      : emptyClaudeOAuthCredentialReadResult()
-  } catch {
-    return unavailableKeychainResult()
   }
 }

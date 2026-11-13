@@ -162,8 +162,7 @@ export abstract class OrcaRuntimeWithResolveTerminalSplitSourceAuthority extends
       ...process.env,
       ...args.baseEnv
     }
-    // Why the leader pane's workspace: its project group may bind its own Claude home.
-    const scope = { workspaceId: this.handles.get(args.handle)?.worktreeId, launchEnv: baseEnv }
+    const scope = { workspaceId: this.handles.get(args.handle)?.worktreeId }
     const auth =
       args.prepareAuth && this.prepareClaudeAuth
         ? await this.prepareClaudeAuth(undefined, scope)

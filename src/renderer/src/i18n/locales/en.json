@@ -5600,13 +5600,6 @@
             "server_replaced_summary": "This host now runs a different Orca server than the one this computer paired with",
             "server_replaced_explanation": "Orca connects to the host as a different SSH user, or its server was reinstalled. In Settings › Remote Orca Servers, open the ⋯ menu on this server and choose Forget…, then connect the SSH host to pair with its current server."
           },
-          "BoundClaudeHomesSection": {
-            "36b1b954e0": "Bound groups",
-            "cd0caf7de4": "Signed out",
-            "38a934f31f": "Session expired",
-            "cfcef0699a": "Directory unreadable",
-            "7b3c1d94ae": "Usage unavailable"
-          },
           "NativeChatResumeStatusSegment": {
             "tooltip": "Open interrupted chats available to resume",
             "failedTooltip": "Chats Orca could not resume after the restart. Click for details.",
@@ -7274,11 +7267,6 @@
           "failedNestWorkspace": "Failed to nest workspace",
           "sidebarRowMissing": "Target no longer exists",
           "failedUnnestWorkspace": "Failed to unnest workspace",
-          "projectGroupSettings": "Group settings…",
-          "groupSettingsSaveFailed": "Failed to save group settings",
-          "groupSettingsSaveFailedDesc": "Orca could not confirm the Claude config directory with the group's host. Check that the path is absolute and recheck the group after reconnecting.",
-          "groupSettingsUnresolvedHost": "Cannot open group settings",
-          "groupSettingsUnresolvedHostDesc": "Orca could not tell which host owns this group, and a Claude config directory means something different on each one. Reconnect the group's host and try again.",
           "hostRepairRequired": "Re-pair required",
           "showChildWorkspaces_one": "Show {{count}} child workspace",
           "hideChildWorkspaces_one": "Hide {{count}} child workspace",
@@ -7897,24 +7885,6 @@
           "wslRetained": "Showing the worktrees Orca already knew about. They refresh when Orca sees the distro running.",
           "wslStartAndScan": "Start distro and scan",
           "wslStartAndScanHint": "Click the icon to start the distro and scan again."
-        },
-        "ProjectGroupSettingsDialog": {
-          "title": "Group Settings",
-          "description": "Settings for {{value0}} and the groups nested inside it.",
-          "fieldLabel": "Claude config directory",
-          "fieldPlaceholder": "Claude’s default home",
-          "browse": "Browse",
-          "remoteHostPath": "This path is read on {{value0}}, so type it as that host spells it.",
-          "inherited": "Inherited from {{value0}}:",
-          "adviceNotAbsolute": "This is not an absolute path. Claude sessions in this group would resolve it differently each run.",
-          "adviceMissingDirectory": "That directory does not exist yet on this group’s host.",
-          "adviceSignedOut": "That directory has no Claude credentials yet, so sessions will start signed out.",
-          "externalChange": "Changed elsewhere to {{value0}}. Your edit is kept — saving replaces it.",
-          "externalCleared": "Cleared elsewhere. Your edit is kept — saving replaces it.",
-          "clear": "Clear",
-          "cancel": "Cancel",
-          "save": "Save",
-          "saving": "Saving..."
         },
         "LocalGitToolchainScanBanner": {
           "xcodeLicenseTitle": "Accept the Xcode license to use Git",

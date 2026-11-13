@@ -1,4 +1,3 @@
-import { parseClaudeConfigDirBinding } from '../../../shared/claude-home-binding'
 import type { ProfileSaveDomains } from '../profile-save-domains'
 import { WORKSPACE_SESSION_DOMAINS } from '../workspace-session-domains'
 import type { PersistedState } from '../../../shared/persisted-state-types'
@@ -121,11 +120,6 @@ export class ProjectGroupPersistenceOperations {
     }
     if (updates.color !== undefined) {
       group.color = typeof updates.color === 'string' ? updates.color : null
-    }
-    if (updates.claudeConfigDir !== undefined) {
-      // Same parse as load, so an in-memory group never holds a value reload would drop. The
-      // schema hop already refused an unparseable path, so null here only ever means "clear".
-      group.claudeConfigDir = parseClaudeConfigDirBinding(updates.claudeConfigDir)
     }
     group.updatedAt = Date.now()
   }

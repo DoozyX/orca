@@ -116,8 +116,7 @@ export async function preparePtyIpcSpawnPreflight(ctx: PtyIpcSpawnState): Promis
   ctx.wslHoldReadAnchor = target.wslHoldReadAnchor
   ctx.codexSelectionTarget = target.codexSelectionTarget
   ctx.spawnTiming.mark('preflight')
-  // Why the env before routing: a bound home refuses a CLAUDE_CONFIG_DIR the launch itself names.
-  const claudeScope = { workspaceId: args.worktreeId, launchEnv: args.env }
+  const claudeScope = { workspaceId: args.worktreeId }
   args.env = withClaudeProfileTerminalEnv(
     args.env,
     args.connectionId,

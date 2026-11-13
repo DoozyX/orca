@@ -52,8 +52,6 @@ export function directoryTranscriptImport(directories: {
   accountHomeCandidates: (input: {
     settings: StructuredAgentTranscriptImportSettings
     selectedAccountHomePath: string
-    /** True when a project-group binding chose the selected home; it then stands alone. */
-    selectedAccountHomeBound: boolean
   }) => string[]
   /** Never derive fallback roots outside this store. */
   findTranscript: (input: {
@@ -79,11 +77,7 @@ export function directoryTranscriptImport(directories: {
     accountHomeCandidates: ({ settings, selectedAccountHome }) =>
       isLegacyAgentSessionAccountHome(selectedAccountHome)
         ? directories
-            .accountHomeCandidates({
-              settings,
-              selectedAccountHomePath: selectedAccountHome.path,
-              selectedAccountHomeBound: Boolean(selectedAccountHome.binding)
-            })
+            .accountHomeCandidates({ settings, selectedAccountHomePath: selectedAccountHome.path })
             .map((path) => path.trim())
             .filter((path) => path.length > 0)
             .map((path) => ({ variable: selectedAccountHome.variable, path }))

@@ -1,25 +1,10 @@
-import type { BoundClaudeHomeStatus, ProviderRateLimits } from '../../../shared/rate-limit-types'
+import type { ProviderRateLimits } from '../../../shared/rate-limit-types'
 import type { ZcodePlanSite } from '../../../shared/zcode-plan-sites'
 import type { ClaudeRuntimeAuthPreparation } from '../../claude-accounts/runtime-auth/runtime-auth-types'
 import type { ClaudeAccountSelectionTarget } from '../../claude-accounts/selection/runtime-selection'
 import type { KimiHomeResolution } from '../../kimi/kimi-runtime-home'
 import type { CodexAccountSelectionTarget } from '../../../shared/codex-selection-lane'
 import type { CodexRateLimitHomeResolution } from '../../codex-accounts/runtime-home/runtime-home-service-types'
-
-/** One group's bound CLAUDE_CONFIG_DIR, already resolved by `resolveClaudeHomeBindingForGroup`. */
-export type BoundClaudeHomeBinding = {
-  groupId: string
-  configDir: string
-}
-
-export type BoundClaudeHomeCacheRow = {
-  configDir: string
-  rateLimits: ProviderRateLimits | null
-  status: BoundClaudeHomeStatus
-  updatedAt: number
-}
-
-export type BoundClaudeHomesResolver = () => BoundClaudeHomeBinding[]
 
 export type InactiveCodexHome = { kind: 'ready'; managedHomePath: string } | { kind: 'skip' }
 

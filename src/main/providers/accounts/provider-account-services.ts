@@ -24,8 +24,6 @@ import { createAccountRuntimeTargetSettingsSync } from '../../rate-limits/servic
 import { normalizeCodexRuntimeSelection } from '../../codex-accounts/account-management/runtime-selection'
 import { normalizeClaudeRuntimeSelection } from '../../claude-accounts/selection/runtime-selection'
 import type { ClaudeStatusLineRateLimits } from '../../../shared/claude-statusline-rate-limits'
-import { resolveLocalBoundClaudeHomes } from '../../rate-limits/bound-claude-home-bindings'
-import { setClaudeHomeBindingChangeNotifier } from '../../rate-limits/claude-home-binding-change-notification'
 
 export type ProviderAccountServices = {
   rateLimits: RateLimitService
@@ -172,10 +170,6 @@ export function createProviderAccountServices(
         wslLinuxAuthPath: account.wslLinuxAuthPath
       }))
   })
-  rateLimits.setBoundClaudeHomesResolver(() =>
-    resolveLocalBoundClaudeHomes(store.getProjectGroups())
-  )
-  setClaudeHomeBindingChangeNotifier((groupId) => rateLimits.evictBoundClaudeHomeUsage(groupId))
   rateLimits.setInactiveCodexAccountsResolver(() => {
     const settings = store.getSettings()
     const activeIds = new Set(
