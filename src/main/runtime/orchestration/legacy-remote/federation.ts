@@ -1,5 +1,5 @@
 import type { RuntimeTerminalCreate } from '../../../../shared/runtime-terminal-create-contract'
-import { waitForWorkerAgentReady } from '../../terminal/wait/launched-agent-composer-readiness'
+import { waitForWorkerAgentReadyRebinding } from '../../terminal/wait/worker-agent-readiness-rebind'
 import { describeTerminalWaitBlockedReason } from '../../../../shared/terminal/runtime-policy/terminal-wait-blocked-reason-legacy-alias'
 import { buildDispatchPreamble } from '../workers/launch/worker-dispatch-preamble'
 import { sendAgentTurn } from '../turn-delivery/send-agent-turn'
@@ -186,12 +186,18 @@ export const ORCHESTRATION_FEDERATION_ATTACH_METHODS = [
         }
         persistFederatedReadinessStage(setupStage)
         failedStage = 'agent_readiness'
-        const wait = await waitForWorkerAgentReady(runtime, terminalHandle, {
+        // A graph reload can remint the pane's handle during the wait; follow the same process (#29).
+        const ready = await waitForWorkerAgentReadyRebinding(runtime, terminalHandle, {
           agent,
           reusesTerminal: Boolean(params.terminal),
           creation: terminalCreation,
-          timeoutMs: readinessTimeoutMs
+          timeoutMs: readinessTimeoutMs,
+          paneKey: runtime.getTerminalPaneKey(terminalHandle),
+          processIncarnation: runtime.getTerminalProcessIncarnation(terminalHandle)
         })
+        const { wait } = ready
+        terminalHandle = ready.handle
+        setupStage.terminalHandle = ready.handle
         persistFederatedSetupWaitOutcome({ ...setupStage, wait })
         if (!wait.satisfied) {
           if (setup.state === 'failed') {
