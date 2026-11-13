@@ -88,6 +88,7 @@ export function sanitizeRepoUpdatesForPersistence<
     >
   > & {
     ghAccount?: GhAccountBinding | null
+    claudeAccountId?: string | null
   }
 >(updates: T): T {
   const sanitized = { ...updates }

@@ -75,6 +75,7 @@ export function createRepoUpdateSchema<T extends Readonly<Record<string, z.ZodTy
           // Why: malformed bindings must omit the key (IPC deletes); never clear via undefined.
           return normalizeGhAccountBinding(value) ?? undefined
         }),
+      claudeAccountId: z.string().min(1).nullable().optional(),
       forkSyncMode: z.enum(['ask', 'safe-auto', 'off']).optional(),
       agentWorkspaceTrust: z.enum(['pre-trust', 'agent-asks']).optional(),
       externalWorktreeVisibility: z.enum(['hide', 'show']).nullable().optional(),

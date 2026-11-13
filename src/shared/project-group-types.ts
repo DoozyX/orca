@@ -14,12 +14,14 @@ export type ProjectGroup = {
   rootProjectOrder?: number
   isCollapsed: boolean
   color: string | null
+  /** Orca Claude account every local session in this group runs under; absent follows the parent, then the global selection. */
+  claudeAccountId?: string | null
   createdAt: number
   updatedAt: number
 }
 
 export type ProjectGroupUpdate = Partial<
-  Pick<ProjectGroup, 'name' | 'isCollapsed' | 'tabOrder' | 'color'>
+  Pick<ProjectGroup, 'name' | 'isCollapsed' | 'tabOrder' | 'color' | 'claudeAccountId'>
 > & { rootProjectOrder?: number | null }
 
 export type ProjectGroupMutation = { groupId: string; updates: ProjectGroupUpdate }

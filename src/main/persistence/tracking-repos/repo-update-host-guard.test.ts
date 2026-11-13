@@ -14,7 +14,12 @@ function makeRepo(overrides: Partial<Repo> & Pick<Repo, 'id'>): Repo {
 }
 
 function makeOperations(repos: Repo[]) {
-  const state = { repos, projectGroups: [], worktreeMeta: {} }
+  const state = {
+    repos,
+    projectGroups: [],
+    worktreeMeta: {},
+    settings: { claudeManagedAccounts: [] }
+  }
   const scheduleSave = vi.fn()
   const operations = new RepoUpdatePersistenceOperations({
     state,
@@ -81,5 +86,60 @@ describe('updateRepo host guard', () => {
 
     expect(state.repos.map((repo) => repo.displayName)).toEqual(['Local', 'Peer edit'])
     expect(errors).toEqual([])
+  })
+})
+
+describe('updateRepo Claude account assignment', () => {
+  const account = {
+    id: 'acct-1',
+    email: 'a@example.test',
+    managedAuthPath: '/unused',
+    authMethod: 'subscription-oauth' as const,
+    createdAt: 0,
+    updatedAt: 0,
+    lastAuthenticatedAt: 0
+  }
+
+  function makeAssignable(repos: Repo[]) {
+    const state = {
+      repos,
+      projectGroups: [],
+      worktreeMeta: {},
+      settings: { claudeManagedAccounts: [account] }
+    }
+    return {
+      state,
+      operations: new RepoUpdatePersistenceOperations({
+        state,
+        bumpLocalWorktreeScanGeneration: vi.fn(),
+        syncProjectHostSetupCompatibilityState: vi.fn(),
+        scheduleSave: vi.fn(),
+        hydrateRepo: (repo) => repo
+      })
+    }
+  }
+
+  it('stores a host account on a local project and clears it with null', () => {
+    const { operations, state } = makeAssignable([makeRepo({ id: 'repo-1' })])
+    operations.updateRepo({ id: 'repo-1' }, { claudeAccountId: 'acct-1' })
+    expect(state.repos[0].claudeAccountId).toBe('acct-1')
+    operations.updateRepo({ id: 'repo-1' }, { claudeAccountId: null })
+    expect(state.repos[0]).not.toHaveProperty('claudeAccountId')
+  })
+
+  it('rejects an account Orca does not have', () => {
+    const { operations, state } = makeAssignable([makeRepo({ id: 'repo-1' })])
+    expect(() =>
+      operations.updateRepo({ id: 'repo-1' }, { claudeAccountId: 'acct-missing' })
+    ).toThrow('That Claude account is not one of the Orca accounts on this computer.')
+    expect(state.repos[0]).not.toHaveProperty('claudeAccountId')
+  })
+
+  it('rejects an assignment on an SSH project', () => {
+    const { operations, state } = makeAssignable([makeRepo({ id: 'repo-1', connectionId: 'box' })])
+    expect(() =>
+      operations.updateRepo({ id: 'repo-1', connectionId: 'box' }, { claudeAccountId: 'acct-1' })
+    ).toThrow('A Claude account can only be assigned to a group or project on this computer.')
+    expect(state.repos[0]).not.toHaveProperty('claudeAccountId')
   })
 })

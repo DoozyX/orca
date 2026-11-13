@@ -78,7 +78,9 @@ export const ProjectGroupUpdate = z.object({
     isCollapsed: z.boolean().optional(),
     tabOrder: OptionalFiniteNumber,
     rootProjectOrder: z.number().finite().nullable().optional(),
-    color: OptionalString.nullable().optional()
+    color: OptionalString.nullable().optional(),
+    // Null clears the assignment; main refuses ids that are not host accounts.
+    claudeAccountId: z.string().min(1).nullable().optional()
   })
 })
 

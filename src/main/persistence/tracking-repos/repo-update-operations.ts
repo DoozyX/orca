@@ -1,4 +1,5 @@
 import type { PersistedState } from '../../../shared/persisted-state-types'
+import type { GlobalSettings } from '../../../shared/global-settings-types'
 import type { Repo } from '../../../shared/repo-types'
 import { type ExecutionHostId, getRepoExecutionHostId } from '../../../shared/execution-host'
 import type { RepoHostTarget } from '../../../shared/repo-host-identity'
@@ -9,12 +10,20 @@ import { normalizeRepoWorkspaceCleanupPolicy } from '../../../shared/workspace-c
 import { normalizeWorktreeVisibilitySourcePreferences } from '../../../shared/worktree/visibility-sources'
 import type { GhAccountBinding } from '../../../shared/github/accounts/account-binding'
 import { invalidateGhAccountTokenCache } from '../../github/accounts/gh-account-token'
+import {
+  assertClaudeAccountAssignable,
+  republishClaudeAccountAssignments
+} from '../../claude-accounts/assignment/claude-account-assignment-write'
 import { sanitizeRepoUpdatesForPersistence } from './repo-sanitization'
 import { isFolderRepo } from '../../../shared/repo-kind'
 import { findExtraFolderWorkspaceIds } from '../../workspaces/catalog/folder-workspace-meta-presence'
 
+type RepoUpdateState = Pick<PersistedState, 'repos' | 'projectGroups' | 'worktreeMeta'> & {
+  settings: Pick<GlobalSettings, 'claudeManagedAccounts'>
+}
+
 export type RepoUpdateMutationOperations = {
-  state: Pick<PersistedState, 'repos' | 'projectGroups' | 'worktreeMeta'>
+  state: RepoUpdateState
   bumpLocalWorktreeScanGeneration: (repoId: string) => void
   syncProjectHostSetupCompatibilityState: () => void
   scheduleSave: () => void
@@ -64,7 +73,7 @@ function assertKindChangeKeepsFolderWorkspaces(
 export class RepoUpdatePersistenceOperations {
   constructor(private readonly operations: RepoUpdateMutationOperations) {}
 
-  private get state(): Pick<PersistedState, 'repos' | 'projectGroups' | 'worktreeMeta'> {
+  private get state(): RepoUpdateState {
     return this.operations.state
   }
 
@@ -124,6 +133,7 @@ export class RepoUpdatePersistenceOperations {
       externalWorktreeDiscoverySuppressedAt?: Repo['externalWorktreeDiscoverySuppressedAt'] | null
       hiddenAt?: Repo['hiddenAt'] | null
       ghAccount?: GhAccountBinding | null
+      claudeAccountId?: string | null
     }
   ): Repo | null {
     const repo = findRepoRowForHostScopedWrite(
@@ -135,6 +145,13 @@ export class RepoUpdatePersistenceOperations {
       return null
     }
     assertKindChangeKeepsFolderWorkspaces(repo, updates.kind, this.state.worktreeMeta)
+    if (updates.claudeAccountId) {
+      assertClaudeAccountAssignable(
+        repo,
+        updates.claudeAccountId,
+        this.state.settings.claudeManagedAccounts
+      )
+    }
     const previousGhAccount = repo.ghAccount
     const sanitizedUpdates = sanitizeRepoUpdatesForPersistence(updates)
     if (
@@ -198,6 +215,10 @@ export class RepoUpdatePersistenceOperations {
     if ('ghAccount' in sanitizedUpdates && sanitizedUpdates.ghAccount == null) {
       delete repo.ghAccount
       delete sanitizedUpdates.ghAccount
+    }
+    if ('claudeAccountId' in sanitizedUpdates && sanitizedUpdates.claudeAccountId == null) {
+      delete repo.claudeAccountId
+      delete sanitizedUpdates.claudeAccountId
     }
     if ('worktreeBasePath' in sanitizedUpdates && sanitizedUpdates.worktreeBasePath === undefined) {
       delete repo.worktreeBasePath
@@ -285,6 +306,10 @@ export class RepoUpdatePersistenceOperations {
     this.bumpLocalWorktreeScanGeneration(repo.id)
     this.syncProjectHostSetupCompatibilityState()
     this.scheduleSave()
+    // A move between groups changes the inherited account as much as an explicit assignment does.
+    if ('claudeAccountId' in updates || 'projectGroupId' in updates) {
+      republishClaudeAccountAssignments()
+    }
     return this.hydrateRepo(repo)
   }
 }

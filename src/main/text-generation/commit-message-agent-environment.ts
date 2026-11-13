@@ -1,5 +1,9 @@
 import type { ClaudeRuntimeAuthPreparation } from '../claude-accounts/runtime-auth/runtime-auth-types'
 import { applyClaudeEnvPatch } from '../claude-accounts/runtime-auth/environment'
+import {
+  ClaudeAccountAssignmentUnavailableError,
+  ClaudeAssignedAccountSignedOutError
+} from '../claude-accounts/profiles/routing/claude-profile-launch-errors'
 import type { ClaudeLaunchScope } from '../claude-accounts/profiles/routing/claude-launch-scope'
 import { readShellStartupEnvVar } from '../pty/shell-startup/shell-startup-env'
 import { parseWslUncPath } from '../../shared/wsl-paths'
@@ -163,6 +167,13 @@ export async function prepareLocalCommitMessageAgentEnv(
     }
   } catch (error) {
     console.error('[commit-message] Failed to prepare agent environment:', error)
+    // These name the account and the group or project to fix, which the generic sentence hides.
+    if (
+      error instanceof ClaudeAssignedAccountSignedOutError ||
+      error instanceof ClaudeAccountAssignmentUnavailableError
+    ) {
+      return { ok: false, error: error.message }
+    }
     return {
       ok: false,
       error: 'Failed to prepare the selected agent account for commit message generation.'

@@ -39,6 +39,7 @@ export function hydrateRepo(repo: Repo, gitUsernameCache: ReadonlyMap<string, st
     forkSyncMode: rawForkSyncMode,
     agentWorkspaceTrust: rawAgentWorkspaceTrust,
     ghAccount: rawGhAccount,
+    claudeAccountId: rawClaudeAccountId,
     defaultJiraProject: rawDefaultJiraProject,
     customWorktreeVisibilitySources: rawCustomWorktreeVisibilitySources,
     worktreeVisibilitySourcePreferences: rawWorktreeVisibilitySourcePreferences,
@@ -81,6 +82,9 @@ export function hydrateRepo(repo: Repo, gitUsernameCache: ReadonlyMap<string, st
     ...(forkSyncMode !== undefined ? { forkSyncMode } : {}),
     ...(agentWorkspaceTrust !== undefined ? { agentWorkspaceTrust } : {}),
     ...(ghAccount ? { ghAccount } : {}),
+    ...(typeof rawClaudeAccountId === 'string' && rawClaudeAccountId
+      ? { claudeAccountId: rawClaudeAccountId }
+      : {}),
     ...(defaultJiraProject !== undefined ? { defaultJiraProject } : {}),
     ...(customWorktreeVisibilitySources !== undefined ? { customWorktreeVisibilitySources } : {}),
     ...(worktreeVisibilitySourcePreferences !== undefined

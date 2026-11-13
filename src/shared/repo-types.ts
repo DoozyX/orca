@@ -69,6 +69,8 @@ export type Repo = {
   defaultJiraProject?: JiraProjectReference | null
   /** Bind host/login only; resolve a short-lived gh token at spawn and inject into that child’s environment. */
   ghAccount?: GhAccountBinding
+  /** Orca Claude account this local project's sessions run under; absent inherits its group's. */
+  claudeAccountId?: string
   /** Controls Orca's fork-default-branch sync offer for repos with upstream metadata. */
   forkSyncMode?: ForkSyncMode
   /** Whether Orca pre-trusts this repo's worktrees for agents. Absent means undecided: desktop launches ask once. */

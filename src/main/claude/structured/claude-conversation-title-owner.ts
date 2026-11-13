@@ -19,7 +19,9 @@ export const captureClaudeConversationTitleOwner =
     const boundary = record.providerContextBoundary?.operationId
     const account = () => {
       try {
-        const policy = getClaudeProfileRouter()?.preparation()
+        const policy = getClaudeProfileRouter()?.preparation({
+          workspaceId: record.location.workspaceId
+        })
         const recipe = initialization.accountRecipe
         if (policy) {
           if ((recipe?.route ?? initialization.account) === 'managed') {

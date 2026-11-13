@@ -1,5 +1,6 @@
 import { lstat } from 'node:fs/promises'
 import type { ClaudeProfileRouter } from './claude-profile-router'
+import type { ClaudeLaunchScope } from './claude-launch-scope'
 import {
   claudeStateFileAsync,
   isSameClaudeLogin,
@@ -13,9 +14,10 @@ export async function claudeRoutedHomeAsync(
     ClaudeProfileRouter,
     'selectedProfile' | 'savedAccount' | 'userConfigDir' | 'userHome'
   >,
-  availability: 'checked' | 'identity' = 'checked'
+  availability: 'checked' | 'identity' = 'checked',
+  scope?: ClaudeLaunchScope
 ): Promise<string | null> {
-  const profile = router.selectedProfile()
+  const profile = router.selectedProfile(scope)
   if (!profile) {
     return null
   }
@@ -33,4 +35,20 @@ export async function claudeRoutedHomeAsync(
     throw claudeProfileMissing()
   }
   return profile.home
+}
+
+/** Compare pre-routing terminals against the selection; null means no account is selected. */
+export function claudeSystemDefaultRunsAnotherAccount(
+  router: Pick<
+    ClaudeProfileRouter,
+    'selectedProfile' | 'accountLogin' | 'savedAccount' | 'systemDefaultLogin'
+  >
+): boolean | null {
+  const profile = router.selectedProfile()
+  if (!profile) {
+    return null
+  }
+  const selected = router.accountLogin(profile.accountId) ?? router.savedAccount(profile.accountId)
+  const systemDefault = router.systemDefaultLogin(5_000)
+  return !selected || !systemDefault || !isSameClaudeLogin(selected, systemDefault)
 }

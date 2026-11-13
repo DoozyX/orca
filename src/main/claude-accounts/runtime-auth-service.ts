@@ -2,7 +2,10 @@ import { join } from 'node:path'
 import { getAppEnvironment } from '../../shared/app-environment'
 import { toWindowsWslPath } from '../../shared/wsl-paths'
 import { resolveLocalAccountRuntimeTarget } from '../../shared/local-account-runtime'
-import type { Store } from '../persistence/loading-store/store'
+import {
+  claudeAccountScopeReader,
+  type ClaudeAccountAssignmentStore
+} from './assignment/claude-account-assignment-catalog'
 import { isWslDistroRunning } from '../wsl/discovery/wsl-background-distro-gate'
 import { getDefaultWslDistro, getWslHome } from '../wsl/discovery/distro-catalog'
 import { ClaudeProfileRouter } from './profiles/routing/claude-profile-router'
@@ -27,11 +30,11 @@ export class ClaudeRuntimeAuthService {
   private mutationQueue: Promise<unknown> = Promise.resolve()
 
   constructor(
-    private readonly store: Pick<Store, 'getSettings'>,
+    private readonly store: ClaudeAccountAssignmentStore,
     private readonly isDistroRunning: (distro: string) => Promise<boolean> = isWslDistroRunning
   ) {
     const args = { getSettings: () => store.getSettings(), dataRoot: this.dataRoot }
-    this.router = new ClaudeProfileRouter(args)
+    this.router = new ClaudeProfileRouter({ ...args, assignment: claudeAccountScopeReader(store) })
     installClaudeProfileRouter(this.router)
     installClaudeObservedConfigDirs(
       new ClaudeObservedConfigDirs(join(this.dataRoot, 'claude-observed-config-dirs.json'), () =>

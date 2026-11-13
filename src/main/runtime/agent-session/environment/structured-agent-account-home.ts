@@ -17,6 +17,8 @@ import { join } from 'node:path'
 export type StructuredClaudeAccountHomeDeps = {
   launchEnv: NodeJS.ProcessEnv
   wslDistro: string | null
+  /** The chat's workspace, whose project or group may assign an account. */
+  workspaceId?: string
   /** `identity` names the selected account before its folder exists; the default checks availability. */
   purpose?: 'identity'
   getClaudeConfigDirectory: (
@@ -30,7 +32,11 @@ export async function resolveStructuredClaudeAccountHomePath(
   // Why only an account: System default keeps the launch-env and configured homes below.
   const router = deps.wslDistro ? undefined : getClaudeProfileRouter()
   const accountHome = router
-    ? await claudeRoutedHomeAsync(router, deps.purpose === 'identity' ? 'identity' : 'checked')
+    ? await claudeRoutedHomeAsync(
+        router,
+        deps.purpose === 'identity' ? 'identity' : 'checked',
+        deps.workspaceId ? { workspaceId: deps.workspaceId } : undefined
+      )
     : null
   if (accountHome) {
     return accountHome

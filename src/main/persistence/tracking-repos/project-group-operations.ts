@@ -1,3 +1,7 @@
+import {
+  assertClaudeAccountAssignable,
+  republishClaudeAccountAssignments
+} from '../../claude-accounts/assignment/claude-account-assignment-write'
 import type { ProfileSaveDomains } from '../profile-save-domains'
 import { WORKSPACE_SESSION_DOMAINS } from '../workspace-session-domains'
 import type { PersistedState } from '../../../shared/persisted-state-types'
@@ -79,8 +83,10 @@ export class ProjectGroupPersistenceOperations {
     if (!group) {
       return null
     }
+    this.assertAssignable(group, updates)
     this.applyGroupUpdate(group, updates)
     this.scheduleSave(['projectGroups'])
+    this.afterAssignmentChange([updates])
     return group
   }
 
@@ -88,6 +94,9 @@ export class ProjectGroupPersistenceOperations {
     const byId = new Map((this.state.projectGroups ?? []).map((group) => [group.id, group]))
     if (mutations.some(({ groupId }) => !byId.has(groupId))) {
       return null
+    }
+    for (const { groupId, updates } of mutations) {
+      this.assertAssignable(byId.get(groupId)!, updates)
     }
     const updated = mutations.map(({ groupId, updates }) => {
       const group = byId.get(groupId)!
@@ -97,7 +106,24 @@ export class ProjectGroupPersistenceOperations {
     if (updated.length > 0) {
       this.scheduleSave(['projectGroups'])
     }
+    this.afterAssignmentChange(mutations.map(({ updates }) => updates))
     return updated
+  }
+
+  private assertAssignable(group: ProjectGroup, updates: ProjectGroupUpdate): void {
+    if (updates.claudeAccountId) {
+      assertClaudeAccountAssignable(
+        group,
+        updates.claudeAccountId,
+        this.state.settings.claudeManagedAccounts
+      )
+    }
+  }
+
+  private afterAssignmentChange(updates: readonly ProjectGroupUpdate[]): void {
+    if (updates.some((update) => update.claudeAccountId !== undefined)) {
+      republishClaudeAccountAssignments()
+    }
   }
 
   private applyGroupUpdate(group: ProjectGroup, updates: ProjectGroupUpdate): void {
@@ -120,6 +146,11 @@ export class ProjectGroupPersistenceOperations {
     }
     if (updates.color !== undefined) {
       group.color = typeof updates.color === 'string' ? updates.color : null
+    }
+    if (updates.claudeAccountId === null) {
+      delete group.claudeAccountId
+    } else if (updates.claudeAccountId !== undefined) {
+      group.claudeAccountId = updates.claudeAccountId
     }
     group.updatedAt = Date.now()
   }
