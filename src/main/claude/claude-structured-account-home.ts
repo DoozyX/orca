@@ -16,7 +16,7 @@ import {
   assertClaudeBoundHomeUsable,
   type AssertClaudeBoundHomeUsable
 } from './claude-bound-home-refusal'
-import { isCustomClaudeConfigDir } from './claude-config-dir-pin'
+import { isCustomClaudeConfigDir } from './structured/launch/claude-config-dir-pin'
 import {
   resolveStructuredClaudeAccountHomePath,
   type StructuredClaudeAccountHomeDeps

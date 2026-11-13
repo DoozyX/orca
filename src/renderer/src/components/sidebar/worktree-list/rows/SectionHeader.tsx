@@ -383,6 +383,7 @@ export function renderWorktreeSectionHeaderRow(
             {row.repo && ctx.groupBy === 'repo' ? (
               <RepoHeaderProjectActionsMenu
                 repo={row.repo}
+                hostRepos={row.hostRepos}
                 label={label}
                 projectGroups={ctx.projectGroups}
                 actions={ctx.projectActions}

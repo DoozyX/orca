@@ -10,7 +10,7 @@ import type { ClaudeProfileRouter } from '../../../claude-accounts/profiles/rout
 import { AgentSessionPreSpawnError } from '../../../native-chat/agent-session-wire/providers/structured-agent-session-adapter-errors'
 import { resolveSessionFilePath } from '../../../native-chat/session-file-resolver'
 import type { AssertClaudeBoundHomeUsable } from '../../claude-bound-home-refusal'
-import { prepareClaudeLaunchAccount } from '../../claude-launch-account'
+import { prepareClaudeLaunchAccount } from './claude-launch-account'
 import { assertClaudeChatPredatesNoBinding } from '../../claude-structured-bound-home-checks'
 import { isEffectiveBoundClaudeHome } from '../../claude-structured-account-home'
 

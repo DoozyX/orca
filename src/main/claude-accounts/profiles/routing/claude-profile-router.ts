@@ -15,7 +15,7 @@ import {
 import { claudeProfileMissing } from './claude-profile-launch-errors'
 import type { GlobalSettings } from '../../../../shared/global-settings-types'
 import type { ClaudeManagedAccount } from '../../../../shared/managed-account-types'
-import { probeRecentClaudeCliVersion } from '../../../claude/claude-hook-event-versions'
+import { probeRecentClaudeCliVersion } from '../../../claude/cli-capabilities/claude-hook-event-versions'
 import { resolveClaudeCommand } from '../../../codex-cli/command'
 import {
   describeClaudeProfile,
@@ -42,7 +42,7 @@ import {
   isSameClaudeLogin,
   type ClaudeFolderLogin
 } from '../../sign-in/claude-account-folder'
-import { resolveLoginShellEnvironment } from '../../../startup/login-shell-environment'
+import { resolveLoginShellEnvironment } from '../../../startup/shell-environment/login-shell-environment'
 import { syncClaudeProfileHostPointer } from './claude-profile-host-pointer'
 import type { ClaudeBoundHomeOverride, ClaudeLaunchScope } from './claude-bound-home-route'
 

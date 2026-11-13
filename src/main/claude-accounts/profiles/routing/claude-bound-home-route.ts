@@ -8,7 +8,7 @@ import {
   assertClaudeBoundHomeUsable,
   type AssertClaudeBoundHomeUsable
 } from '../../../claude/claude-bound-home-refusal'
-import { isCustomClaudeConfigDir } from '../../../claude/claude-config-dir-pin'
+import { isCustomClaudeConfigDir } from '../../../claude/structured/launch/claude-config-dir-pin'
 import {
   claudeChildLaunchEnv,
   resolveClaudeHomeBindingForSession,

@@ -1,5 +1,5 @@
 import { execFileSync, spawn, spawnSync } from 'node:child_process'
-import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { mkdtemp, readFile, rm, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -94,7 +94,7 @@ describe('getComputerUsePermissionStatus', () => {
       '/Applications/Orca Computer Use.app/Contents/MacOS/orca-computer-use-macos'
     )
     vi.mocked(mkdtemp).mockResolvedValue(permissionStatusTempDir)
-    vi.mocked(stat).mockResolvedValue({} as Awaited<ReturnType<typeof stat>>)
+    vi.mocked(stat).mockResolvedValue(statSync(tmpdir()))
     mockPermissionStatus('{"accessibility":"granted","screenshots":"granted"}')
     setPlatform('darwin')
   })
@@ -172,7 +172,14 @@ describe('getComputerUsePermissionStatus', () => {
 })
 
 function mockPermissionStatus(json: string): void {
-  vi.mocked(spawnSync).mockReturnValue({ status: 0 } as ReturnType<typeof spawnSync>)
+  vi.mocked(spawnSync).mockReturnValue({
+    pid: 0,
+    output: [],
+    stdout: '',
+    stderr: '',
+    status: 0,
+    signal: null
+  })
   vi.mocked(readFile).mockResolvedValue(json)
 }
 

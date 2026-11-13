@@ -24,6 +24,7 @@ import {
 } from './claude-lifecycle-events'
 import {
   getOrCreateClaudeSubagentRoster,
+  readClaudeLeadModel,
   setClaudeMainAgentTurnState,
   recordClaudeBackgroundTasks,
   voidClaimsOfReplacedClaudeSession
@@ -34,7 +35,7 @@ import {
   claudeRowHasUnlistedLiveWork
 } from './claude-pane-hold-evidence'
 import { buildClaudeStatusPayload } from './claude-status-build'
-import { clearClaudeSessionCrons, syncClaudeMonitoredCrons } from './claude-monitored-work'
+import { clearClaudeSessionCrons, recordClaudeSessionCrons } from './claude-monitored-work'
 import { claudeWaitRequest, settleClaudeToolBatch } from './claude-tool-request-wait'
 import { trackClaudeTaskNotificationDelivery } from './claude-task-notification-delivery'
 import { recordClaudeTeammateSpawn } from './claude-teammate-spawn'
@@ -57,6 +58,7 @@ export function normalizeClaudeEvent(
     return normalizeClaudeSubagentLifecycleEvent(state, eventName, paneKey, hookPayload)
   }
   voidClaimsOfReplacedClaudeSession(state, eventName, eventAgentId, paneKey, hookPayload)
+  const leadModel = eventAgentId === undefined ? readClaudeLeadModel(hookPayload) : undefined
   if (eventName === 'SessionStart') {
     // SessionStart supplies resume identity before prompts; mark idle/sessionBoundary to avoid phantom work/completion notifications (STA-3386).
     const sessionStartSource = hookPayload['source']
@@ -71,7 +73,11 @@ export function normalizeClaudeEvent(
     state.claudeMonitoredWorkByPaneKey.delete(paneKey)
     state.claudeLaunchedBackgroundTasksByPaneKey.delete(paneKey)
     // New sessions start a new main-agent clock.
-    setClaudeMainAgentTurnState(state, paneKey, { state: 'done', stateStartedAt: Date.now() })
+    setClaudeMainAgentTurnState(state, paneKey, {
+      state: 'done',
+      stateStartedAt: Date.now(),
+      model: leadModel
+    })
     return buildClaudeStatusPayload(state, eventName, promptText, paneKey, hookPayload, {
       stateName: 'done',
       updateToolSnapshot: true,
@@ -150,12 +156,7 @@ export function normalizeClaudeEvent(
     recordClaudeBackgroundTasks(state, paneKey, backgroundTasks)
   }
   if (sessionCronInventoryPresent && eventAgentId === undefined) {
-    if (hasActiveSessionCron) {
-      state.claudeActiveSessionCronPaneKeys.add(paneKey)
-    } else {
-      state.claudeActiveSessionCronPaneKeys.delete(paneKey)
-    }
-    syncClaudeMonitoredCrons(state, paneKey, hookPayload)
+    recordClaudeSessionCrons(state, paneKey, hookPayload, hasActiveSessionCron)
   } else if (eventAgentId === undefined && isTurnBoundary && backgroundTasks.present) {
     // Why: current Claude may omit an empty cron inventory while still emitting background_tasks.
     clearClaudeSessionCrons(state, paneKey)
@@ -308,7 +309,8 @@ export function normalizeClaudeEvent(
     ...(isWaitingInducing && eventAgentId ? { waitingAgentId: eventAgentId } : {}),
     ...claudeWaitRequest(eventName, isAskUserQuestionWait, eventToolUseId, previousLead),
     ...(stateBeforeWait ? { stateBeforeWait } : {}),
-    ...(turnCompletedAt !== undefined ? { turnCompletedAt } : {})
+    ...(turnCompletedAt !== undefined ? { turnCompletedAt } : {}),
+    model: leadModel
   })
 
   const effectiveRoster = state.claudeSubagentRosterByPaneKey.get(paneKey)

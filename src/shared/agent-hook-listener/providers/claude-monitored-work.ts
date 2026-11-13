@@ -81,6 +81,20 @@ export function syncClaudeMonitoredCrons(
   )
 }
 
+export function recordClaudeSessionCrons(
+  state: HookListenerState,
+  paneKey: string,
+  hookPayload: Record<string, unknown>,
+  hasActiveSessionCron: boolean
+): void {
+  if (hasActiveSessionCron) {
+    state.claudeActiveSessionCronPaneKeys.add(paneKey)
+  } else {
+    state.claudeActiveSessionCronPaneKeys.delete(paneKey)
+  }
+  syncClaudeMonitoredCrons(state, paneKey, hookPayload)
+}
+
 export function clearClaudeSessionCrons(state: HookListenerState, paneKey: string): void {
   state.claudeActiveSessionCronPaneKeys.delete(paneKey)
   syncClaudeMonitoredCrons(state, paneKey, null)

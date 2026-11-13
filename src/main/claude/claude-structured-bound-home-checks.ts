@@ -4,7 +4,7 @@ import type { LegacyAgentSessionAccountHome } from '../../shared/agent-session/l
 import type { ResolvedClaudeHomeBinding } from '../../shared/claude-home-binding'
 import { ClaudeBoundHomeRefusalError } from './claude-bound-home-refusal'
 import { sameClaudeConfigDir } from './claude-config-dir-identity'
-import { isCustomClaudeConfigDir } from './claude-config-dir-pin'
+import { isCustomClaudeConfigDir } from './structured/launch/claude-config-dir-pin'
 
 /**
  * A binding the group gained after this chat was created cannot be applied to it — its transcript
