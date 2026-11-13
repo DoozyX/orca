@@ -1,5 +1,5 @@
 import type { ClaudeAccountRecipe } from '../../../../shared/agent-session/lifecycle/agent-session-acquired-account'
-import { assertStructuredAgentResolutionCurrent } from '../../../native-chat/structured-agent-command-resolution'
+import { assertStructuredAgentResolutionCurrent } from '../../../native-chat/agent-launch/structured-agent-command-resolution'
 import { activeProviderContext } from '../../../../shared/agent-session/agent-session-provider-context'
 import { getClaudeProfileRouter } from '../../../claude-accounts/profiles/routing/claude-profile-installed-router'
 import { requireLegacyAgentSessionAccountHome } from '../../../../shared/agent-session/lifecycle/agent-session-account-home'
@@ -25,9 +25,12 @@ import {
   type ClaudeEnvDeps
 } from './claude-structured-child-env'
 import { claudeStructuredLaunchArgs } from './claude-structured-launch-args'
-import type { ClaudeCliFlagCheck, ClaudeCliFlagSupport } from '../../claude-cli-flag-support'
+import type {
+  ClaudeCliFlagCheck,
+  ClaudeCliFlagSupport
+} from '../../cli-capabilities/claude-cli-flag-support'
 import { resolveClaudeLaunchFlags } from './claude-structured-launch-flags'
-import { withNativeChatVisualsEnv } from '../../../native-chat/native-chat-visuals-delivery'
+import { withNativeChatVisualsEnv } from '../../../native-chat/conversation-files/native-chat-visuals-delivery'
 import {
   claudeLaunchResumesTranscript,
   prepareBoundAccount,
@@ -273,11 +276,8 @@ export function claudeStructuredLaunchPart(
       sources,
       { runtimeOnPath: false }
     )
-    const accountRecipe = await prepareBoundAccount(router, env, accountHome.path, {
-      boundHome,
-      launchEnv: childEnv,
-      assertUsable: deps.assertBoundHomeUsable
-    })
+    const bound = { boundHome, launchEnv: childEnv, assertUsable: deps.assertBoundHomeUsable }
+    const accountRecipe = await prepareBoundAccount(router, env, accountHome.path, bound)
     const launchHome = accountRecipe.home
     const resumesTranscript = resumedWithoutRouter ?? (await resumes(launchHome))
     if (fork?.throughEntryId && !resumesTranscript) {

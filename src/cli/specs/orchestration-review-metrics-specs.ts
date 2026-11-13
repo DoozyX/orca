@@ -1,4 +1,5 @@
-import { GLOBAL_FLAGS, type CommandSpec } from '../args'
+import { CLI_GLOBAL_FLAGS as GLOBAL_FLAGS } from '../../shared/cli-argument-boundary'
+import type { CommandSpec } from '../discovery/command-spec'
 
 export const ORCHESTRATION_REVIEW_METRICS_COMMAND_SPECS: CommandSpec[] = [
   {

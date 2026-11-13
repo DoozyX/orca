@@ -219,7 +219,7 @@ describe('bundled skill guide generator', () => {
     const artifacts = await buildArtifacts(root)
 
     await expect(verifyArtifacts(artifacts, root)).rejects.toThrow(
-      'src/cli/bundled-skill-guides.ts'
+      'src/cli/skills/bundled-skill-guides.ts'
     )
     await writeArtifacts(artifacts)
     await expect(verifyArtifacts(artifacts, root)).resolves.toBeUndefined()

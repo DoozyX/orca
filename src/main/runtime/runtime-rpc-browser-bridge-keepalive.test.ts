@@ -1,4 +1,4 @@
-import './rpc/unused-default-rpc-methods.test-fixture'
+import './rpc/dispatch/testing/unused-default-rpc-methods.test-fixture'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'

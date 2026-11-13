@@ -113,7 +113,7 @@ export async function readClaudeOAuthCredentials(
     return keychain
   }
   try {
-    return parseClaudeOAuthCredentialsJson(
+    const file = parseClaudeOAuthCredentialsJson(
       await readFile(
         path.join(
           options?.credentialsFileConfigDir ?? path.join(homedir(), '.claude'),
@@ -123,6 +123,10 @@ export async function readClaudeOAuthCredentials(
       ),
       'credentials-file'
     )
+    // A file with no token must not hide a refreshable or unreadable Keychain login.
+    return file.token || !(keychain.hasRefreshableCredentials || keychain.unavailable)
+      ? file
+      : keychain
   } catch (error) {
     return isDefinitiveAbsence(error) ? keychain : { ...keychain, unavailable: true }
   }

@@ -3,7 +3,7 @@ import {
   notifyClaudeHomeBindingChanged,
   setClaudeHomeBindingChangeNotifier
 } from '../rate-limits/claude-home-binding-change-notification'
-import { initializeMainProcessAccountServices } from './main-process-account-services'
+import { initializeMainProcessAccountServices } from './agent-accounts/main-process-account-services'
 import { mainProcessState as state } from './main-process-state'
 
 /**
