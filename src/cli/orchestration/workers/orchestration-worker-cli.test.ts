@@ -35,6 +35,27 @@ describe('orchestration worker-start CLI contract', () => {
     vi.restoreAllMocks()
   })
 
+  it.each([
+    ['orchestration worker-stop', 'orchestration.workerStop'],
+    ['orchestration worker-release', 'orchestration.workerRelease']
+  ])('%s --run refuses a Dispatch in another Run before the mutation', async (command) => {
+    callMock.mockResolvedValue({ result: { dispatch: { id: 'ctx_1', runId: 'run_other' } } })
+
+    await expect(
+      ORCHESTRATION_HANDLERS[command]({
+        flags: new Map<string, string | boolean>([
+          ['dispatch', 'ctx_1'],
+          ['run', 'run_wanted']
+        ]),
+        client,
+        cwd: '/tmp/repo',
+        json: true
+      })
+    ).rejects.toMatchObject({ code: 'dispatch_run_mismatch' })
+
+    expect(callMock.mock.calls).toEqual([['orchestration.workerShow', { dispatch: 'ctx_1' }]])
+  })
+
   const invokeWorkerStart = (flags: Map<string, string | boolean>, json = true) =>
     ORCHESTRATION_HANDLERS['orchestration worker-start']({
       flags,
