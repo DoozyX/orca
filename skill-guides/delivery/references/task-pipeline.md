@@ -196,6 +196,13 @@ Launch a cheap background agent per open PR to run
 pulling a failing log into the unit's directory. Meanwhile continue with other
 units.
 
+After a direct merge or another endgame with no PR, the agent watches the target
+branch's run at the landed sha instead:
+`gh run list --repo <owner>/<repo> --commit <sha>`, then
+`gh run watch <run-id> --repo <owner>/<repo> --exit-status`. Either way it is one
+blocking command under the agent's own timeout, not a sleep or poll loop; on
+timeout the agent reports the checks unfinished.
+
 A mechanical fix pushes directly. A logic fix is `ledger-reserve --kind fix
 --reason "ci:<check>"`, then one `review-round` on the new commits. When a
 sibling PR from this run merges, re-sync every open PR that sits on the same
