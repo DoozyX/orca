@@ -117,6 +117,7 @@ An injected Task/Dispatch uses its assigned workspace; these rules are for coord
 - Remote workers follow orchestration's exact remote placement rules: remote
   `new-child` is invalid. Keep their Dispatches in this Run and record their host
   and workspace explicitly; do not claim cross-host sidebar nesting.
-- Folder workspaces use the supported folder flow and exact workspace selectors,
-  never Git worktree creation. If an effort's parent cannot be verified, report the
+- Folder workspaces use the existing folder workspace and its exact selector, never
+  Git worktree creation and never `repo add`: an effort does not register a project,
+  least of all on a run directory. If an effort's parent cannot be verified, report the
   placement blocker before launching workers; do not silently mix it into `main`.

@@ -1,5 +1,4 @@
 import type { TabGroup, TabGroupLayoutNode } from '../../../../../shared/tab-types'
-import type { TabSplitTarget } from '@/store/slices/tabs/tabs-slice-contract'
 
 type LayoutRect = { left: number; top: number; right: number; bottom: number }
 type LayoutLeaf = { groupId: string; rect: LayoutRect; layoutOrder: number }
@@ -127,12 +126,12 @@ export function pickAdjacentLinkOpenGroupId(input: {
   return bestId
 }
 
-/** Keep the source visible without adding splits to an existing multi-group layout. */
+/** Links never add a split: an existing neighbor group keeps the source visible, else the source's own group. */
 export function resolveLinkOpenSidePlacement(input: {
   layout?: TabGroupLayoutNode
   groups: readonly Pick<TabGroup, 'id' | 'activeTabId'>[]
   sourceGroupId: string | undefined
-}): { groupId: string } | { split: TabSplitTarget } | null {
+}): { groupId: string } | null {
   const { layout, groups, sourceGroupId } = input
   const groupIds = new Set(groups.map((group) => group.id))
   const liveGroups = layout
@@ -145,14 +144,11 @@ export function resolveLinkOpenSidePlacement(input: {
   if (!sourceGroupId || !liveGroups.has(sourceGroupId)) {
     return null
   }
-  if (!groups.find((group) => group.id === sourceGroupId)?.activeTabId) {
+  if (liveGroups.size === 1 || !groups.find((group) => group.id === sourceGroupId)?.activeTabId) {
     return { groupId: sourceGroupId }
   }
-  if (liveGroups.size > 1) {
-    const neighbor = layout ? pickAdjacentLinkOpenGroupId({ layout, groups, sourceGroupId }) : null
-    return {
-      groupId: neighbor ?? [...liveGroups].find((id) => id !== sourceGroupId) ?? sourceGroupId
-    }
+  const neighbor = layout ? pickAdjacentLinkOpenGroupId({ layout, groups, sourceGroupId }) : null
+  return {
+    groupId: neighbor ?? [...liveGroups].find((id) => id !== sourceGroupId) ?? sourceGroupId
   }
-  return { split: { sourceGroupId, splitDirection: 'right', activate: false } }
 }

@@ -86,5 +86,5 @@ export function canOpenLinkInSourceGroup(
     groups: state.groupsByWorktree?.[workspaceId] ?? [],
     sourceGroupId: tab.groupId
   })
-  return placement !== null && ('split' in placement || placement.groupId !== tab.groupId)
+  return placement !== null && placement.groupId !== tab.groupId
 }

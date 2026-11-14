@@ -4,16 +4,16 @@
     {
       "name": "brainstorming",
       "sourcePath": "skills/brainstorming",
-      "packageDigest": "5ff8d7c114499e42f91c4b77788161507a5187e2e4ea1ba243f2c6c830ddc625",
+      "packageDigest": "cc8ea452970a2e30a46d638670ff5d51e3b271d22b8b549a14867a4f7b642c6b",
       "files": [
         {
           "path": "SKILL.md",
-          "size": 6631,
+          "size": 6752,
           "executable": false,
           "classification": "text",
-          "exactSha256": "3a85680798c13334188643d780d1c75f9e736b5cf11e384fb06328585cd9fbeb",
-          "textNormalizedSha256": "3a85680798c13334188643d780d1c75f9e736b5cf11e384fb06328585cd9fbeb",
-          "identitySha256": "3a85680798c13334188643d780d1c75f9e736b5cf11e384fb06328585cd9fbeb"
+          "exactSha256": "f5b6f6350b9e412f77cb683abc7f1c88177470ffca0ffe1b977e333f9b4c55d6",
+          "textNormalizedSha256": "f5b6f6350b9e412f77cb683abc7f1c88177470ffca0ffe1b977e333f9b4c55d6",
+          "identitySha256": "f5b6f6350b9e412f77cb683abc7f1c88177470ffca0ffe1b977e333f9b4c55d6"
         }
       ]
     },
@@ -36,16 +36,16 @@
     {
       "name": "delivery",
       "sourcePath": "skills/delivery",
-      "packageDigest": "de92eb0d6eedd9675a9142c3864270a8a2a37b5fa43c377c891a1d861203edc4",
+      "packageDigest": "26d421041835ff3719f4834422c960c447d3ba07761155ea8c549df313798f23",
       "files": [
         {
           "path": "SKILL.md",
-          "size": 7602,
+          "size": 7694,
           "executable": false,
           "classification": "text",
-          "exactSha256": "b20dd84ae01a1a6f1ace0b7d2a1dee2e0534da8aec94a15c0fa0d864364d525d",
-          "textNormalizedSha256": "b20dd84ae01a1a6f1ace0b7d2a1dee2e0534da8aec94a15c0fa0d864364d525d",
-          "identitySha256": "b20dd84ae01a1a6f1ace0b7d2a1dee2e0534da8aec94a15c0fa0d864364d525d"
+          "exactSha256": "7ce77ccf8c24e7207e9618afb50adbfcb097c42dd937d4dd6f7044ecfc1939b5",
+          "textNormalizedSha256": "7ce77ccf8c24e7207e9618afb50adbfcb097c42dd937d4dd6f7044ecfc1939b5",
+          "identitySha256": "7ce77ccf8c24e7207e9618afb50adbfcb097c42dd937d4dd6f7044ecfc1939b5"
         }
       ]
     },

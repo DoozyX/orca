@@ -84,13 +84,7 @@ export async function openLocalBrowserLink(params: {
   )
   const validate = (current: AppState): void => {
     if (
-      !browserLinkCommitIsValid(
-        current,
-        destination,
-        context,
-        selection.groupId ?? selection.split?.sourceGroupId,
-        params.ownsRoute
-      )
+      !browserLinkCommitIsValid(current, destination, context, selection.groupId, params.ownsRoute)
     ) {
       throw new BrowserLinkPlacementRefused('The browser link destination is no longer available.')
     }
@@ -116,7 +110,6 @@ export async function openLocalBrowserLink(params: {
       const created = state.createBrowserTab(destination.worktreeId, params.url, {
         ...params.options,
         targetGroupId: selection.groupId,
-        ...(selection.split ? { split: selection.split } : {}),
         executionHostId: destination.executionHostId,
         browserRuntimeEnvironmentId: destination.browserRuntimeEnvironmentId,
         sessionProfileId: destination.sessionProfileId,

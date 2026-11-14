@@ -29,8 +29,6 @@ import {
   getReplaceablePreviewFileId,
   removeEditorStateForReplacedPreview
 } from '../tabs/workspace-editor-item'
-import { createNonSecureContextUuid as createBrowserUuid } from '../../../../../../shared/non-secure-context-uuid'
-import { emptySplitGroup, insertSplitGroup } from '../../tabs/tabs-group-actions'
 import { translate } from '@/i18n/i18n'
 import { refreshExistingOpenFile } from './open-file-existing-tab-refresh'
 
@@ -112,16 +110,9 @@ export function applyOpenFileToState(
   const isPreview = resolveEditorPreviewIntent(s, options?.preview)
   scratch.editorItemIsPreview = isPreview
   const recordReplacedPreview = options?.recordReplacedPreview ?? false
-  const splitGroup =
-    linkPlacement?.kind === 'split' ? emptySplitGroup(worktreeId, createBrowserUuid()) : undefined
-  const splitState =
-    splitGroup && linkPlacement?.kind === 'split'
-      ? insertSplitGroup(s, worktreeId, linkPlacement.split, splitGroup)
-      : undefined
   // Why: resolve the target group up-front so preview replacement is scoped to it (group B open must not evict group A's preview).
   const requestedGroupId =
-    splitGroup?.id ??
-    (linkPlacement?.kind === 'group' ? linkPlacement.groupId : options?.targetGroupId)
+    linkPlacement?.kind === 'group' ? linkPlacement.groupId : options?.targetGroupId
   const targetGroupId =
     resolveEditorOpenTargetGroupId(s, placementId, requestedGroupId) ?? undefined
   scratch.editorItemTargetGroupId = targetGroupId
@@ -137,10 +128,9 @@ export function applyOpenFileToState(
       operationProvenance
     })
     if (!refreshed) {
-      return { ...splitState, ...activeResult }
+      return activeResult
     }
     return {
-      ...splitState,
       openFiles: s.openFiles.map((f) => (f.id === id ? refreshed : f)),
       ...activeResult
     }
@@ -214,7 +204,6 @@ export function applyOpenFileToState(
         )
       }
       return {
-        ...splitState,
         openFiles: newFiles,
         editorDrafts: nextEditorDrafts,
         editorCursorLine: nextEditorCursorLine,
@@ -232,7 +221,6 @@ export function applyOpenFileToState(
   }
 
   return {
-    ...splitState,
     openFiles: [
       ...newFiles,
       {
