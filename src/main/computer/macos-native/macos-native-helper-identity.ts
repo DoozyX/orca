@@ -80,11 +80,13 @@ export class MacOSNativeHelperGeneration {
     this.started = null
   }
 
-  changedFrom(currentExecutablePath: string | null): boolean {
-    return (
+  whenChangedFrom(currentExecutablePath: string | null, onChanged: () => void): void {
+    if (
       this.started !== null &&
       currentExecutablePath !== null &&
       !isSameMacOSNativeHelper(this.started, readMacOSNativeHelperIdentity(currentExecutablePath))
-    )
+    ) {
+      onChanged()
+    }
   }
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildRows } from './build-rows.test-fixture'
-import { getGroupKeysForWorktree } from '../../../../../../shared/sidebar-list/worktree-group-keys'
+import { getGroupKeysForWorktree } from '../../../../../../shared/sidebar-list/sections/worktree-group-keys'
 import { repo, worktree, repoMap } from './worktree-list-groups-test-fixtures'
 import type { FolderWorkspace } from '../../../../../../shared/folder-workspaces/folder-workspace-types'
 import type { ProjectGroup } from '../../../../../../shared/project-group-types'

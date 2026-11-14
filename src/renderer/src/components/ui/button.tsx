@@ -46,6 +46,8 @@ const buttonVariants = cva(
         // Button's geometry, so this ramp cannot reuse the `sm` the other primitives spell it with.
         'sm-compact': 'h-8 gap-1.5 rounded-md px-3 text-xs has-[>svg]:px-2.5',
         menu: 'h-8 gap-2 px-2 py-1.5 text-xs leading-5',
+        // A launch-menu row's label segment, matching DropdownMenuItem's `launch` rows.
+        'menu-launch': 'h-9 gap-2 px-2 text-[13px] leading-4',
         lg: 'h-10 rounded-md px-6 has-[>svg]:px-4',
         icon: 'size-9',
         'icon-xs': "size-6 rounded-md [&_svg:not([class*='size-'])]:size-3",

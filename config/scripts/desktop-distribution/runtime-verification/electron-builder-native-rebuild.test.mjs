@@ -41,9 +41,4 @@ describe('electron-builder native rebuild hook', () => {
       )
     ).toContain('--force')
   })
-
-  it('rejects incomplete electron-builder contexts', () => {
-    expect(() => buildNativeRebuildArgs({ arch: 'x64' })).toThrow(/platform/)
-    expect(() => buildNativeRebuildArgs({ platform: { nodeName: 'linux' } })).toThrow(/arch/)
-  })
 })

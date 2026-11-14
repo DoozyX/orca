@@ -2,6 +2,7 @@ import { fork, type ChildProcess } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import type {
   ComputerActionResult,
+  ComputerLaunchAppResult,
   ComputerListAppsResult,
   ComputerListWindowsResult,
   ComputerProviderCapabilities,
@@ -23,6 +24,7 @@ export const COMPUTER_SIDECAR_ENTRY_FILENAME = 'computer-sidecar.js'
 type ComputerSidecarMethod =
   | 'capabilities'
   | 'listApps'
+  | 'launchApp'
   | 'listWindows'
   | 'getAppState'
   | 'click'
@@ -35,12 +37,6 @@ type ComputerSidecarMethod =
   | 'pasteText'
   | 'setValue'
   | 'liveProvider'
-
-type ComputerSidecarRequest = {
-  id: number
-  method: ComputerSidecarMethod
-  params: unknown
-}
 
 type ComputerSidecarResponse =
   | { id: number; ok: true; result: unknown }
@@ -66,6 +62,13 @@ export async function callComputerSidecarCapabilities(): Promise<ComputerProvide
   return (await getComputerSidecar().call('capabilities', {})) as ComputerProviderCapabilities
 }
 
+export async function callComputerSidecarLaunchApp(
+  params: unknown
+): Promise<ComputerLaunchAppResult> {
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the sidecar returns the provider's launchApp result unchanged, like its sibling calls.
+  return (await getComputerSidecar().call('launchApp', params)) as ComputerLaunchAppResult
+}
+
 export async function callComputerSidecarListWindows(
   params: unknown
 ): Promise<ComputerListWindowsResult> {
@@ -81,7 +84,7 @@ export async function callComputerSidecarSnapshot(
 export async function callComputerSidecarAction(
   method: Exclude<
     ComputerSidecarMethod,
-    'capabilities' | 'listApps' | 'listWindows' | 'getAppState' | 'liveProvider'
+    'capabilities' | 'listApps' | 'launchApp' | 'listWindows' | 'getAppState' | 'liveProvider'
   >,
   params: unknown
 ): Promise<ComputerActionResult> {
@@ -169,7 +172,6 @@ class ComputerSidecarProcess {
       return Promise.reject(error)
     }
     const id = this.nextId++
-    const request: ComputerSidecarRequest = { id, method, params }
 
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
@@ -179,7 +181,7 @@ class ComputerSidecarProcess {
       }, REQUEST_TIMEOUT_MS)
 
       this.pending.set(id, { resolve, reject, timer })
-      child.send(request, (error) => {
+      child.send({ id, method, params }, (error) => {
         if (!error) {
           return
         }

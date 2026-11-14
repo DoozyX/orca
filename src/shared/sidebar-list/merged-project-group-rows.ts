@@ -6,9 +6,9 @@ import {
   getRepoProjectGroupHostId,
   resolveMergedProjectGroupId
 } from './cross-host-project-group-merge'
-import { getFolderWorkspaceProjectGroupHostId } from './folder-workspace-host-id'
-import type { RenderableFolderWorkspace } from './folder-workspace-lanes'
-import { getProjectGroupOccurrencePaths } from './project-group-sections'
+import { getFolderWorkspaceProjectGroupHostId } from './hosts/folder-workspace-host-id'
+import type { RenderableFolderWorkspace } from './folders/folder-workspace-lanes'
+import { getProjectGroupOccurrencePaths } from './sections/project-group-sections'
 
 /** Maps repos and folders onto the merged group row whose header and reveal path they share. */
 export function getMergedProjectGroupRows(

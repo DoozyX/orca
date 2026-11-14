@@ -2,6 +2,7 @@ import { rmSync } from 'node:fs'
 import type net from 'node:net'
 import type {
   ComputerActionResult,
+  ComputerLaunchAppResult,
   ComputerListAppsResult,
   ComputerListWindowsResult,
   ComputerProviderCapabilities,
@@ -52,6 +53,11 @@ export class MacOSNativeProviderClient {
     await this.ensureCompatible()
     return this.providerCapabilities!
   }
+  async launchApp(params: unknown): Promise<ComputerLaunchAppResult> {
+    await this.ensureCapability('apps', 'launch')
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the helper's launchApp reply has this shape; sibling methods cast the same way.
+    return (await this.call('launchApp', params)) as ComputerLaunchAppResult
+  }
   async listWindows(params: unknown): Promise<ComputerListWindowsResult> {
     await this.ensureCapability('windows', 'list')
     return (await this.call('listWindows', params)) as ComputerListWindowsResult
@@ -68,9 +74,7 @@ export class MacOSNativeProviderClient {
     return normalizeComputerActionResult((await this.call(method, params)) as ComputerActionResult)
   }
   /** The helper behind the open socket; null when none is running. */
-  liveHelperIdentity(): MacOSNativeHelperGeneration['identity'] {
-    return this.socket && !this.socket.destroyed ? this.helper.identity : null
-  }
+  liveHelperIdentity = () => (this.socket && !this.socket.destroyed ? this.helper.identity : null)
   shutdown(): void {
     const socket = this.socket
     const token = this.socketToken
@@ -139,9 +143,7 @@ export class MacOSNativeProviderClient {
   }
   private async ensureCompatible(): Promise<void> {
     // Why (#14): a reinstall leaves the old process live with the removed install's TCC grant.
-    if (this.helper.changedFrom(resolveMacOSComputerUseExecutablePath())) {
-      this.shutdown()
-    }
+    this.helper.whenChangedFrom(resolveMacOSComputerUseExecutablePath(), () => this.shutdown())
     if (this.providerCapabilities) {
       return
     }

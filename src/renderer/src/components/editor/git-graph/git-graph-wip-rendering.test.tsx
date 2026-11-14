@@ -156,7 +156,7 @@ it('switches to a detached workspace by id', async () => {
   await act(async () =>
     container.querySelector<HTMLElement>('[data-testid="git-graph-wip-switch"]')!.click()
   )
-  expect(setActiveWorktree).toHaveBeenCalledWith('r::/detached', 'local')
+  expect(setActiveWorktree.mock.calls[0]?.slice(0, 2)).toEqual(['r::/detached', 'local'])
 })
 
 it('shows the newest commit when the selected WIP row goes away', async () => {

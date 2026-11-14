@@ -18,7 +18,8 @@ import {
 } from './worktrees/repository-git-worktree-search-entries'
 import { getRepositoryFormatterSearchEntry } from './RepositoryFormatterSection'
 import { getRepositoryAgentTrustSearchEntry } from './RepositoryAgentTrustSection'
-import { getRepositoryClaudeAccountSearchEntry } from './RepositoryClaudeAccountSection'
+import { getRepositoryClaudeAccountSearchEntries } from './RepositoryClaudeAccountSection'
+import { getRepositoryWorkspaceCleanupSearchEntry } from './workspace-cleanup/repository-workspace-cleanup-search'
 
 type RepositoryPaneSearchOptions = {
   isLocalWindowsProject?: boolean
@@ -207,10 +208,7 @@ function getRepositorySearchParts(
   const { removeProject, sidebarVisibility } = getRepositoryPresenceSearchEntries(repo, t)
   return {
     agentTrust: getRepositoryAgentTrustSearchEntry(),
-    claudeAccount:
-      getRepoExecutionHostId(repo) === LOCAL_EXECUTION_HOST_ID
-        ? [getRepositoryClaudeAccountSearchEntry(t)]
-        : [],
+    claudeAccount: getRepositoryClaudeAccountSearchEntries(repo, t),
     jira,
     displayName,
     icon,
@@ -250,6 +248,7 @@ export function getRepositoryPaneSearchEntries(
   }
   if (!isFolderRepo(repo)) {
     entries.push(...getRepositoryGitWorktreeSearchEntries(repo, t))
+    entries.push(getRepositoryWorkspaceCleanupSearchEntry(repo, t))
   }
   entries.push(parts.sidebarVisibility, parts.removeProject)
   if (parts.sourceControlAi) {

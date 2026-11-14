@@ -13,7 +13,7 @@ import {
   buildMergedProjectGroupIndex,
   getMergedProjectGroupParent
 } from '../../../../../../shared/sidebar-list/cross-host-project-group-merge'
-import type { HostSectionRow } from '../../../../../../shared/sidebar-list/host-section-rows'
+import type { HostSectionRow } from '../../../../../../shared/sidebar-list/hosts/host-section-rows'
 import type { GroupHeaderRow } from '../../../../../../shared/sidebar-list/row-types'
 
 export type RootProjectHeaderDrag = {

@@ -1,0 +1,17 @@
+import type { GhAccountBinding } from '../../../../../shared/github/accounts/account-binding'
+import type { Repo } from '../../../../../shared/repo-types'
+
+export type RepositoryPaneRepoUpdate = Omit<
+  Partial<Repo>,
+  | 'sourceControlAi'
+  | 'externalWorktreeVisibility'
+  | 'ghAccount'
+  | 'claudeAccountId'
+  | 'workspaceCleanupPolicy'
+> & {
+  claudeAccountId?: string | null
+  sourceControlAi?: Repo['sourceControlAi'] | null
+  externalWorktreeVisibility?: Repo['externalWorktreeVisibility'] | null
+  ghAccount?: GhAccountBinding | null
+  workspaceCleanupPolicy?: Repo['workspaceCleanupPolicy'] | null
+}

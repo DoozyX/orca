@@ -11,7 +11,7 @@ import {
 import {
   resolveOmpConfigDirName,
   resolvePiSourceAgentDir
-} from '../../../../wsl-guest/plugin-overlay-env'
+} from '../../../../wsl-guest/plugins/overlays/plugin-overlay-env'
 import { resolveOmpAgentDir } from '../../../ai-vault/scanners/omp/omp-session-root'
 import { mapOmpUsage, type OmpRateLimits } from './omp-usage-mapping'
 

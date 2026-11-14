@@ -32,6 +32,15 @@ export function getRepositoryClaudeAccountSearchEntry(
   }
 }
 
+export function getRepositoryClaudeAccountSearchEntries(
+  repo: Repo,
+  t: Translate = translate
+): SettingsSearchEntry[] {
+  return getRepoExecutionHostId(repo) === LOCAL_EXECUTION_HOST_ID
+    ? [getRepositoryClaudeAccountSearchEntry(t)]
+    : []
+}
+
 /** Orca accounts exist only on this computer, so a project on another host has nothing to pick. */
 export function RepositoryClaudeAccountSection({
   repo,

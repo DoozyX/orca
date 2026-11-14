@@ -11,7 +11,7 @@ const NODE_RUNTIME_INCLUDE = [
   // Bun's fs.rm reports ENOTEMPTY, not Node's EACCES, for a read-only directory; the script runs under Node.
   'config/scripts/worktree-storage/reclaim-worktree-generated-files.test.mjs',
   // Bun closes a child's stdin without the EPIPE error Node emits when the child closed its read end.
-  'src/main/text-generation/source-control-wsl-prompt.test.ts',
+  'src/main/text-generation/prompts/source-control-wsl-prompt.test.ts',
   'src/main/ssh/legacy-relay/endpoints/ssh-relay-endpoint-incumbent-shell.integration.test.ts',
   'src/main/ssh/remote-exec/ssh-remote-commands.test.ts',
   'src/packages/process-host/src/run-process.test.ts',
@@ -123,8 +123,7 @@ const NODE_RUNTIME_INCLUDE = [
   'src/renderer/src/components/browser-pane/annotate/browser-grab-toast-owner-cleanup.test.tsx',
   'src/main/native-chat/paste-files/native-chat-paste-files.test.ts',
   'src/main/computer/desktop-script/runtime-host/desktop-script-serve-channel.test.ts',
-  'src/main/providers/local-pty/local-pty-child-process-verdict.test.ts',
-  'src/main/providers/working-directory-validation.test.ts',
+  'src/main/providers/working-directory/validation.test.ts',
   'src/main/pty/process-retirement/posix-pty-process-groups.integration.test.ts',
   'src/shared/ephemeral-vm-recipe-output-capture.test.ts',
   'src/main/updater/lifecycle/main-window-updater-deferred-setup.test.ts',
@@ -151,7 +150,7 @@ const NODE_RUNTIME_INCLUDE = [
   'src/shared/remote-runtime/control/remote-runtime-shared-control-connection.test.ts',
   'src/main/runtime/mobile-cloud-relay/control-channel/relay-control-client.test.ts',
   'src/main/ipc/filesystem/watchers/filesystem-watcher-ignore-real.test.ts',
-  'src/main/ipc/runtime-environments/runtime-environment-preference.test.ts',
+  'src/main/ipc/runtime-environments/catalog/runtime-environment-preference.test.ts',
   'src/renderer/src/components/emulator-pane/emulator-device-frame-visibility.test.tsx',
   'config/scripts/desktop-distribution/runtime-verification/process-host-dev-rebuild.test.ts',
   'config/scripts/test-runtime/node-worker/vitest-node-runtime-pool.test.ts',

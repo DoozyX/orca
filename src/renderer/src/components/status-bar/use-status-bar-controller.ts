@@ -96,7 +96,10 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
     setIsRefreshing(true)
     try {
       // Why: re-run PATH detection so a freshly-installed/removed CLI's bar appears/hides without restarting Orca.
-      await Promise.all([refreshUsage(), refreshDetectedAgents(undefined, { wakeWslDistro: true })])
+      await Promise.all([
+        refreshUsage(),
+        refreshDetectedAgents(undefined, { wakeWslDistro: true, userInitiated: true })
+      ])
     } finally {
       if (mountedRef.current) {
         setIsRefreshing(false)
@@ -108,20 +111,9 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
     return null
   }
 
-  const {
-    claude,
-    codex,
-    gemini,
-    opencodeGo,
-    kimi,
-    antigravity,
-    minimax,
-    grok,
-    cursor,
-    omp,
-    zcode,
-    muse
-  } = rateLimits
+  const { claude, codex, gemini, opencodeGo, kimi, antigravity, minimax, grok, cursor, zcode } =
+    rateLimits
+  const { omp, muse } = rateLimits
   const usageProviders = {
     claude,
     codex,

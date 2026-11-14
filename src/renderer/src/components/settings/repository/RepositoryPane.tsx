@@ -1,4 +1,3 @@
-import type { GhAccountBinding } from '../../../../../shared/github/accounts/account-binding'
 import { useCallback, useRef, useState } from 'react'
 import type { OrcaHooks, RepoHookSettings } from '../../../../../shared/orca-yaml-hook-types'
 import type {
@@ -33,28 +32,20 @@ import { RepoSettingsDraftInput } from './RepositorySettingsDraftInput'
 import { RepositoryForkSyncSection } from './source-control/RepositoryForkSyncSection'
 import { RepositoryAgentTrustSection } from './RepositoryAgentTrustSection'
 import { RepositoryClaudeAccountSection } from './RepositoryClaudeAccountSection'
+import type { RepositoryPaneRepoUpdate } from './repository-pane-repo-update'
 import { RepositoryGitHubAccountSection } from './source-control/RepositoryGitHubAccountSection'
 import { useTranslate } from '@/i18n/use-translate'
 import { RepositoryWindowsRuntimeSection } from './runtime/RepositoryWindowsRuntimeSection'
 import { matchesRepositoryIdentitySearch } from './identity/repository-identity-search'
 import { RepositoryWorktreeDefaultsSection } from './worktrees/RepositoryWorktreeDefaultsSection'
 import { RepositoryJiraProjectSection } from './RepositoryJiraProjectSection'
+import { RepositoryWorkspaceCleanupSection } from './workspace-cleanup/RepositoryWorkspaceCleanupSection'
 import { getProjectRuntimeSessionSummary } from './runtime/repository-runtime-session-summary'
 import { getRepoOwnerWorktreeVisibilityDefaults } from '../../../store/slices/worktrees/listing/worktree-visibility-defaults-by-host'
 import {
   RepositoryFormatterSection,
   getRepositoryFormatterSearchEntry
 } from './RepositoryFormatterSection'
-
-type RepositoryPaneRepoUpdate = Omit<
-  Partial<Repo>,
-  'sourceControlAi' | 'externalWorktreeVisibility' | 'ghAccount' | 'claudeAccountId'
-> & {
-  claudeAccountId?: string | null
-  sourceControlAi?: Repo['sourceControlAi'] | null
-  externalWorktreeVisibility?: Repo['externalWorktreeVisibility'] | null
-  ghAccount?: GhAccountBinding | null
-}
 
 const EMPTY_WSL_DISTROS: string[] = []
 const EMPTY_REMOVAL_SETUPS: ProjectHostSetup[] = []
@@ -207,6 +198,7 @@ export function RepositoryPane({
       <RepositoryHooksSection
         key="hooks"
         repo={repo}
+        gitRepo={repo}
         yamlHooks={yamlHooks}
         hasHooksFile={hasHooksFile}
         hooksInspectionReady={hooksInspectionReady}
@@ -365,6 +357,12 @@ export function RepositoryPane({
         ) : null}
       </SettingsGroup>
     ) : null,
+    <RepositoryWorkspaceCleanupSection
+      key={`workspace-cleanup:${selectedHostId}:${repo.id}`}
+      repo={repo}
+      updateRepo={updateSelectedRepo}
+      forceVisible={forceFullPaneForRepoMatch}
+    />,
     hooksSection,
     forceFullPaneForRepoMatch ||
     matchesSettingsSearch(searchQuery, [getRepositoryFormatterSearchEntry(t)]) ? (

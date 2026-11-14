@@ -152,6 +152,9 @@ export class ProjectGroupPersistenceOperations {
     } else if (updates.claudeAccountId !== undefined) {
       group.claudeAccountId = updates.claudeAccountId
     }
+    if (updates.hookSettings !== undefined) {
+      group.hookSettings = updates.hookSettings
+    }
     group.updatedAt = Date.now()
   }
 
