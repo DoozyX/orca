@@ -54,10 +54,11 @@ an injected Task/Dispatch keeps its assigned workspace and never creates another
   A separate delivery session starts in the recorded parent workspace, using a new
   terminal there rather than creating another independent coordinator worktree.
   Keep the original session where it is; do not move or restart its live agent.
-- For a plain folder, reuse or create a named folder workspace through Orca's
-  supported folder-workspace flow; never invoke Git to obtain a group. If the
-  execution host cannot provide that flow, report the limitation without switching
-  hosts or pretending a Git worktree exists.
+- For a plain folder, the parent is the existing folder workspace that already
+  contains the work; record it in `workspace.md` as a shared parent. Never run
+  `repo add` or otherwise register a project for an effort, least of all on a run
+  directory, and never invoke Git to obtain a group. A separate parent needs the
+  user to add that project themselves; report the limitation, don't work around it.
 - If placement cannot be verified, keep designing and report the blocker; delivery
   must resolve it before launching workers. Do not silently use the shared `main`
   workspace as the coordinator for a new effort.
