@@ -32,9 +32,15 @@ function buildPosixBranch(
   return `if ${homeGuard}[ -f ${posixScript} ] && [ -r ${posixScript} ] && [ -x ${posixScript} ]; then ${parentCapture}/bin/sh ${posixScript}; else ${missingScriptFallback}; fi`
 }
 
-export function wrapRuntimeHomePosixHookCommand(scriptBaseName: string): string {
+export function wrapRuntimeHomePosixHookCommand(
+  scriptBaseName: string,
+  options: { neutralJsonWhenMissing?: boolean } = {}
+): string {
   assertManagedScriptBaseName(scriptBaseName)
-  return buildPosixBranch(scriptBaseName, POSIX_HOOK_STDIN_DRAIN_COMMAND, { requireHome: true })
+  const missingScriptFallback = options.neutralJsonWhenMissing
+    ? `${POSIX_HOOK_STDIN_DRAIN_COMMAND}; printf '{}\\n'`
+    : POSIX_HOOK_STDIN_DRAIN_COMMAND
+  return buildPosixBranch(scriptBaseName, missingScriptFallback, { requireHome: true })
 }
 
 export function wrapRuntimeHomeHookCommand(
