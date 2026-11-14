@@ -91,9 +91,13 @@ manifest-only dependency addition therefore runs `adversarial` + `reuse`.
 ## 3. Run the layers, preserving the asymmetry
 
 Run each layer against the resolved target using its reference below. When the
-session can dispatch parallel subagents, give each one its own layer and its own
-inputs, all dispatched in one message so they run concurrently. Otherwise run
-them in order: adversarial, edge-cases, verification-gap, deletion-check, reuse.
+session can dispatch parallel subagents, dispatch at most three in one message so
+they run concurrently: `adversarial` alone, `edge-cases` with `verification-gap`,
+and `deletion-check` with `reuse`. Layers that share a subagent get the same
+inputs, so pairing them keeps the asymmetry and saves a subagent's startup
+context; each still loads its own reference and reports under its own layer
+name. Otherwise run them in order: adversarial, edge-cases, verification-gap,
+deletion-check, reuse.
 
 | Layer              | Gets                                                                                          |
 | ------------------ | --------------------------------------------------------------------------------------------- |
