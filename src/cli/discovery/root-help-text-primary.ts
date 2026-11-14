@@ -184,6 +184,8 @@ export const ROOT_HELP_TEXT_PRIMARY = [
   '  orchestration gate-resolve Resolve a pending decision gate',
   '  orchestration gate-list   List decision gates',
   '  orchestration review-metrics Summarize review and fix rounds from run directories',
+  '  orchestration ledger-reserve Reserve a review or fix row under the review budget',
+  '  orchestration ledger-settle Settle a reserved ledger row from a findings file',
   '  orchestration reset       Reset orchestration state',
   '',
   'Computer Use:',

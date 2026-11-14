@@ -104,7 +104,13 @@ export function readRunMetrics(runDir: string): RunMetrics {
       const text = readRelative(relative)
       const parsed: ParsedFindingsFile =
         text === null
-          ? { findings: [], priors: [], errors: missing(relative) }
+          ? {
+              findings: [],
+              priors: [],
+              verdict: null,
+              fullSuiteCheck: null,
+              errors: missing(relative)
+            }
           : parseFindingsFile(text, relative)
       recordErrors(parsed.errors)
       findingsCache.set(relative, parsed)

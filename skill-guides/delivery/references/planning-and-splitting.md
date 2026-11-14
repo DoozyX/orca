@@ -47,7 +47,7 @@ reviewer holds the whole spec and the whole diff.
 One fresh read-only reviewer, the code-review findings format and verdict line.
 Findings go back to the planner once; for a handed-in plan, to a worker scoped
 to applying them, or to the user. Then proceed: no re-review, no loop, and no
-`budget.md` rows. Never edit the plan yourself.
+ledger rows. Never edit the plan yourself.
 
 Stop instead of proceeding when findings invalidate the **design** — that is the
 user's call. **If planning fails** — the planner runs out of room, emits an
@@ -64,7 +64,7 @@ You read a task's `## Record` only when it goes `needs-attention`.
 Subtasks are the plan's tasks in plan order. Without a plan, split into two to
 five independently testable subtasks, write the mini-specs to
 `plan/<unit>/subtasks.md`, and give that split the same single plan review.
-Each subtask is its own unit in `budget.md`; the issue's final review is the
+Each subtask is its own ledger unit; the issue's final review is the
 issue unit's review #1.
 
 | Subtasks                                           | Topology                                     |

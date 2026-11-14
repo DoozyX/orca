@@ -8,6 +8,7 @@ import { CHAT_COMMAND_SPECS } from './chat'
 import { FILE_COMMAND_SPECS } from './file'
 import { PROJECT_COMMAND_SPECS } from './project'
 import { ORCHESTRATION_COMMAND_SPECS } from './orchestration'
+import { ORCHESTRATION_REVIEW_LEDGER_COMMAND_SPECS } from './orchestration-review-ledger-specs'
 import { ORCHESTRATION_REVIEW_METRICS_COMMAND_SPECS } from './orchestration-review-metrics-specs'
 import { withFullRecordFlag } from './orchestration-full-record-flag'
 import { COMPUTER_COMMAND_SPECS } from './computer'
@@ -50,6 +51,7 @@ export const COMMAND_SPECS: CommandSpec[] = [
   ...BROWSER_ADVANCED_COMMAND_SPECS,
   ...ORCHESTRATION_COMMAND_SPECS.map(withFullRecordFlag),
   ...ORCHESTRATION_REVIEW_METRICS_COMMAND_SPECS,
+  ...ORCHESTRATION_REVIEW_LEDGER_COMMAND_SPECS,
   ...COMPUTER_COMMAND_SPECS,
   ...AGENT_HOOK_COMMAND_SPECS,
   ...AGENT_LAUNCH_COMMAND_SPECS,
