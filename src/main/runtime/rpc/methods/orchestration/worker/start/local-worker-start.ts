@@ -2,7 +2,7 @@ import { createLocalWorkerStartDispatch } from './local-worker-start-dispatch'
 import { refuseClaimedWorkerTerminal } from '../../../../../orchestration/db/worker-dispatch/worker-terminal-claim'
 import { probeWorkerOpenCodeModelLaunchSupport } from './launch/worker-opencode-model-preflight'
 import { resolveWorkerConfiguredAgentParams } from './launch/worker-configured-agent-preflight'
-import { waitForWorkerAgentReady } from '../../../../../terminal/wait/launched-agent-composer-readiness'
+import { waitForWorkerStartAgentReady } from './worker-start-agent-readiness'
 import type { OrcaRuntimeService } from '../../../../../orca-runtime'
 import { describeTerminalWaitBlockedReason } from '../../../../../../../shared/terminal/runtime-policy/terminal-wait-blocked-reason-legacy-alias'
 import type { OrchestrationDb } from '../../../../../orchestration/db/orchestration-db'
@@ -187,9 +187,7 @@ export async function startLocalWorker(args: {
       followUp: args.followUp
     })
     // New worktrees resolve host support after creation, so the final mode receipt may differ from preflight.
-    mode = placed.mode
-    resolvedWorktree = placed.worktree
-    terminalHandle = placed.terminalHandle
+    ;({ mode, worktree: resolvedWorktree, terminalHandle } = placed)
     const { structuredSession, setupReceipt } = placed
     const { workerChat, external, created, authority } = placedWorkerParty(placed, chat, terminal)
     const setupStage = {
@@ -221,12 +219,13 @@ export async function startLocalWorker(args: {
       : workerChat
         ? // A chat takes its task as a queued send whatever it is doing, so nothing is waited on.
           null
-        : await waitForWorkerAgentReady(runtime, terminalHandle, {
+        : await waitForWorkerStartAgentReady(runtime, setupStage, {
             agent,
             reusesTerminal: Boolean(params.terminal),
             creation: placed.terminalCreation,
             timeoutMs: params.timeoutMs ?? 60_000
           })
+    terminalHandle = setupStage.terminalHandle
     if (wait) {
       persistWorkerSetupWaitOutcome({ ...setupStage, wait })
       if (!wait.satisfied) {
