@@ -86,6 +86,8 @@ orca orchestration worker-keep-open --dispatch <dispatchId>
 orca orchestration worker-start --task <taskId> --retry-of <dispatchId> --worktree current --agent codex
 ```
 
+`worker-stop` and `worker-release` accept `--run <runId>`: a Dispatch in another Run fails with `dispatch_run_mismatch` and nothing is stopped or released.
+
 When a worker stops at a permission prompt, the escalation names the prompt. Only a person can allow it, so carry on with other work until its closing message arrives; if it is holding up the task, deny it with a reason and the worker carries on another way:
 
 ```bash
