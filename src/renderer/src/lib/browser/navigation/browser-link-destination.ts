@@ -18,7 +18,6 @@ import type {
   BrowserWorkspace
 } from '../../../../../shared/browser-workspace-types'
 import type { ExecutionHostId } from '../../../../../shared/execution-host'
-import type { TabSplitTarget } from '@/store/slices/tabs/tabs-slice-contract'
 
 export type BrowserLinkDestination = {
   worktreeId: string
@@ -192,9 +191,7 @@ export function selectBrowserLinkDestination(
   state: AppState,
   destination: BrowserLinkDestination,
   intent: LinkOpenIntent | null
-):
-  | { status: 'ready'; groupId?: string; split?: TabSplitTarget; match: BrowserOpenResult | null }
-  | { status: 'refused' } {
+): { status: 'ready'; groupId?: string; match: BrowserOpenResult | null } | { status: 'refused' } {
   const { worktreeId, executionHostId } = destination
   const groups = state.groupsByWorktree[worktreeId] ?? []
   const matchesHost = createBrowserLinkHostMatcher(state, worktreeId, executionHostId)

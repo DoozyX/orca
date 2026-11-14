@@ -4,13 +4,12 @@ import { isFloatingWorkspaceId } from '../../../../../shared/floating-workspace-
 import { resolveLinkOpenSidePlacement } from '../../links/placement/adjacent-link-open-group'
 import type { AppState } from '@/store/types'
 import type { CreateBrowserTabOptions } from '@/store/slices/browser/browser-slice-contract'
-import type { TabSplitTarget } from '@/store/slices/tabs/tabs-slice-contract'
 import type { Tab, TabGroup } from '../../../../../shared/tab-types'
 import type { OpenWorkspaceBrowserTabRequest } from '../workspace/workspace-browser-tab-open'
 import type { BrowserWorkspace } from '../../../../../shared/browser-workspace-types'
 import type { GlobalSettings } from '../../../../../shared/global-settings-types'
 
-export type HttpLinkBrowserPlacement = { targetGroupId: string } | { split: TabSplitTarget }
+export type HttpLinkBrowserPlacement = { targetGroupId: string }
 
 export type HttpLinkBrowserTabState = Partial<
   Pick<AppState, 'layoutByWorktree' | 'activeGroupIdByWorktree' | 'activeView' | 'setActiveView'>
@@ -24,16 +23,16 @@ export type HttpLinkBrowserTabState = Partial<
   createBrowserTab: (
     worktreeId: string,
     url: string,
-    opts: Pick<CreateBrowserTabOptions, 'activate' | 'targetGroupId' | 'split'>
+    opts: Pick<CreateBrowserTabOptions, 'activate' | 'targetGroupId'>
   ) => Pick<BrowserWorkspace, 'activePageId'> | undefined
 }
 
 export type HttpLinkBrowserRequestFields = Pick<
   OpenWorkspaceBrowserTabRequest,
-  'targetGroupId' | 'split' | 'focusOnCreate' | 'selectWorktree'
+  'targetGroupId' | 'focusOnCreate' | 'selectWorktree'
 >
 
-/** Reuse the visible browser or a neighbor; only a lone occupied group needs a split. */
+/** Reuse the visible browser or a neighbor; a lone group takes the tab itself. */
 export function resolveHttpLinkBrowserPlacement(
   state: Omit<HttpLinkBrowserTabState, 'createBrowserTab'>,
   worktreeId: string
@@ -47,7 +46,7 @@ export function resolveHttpLinkBrowserPlacement(
     groups: state.groupsByWorktree?.[worktreeId] ?? [],
     sourceGroupId: state.activeGroupIdByWorktree?.[worktreeId]
   })
-  return placement && ('groupId' in placement ? { targetGroupId: placement.groupId } : placement)
+  return placement && { targetGroupId: placement.groupId }
 }
 
 export function isHttpLinkBackgroundOpen(
