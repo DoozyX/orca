@@ -10,17 +10,12 @@ against each other.
 
 ## Size and length
 
-Pick the size from the work, and state it in the TL;DR. Length follows the
-size, not how thorough the file looks.
-
-| Size    | Looks like                                      | Main file                     |
-| ------- | ----------------------------------------------- | ----------------------------- |
-| Bug fix | one wrong behaviour, one root cause             | about half a page             |
-| Feature | new or changed behaviour, one subsystem or two  | 1–3 pages                     |
-| Large   | several subsystems, or five or more build steps | 3–4 pages, addendum as needed |
-
-Within a size, scale each section to the work: a sentence or two when it is
-straightforward, and up to 200–300 words when it is nuanced.
+State the size in the TL;DR: `bug fix` (one wrong behaviour, one root cause),
+`feature` (new or changed behaviour in one or two subsystems), or `large`
+(several subsystems, or five or more build steps). A bug-fix design is about
+half a page. For the others, length follows the decisions: a sentence or two per
+section when the work is straightforward, more only where a reader would
+otherwise have to guess.
 
 **Addendum.** Detail that supports a decision but would bury it goes in
 `addendum.md` beside `design.md`: long tables, migration mappings, edge-case
@@ -149,9 +144,10 @@ enough that a reader can picture the diff>
   For a bug fix it is the regression test's seam, in two lines.
 
 - **Out of scope**: what this design explicitly does not do.
-- **Assumptions & risks**: anything the design relies on that no one
-  confirmed, and what would break it. Write `none` rather than inventing
-  entries.
+- **Assumptions & risks**: what the design relies on that nobody could
+  confirm, and what would break it. Anything the repository or environment can
+  answer is checked before the user sees the file, so what remains here is
+  genuinely open. Write `none` rather than inventing entries.
 
 ### Presenting data models
 
@@ -188,109 +184,50 @@ design, on the first build step or in one line under `## Approach`; the
 implementer copies and commits it in its branch. Most designs produce zero ADRs.
 Write none rather than one that fails a condition.
 
-## Self-review checklist
+## Review checklist
 
-Read the finished document for:
+The fresh review agent reports, with the line each one is on:
 
-- placeholders (`TBD`, "etc.", "handle errors");
-- scope creep past what the user asked for;
-- ambiguity that a fresh reader would resolve differently than you meant;
-- internal contradictions: two sections disagreeing on the same value, such as
-  a prose timeout of 30 s and a table row of 60 s;
+- placeholders (`TBD`, "etc.", "handle errors") and steps whose `How` is too
+  vague to picture the diff ("update the store", "wire it up");
+- scope past what the user asked for;
+- ambiguity a reader without the conversation would resolve differently;
+- contradictions: for every named state, mode, step, component and value, search
+  the file for the name and confirm every mention agrees;
 - a TL;DR that no longer matches the body;
-- a step whose `You'll see` is not observable, or whose `How` is too vague to
-  picture the diff ("update the store", "wire it up");
-- a story ID that no step's `Covers` names, or a `Covers` ID with no
-  matching story;
-- a main file longer than its size allows, or a decision, story, or step that
-  exists only in the addendum;
-- an interface a step names that `### Interfaces` does not define;
-- data-model tables missing field names, types, nullability, keys, or constraints;
-- an ER diagram whose cardinality, optionality, or identity relationships
-  disagree with the field tables or concrete contracts;
-- tables or graphs replacing concrete contracts, or diagrams that add no
-  information to a simple design;
-- a step that depends on a step sequenced after it, or a flowchart edge that
-  disagrees with a `Depends on` line;
-- a `## Testing Decisions` section that says "add tests" instead of naming a
-  seam and a prior-art test.
-
-For contradictions, do a mechanical pass rather than a read-through:
-
-1. List every named region, state, mode, step, or component the design defines.
-2. Search the document for each name.
-3. Confirm that every mention agrees on its behaviour.
-
-Fix the document in place before linking it. Self-review is not user approval.
+- a `You'll see` that is not observable;
+- a story no step's `Covers` names, or a `Covers` ID with no story;
+- a decision, story or step that exists only in the addendum;
+- an interface a step names that `### Interfaces` does not define, or a data
+  model table missing types, nullability, keys or constraints, or disagreeing
+  with its ER diagram;
+- a step that depends on a later step, or a flowchart edge that disagrees with a
+  `Depends on` line;
+- a `## Testing Decisions` section that says "add tests" without a seam and a
+  prior-art test.
 
 ## Location
 
-Designs live in the ignored directory `.orca/<date>-<slug>/design/design.md` in
-the **root worktree** — the repository's main checkout, not a linked worktree you
-may be sitting in. One directory per initiative, phase-nested: `design/` holds the
-design and the goal, `plan/` the per-unit plans, `orchestrate/` the run's
-manifest, handoff, prompts, and worker state. Everything for one initiative
-stays together, and each phase keeps its own folder. It is scaffolding for the
-work, not a deliverable: it must never be committed, staged, or present in a
-branch, diff, or PR. Its absolute path is what makes it findable — a later
-session in another worktree reads that path directly, which works regardless of
-what any branch contains.
+Designs live at `.orca/<date>-<slug>/design/design.md` in the **root worktree**,
+the repository's main checkout, not a linked worktree you may be sitting in. One
+directory per initiative: `design/` holds the design and the goal, `plan/` the
+per-unit plans, `orchestrate/` the run's manifest and stage files. A later
+session in any worktree finds the design by its absolute path, whatever its
+branch contains, which is why nothing here is committed. Only the ADR copy an
+implementer commits under `docs/adr/` leaves the run directory.
 
-Never create a design, plan, task file, prompt, review, report, or retrospective
-outside the run directory. Only the ADR copy an implementer commits under
-`docs/adr/` leaves it.
+To set it up:
 
-Resolve the root and make the directory ignored before writing. `git rev-parse
---show-toplevel` is wrong here: in a linked worktree it names that worktree. The
-first `git worktree list --porcelain` entry is the main checkout on every Git
-from the 2.25 baseline up; `--path-format=absolute` is not (2.31), so the common
-directory is resolved by `cd`. `info/exclude` lives there, is untracked, and
-applies to every worktree, so this costs the user no commit:
+1. The root is the first `worktree` entry of `git worktree list --porcelain`
+   (`git rev-parse --show-toplevel` names the linked worktree instead).
+2. If `git -C <root> check-ignore -q <root>/.orca/.probe` does not exit 0, add
+   the line `/.orca/` to `info/exclude` under the repository's common Git
+   directory (`git -C <root> rev-parse --git-common-dir`). That file is
+   untracked and applies to every worktree.
+3. Create `design/`, `plan/` and `orchestrate/` under the run directory.
 
-```sh
-# A bare repository has no main checkout: fall back to the current worktree and say so.
-ROOT=$(git worktree list --porcelain | awk 'NR==1{sub(/^worktree /,"");p=$0} NR==2&&$0=="bare"{p=""} END{print p}')
-[ -n "$ROOT" ] || ROOT=$(git rev-parse --show-toplevel)
-COMMON=$(cd "$ROOT" && cd "$(git rev-parse --git-common-dir)" && pwd)
-mkdir -p "$COMMON/info"
-grep -qxF '/.orca/' "$COMMON/info/exclude" 2>/dev/null || printf '/.orca/\n' >> "$COMMON/info/exclude"
-RUN="$ROOT/.orca/<date>-<slug>"
-mkdir -p "$RUN/design" "$RUN/plan" "$RUN/orchestrate"
-git -C "$ROOT" check-ignore -q "$ROOT/.orca/.probe"   # must exit 0 before you write
-```
+In a folder workspace `git worktree list` fails: use the workspace root, create
+the same directories, and skip step 2.
 
-PowerShell equivalent, for a Windows session without a POSIX shell:
-
-```powershell
-$wt = @(git worktree list --porcelain)
-$root = if ($wt[1] -eq 'bare') { git rev-parse --show-toplevel } else { $wt[0] -replace '^worktree ', '' }
-Push-Location $root; $common = (Resolve-Path (git rev-parse --git-common-dir)).Path; Pop-Location
-$exclude = Join-Path $common 'info/exclude'
-New-Item -ItemType Directory -Force -Path (Join-Path $common 'info') | Out-Null
-if (-not ((Test-Path $exclude) -and (Select-String -Path $exclude -Pattern '^/\.orca/$' -Quiet))) { Add-Content $exclude '/.orca/' }
-foreach ($p in 'design','plan','orchestrate') {
-  New-Item -ItemType Directory -Force -Path "$root/.orca/<date>-<slug>/$p" | Out-Null
-}
-git -C $root check-ignore -q "$root/.orca/.probe"
-```
-
-Probe with a path _inside_ the directory, not the directory itself: asked about a
-directory that has tracked files under it, `check-ignore` answers "not ignored"
-even when the pattern matches, and you would add a duplicate rule and still fail
-the gate. The `.probe` file need not exist.
-
-**Folder workspaces are valid and this step must not require Git.** When
-`git worktree list` fails, the workspace is a folder, not a worktree: use the
-workspace root as `ROOT`, create the same `.orca/<date>-<slug>/` directory and
-its three phase folders, and skip the exclude and `check-ignore` steps entirely. Nothing tracks
-the file, so nothing needs to ignore it. Never abandon the design file, and never
-ask the user to initialize a repository, because Git is absent.
-
-## Verify placement, not a commit
-
-```bash
-test -f "<design-path>" && git -C "$ROOT" status --porcelain "<design-path>"
-```
-
-The file must exist and `status` must print nothing, because ignored means
-invisible. In a folder workspace, the `test -f` alone is the check.
+After writing, `git -C <root> status --porcelain <design-path>` prints nothing
+for a correctly placed file.

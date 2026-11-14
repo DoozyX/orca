@@ -1,115 +1,93 @@
 # Stage prompts
 
-Load this reference when writing the Task spec for any delivery stage, or when
-checking a stage report before accepting it. The orchestration fields — Target,
-Change, Constraints, Ownership, Observable acceptance — still frame every spec;
-this document fixes what each stage puts in them and what its report pastes back.
+Load this reference when writing the spec for a delivery stage, or when checking
+a stage report before accepting it.
 
 ## Before every dispatch
 
 1. Save the spec as `orchestrate/<unit>/<stage>-<n>.md` in the run directory.
-2. Confirm every field its stage row names is filled, and no `<...>` placeholder
-   from this reference or `TBD` remains.
-3. For a review or fix, confirm its `budget.md` row exists and passes the
-   kernel's refusal checks.
-4. Restate binding rules inline. A path is backup for checking a detail, never a
-   reading list the worker must finish before it can start.
+2. Fill every field its stage row names; leave no `<...>` placeholder or `TBD`.
+3. For a review or fix, run `ledger-reserve` first.
+4. State binding rules in the spec. A path is for checking a detail, not a
+   reading list.
 
-Target at most **6,000 Unicode characters** for the task-specific spec,
-excluding Orca’s injected preamble: a soft authoring target, not a token limit.
-Mandatory identity, authority, and evidence requirements win; state why the
-target is exceeded instead of omitting binding rules or mandated evidence.
-Carry the exact scope, invariants, required checks, baseline failures and evidence
-pointers; do not paste coordinator history or raw output into a worker brief.
-The size target never shortens an authoritative goal or applicable contract.
+Keep a spec to about 6,000 characters: scope, invariants, required checks,
+baseline failures and evidence pointers, without coordinator history or raw
+output. Go over when a binding rule or mandated evidence needs the room.
 
 ## Shared clauses
 
-Each stage row names the clauses its spec carries, in substance if not verbatim.
-Every spec for a subagent also carries `Subagent`; a spec for an Orca worker does
-not.
+The `delivery-implementer` and `delivery-reviewer` agent definitions already
+contain these. A stage launched any other way (a general-purpose subagent, a
+Codex subagent, an Orca worker) gets the clauses its stage row names written
+into its spec.
 
-| Clause            | Content                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Execution         | This is execution of approved work. Do not brainstorm, redesign, propose alternatives, or wait for design approval; the spec is the contract. If the spec is wrong, say so in one line in the report and stop. Do not start your own review loop or other workers.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| Change            | Build the spec, no more. Before editing, append to the task file's `## Record` every place the change must reach — callers, tests, fixtures, config, exports — and keep it current. Take the first option that fully works: code already in this repository, used the way its neighbours use it; the standard library or platform, unless the repository has its own; an installed dependency, never a new one for a few lines; then the minimum new code. Add no abstraction, option, or configuration the spec does not ask for; anything you think is missing is one report line, not a commit. A bug fix greps every caller and sibling copy and fixes the root cause once, in the shared code. Moved or merged code keeps its validation and error handling. Never cut trust-boundary validation, data-loss handling, security, or accessibility for size.                                         |
-| Command execution | Keep every command's handle, exit code, and output. A wrapper returning is not its subprocess exiting: run the command in the foreground with a deadline (the agent tool's own timeout, or its background mode that notifies on exit), never a sleep loop, file-wait or detached process you cannot wait on; on deadline, report the handle unfinished. Never start a duplicate while one runs — above all a second full suite for the same worktree and revision; the sole exception is review #1, which reruns the full suite itself after the implementer settles, one run at a time. Only the suite owner in the verification contract runs the full suite; others reuse its result and run focused checks. A focused command that selects the whole suite is a command problem, not permission to run it.                                                                                          |
-| Read-only         | No edit, commit, stash, checkout, restore, reset, clean, or branch switch; a dirty or wrong tree is a finding, never something to tidy. Permitted writes: the findings file, its `.suite.log`, and your own `.seen-<what>.png` captures, all in the run directory. Write authority exists only with sole occupancy stated in the same sentence; a spec granting one without the other is malformed — say so and stay read-only.                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| Report            | A routine report is at most 120 words, an escalation at most 200. Logs, diffs, and raw output stay in files under `orchestrate/<unit>/`; the report names the path and the deciding line. Mandated verbatim evidence overrides the cap.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| Subagent          | First command: `cd <abs worktree> && git rev-parse --show-toplevel`; if it does not print the worktree, stop with `BLOCKED`. The shell's working directory resets on every call, so prefix every command with `cd <abs worktree> &&` or use `git -C <abs worktree>`, and give every file tool an absolute path inside the worktree or the run directory. Never run `orca orchestration` commands: you inherit the coordinator's terminal identity and would act as it; run other `orca` commands only where the spec names them, such as `orca screenshot --worktree`. Run long commands in background mode and wait on your own completion notification or Monitor's until-condition, never a sleep loop; send your final message, which is the report, only after every background job you started has exited. Start no subagents, except the review skill's layer subagents when you are a reviewer. |
-| Run hygiene       | Plans, task files, captures, and logs live in the root worktree's run directory. Never copy them into the worktree, stage them, or name them in a commit, PR, or MR.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| Clause    | Content                                                                                                                                                                                                                                                                                                                                                                                               |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Execution | This is approved work: build the spec without redesigning it or waiting for approval. If the spec is wrong, say so in one line and stop. Start no review loop and no other agents.                                                                                                                                                                                                                    |
+| Change    | Before editing, list in the task file's `## Record` every place the change must reach: callers, tests, fixtures, config, exports. Prefer code already in the repository, then the platform, then an installed dependency, then the minimum new code. Add no option or abstraction the spec does not ask for; report what seems missing in one line. Keep validation and error handling on moved code. |
+| Commands  | Keep each command's exit code and log. Run a long command and wait for it in the same turn (the tool's timeout, or background mode plus its exit notification); do not end your turn while your own command runs, because nothing wakes you when it exits. Do not start a second full suite for a worktree and revision that already has one running or finished.                                     |
+| Read-only | Make no edit, commit, stash, checkout, restore, reset, clean or branch switch; a dirty or wrong tree is a finding. You may write the findings file, its `.suite.log`, and your `.seen-<what>.png` captures in the run directory.                                                                                                                                                                      |
+| Report    | At most 120 words, or 200 for an escalation. Logs and diffs stay in files under `orchestrate/<unit>/`; name the path and the deciding line. Mandated verbatim evidence is exempt.                                                                                                                                                                                                                     |
+| Subagent  | First command: `cd <abs worktree> && git rev-parse --show-toplevel`; stop with `BLOCKED` if it prints another path. The shell's directory resets on every call, so prefix commands with `cd <abs worktree> &&` and give file tools absolute paths. Do not run `orca orchestration` commands: you would act under the coordinator's identity.                                                          |
+| Hygiene   | Plans, task files, captures and logs live in the root worktree's run directory and stay out of the worktree, commits, and PRs.                                                                                                                                                                                                                                                                        |
 
 ## File names
 
-Canonical, under the run directory: `orchestrate/<unit>/review-<r>.findings.md`
-(`<r>` is the review number), `orchestrate/<unit>/review-I.findings.md` for an
-integration review, `orchestrate/<unit>/fix-<f>.dispositions.md`, and
-`orchestrate/<unit>/nit-fix.dispositions.md`. The metrics command reads these
-names and no others.
+Under the run directory: `orchestrate/<unit>/review-<r>.findings.md` (`<r>` is
+the review number, `I` for an integration review),
+`orchestrate/<unit>/fix-<f>.dispositions.md`, and
+`orchestrate/<unit>/nit-fix.dispositions.md`. The ledger and metrics commands
+read these names.
 
 ## Per-stage contract
 
-| Stage           | Required spec fields                                                                                                                                                                                                                                                                                                                            | Clauses                                     | Report must paste                                                                                                                                                                                                                                     |
-| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Implement       | Unit, worktree id, branch, base sha, distilled spec, task-file path and its `## Record`, verification contract, `environment-hazards.md` path, capture dir for UI work                                                                                                                                                                          | Execution, Change, Command, Report, Hygiene | Baseline failures or `baseline: none`; `Checked:` lines with cmd and exit for full suite, lint, format, build; commit shas; `Not checked: <what and why>` or `Not checked: none`; `git status --porcelain`; UI capture paths, one described line each |
-| Fix             | Unit, fix number, the `## Merged findings` section only, focused-test command, originating review row, task-file path and its `## Record`                                                                                                                                                                                                       | Execution, Change, Command, Report          | `git status --porcelain`; `git diff HEAD --stat`; each commit's sha and `git show --stat <sha>`; per finding, the fixing hunk or `not fixed: <why>`; the dispositions file path; `Not checked: <what and why>` or `Not checked: none`                 |
-| Review full     | Unit, worktree, base ref, reviewed sha, distilled spec, baseline, suite owner and log path, findings path, UI acceptance criteria to see; the latest implementer or fixer `Not checked:` line, given to the non-adversarial layers only                                                                                                         | Read-only, Command, Report                  | Merged findings; `Seen:` lines; `Checked: tests full cmd=<cmd> exit=<n> duration=<s>`; `git status --porcelain`; the verdict line                                                                                                                     |
-| Review round    | Review-full fields plus previous findings, previous reviewed sha as focus, base ref as scope, focused-test command; when a fix ran since the previous review (always for review #2 and #3), that fix's `fix-<f>.dispositions.md` path and its content, given to the non-adversarial layers only; an integration review adds its material reason | Read-only, Command, Report                  | Review-full evidence plus `Checked: tests focused cmd=<cmd> exit=<n> duration=<s>` and each previous finding marked fixed or still open                                                                                                               |
-| Plan            | Design path, task directory, recorded planning trigger                                                                                                                                                                                                                                                                                          | Execution, Report, Hygiene                  | Plan and task-file paths; the planner worktree's `git status --porcelain`, which must be empty                                                                                                                                                        |
-| Plan review     | Plan path, design path, the review scope in `planning-and-splitting.md`                                                                                                                                                                                                                                                                         | Read-only, Report                           | Merged findings and the verdict line                                                                                                                                                                                                                  |
-| Verify arm      | Arm id, its one question, authorized commands, artifact path, schema file, deciding fields, freshness cutoff                                                                                                                                                                                                                                    | Execution, Command, Report                  | Artifact path and its completion field; per command, exit code and timestamps                                                                                                                                                                         |
-| Cleanup execute | Repository root, exact candidate list, base ref after fetch, result path                                                                                                                                                                                                                                                                        | Execution, Command, Report                  | Per candidate, `removed` or `refused` with the deciding evidence                                                                                                                                                                                      |
-| Teardown verify | The checks in `parking-and-reporting.md`, worktree table, run id, verdict path                                                                                                                                                                                                                                                                  | Read-only, Command                          | Each check's command and output, then `VERDICT: clean` or `VERDICT: residue`                                                                                                                                                                          |
-| Retrospective   | Run directory, retrospective path, prior retrospective paths, scratch directory, the filing rules in `parking-and-reporting.md`                                                                                                                                                                                                                 | Execution, Report                           | The path, one line per section, and one `ISSUE: <url> filed\|commented` or `unfiled: <error>` line per Orca entry                                                                                                                                     |
-| A/B judge       | Pairs directory and verdict path only                                                                                                                                                                                                                                                                                                           | Read-only                                   | One `AB_VERDICT: pair=<dir> prefer=<A\|B\|neither> confidence=<low\|med\|high> reason=<line>` per pair                                                                                                                                                |
+| Stage         | Spec fields                                                                                                                                                                                     | Clauses                                      | Report must paste                                                                                                                                                                                               |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Implement     | Unit, worktree, branch, base sha (and `start-sha` when stacked), distilled spec, task-file path, verification contract, the manifest's hazards, capture dir for UI work                         | Execution, Change, Commands, Report, Hygiene | Baseline failures or `baseline: none`; `Checked:` lines with cmd and exit for full suite, lint, format, build; commit shas; `Not checked: <what and why>` or `none`; `git status --porcelain`; UI capture paths |
+| Fix           | Unit, fix number, the `## Merged findings` section only, focused-test command, task-file path                                                                                                   | Execution, Change, Commands, Report          | `git status --porcelain`; each commit's sha and `git show --stat`; per finding, the fixing hunk or `not fixed: <why>`; the dispositions file path; `Not checked:` line                                          |
+| Review full   | Unit, worktree, base ref, reviewed sha, distilled spec, baseline, suite log path, findings path, UI criteria to see; the implementer's `Not checked:` line, for the non-adversarial layers only | Read-only, Commands, Report                  | Merged findings; `Seen:` lines; `Checked: tests full cmd=<cmd> exit=<n> duration=<s>`; `git status --porcelain`; the verdict line                                                                               |
+| Review round  | Review-full fields plus previous findings, previous reviewed sha as focus, base ref as scope, focused-test command, and the latest fix's dispositions file for the non-adversarial layers       | Read-only, Commands, Report                  | Review-full evidence plus `Checked: tests focused cmd=<cmd> exit=<n> duration=<s>` and each previous finding marked fixed or still open                                                                         |
+| Re-sync       | Unit, worktree, the branch and sha to merge, focused-test and build commands                                                                                                                    | Execution, Commands, Report                  | The merge commit sha; conflicts and how each resolved; `Checked:` lines; `git status --porcelain`                                                                                                               |
+| Plan          | Design path, task directory, recorded planning trigger                                                                                                                                          | Execution, Report, Hygiene                   | Plan and task-file paths; the planner worktree's `git status --porcelain`, which must be empty                                                                                                                  |
+| Plan review   | Plan path, design path, the review scope in `planning-and-splitting.md`                                                                                                                         | Read-only, Report                            | Merged findings and the verdict line                                                                                                                                                                            |
+| Verify arm    | Arm id, its one question, authorized commands, artifact path, schema file, deciding fields, freshness cutoff                                                                                    | Execution, Commands, Report                  | Artifact path and its completion field; per command, exit code and timestamps                                                                                                                                   |
+| Cleanup       | Repository root, exact candidate list, base ref after fetch, result path                                                                                                                        | Execution, Commands, Report                  | Per candidate, `removed` or `refused` with the deciding evidence                                                                                                                                                |
+| Retrospective | Run directory, retrospective path, prior retrospective paths, the filing rules in `parking-and-reporting.md`                                                                                    | Execution, Report                            | The path, one line per section, and one `ISSUE: <url> filed\|commented` or `unfiled: <error>` line per Orca entry                                                                                               |
+| A/B judge     | Pairs directory and verdict path only                                                                                                                                                           | Read-only                                    | One `AB_VERDICT: pair=<dir> prefer=<A\|B\|neither> confidence=<low\|med\|high> reason=<line>` per pair                                                                                                          |
+
+A subagent's spec also carries `Subagent`.
 
 ## Stage notes
 
 **Implement.** In order: install from the frozen lockfile; run the contract's
-baseline once before touching anything and record only task-specific deltas;
-append the reach list to `## Record`; implement under `tdd`; rerun the full suite and the repository's lint, format,
-and build checks; drive the real surface end to end in a browser or app instance
-that does not conflict with another session; reuse an existing idle instance when
-its state suits the check. For UI work capture the before/after pairs described in
-`task-pipeline.md`; commit with explicit paths, never `git add -A`, and do not
-push. Append commits, touched files, and concerns to the task file's
-`## Record (append-only)` at its absolute path.
+baseline once and record only failures that matter to this task; write the reach
+list; implement under `tdd`; rerun the full suite, lint, format and build; drive
+the real surface end to end where one exists; commit with explicit paths, without
+pushing. Append commits, touched files and concerns to the task file's
+`## Record`.
 
-**Fix.** The message carries only what changed: the findings. Fix every `patch`
-and `nit`; dispute with evidence instead of fixing a wrong one, and write one
-disposition line each. The file is `orchestrate/<unit>/fix-<f>.dispositions.md`
-(the `## Dispositions` lines in `task-pipeline.md`). Leave `decision-needed` and `defer` items alone and say so. Run the
-focused tests plus lint, format, and build — the next reviewer owns the full
-suite. Never assert a finding fixed; show the hunk.
+**Fix.** Fix every `patch` and `nit`, or dispute a wrong one with evidence, and
+write one disposition line each. Leave `decision-needed` and `defer` items alone
+and say so. Run the focused tests plus lint, format and build; the next reviewer
+owns the full suite. Show the fixing hunk for each finding.
 
-**Review.** Resolve suite ownership first: the owner starts the suite once in the
-background with a deadline and reviews while it runs; everyone else
-reuses the owner's result for the same revision and environment, except that
-review #1 owns and reruns the full suite itself. Run the `review` skill's
-layers in parallel, with the adversarial layer spec-blind — it receives the diff
-only. Thread spec compliance into the other layers. Write the findings file in
-this order: every layer's raw findings, a line reading exactly
-`## Merged findings`, the merged list, the `Prior:` lines, `Seen:` and `Scored:`
-lines, `Checked:` lines, the verdict line. Report only what follows the anchor. Claims about the
-tree are pasted `git status --porcelain` output, never characterized. Only
-failures new against the recorded baseline are findings. A full-suite failure
-outside the baseline keeps its full-run log and exit line, and each such failing
-file is rerun once alone. It is labelled `load-flake` only when it passes alone
-and the findings file cites why its code path does not reach a changed file (an
-import or call chain); any other result is a finding. Isolated green never
-replaces full-suite acceptance: the next full run must still pass or match the
-baseline.
+**Review.** Review #1 starts the full suite once in the background and reviews
+while it runs; later rounds reuse a result for the same revision or run it when
+none exists. Run the `review` skill's layers in parallel, the adversarial layer
+with the diff only. Write the findings file in this order: each layer's raw
+findings, a line reading exactly `## Merged findings`, the merged list, `Prior:`
+lines, `Seen:` lines, `Checked:` lines, the verdict line. Report everything you
+find and let the buckets grade it; do not drop a finding because it seems small.
+Only failures new against the recorded baseline are findings. A full-suite
+failure outside the baseline is rerun once alone; it is a `load-flake` only when
+it passes alone and its code path does not reach a changed file, and the findings
+file says why.
 
-A later round verifies each previous finding first — an unfixed one is a new
-finding — then takes the diff since the previous reviewed sha as focus and the
-diff since the base ref as scope, and never re-raises an item already
-resolved; a `disputed` or `blocked` item stays reviewable under its original ID.
+**Verify arm.** Write the artifact beside its final path, set its completion
+field when measurement is complete, then publish with one atomic rename. Keep
+the first failure's command, exit and evidence; rerun at most once without
+overwriting it.
 
-**Verify arm.** Stage the artifact beside its final path, set its completion
-field to true only when measurement is complete, then publish with one atomic
-rename. That rename is producer completion; a path reported before it is not
-ready. Keep the first failure's command, exit, and evidence, and rerun at most
-once without overwriting it.
-
-**Plan.** Write only under the task directory in the run directory; commit
-nothing, implement nothing, and leave the planner worktree clean.
+**Plan.** Write only under the task directory in the run directory and leave the
+planner worktree clean.
