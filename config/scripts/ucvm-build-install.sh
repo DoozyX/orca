@@ -229,6 +229,9 @@ run() {
   fi
 
   log "building fork main $want12 (installed: $installed)"
+  # Without swap the kernel OOM killer ends the build mid-step with no error in the log (2026-11-12, swap removed by hand).
+  STEP=check-swap
+  [ -n "$(swapon --show --noheadings)" ] || { echo "no active swap: the build needs it on this 7 GiB host (restore /swap.img and its fstab line)" >&2; exit 1; }
   set_step sync-checkout
   sync_checkout
   if [ "$TARGET_SHA" != "$want" ]; then want=$TARGET_SHA; want12=${want:0:12}; log "fork main moved to $want12"; fi
