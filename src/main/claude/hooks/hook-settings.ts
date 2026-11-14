@@ -96,7 +96,7 @@ export function getRemoteConfigPath(remoteHome: string, settings = CLAUDE_HOOK_S
   return `${remoteHome.replace(/\/$/, '')}/${settings.configDirName}/settings.json`
 }
 
-function getScriptBaseName(scriptPath: string): string {
+export function getScriptBaseName(scriptPath: string): string {
   const scriptFileName = basename(scriptPath)
   const extension = extname(scriptFileName)
   return extension ? scriptFileName.slice(0, -extension.length) : scriptFileName
