@@ -9,6 +9,7 @@ import { ORCHESTRATION_INBOX_HANDLERS } from './messages/message-inbox-handlers'
 import { ORCHESTRATION_QUESTION_HANDLER } from './messages/question-handler'
 import { ORCHESTRATION_REQUEST_SHOW_HANDLER } from './recovery/mutation-request-show-handler'
 import { ORCHESTRATION_RESET_HANDLER } from './runs/reset-handler'
+import { ORCHESTRATION_REVIEW_LEDGER_HANDLERS } from './review-ledger-handlers'
 import { ORCHESTRATION_REVIEW_METRICS_HANDLER } from './review-metrics-handler'
 import { ORCHESTRATION_RUN_HANDLERS } from './runs/run-handlers'
 import { ORCHESTRATION_SEND_HANDLER } from './messages/message-send-handler'
@@ -32,5 +33,6 @@ export const ORCHESTRATION_HANDLERS: Record<string, CommandHandler> = {
   ...ORCHESTRATION_REQUEST_SHOW_HANDLER,
   ...ORCHESTRATION_GATE_HANDLERS,
   ...ORCHESTRATION_RESET_HANDLER,
-  ...ORCHESTRATION_REVIEW_METRICS_HANDLER
+  ...ORCHESTRATION_REVIEW_METRICS_HANDLER,
+  ...ORCHESTRATION_REVIEW_LEDGER_HANDLERS
 }

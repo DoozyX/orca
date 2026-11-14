@@ -32,5 +32,7 @@ export const ORCHESTRATION_HANDLER_KEYS = [
   'orchestration gate-resolve',
   'orchestration gate-list',
   'orchestration review-metrics',
+  'orchestration ledger-reserve',
+  'orchestration ledger-settle',
   'orchestration reset'
 ]

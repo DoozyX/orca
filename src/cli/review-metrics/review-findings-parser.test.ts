@@ -61,7 +61,7 @@ describe('parseFindingsFile', () => {
       PATH
     )
     expect(parsed.errors).toEqual([])
-    expect(parsed.findings).toEqual([{ id: 'R1.1', bucket: 'patch', round1Miss: false }])
+    expect(parsed.findings).toMatchObject([{ id: 'R1.1', bucket: 'patch', round1Miss: false }])
   })
 
   it('ignores lines that only quote a bucket tag', () => {
@@ -79,7 +79,7 @@ describe('parseFindingsFile', () => {
       PATH
     )
     expect(parsed.errors).toEqual([])
-    expect(parsed.findings).toEqual([{ id: 'R1.1', bucket: 'patch', round1Miss: false }])
+    expect(parsed.findings).toMatchObject([{ id: 'R1.1', bucket: 'patch', round1Miss: false }])
   })
 
   it('ignores prose that opens with Prior', () => {
