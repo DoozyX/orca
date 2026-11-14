@@ -268,9 +268,27 @@ export function rekeyWorkerTerminalResourcePaneKey(
   )
 }
 
+/** A graph reload remints a live pane's handle; the creation custody row follows it only for the same owner, old handle and process. */
+export function rebindWorkerTerminalResourceHandle(
+  this: OrchestrationDb,
+  params: { dispatchId: string; fromHandle: string; toHandle: string; processIncarnation: string }
+): boolean {
+  return (
+    this.db
+      .prepare(
+        `UPDATE worker_terminal_resources
+            SET terminal_handle = ?, updated_at = datetime('now')
+          WHERE owner_dispatch_id = ? AND terminal_handle = ? AND process_incarnation = ?`
+      )
+      .run(params.toHandle, params.dispatchId, params.fromHandle, params.processIncarnation)
+      .changes === 1
+  )
+}
+
 export type WorkerTerminalResourceStoreMethods = {
   retainReplacedWorkerTerminalResources: typeof retainReplacedWorkerTerminalResources
   rekeyWorkerTerminalResourcePaneKey: typeof rekeyWorkerTerminalResourcePaneKey
+  rebindWorkerTerminalResourceHandle: typeof rebindWorkerTerminalResourceHandle
   backfillWorkerTerminalResources: typeof backfillWorkerTerminalResources
   createWorkerTerminalResourceStatement: typeof createWorkerTerminalResourceStatement
   getWorkerTerminalResource: typeof getWorkerTerminalResource
@@ -286,6 +304,7 @@ export function attachWorkerTerminalResourceStore(ctor: { prototype: object }): 
   Object.assign(ctor.prototype, {
     retainReplacedWorkerTerminalResources,
     rekeyWorkerTerminalResourcePaneKey,
+    rebindWorkerTerminalResourceHandle,
     backfillWorkerTerminalResources,
     createWorkerTerminalResourceStatement,
     getWorkerTerminalResource,
