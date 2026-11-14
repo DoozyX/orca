@@ -21,9 +21,16 @@ class X11PublisherTest(unittest.TestCase):
         )
         os.close(writer)
         try:
-            if not select.select([reader], [], [], 5)[0]:
-                raise RuntimeError("Private X server did not start")
-            number = os.read(reader, 32).decode().strip()
+            # Xvfb writes the number and its newline separately; closing between them is fatal to it.
+            announced = b""
+            while not announced.endswith(b"\n"):
+                if not select.select([reader], [], [], 5)[0]:
+                    raise RuntimeError("Private X server did not start")
+                chunk = os.read(reader, 32)
+                if not chunk:
+                    raise RuntimeError("Private X server exited before announcing its display")
+                announced += chunk
+            number = announced.decode().strip()
             if not number.isdecimal():
                 raise RuntimeError("Invalid private display number")
             cls.env = {**os.environ, "DISPLAY": ":" + number, "GDK_BACKEND": "wayland",
