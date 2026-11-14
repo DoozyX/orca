@@ -1,279 +1,146 @@
 # Task pipeline
 
 Load this reference when running a task's implement, review, fix, PR, or CI
-stage. A stage runs as a subagent or as an Orca worker by the kernel's selection
-rule. A worker's dispatch, wait, and release are `orchestration` operations; this
-document owns only what to ask for and what settles it.
+stage.
 
-## Shared verification contract
+## Verification
 
-Before the first stage, record one full-suite owner per worktree and revision,
-together with the test command, the required services, and where the result
-lands. Pass that assignment into every Task spec for the worktree. A completed
-suite result may be reused only when the revision, tree state, environment, and
-required checks all match; a changed revision or environment requires new
-evidence. Do not certify a dirty or changing tree by HEAD alone. Reassign
-ownership explicitly when an owner settles — an idle terminal does not prove its
-jobs stopped.
+The manifest's verification contract names the commands. Two rules keep their
+results trustworthy:
 
-Before expensive validation, record its owner, execution host, required services
-and resources, scratch path, and result location in that same contract.
+- **One full suite per worktree and revision.** The implementer runs it before
+  reporting; review #1 reruns it once, after the implementer settles, because
+  the reviewer's run is the independent one. Everyone else reuses that result
+  and runs focused checks. A result is reusable only for the same revision, a
+  clean tree, and the same environment.
+- **A command is finished when its process exits,** not when a wrapper returns
+  or a pane goes idle. Keep the command, its exit code and its log.
 
-## Verification attempts and authority
+An approved task includes ordinary reversible verification in its own worktree:
+focused checks, fixtures, local builds. Shared-service mutation, deployment, new
+cost and wider credentials still need the user.
 
-Use the repository's canonical tested runner with separate attempt inputs for
-revision, environment, service endpoints, output path, deadline, and required
-checks. Keep one runner implementation; do not clone PREP packets or scripts for
-each attempt. If no runner exists, the assigned implementer may create a small,
-repository-specific runner and test its command/exit contract before use. This
-is verification plumbing, not a new scheduler. Record the literal command and
-inputs with its output; a runner returning is not proof its child finished.
+Reuse an idle simulator, browser session or app instance when its state suits
+the check, by explicit device or instance target. Start a fresh one only when
+the check needs its own mutable state.
 
-Approved implementation includes ordinary reversible verification: focused
-checks, isolated fixtures, and repeatable local builds within the assigned
-worktree and resource envelope. Record this bounded authority in the contract
-once; do not ask again at each command. Shared-service mutation, destructive
-cleanup, deployment, new cost, and broader credentials remain outside it unless
-already authorized. Independent review, sole-writer occupancy, budgets, command
-deadlines, and process custody still apply.
+## Launching a stage agent
 
-Name a shared resource owner when concurrent checks would conflict over a
-database, port, simulator, build directory, or suite. Sequence conflicting users;
-independent checks may run together. Transfer ownership explicitly with the prior
-job's exit evidence, never from an idle pane or a successful wrapper alone.
-Isolate the mutable state of builds, validation suites, ports, and databases;
-coordinate actual conflicts directly. A shared simulator has one owner at a time.
+| Action                          | Claude Code                                                                 | Codex                                                                                                   |
+| ------------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Start                           | `Agent`, background, the role's `model` alias, prompt = the saved spec text | `collaboration.spawn_agent` (`task_name`, `message`, `fork_turns: "none"`, `model`, `reasoning_effort`) |
+| Continue (fix round, follow-up) | `SendMessage` to the agent id                                               | `collaboration.followup_task` (`target`, `message`)                                                     |
+| Settle                          | the completion or idle notification carrying the report                     | the agent's final message, announced through `collaboration.wait_agent`                                 |
+| Stop                            | `TaskStop`                                                                  | `collaboration.interrupt_agent` (`target`)                                                              |
 
-Reuse an existing simulator, browser session, or app instance when no other user
-or test is using it and its state suits the check. A fresh instance is required
-only when the check needs separate mutable state or a destructive reset would
-affect another session. Use explicit device or instance targets, and preserve
-the repository's desktop focus rules.
+In Claude Code the agent type is `delivery-implementer` for implement, fix and
+merge stages and `delivery-reviewer` for reviews when those are listed, else
+general-purpose. A Claude model id maps to its alias (`claude-opus-*` → `opus`,
+`claude-sonnet-*` → `sonnet`, `claude-haiku-*` → `haiku`, `claude-fable-*` →
+`fable`). Codex applies a model override only with `fork_turns: "none"`.
 
-For missing acceptance at an unchanged revision, continue only that acceptance
-arm. Reuse unchanged-head proof only after checking the tree, environment,
-runner inputs, and required checks still match the original contract. Name the
-missing acceptance explicitly and its evidence owner; do not restart already
-proven stages or independent review merely because a checkpoint was reported.
-A changed head or relevant environment invalidates the affected proof.
+A cross-engine review is an Orca worker (load `orchestration` first):
 
-## Model tiers
+```text
+ORCA orchestration worker-start --spec "<review spec>" --worktree id:<repoId>::<worktreePath> --agent <other engine> [--model <m>] [--effort <e>] --json
+```
 
-A tier is a task strength, not a model name. Record it for every dispatch. When
-Engine roles are configured, select the candidate with `orchestration`'s quota
-check, then run the stage by the kernel's selection rule and pass the selected
-candidate's model and effort; a strong tier uses its `strong` override when
-present. With no roles file or a missing role, keep the existing
-`## Model tiers` rule: pass `--model` only for a concrete user-configured tier
-mapping, otherwise inherit the agent default and record `model=default`.
+Orca wakes you with its `worker_done`; the worker closes on its own afterwards.
 
-### Launching a stage agent
+### Roles and strength
 
-| Action                          | Claude Code                                                                   | Codex                                                                                                   |
-| ------------------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| Start                           | `Agent`, general-purpose, background, `model` alias, prompt = saved spec text | `collaboration.spawn_agent` (`task_name`, `message`, `fork_turns: "none"`, `model`, `reasoning_effort`) |
-| Continue (fix round, follow-up) | `SendMessage` to the agent id                                                 | `collaboration.followup_task` (`target`, `message`)                                                     |
-| Settle                          | the completion notification                                                   | the agent's final message, announced through `collaboration.wait_agent`                                 |
-| Stop                            | `TaskStop`                                                                    | `collaboration.interrupt_agent` (`target`)                                                              |
+| Stage                                             | Role in `agent-roles.json` |
+| ------------------------------------------------- | -------------------------- |
+| Planner                                           | `planner`                  |
+| Implementer or fixer                              | `implementer`              |
+| Implementer or fixer of a user-visible surface    | `ui`                       |
+| Task, plan, integration, or merge-conflict review | `reviewer`                 |
+| Bounded extraction you can check at a glance      | `inspector`                |
 
-A returned agent id proves the stage started. Codex applies a `model` or
-`reasoning_effort` override only with `fork_turns: "none"`, so a Codex subagent
-spec is self-contained and forks no history.
+Use the role's first candidate, and its `strong` override for: a planner, a plan
+review, review #1, review #3, an integration review, and an implementer working
+from a design with no task file. Use `inspector` only for extraction (a red CI
+log, check status, an issue-body classification), never to implement or review.
 
-**Model mapping.** A Claude candidate's model id maps to its family alias:
-`claude-opus-*` → `opus`, `claude-sonnet-*` → `sonnet`, `claude-haiku-*` →
-`haiku`, `claude-fable-*` → `fable`. A pinned version runs as the alias's current
-model and is recorded as `model=<alias>`. Pass the candidate's `effort` when the
-roles file sets one: user configuration counts as an explicit request. With no
-mapping the subagent inherits the coordinator's model, recorded as
-`model=default`. For Codex, pass the candidate's model and effort; with none
-configured, record `model=default`.
+Two escalations, each for the rest of the unit:
 
-### Dispatch → role
-
-| Dispatch                                            | Engine role   |
-| --------------------------------------------------- | ------------- |
-| Planner                                             | `planner`     |
-| Implementer or fixer without a user-visible surface | `implementer` |
-| Implementer or fixer requiring UI evidence          | `ui`          |
-| Task, plan, integration, or merge-conflict review   | `reviewer`    |
-| Cheap-tier inspection                               | `inspector`   |
-
-Read and validate Engine roles before the first dispatch. Immediately before
-each configured-role dispatch, select from fresh quota as specified in
-`orchestration/references/coordinator-loop.md`; an omitted role follows the
-default launch path and records `role=<r> source=default`. Then apply the
-kernel's selection rule: a cross-engine review is an Orca worker on the other
-engine while it has a reviewer candidate under quota; every other stage is a
-subagent on the coordinator's engine, or an Orca worker on the next eligible
-candidate when that engine has none under quota. A review that falls back to the
-producer's engine records `same-engine-review` and is mentioned in the next
-status message. A `quota@<earliest reset>` parks only that unit while other
-units continue; all `no-quota-data` or `unavailable` candidates yield
-`needs-attention` with their reasons.
-
-| Tier     | Dispatches                                                                                                                                                                                                                 |
-| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Cheap    | Inspection only: a red CI log, an issue-body classification, check status after a push, the landing-policy summary, extracting a verdict line                                                                              |
-| Standard | Implementer or fixer with a clear spec or a plan task tagged `standard`; default reviewer                                                                                                                                  |
-| Strong   | Planner, plan reviewer, merge-conflict and integration check, freeform implementer, reviewer of freeform or design-heavy work, review #3, the integration review, and every review after a reviewer-oscillation escalation |
-
-Cheap never implements or reviews. It is for bounded extraction whose result you
-can check at a glance — work you would otherwise read yourself at a higher rate.
-
-Review #1 runs at the strong tier on another engine, as an Orca worker, when the
-selection rule picks one; otherwise it is a strong same-engine subagent recorded
-`same-engine-review`.
-
-Escalations are one-way for the rest of the unit:
-
-| Trigger                                                            | Escalation                                                                                                                                                        |
-| ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Reviewer oscillation: new findings in code an earlier round passed | Every later review of the unit runs strong                                                                                                                        |
-| An implementer below strong still draws `fix-needed` at review #2  | Fix #2 goes to a fresh subagent on the strong model in the same worktree, told to read `git log` and the branch diff first, not to the implementer's own subagent |
-| An implementer already at strong draws `fix-needed` at review #2   | Fix #2 continues that implementer's subagent; no fresh agent                                                                                                      |
-
-With no concrete strong model mapped, the fresh agent is the escalation;
-record `tier=strong model=default`. A `clean` verdict from a standard-tier round
-is terminal like any other and is never re-reviewed at strong.
+- A later review finds a new defect in code an earlier review passed: every
+  later review runs strong.
+- An implementer below strong still draws `fix-needed` at review #2: fix #2 goes
+  to a fresh strong agent in the same worktree, told to read `git log` and the
+  branch diff first.
 
 ## 1. Implement
 
-One worktree per task, in the coordinator's own project and nested under the
-coordinator's worktree, so the whole delivery run reads as one tree instead of a
-row of unrelated top-level entries. Cut it explicitly from the base branch, never
-from whatever branch happens to be checked out. Record the worktree path, branch,
-HEAD, and the resolved base sha in `worktrees.md` and the manifest before the
-stage agent starts changing files; a mismatch is a launch failure, not a baseline
-to work around.
+Create one worktree per task, nested under the coordinator's so the run reads as
+one tree, cut from the base branch (or from the predecessor's branch for a
+stacked unit):
 
 ```text
 ORCA worktree create --name <task-slug> --parent-worktree active --base-branch <base> --json
 ```
 
-Then start the implementer as a subagent per the launch table, with the saved
-spec as its prompt. Where the selection rule sends the stage to an Orca worker,
-run `run-create` first if the run has none, then:
-
-```text
-ORCA orchestration worker-start --spec "<task spec>" --worktree id:<repoId>::<worktreePath> --agent <selected> --from <coordinator_handle> --json
-```
-
-Lineage and Git base are separate decisions: `--parent-worktree active` nests the
-task under the coordinator, and `--base-branch` is what keeps it off the
-coordinator's branch. Never use `--no-parent` here — it detaches the task from the
-run it belongs to. When a task needs its own lineage root, say so and pass an
-explicit `--parent-worktree <selector>` rather than dropping the parent.
-
-The spec tells the implementer to work strictly in that worktree and, in order:
-install from the frozen lockfile; run the shared verification contract and record
-only task-specific baseline deltas _before_ touching anything; **append the reach list to the task file's `## Record`;** implement
-test-first; rerun the full suite plus the repository's lint, format, and build
-checks; verify end to end by driving the real surface where one exists; and
-commit without pushing.
-
-**The spec carries the binding rules distilled; paths are backup, not a reading
-list.** Every path you include should be something the worker consults to check a
-detail, never something it must read before it can start.
-
-**Confirm the brief arrived.** For a subagent, the returned agent id proves it
-started. For an Orca worker, a successful dispatch proves durable enqueue, not
-that the agent took the brief up as a turn: check that it is actually working — a
-fresh heartbeat, or `worker-show` reporting a live agent that has begun — before
-you count the stage as started.
+Record its path, branch, head and base sha in the unit row before the
+implementer starts. Then launch the implementer with the saved spec. The spec
+states the binding rules itself; a path in it is for checking a detail.
 
 ## 2. Review
 
-Dispatch a **fresh** reviewer into the **same worktree** once the implementer
-settles. Any reviewer, subagent or Orca worker, runs the `review` skill's layers
-as its own parallel subagents; the adversarial layer's subagent receives the diff
-only. Record that worktree's HEAD at dispatch; every later round is scoped
-against it as the reviewed sha.
+Launch a fresh reviewer in the same worktree once the implementer settles, after
+`ledger-reserve`. The reviewer runs the `review` skill's layers as its own
+parallel subagents, with the adversarial layer given the diff only. It writes
+its findings file in the run directory and reports the part from
+`## Merged findings` down.
 
-Keep review read-only. Tool restrictions block editing tools but leave a shell
-available, so the spec has to carry what flags cannot: no working-tree rewrites,
-no stash, no branch or index mutation. A reviewer has swept a sibling's in-flight
-work with one stash in a shared worktree.
+A review is read-only: no edits, commits, stash, checkout, reset or branch
+switch, because a reviewer has swept a sibling's work away with one stash. If a
+proof needs a mutation, the reviewer must be the only session in that worktree,
+and the spec says both in one sentence.
 
-**Never grant write authority without sole occupancy, in the same sentence.** If
-a proof genuinely needs a mutation — flipping a guard, adding a union member —
-the reviewer must be the only session in that worktree at the time, and the spec
-must say both things together. Prefer a static proof and grant nothing.
+Settle with `ledger-settle --findings <file>`. On `invalid`, send the reviewer
+the printed problems once and settle again after it corrects the file.
 
-The reviewer writes its findings to a file in the run's ignored directory and
-reports only the merged findings and a machine-readable verdict line. Check the
-file before building a fix round from it: if it is absent or missing its
-`## Merged findings` anchor, the round is `invalid` — dispatch the reviewer again
-rather than mailing an implementer a fix round with no findings in it. The fix
-spec carries only the section from that anchor down: the raw layer output above
-it is ungraded and undeduplicated, and shipping it undoes the merge.
-
-Review #1 reruns the full suite itself — the one exception to "no second full
-suite per revision": it runs after the implementer settles, one run at a time,
-never concurrently.
-
-Rounds after the first are full-branch rounds with the prior findings attached.
-They take the diff since the reviewed sha as their focus and the diff since the
-base as their scope, every unfixed prior finding is a new finding, and an item
-already resolved is not re-raised; a `disputed` or `blocked` item stays
-reviewable under its original ID.
+Rounds after the first are full-branch rounds with the prior findings attached:
+the diff since the previous reviewed sha is the focus, the diff since the base
+(or `start-sha`) is the scope. An unfixed prior finding is listed again under
+its original ID; a resolved one is not re-raised; a `disputed` or `blocked` one
+stays reviewable.
 
 ### UI evidence
 
-For a change a user can see, the implementer captures each pair at the same
-route, viewport, and state into `orchestrate/<unit>/before-<what>.png` and
-`after-<what>.png` — the before from the base revision — and describes each in
-one line. Capture pages in Orca's embedded browser with
-`ORCA screenshot --worktree <selector> --json`; for any other surface use the
-repository's own capture path, such as a CDP capture of a hidden window, never a
-window that steals focus. Captures never enter the branch or the PR body.
+For a change a user can see, the implementer captures each before/after pair at
+the same route, viewport and state into `orchestrate/<unit>/before-<what>.png`
+and `after-<what>.png`, the before from the base revision, with one describing
+line each. Capture pages with `ORCA screenshot --worktree <selector> --json`;
+for another surface use the repository's own capture path without stealing
+focus. The reviewer reproduces each user-visible criterion itself, saves
+`<findings-file>.seen-<what>.png`, and prints
+`Seen: <criterion> - <what the screen showed>`. A criterion it could not
+exercise is a `decision-needed` finding. Captures go in the PR body only where
+the repository asks for visual proof.
 
-The reviewer of a UI unit keeps its browser tools and reproduces each
-user-visible criterion itself, saving `<findings-file>.seen-<what>.png` and
-printing `Seen: <criterion> - <what the screen showed>`. The implementer's
-descriptions are claims, never evidence. A criterion it could not exercise is a
-`decision-needed` finding that says why, never a `Seen:` line.
-
-**Blind A/B judge (optional, visual changes).** A cheap worker copies each pair
-to `orchestrate/<unit>/ab/<what>/A.png` and `B.png` in random order and keeps the
-key beside them; a judge placed in the pairs directory, with no repository, no
-task, and no key, emits one `AB_VERDICT:` line per pair; the same cheap worker
-decodes and reports `AB_SUMMARY: pairs=<n> regressions=<n> unchanged=<n>`. You
-read only that line and record it. `regressions>0` — the judge preferred the
-before at `med` or `high` confidence — is a `major` finding appended to that
-round's merged findings, and a `clean` verdict becomes `fix-needed` in
-`budget.md` with `reason` `ab-regression`. `unchanged>0` on a unit whose point was
-a visible change is the same finding. After a fix that touched the screen, the
-pair is recaptured and judged again.
+**Blind A/B judge (optional, visual changes).** A cheap agent copies each pair to
+`orchestrate/<unit>/ab/<what>/A.png` and `B.png` in random order and keeps the
+key; a judge given only that directory prints one `AB_VERDICT:` line per pair;
+the first agent decodes them into
+`AB_SUMMARY: pairs=<n> regressions=<n> unchanged=<n>`. A regression at `med` or
+`high` confidence, or `unchanged` on a unit whose point was a visible change, is
+a `major` finding for the next fix round.
 
 ## 3. Fix
 
-Branch on the verdict directly.
-
-- `clean` from **any** round is terminal for the task, because every round
-  certifies the whole branch against a verified suite. Its `nit` and `defer`
-  items are listed, not looped on. Proceed to the PR.
-- `fix-needed` splits by bucket. Ordinary defects go back to the same implementer
-  as a fix round carrying the findings and nothing else. Items needing a product
-  or scope decision go to the user, exactly like a worker's blocking question,
-  and the task holds while you wait. Items explicitly deferred are recorded, named
-  in the closing report, and never extend the loop. A fix round carries that
-  review's `nit` items along with its `patch` items.
-- **The reviewer proposes a severity; you decide it.** A finding whose blast
-  radius is existing data, introduced by this branch, is never minor — regrade it
-  upward and send it back. Regrading downward needs a one-line written reason that
-  goes into the closing report.
-- Continue the settled implementer's own subagent for the fix round, except under
-  a tier escalation above, rather than starting a new one: it holds why the code
-  took its shape, and a fresh agent re-reads the branch before it can start. Send
-  the fix spec with the launch table's Continue action; the continued agent keeps
-  its model. If that agent is gone, record the deviation and start a fresh
-  subagent on the same worktree with an instruction to read `git log` and the
-  branch diff first. An implementer that ran as an Orca worker is reused with
-  `ORCA orchestration worker-start --spec "<fix spec>" --terminal <implementer_handle> --worktree id:<repoId>::<worktreePath> --from <coordinator_handle> --json`;
-  `--agent`, `--model` and `--effort` cannot combine with `--terminal`.
-
-- The fix stage writes `orchestrate/<unit>/fix-<f>.dispositions.md` under
+- `clean` from any round ends the loop: every round certifies the whole branch.
+  Its `nit` and `defer` items are listed, not looped on.
+- `fix-needed`: ordinary defects go back to the implementer as a fix round
+  carrying the merged findings (its `patch` and `nit` items) and nothing else.
+  Product or scope decisions go to the user and the unit waits. `defer` items
+  are recorded and named in the closing report.
+- You decide severity. Raise a finding that damages existing data to major;
+  lowering one needs a one-line reason in the closing report.
+- Continue the implementer's own agent for the fix (it knows why the code has
+  its shape), unless an escalation above applies or the agent is gone; then
+  start a fresh one told to read `git log` and the branch diff first.
+- The fixer writes `orchestrate/<unit>/fix-<f>.dispositions.md` under
   `## Dispositions`, one line per `patch` and `nit`:
 
   ```text
@@ -284,57 +151,32 @@ Branch on the verdict directly.
   R1.7 - nit-skipped - <reason>
   ```
 
-  `nit-skipped` lines become known-issues `nit` rows at closing. The next review
-  rules on every `disputed` line. A finding the next review upholds and the fixer
-  disputes again takes a `## Decisions` row (`fix as reviewer says` / `accept
-  dispute` / `park unit`); no round is spent on it. A dispute upheld after the budget is
-  spent follows the exhaustion rule.
+  The next review rules on each `disputed` line. A finding upheld and disputed
+  again is a `## Decisions` row (`fix as reviewer says` / `accept dispute` /
+  `park unit`) and spends no round.
 
-- A repeated in-scope defect across rounds is reviewer oscillation: escalate the
-  reviewer rather than the round count. Adjacent or preventive scope is never
-  smuggled into the branch because a late round mentioned it; each such finding
-  gets a one-line disposition and only a `fix` enters the fix round.
+- Scope a late round mentions beyond the task gets a one-line disposition and
+  stays out of the branch.
 
 ## 4. PR
 
-The branch was cut when the task started and the base has probably moved. Have
-the implementer fetch and merge the current base, resolve conflicts preserving
-both sides' intent, rerun the full suite **and** the build checks — an automatic
-merge can compile and still be wrong — commit the merge, and push.
-
-At PR sync the implementer fixes the nits in one `nit-fix` commit that touches
-only the lines the nits name, and writes
-`orchestrate/<unit>/nit-fix.dispositions.md` in the same `## Dispositions`
-format with `nit-fixed`/`nit-skipped` lines. A nit whose fix changes logic is
-recorded as a known-issues `nit` row instead. The sync's full-suite rerun covers
-the commit.
+The implementer fetches and merges the current base, resolves conflicts keeping
+both sides' intent, fixes the last review's nits in one `nit-fix` commit limited
+to the lines they name (writing `orchestrate/<unit>/nit-fix.dispositions.md`),
+reruns the full suite and the build checks, commits and pushes. A nit whose fix
+would change logic becomes a known-issues row instead.
 
 ```bash
-gh pr create --base <base-branch> --title "<title>" --body "<body>"
+gh pr create --repo <owner>/<repo> --base <base-branch> --head <branch> --title "<title>" --body-file <path>
 ```
 
-On a fork, be fully explicit or `gh` stops to ask interactively, which hangs a
-non-interactive worker: add `--repo <upstream-owner>/<repo>` and
-`--head <fork-owner>:<branch>`.
+Name `--repo`, `--base` and `--head` every time: on a fork `gh` otherwise stops
+to ask, which hangs a stage agent. Load `pr-author` for the body. It carries no
+run-directory paths and no orchestration detail. A GitLab project uses `glab`; a
+repository that prescribes direct merges uses that instead.
 
-**Not every repository ends this way.** A GitLab project wants `glab` and a merge
-request; a repository's own `CLAUDE.md` or `CONTRIBUTING.md` may prescribe merging
-into a development branch with no pull request at any point. The repository's
-stated workflow wins. Read it during setup, confirm the endgame with the user
-once when it diverges, then use it for every task in the run. Everything upstream
-is unchanged; only the last hop and how "green" is observed translate.
-
-The PR body covers what changed, why, and how it was verified, plus the issue
-reference for an issue-sourced task. It carries no run-directory paths, no
-terminal handles, and no orchestration detail.
-
-**Guard the primary checkout around every writing stage agent.** Every merge or
-deploy worker and every subagent with write authority runs where it is pointed,
-and the primary checkout is where a person's uncommitted work lives. Give each its
-own worktree; a direct merge pushes `HEAD:refs/heads/<target>` from there and
-never needs the primary checked out. Immediately before dispatch and again when it
-settles — before releasing it — record into `orchestrate/primary-<label>.before`
-and `.after`:
+**Primary checkout guard.** Before a merge or deploy stage starts and after it
+settles, record in the unit's directory:
 
 ```text
 git -C <primary> rev-parse HEAD
@@ -342,40 +184,19 @@ git -C <primary> symbolic-ref -q --short HEAD
 git -C <primary> status --porcelain
 ```
 
-Take the same three snapshots of the coordinator's own worktree, which a
-subagent that starts in the coordinator's directory can also write to.
-
-A primary HEAD advance is routine concurrent work when the branch and full
-porcelain status are unchanged and `git -C <primary> merge-base --is-ancestor
-<before-head> <after-head>` exits zero. This applies to any branch, including
-`main`, `dev`, and `develop`, and does not require matching a remote-tracking ref.
-Record the old/new HEAD and the ancestry check in the manifest, adopt the fresh
-snapshot as the baseline, and continue automatically. Never ask the user to
-accept this advance, including when resuming a run paused under an older guide.
-This exception applies only to the primary checkout, not the coordinator's own
-worktree, and does not authorize writing to or switching the primary checkout.
-
-For any other difference, or if the ancestry check cannot be verified, record
-what moved in the manifest, retain the worker's terminal or keep the subagent's
-agent id, report to the user, and dispatch nothing further until they decide.
-Never repair it yourself. A folder workspace has no primary checkout to guard;
-record that instead.
+A HEAD advance with the same branch and status, where
+`git -C <primary> merge-base --is-ancestor <before> <after>` succeeds, is someone
+else's routine commit: note it and continue. For any other difference, stop
+dispatching and tell the user what moved; do not repair it.
 
 ## 5. Green CI
 
-Run a cheap inspection subagent for the open PRs rather than polling from the
-coordinator. It runs the host's check command, writes a compact status artifact,
-and on failure pulls the failing log into the task's directory. You read the
-deciding green or red summary and route the result to the still-live implementer.
+Launch a cheap background agent per open PR to run
+`gh pr checks <n> --repo <owner>/<repo> --watch` and report the deciding line,
+pulling a failing log into the unit's directory. Meanwhile continue with other
+units.
 
-A mechanical fix — lint, format, a flaky rerun — pushes directly. A fix that
-touches logic is a `budget.md` `fix` row with `reason` `ci:<failing check>`, then
-takes one `review-round` on the new commits, scoped from the sha the last clean
-review saw — or the integration review when the base moved — before the task can
-count as done. When a sibling PR from
-this run merges, rerun stage 4's sync for every still-open PR: the base just moved
-under them.
-
-A task is **done** only when the review verdict is clean (nits and defers may be
-listed), the PR exists or the prescribed endgame has landed, and all checks are green. A red required check with
-no baseline in the manifest's `ci-baseline` line takes a `## Decisions` row.
+A mechanical fix pushes directly. A logic fix is `ledger-reserve --kind fix
+--reason "ci:<check>"`, then one `review-round` on the new commits. When a
+sibling PR from this run merges, re-sync every open PR that sits on the same
+base (`## Keep units moving` in the main guide).
