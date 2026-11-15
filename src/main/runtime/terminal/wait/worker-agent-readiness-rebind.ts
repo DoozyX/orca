@@ -1,5 +1,5 @@
 import type { TuiAgent } from '../../../../shared/agent-launch/catalog/tui-agent'
-import type { RuntimeTerminalWait } from '../../../../shared/runtime-terminal-contracts'
+import type { RuntimeTerminalWait } from '../../../../shared/terminal/runtime/runtime-terminal-contracts'
 import type { OrcaRuntimeService } from '../../orca-runtime'
 import {
   waitForWorkerAgentReady,

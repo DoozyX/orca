@@ -1,4 +1,4 @@
-import type { RuntimeTerminalWait } from '../../../../../../../shared/runtime-terminal-contracts'
+import type { RuntimeTerminalWait } from '../../../../../../../shared/terminal/runtime/runtime-terminal-contracts'
 import type { TuiAgent } from '../../../../../../../shared/agent-launch/catalog/tui-agent'
 import type { TerminalReadinessCreation } from '../../../../../terminal/wait/launched-agent-composer-readiness'
 import { waitForWorkerAgentReadyRebinding } from '../../../../../terminal/wait/worker-agent-readiness-rebind'

@@ -11,10 +11,10 @@ import {
   runtimeTargetForOwnerEnvironment
 } from '@/runtime/rpc/targets/runtime-client-target'
 import { useActiveAccountOwner } from '@/runtime/provider-accounts/ownership/use-active-account-owner'
-import type { RuntimeClientTarget } from '../../../../shared/runtime-client-target'
-import { resolveClaudeStatusAccountState } from './status-bar-claude-accounts'
-import { resolveCodexStatusAccountState } from './status-bar-codex-accounts'
-import { useOwnerUsageRateLimits } from './use-owner-usage-rate-limits'
+import type { RuntimeClientTarget } from '../../../../shared/remote-runtime/host-catalog/runtime-client-target'
+import { resolveClaudeStatusAccountState } from './accounts/status-bar-claude-accounts'
+import { resolveCodexStatusAccountState } from './accounts/status-bar-codex-accounts'
+import { useOwnerUsageRateLimits } from './usage/use-owner-usage-rate-limits'
 
 const LOCAL_TARGET: RuntimeClientTarget = { kind: 'local' }
 const EMPTY_ACCOUNTS: ProviderAccountsSnapshot = {

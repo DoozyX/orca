@@ -3,7 +3,7 @@ import { useTranslate } from '@/i18n/use-translate'
 import { getProviderDisplayName } from '../../../../shared/usage-provider-windows'
 import type { AccountUsageEntry } from './account-usage-entry'
 import { entryRateLimits } from './account-usage-entry'
-import { ProviderSegment } from './StatusBarProviderSegment'
+import { ProviderSegment } from './usage/StatusBarProviderSegment'
 import type { UsagePercentageDisplay } from '../../../../shared/usage-percentage-display'
 import type { StatusBarUsageMode } from '../../../../shared/status-bar-usage-mode'
 

@@ -19,7 +19,7 @@ import {
   getPresentStringFlag,
   getRequiredStringFlag
 } from '../../arguments/flags'
-import { RuntimeClientError } from '../../runtime/types'
+import { RuntimeClientError } from '../../runtime/connection/types'
 import type { RuntimeClient } from '../../runtime/client'
 import { callOrchestrationMutation } from '../recovery/mutation-request'
 import { resolveOrchestrationTerminalHandle } from '../identity/terminal-identity'

@@ -5,13 +5,13 @@ import { providerUsageEntry, type AccountUsageEntry } from './account-usage-entr
 import {
   buildClaudeStatusSwitchGroups,
   normalizeClaudeStatusRuntimeTarget
-} from './status-bar-claude-accounts'
+} from './accounts/status-bar-claude-accounts'
 import {
   buildCodexStatusSwitchGroups,
   normalizeCodexStatusRuntimeTarget
-} from './status-bar-codex-accounts'
+} from './accounts/status-bar-codex-accounts'
 import { getCodexAccountDisplayLabel } from '@/lib/provider-accounts/codex-account-display-label'
-import { getCodexStatusRuntimeKey } from './status-bar-runtime-targets'
+import { getCodexStatusRuntimeKey } from './accounts/status-bar-runtime-targets'
 
 export function buildAccountUsageRoster(input: {
   providers: ProviderRateLimits[]

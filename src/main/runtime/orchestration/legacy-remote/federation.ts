@@ -1,4 +1,4 @@
-import type { RuntimeTerminalCreate } from '../../../../shared/runtime-terminal-create-contract'
+import type { RuntimeTerminalCreate } from '../../../../shared/terminal/runtime/runtime-terminal-create-contract'
 import { waitForWorkerAgentReadyRebinding } from '../../terminal/wait/worker-agent-readiness-rebind'
 import { describeTerminalWaitBlockedReason } from '../../../../shared/terminal/runtime-policy/terminal-wait-blocked-reason-legacy-alias'
 import { buildDispatchPreamble } from '../workers/launch/worker-dispatch-preamble'

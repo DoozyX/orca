@@ -1,6 +1,6 @@
 import type { RuntimeClient } from './client'
-import { RuntimeConnectionClosedError } from './transport'
-import { RuntimeClientError } from './types'
+import { RuntimeConnectionClosedError } from './connection/transport'
+import { RuntimeClientError } from './connection/types'
 
 /** A browser command lost its answer while the runtime stayed reachable: the page stalled. */
 export class BrowserCommandInterruptedError extends RuntimeClientError {

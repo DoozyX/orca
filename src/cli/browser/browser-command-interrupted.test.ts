@@ -12,7 +12,7 @@ vi.mock('../runtime/client', () => {
 })
 
 import { main } from '../index'
-import { RuntimeConnectionClosedError } from '../runtime/transport'
+import { RuntimeConnectionClosedError } from '../runtime/connection/transport'
 import { okFixture } from '../runtime/fixtures/runtime-rpc-fixtures'
 
 // #28: a hung page stalls a bridge call until the socket closes; the runtime itself is fine.

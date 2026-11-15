@@ -6,7 +6,7 @@ import {
 } from '../../claude-accounts/profiles/routing/claude-profile-launch-errors'
 import type { ClaudeLaunchScope } from '../../claude-accounts/profiles/routing/claude-launch-scope'
 import { readShellStartupEnvVar } from '../../pty/shell-startup/shell-startup-env'
-import { parseWslUncPath } from '../../../shared/wsl-paths'
+import { parseWslUncPath } from '../../../shared/file-access/wsl-paths'
 import {
   processEnvWithoutAgentSession,
   stripInheritedAgentSessionEnv

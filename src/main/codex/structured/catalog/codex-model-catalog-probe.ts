@@ -9,7 +9,7 @@ import {
   type StructuredAgentResolutionOperation
 } from '../../../native-chat/agent-launch/structured-agent-command-resolution'
 import { codexStructuredLaunchArgs } from '../launch/codex-structured-launch-args'
-import { overlayEnvironmentVariables } from '../../../../shared/environment-overlay'
+import { overlayEnvironmentVariables } from '../../../../shared/shell/launch/environment-overlay'
 import {
   catalogListingDirectory,
   envWithPathRelativeTo
@@ -26,7 +26,7 @@ import {
   resolveCodexStructuredInvocation,
   type CodexStructuredInvocationDeps
 } from '../launch/codex-structured-launch-resolution'
-import { requireLegacyAgentSessionAccountHome } from '../../../../shared/agent-session/lifecycle/agent-session-account-home'
+import { requireLegacyAgentSessionAccountHome } from '../../../../shared/agent-session/lifecycle/accounts/agent-session-account-home'
 import type {
   AgentModelCatalogProgress,
   AgentModelCatalogProbe,

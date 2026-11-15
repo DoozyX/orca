@@ -14,6 +14,8 @@ export type ComputerUsePermissionStatusResult = {
   permissions: ComputerUsePermissionState[]
   /** The helper live computer-use calls run through; absent when none was observed. */
   liveProvider?: { executablePath: string; matchesCurrentHelper: boolean }
+  // macOS reports Accessibility as untrusted behind the lock screen, so a denial read while locked says nothing.
+  sessionLocked?: boolean
 }
 
 export type ComputerUsePermissionSetupResult = {

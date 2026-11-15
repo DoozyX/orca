@@ -1,5 +1,5 @@
 import type { AgentMainAgentStatus } from '../agent-status/lifecycle/main-agent-status'
-import type { MuseSessionLogState } from '../muse-session-log'
+import type { MuseSessionLogState } from './providers/muse/muse-session-log'
 
 export type HermesPaneTurn = {
   ended: boolean

@@ -10,22 +10,22 @@ import {
   type SshTargetSummary
 } from './host-selector-alternatives'
 import { normalizeTypedName } from '../../shared/typed-name-normalization'
-import { getDefaultUserDataPath } from '../runtime/metadata'
-import { RuntimeClientError } from '../runtime/types'
+import { getDefaultUserDataPath } from '../runtime/profile/metadata'
+import { RuntimeClientError } from '../runtime/connection/types'
 import type { RuntimeClient } from '../runtime/client'
-import type { RuntimeRpcSuccess } from '../../shared/runtime-rpc-envelope'
+import type { RuntimeRpcSuccess } from '../../shared/remote-runtime/rpc/runtime-rpc-envelope'
 
 import { rejectRemoteSelectionFlags } from '../dispatch/remote-selection-flag-rejection'
 import { redactRuntimeEnvironment } from '../../shared/remote-runtime/host-catalog/runtime-environments'
-import type { RuntimeStatus } from '../../shared/runtime-session-contracts'
+import type { RuntimeStatus } from '../../shared/remote-runtime/session-graph/runtime-session-contracts'
 import {
   addEnvironmentFromPairingCode,
   removeEnvironment,
   resolveEnvironment,
   type EnvironmentAddResult,
   type EnvironmentRemoveResult
-} from '../runtime/environments'
-import { exchangeCliPairingCode } from '../runtime/environment-pairing-exchange'
+} from '../runtime/pairing/environments'
+import { exchangeCliPairingCode } from '../runtime/pairing/environment-pairing-exchange'
 import { refuseReservedEnvironmentName } from './local-environment-selector'
 import { listEnvironments } from '../../shared/remote-runtime/host-store/runtime-environment-store'
 

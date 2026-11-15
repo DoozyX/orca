@@ -12,8 +12,8 @@ import {
   continueMainAgentStatus,
   mainAgentTurnInterrupted
 } from '../../../../agent-status/lifecycle/agent-lead-status-fold'
-import type { ClaudeMonitoredWorkObservation } from '../../../../claude-background-task-inventory'
-import type { ClaudeSubagentRoster } from '../../../../claude-subagent-roster'
+import type { ClaudeMonitoredWorkObservation } from '../background-tasks/claude-background-task-inventory'
+import type { ClaudeSubagentRoster } from './claude-subagent-roster'
 import type { AgentHookEventPayload } from '../../../listener-event'
 import type { HookListenerState } from '../../../listener-state'
 import type { ClaudeLeadTurnState } from '../../../main-agent-turn-state'

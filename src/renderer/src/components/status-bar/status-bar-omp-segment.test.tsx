@@ -35,7 +35,7 @@ const omp: ProviderRateLimits = {
 
 describe('omp status-bar segment', () => {
   it('shows the default-model daily percentage in the segment', async () => {
-    const { ProviderSegment } = await import('./StatusBar')
+    const { ProviderSegment } = await import('./usage/StatusBarProviderSegment')
     const markup = renderToStaticMarkup(
       <ProviderSegment p={omp} compact={false} display="used" mode="verbose" />
     )
@@ -44,7 +44,7 @@ describe('omp status-bar segment', () => {
   })
 
   it('shows all three pools and the daily headline in tooltip sections', async () => {
-    const { getWindowSections } = await import('./tooltip')
+    const { getWindowSections } = await import('./usage/provider-usage-panel')
     const sections = getWindowSections(omp)
     expect(sections.map((section) => section.label)).toEqual([
       'Usage (Google)',

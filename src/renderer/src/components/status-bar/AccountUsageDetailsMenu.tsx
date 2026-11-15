@@ -1,10 +1,10 @@
 import type { ReactNode } from 'react'
 import { useTranslate } from '@/i18n/use-translate'
 import type { AntigravityAccountUsage } from '../../../../shared/rate-limit-types'
-import { AntigravityUsageMenu } from './AntigravityUsageMenu'
-import { ClaudeSwitcherMenu } from './ClaudeSwitcherMenu'
-import { CodexSwitcherMenu } from './CodexSwitcherMenu'
-import { ProviderDetailsMenu } from './ProviderDetailsMenu'
+import { AntigravityUsageMenu } from './usage/AntigravityUsageMenu'
+import { ClaudeSwitcherMenu } from './accounts/ClaudeSwitcherMenu'
+import { CodexSwitcherMenu } from './accounts/CodexSwitcherMenu'
+import { ProviderDetailsMenu } from './usage/ProviderDetailsMenu'
 import { entryRateLimits, type AccountUsageEntry } from './account-usage-entry'
 
 export function AccountUsageDetailsMenu({

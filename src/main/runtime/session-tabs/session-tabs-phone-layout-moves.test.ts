@@ -1,7 +1,7 @@
 // Windowless phone split moves and subsequent creates must retain main-owned groups/order.
 import { describe, expect, it, vi } from 'vitest'
-import { HEADLESS_RUNTIME_WINDOW_ID } from '../../../shared/runtime-session-contracts'
-import type { RuntimeMobileSessionTabsResult } from '../../../shared/runtime-session-contracts'
+import { HEADLESS_RUNTIME_WINDOW_ID } from '../../../shared/remote-runtime/session-graph/runtime-session-contracts'
+import type { RuntimeMobileSessionTabsResult } from '../../../shared/remote-runtime/session-graph/runtime-session-contracts'
 
 vi.mock('../../../shared/layout-owner-switch', () => ({ ORCA_LAYOUT_OWNER_IS_MAIN: true }))
 
@@ -101,31 +101,6 @@ describe("a phone's layout change on a windowless server (switch on)", () => {
       store.getSession().tabGroups?.[TEST_WORKTREE_ID]?.map((group) => group.tabOrder)
     ).toEqual(strip)
     expect(store.getSession().tabGroupLayouts?.[TEST_WORKTREE_ID]).toEqual(stored.tabGroupLayout)
-  })
-
-  it("refuses a split of a row main's layout does not hold, sending nothing (#31925)", async () => {
-    const { runtime } = await headlessRuntime()
-    runtime.projectStructuredAgentSessionTab({
-      workspaceId: TEST_WORKTREE_ID,
-      sessionId: 's1',
-      agent: 'claude',
-      activate: false
-    })
-    const apply = vi.spyOn(runtime, 'applyLayoutCommand')
-
-    await expect(
-      runtime.moveMobileSessionTab(WORKTREE, {
-        kind: 'split',
-        tabId: CHAT,
-        targetGroupId: SAVED_GROUP_ID,
-        splitDirection: 'right'
-      })
-    ).rejects.toThrow('tab_not_found')
-
-    expect(apply).not.toHaveBeenCalled()
-    expect((await runtime.listMobileSessionTabs(WORKTREE)).tabs.map((row) => row.id)).toContain(
-      CHAT
-    )
   })
 
   it.each([

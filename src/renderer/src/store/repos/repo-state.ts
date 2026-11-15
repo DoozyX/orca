@@ -2,10 +2,10 @@ import type {
   FolderWorkspaceCreateInput,
   FolderWorkspaceCreateResult
 } from '../../../../shared/folder-workspaces/folder-workspace-create'
-import type { WslHostWindowsDriveRefusal } from '../../../../shared/wsl-host-windows-drive-refusal'
+import type { WslHostWindowsDriveRefusal } from '../../../../shared/remote-runtime/wsl-hosts/wsl-host-windows-drive-refusal'
 import type { WorkspaceAttachmentMutation } from '../../../../shared/workspace-attachments/workspace-attachment-mutation'
 import type { GhAccountBinding } from '../../../../shared/github/accounts/account-binding'
-import type { SshRepoReadoption } from '../../../../shared/ssh-types'
+import type { SshRepoReadoption } from '../../../../shared/remote-runtime/ssh/ssh-types'
 import type { FolderWorkspace } from '../../../../shared/folder-workspaces/folder-workspace-types'
 import type {
   NestedRepoScanResult,
@@ -262,7 +262,7 @@ export type RepoSlice = {
   ) => Promise<boolean>
   deleteFolderWorkspace: (
     folderWorkspaceId: string,
-    options?: { executionHostId?: ExecutionHostId }
+    options?: { executionHostId?: ExecutionHostId; allowFailedArchiveHook?: boolean }
   ) => Promise<boolean>
   // options.hostId targets a specific host's row + RPC target when the id exists on multiple hosts; else the group's own host owns the call.
   updateProjectGroup: (

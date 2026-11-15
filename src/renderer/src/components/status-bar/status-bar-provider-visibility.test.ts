@@ -11,7 +11,7 @@ import {
   isUsageEmptyState,
   isProviderConfigured,
   type UsageProviderSettings
-} from './status-bar-provider-visibility'
+} from './composition/status-bar-provider-visibility'
 
 function provider(
   status: ProviderRateLimitStatus,

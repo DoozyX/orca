@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import type { CommandHandler } from '../dispatch/dispatch'
 import { getOptionalStringFlag, getRequiredStringFlag } from '../arguments/flags'
 import { writeStdoutLine } from '../output/stdout-line'
-import { RuntimeClientError } from '../runtime/types'
+import { RuntimeClientError } from '../runtime/connection/types'
 import { parseFindingsFile } from '../review-metrics/review-findings-parser'
 import { REVIEW_KINDS, type LedgerRow } from '../review-metrics/review-ledger-parser'
 import {

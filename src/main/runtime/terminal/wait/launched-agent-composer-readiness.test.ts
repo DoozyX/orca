@@ -7,7 +7,7 @@ import {
 } from '../../../../shared/draft-paste-ready-scanner'
 import type { TuiAgent } from '../../../../shared/agent-launch/catalog/tui-agent'
 import { TUI_AGENT_CONFIG } from '../../../../shared/agent-launch/catalog/tui-agent-config'
-import type { RuntimeTerminalWait } from '../../../../shared/runtime-terminal-contracts'
+import type { RuntimeTerminalWait } from '../../../../shared/terminal/runtime/runtime-terminal-contracts'
 import { GROK_STARTUP_PTY_TRACE } from '../../../../shared/__fixtures__/grok-startup-pty-trace'
 import type { GrokStartupTraceChunk } from '../../../../shared/__fixtures__/grok-startup-pty-trace'
 import { GROK_INLINE_STARTUP_PTY_TRACE } from '../../../../shared/__fixtures__/grok-inline-startup-pty-trace'

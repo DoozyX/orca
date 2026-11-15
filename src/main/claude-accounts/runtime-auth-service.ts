@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { getAppEnvironment } from '../../shared/app-environment'
-import { toWindowsWslPath } from '../../shared/wsl-paths'
+import { toWindowsWslPath } from '../../shared/file-access/wsl-paths'
 import { resolveLocalAccountRuntimeTarget } from '../../shared/local-account-runtime'
 import {
   claudeAccountScopeReader,

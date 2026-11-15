@@ -1,7 +1,7 @@
 import { useAppStore } from '../../store'
 import type { ProviderRateLimits } from '../../../../shared/rate-limit-types'
-import { getUsageProviderAccountsSectionId } from './usage-provider-settings-target'
-import { getUsageOwnerHostScope, type RemoteUsageOwner } from './use-owner-usage-rate-limits'
+import { getUsageProviderAccountsSectionId } from './usage/usage-provider-settings-target'
+import { getUsageOwnerHostScope, type RemoteUsageOwner } from './usage/use-owner-usage-rate-limits'
 
 export function useUsageSettingsNavigation(
   remoteOwner: RemoteUsageOwner | null,

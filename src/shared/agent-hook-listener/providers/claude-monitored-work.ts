@@ -5,7 +5,7 @@ import {
 import {
   readClaudeSessionCrons,
   type ClaudeMonitoredWorkObservation
-} from '../../claude-background-task-inventory'
+} from './claude/background-tasks/claude-background-task-inventory'
 import type { HookListenerState } from '../listener-state'
 
 /** Shells and crons arrive in separate inventories and retire separately (a session-owner change

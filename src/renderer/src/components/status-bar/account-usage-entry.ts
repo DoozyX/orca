@@ -5,7 +5,7 @@ import type {
 import type { ClaudeAccountAssignmentSource } from '../../../../shared/claude-account-assignment'
 import type { StatusBarUsageMode } from '../../../../shared/status-bar-usage-mode'
 import type { Translate } from '@/i18n/use-translate'
-import { usageChipShowsPercentage, type UsageUnitLabelState } from './usage-unit-label'
+import { usageChipShowsPercentage, type UsageUnitLabelState } from './usage/usage-unit-label'
 
 export type AccountUsageEntry = {
   key: string

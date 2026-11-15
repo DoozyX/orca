@@ -59,7 +59,7 @@ vi.mock('./ProviderDetailsMenu', () => ({
 vi.mock('../../store', () => ({
   useAppStore: (selector: (state: typeof app) => unknown) => selector(app)
 }))
-import { useStatusBarController } from './use-status-bar-controller'
+import { useStatusBarController } from './composition/use-status-bar-controller'
 
 const settings: Pick<
   GlobalSettings,
