@@ -19,6 +19,7 @@ describe('a paired-server worker start writes its brief only into the agent it l
     for (const db of databases.splice(0)) {
       db.close()
     }
+    vi.useRealTimers()
     vi.restoreAllMocks()
   })
 
@@ -72,12 +73,34 @@ describe('a paired-server worker start writes its brief only into the agent it l
 
   it('types nothing when the agent exited and its shell is in front', async () => {
     const host = workerHost('shell')
+    vi.useFakeTimers()
 
-    await expect(attach(host.runtime)).resolves.toMatchObject({
+    // The brief keeps sampling for 10 s first: a launch can still be execing its agent.
+    const pending = attach(host.runtime)
+    await vi.advanceTimersByTimeAsync(10_000)
+
+    await expect(pending).resolves.toMatchObject({
       state: 'failed',
       failedStage: 'dispatch_input',
-      lastError: 'agent_not_in_foreground'
+      lastError: expect.stringMatching(/^agent_not_in_foreground: last foreground sample was shell/)
     })
     expect(host.writes).toEqual([])
+  })
+
+  // #18: the read right after readiness can still find the launcher in front.
+  it('waits out a first read that cannot tell, then writes into the agent', async () => {
+    const host = workerHost('agent')
+    vi.spyOn(host.runtime, 'launchedAgentHostProvesAgent').mockReturnValue(true)
+    vi.mocked(host.runtime.readLaunchedAgentForeground)
+      .mockResolvedValueOnce('unknown')
+      .mockResolvedValueOnce('agent')
+    vi.useFakeTimers()
+
+    const pending = attach(host.runtime)
+    await vi.advanceTimersByTimeAsync(250)
+    await pending
+
+    expect(host.runtime.readLaunchedAgentForeground).toHaveBeenCalledTimes(2)
+    expect(host.writes).toHaveLength(1)
   })
 })

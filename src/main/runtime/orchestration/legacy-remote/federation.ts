@@ -192,6 +192,7 @@ export const ORCHESTRATION_FEDERATION_ATTACH_METHODS = [
         }
         persistFederatedReadinessStage(setupStage)
         failedStage = 'agent_readiness'
+        const readinessDeadline = Date.now() + readinessTimeoutMs
         // A graph reload can remint the pane's handle during the wait; follow the same process (#29).
         const ready = await waitForWorkerAgentReadyRebinding(runtime, terminalHandle, {
           agent,
@@ -227,7 +228,12 @@ export const ORCHESTRATION_FEDERATION_ATTACH_METHODS = [
         })
         failedStage = 'dispatch_input'
         // A shell back at its prompt also reads as ready, so the brief needs the agent found in front.
-        const briefGuard = createWorkerBriefWriteGuard(runtime, agent, !params.terminal)
+        const briefGuard = createWorkerBriefWriteGuard(
+          runtime,
+          agent,
+          !params.terminal,
+          readinessDeadline
+        )
         const prompt = await sendAgentTurn({
           kind: 'terminal',
           runtime,
