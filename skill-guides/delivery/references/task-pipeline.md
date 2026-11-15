@@ -14,7 +14,9 @@ results trustworthy:
   and runs focused checks. A result is reusable only for the same revision, a
   clean tree, and the same environment.
 - **A command is finished when its process exits,** not when a wrapper returns
-  or a pane goes idle. Keep the command, its exit code and its log.
+  or a pane goes idle. Keep the command, its exit code and its log. Record a
+  reused result as reused, with its original command and exit code, never as a
+  fresh run.
 
 An approved task includes ordinary reversible verification in its own worktree:
 focused checks, fixtures, local builds. Shared-service mutation, deployment, new

@@ -4,7 +4,10 @@
 
 Let Orca's wake drive observation. When you must block instead, keep one
 consuming inbox and one pending `check --wait`, observed until it returns; never
-repeat immediate checks. Batch independent reads and use existing brief task
+repeat immediate checks. When the agent tool returns a pending command handle
+before the wait ends, resume that handle with a longer bounded wait; its
+output-yield interval is not the CLI deadline, and a keepalive marker is not a
+reason for another status check or a second inbox consumer. Batch independent reads and use existing brief task
 views and worker projections for routine status. Keep full receipts in session
 scratch and print the decision-relevant identities, verdicts, required actions
 and evidence paths.
