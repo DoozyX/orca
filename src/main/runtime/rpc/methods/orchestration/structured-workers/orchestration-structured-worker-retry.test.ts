@@ -121,7 +121,8 @@ async function createWorker() {
       devMode: false,
       requestId: 'request-retry',
       // Why: real-time budget; five refused opens can outlast 2s on a loaded host and turn refusal into a timeout.
-      readinessTimeoutMs: 20_000
+      readinessTimeoutMs: 20_000,
+      readinessDeadline: Date.now() + 20_000
     })
   return { runtime, created, workerRuntime, deliverPreamble }
 }
