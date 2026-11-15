@@ -2,8 +2,7 @@ import { describeUnconfirmedAgentStop } from '../../../../shared/terminal/pty/li
 import type { RemoteDispatchAttachmentRow } from '../db/orchestration-records'
 import type {
   WorkerTerminalArchiveRow,
-  WorkerTerminalResourceRow,
-  WorkerTerminalRetainedReason
+  WorkerTerminalResourceRow
 } from '../terminal-authority/release/worker-terminal-ownership'
 import {
   captureWorkerOutputReference,
@@ -15,8 +14,14 @@ import type { WorkerTerminalReleaseRuntime } from '../terminal-authority/release
 import { readRemoteAttachmentOutputIfAvailable } from './remote-attachment-archive-read'
 import { WorkerTerminalReleaseSingleFlight } from '../../rpc/methods/orchestration/worker/release/worker-terminal-release-single-flight'
 import { yieldAutoReleaseToWorkingAgent } from '../terminal-authority/release/worker-terminal-auto-release-working-yield'
-import { archiveSummary } from '../../rpc/methods/orchestration/worker/release/worker-terminal-resource-presentation'
-import type { WorkerReleaseReceipt } from '../../rpc/methods/orchestration/worker/release/worker-release-completion'
+import {
+  archiveSummary,
+  ownershipTransferredReceiptFields
+} from '../../rpc/methods/orchestration/worker/release/worker-terminal-resource-presentation'
+import {
+  retainedReason,
+  type WorkerReleaseReceipt
+} from '../../rpc/methods/orchestration/worker/release/worker-release-completion'
 import { releaseUnknownRecovery } from '../../rpc/methods/orchestration/worker/release/worker-release-unknown-recovery'
 import { orchestrationTimestampToMs } from '../../rpc/methods/orchestration/worker/output/worker-output'
 import type { inspectRemoteAttachment } from './federation-attachment-observation'
@@ -98,7 +103,8 @@ async function requestRemoteAttachmentRelease(
       state: 'retained',
       reason: requested.reason,
       processAction: 'none',
-      archive: archiveSummary(requested.resource)
+      archive: archiveSummary(requested.resource),
+      ...ownershipTransferredReceiptFields(requested.reason, requested.resource)
     }
   }
   return { resource: requested.resource, storedArchive: storedArchive ?? null }
@@ -277,16 +283,6 @@ function remoteAttachmentLeaseIsCurrent(
     }) &&
     !db.workerTerminalResourceHasIdentityConflict(resource.id)
   )
-}
-
-function retainedReason(resource: WorkerTerminalResourceRow): WorkerTerminalRetainedReason {
-  if (resource.retained_reason) {
-    return resource.retained_reason as WorkerTerminalRetainedReason
-  }
-  if (resource.ownership_state === 'user_owned') {
-    return 'user_takeover'
-  }
-  return 'identity_unproven'
 }
 
 function projectArchivedOutputLiveness<

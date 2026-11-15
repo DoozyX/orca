@@ -36,6 +36,8 @@ const RemoteReleaseReceiptSchema = z
       .optional(),
     recovery: z.string().optional(),
     lastError: z.string().optional(),
+    currentOwnerDispatchId: z.string().optional(),
+    terminalReleaseState: z.string().optional(),
     output: z.unknown().optional()
   })
   .passthrough()
@@ -169,6 +171,8 @@ export async function releaseFederatedWorker(
     archive: remote.archive ?? null,
     recovery: remote.recovery,
     lastError: remote.lastError,
+    currentOwnerDispatchId: remote.currentOwnerDispatchId,
+    terminalReleaseState: remote.terminalReleaseState,
     ...(remote.output ? { remoteOutput: remote.output } : {})
   }
   if (remote.state !== 'released' && remote.state !== 'already_released') {
