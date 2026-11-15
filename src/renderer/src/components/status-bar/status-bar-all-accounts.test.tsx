@@ -7,29 +7,30 @@ import type { ProviderRateLimits } from '../../../../shared/rate-limit-types'
 const state = vi.hoisted(() => ({ narrow: false }))
 vi.mock('@/i18n/i18n', () => ({
   i18n: { language: 'en' },
+  getIntlLocale: () => 'en',
   translate: (_key: string, fallback: string, values?: Record<string, string | number>) =>
     fallback.replace(/{{(\w+)}}/g, (_, key: string) => String(values?.[key] ?? key))
 }))
 vi.mock('@/lib/agent-catalog', () => ({ AgentIcon: () => <span /> }))
 // These stand in for unrelated status controls and popup portals; usage rendering remains real.
-vi.mock('./UpdateStatusSegment', () => ({ UpdateStatusSegment: () => null }))
-vi.mock('./SkillUpdateStatusSegment', () => ({ SkillUpdateStatusSegment: () => null }))
+vi.mock('./updates/UpdateStatusSegment', () => ({ UpdateStatusSegment: () => null }))
+vi.mock('./updates/SkillUpdateStatusSegment', () => ({ SkillUpdateStatusSegment: () => null }))
 vi.mock('./NativeChatResumeStatusSegment', () => ({ NativeChatResumeStatusSegment: () => null }))
 vi.mock('./CaffeinateStatusSegment', () => ({ CaffeinateStatusSegment: () => null }))
-vi.mock('./RemoteServerUpdateStatusSegment', () => ({
+vi.mock('./updates/RemoteServerUpdateStatusSegment', () => ({
   RemoteServerUpdateStatusSegment: () => null
 }))
-vi.mock('./StatusBarVisibilityMenu', () => ({ StatusBarVisibilityMenu: () => null }))
-vi.mock('./StatusBarUsageChangeNotices', () => ({
+vi.mock('./composition/StatusBarVisibilityMenu', () => ({ StatusBarVisibilityMenu: () => null }))
+vi.mock('./usage/StatusBarUsageChangeNotices', () => ({
   StatusBarUsageChangeNotices: ({ children }: PropsWithChildren) => children
 }))
-vi.mock('./ClaudeSwitcherMenu', () => ({
+vi.mock('./accounts/ClaudeSwitcherMenu', () => ({
   ClaudeSwitcherMenu: ({ triggerContent }: { triggerContent: ReactNode }) => triggerContent
 }))
-vi.mock('./CodexSwitcherMenu', () => ({
+vi.mock('./accounts/CodexSwitcherMenu', () => ({
   CodexSwitcherMenu: ({ triggerContent }: { triggerContent: ReactNode }) => triggerContent
 }))
-vi.mock('./ProviderDetailsMenu', () => ({
+vi.mock('./usage/ProviderDetailsMenu', () => ({
   ProviderDetailsMenu: ({ triggerContent }: { triggerContent: ReactNode }) => triggerContent,
   CLOSE_ALL_CONTEXT_MENUS_EVENT: 'close-menus'
 }))
@@ -40,7 +41,7 @@ vi.mock('@/components/ui/dropdown-menu', () => ({
   DropdownMenuContent: ({ children }: PropsWithChildren) => <section>{children}</section>,
   DropdownMenuItem: ({ children }: PropsWithChildren) => <div>{children}</div>
 }))
-vi.mock('./use-status-bar-controller', () => ({
+vi.mock('./composition/use-status-bar-controller', () => ({
   useStatusBarController: () => ({
     compact: state.narrow,
     usageTightestOnly: state.narrow,

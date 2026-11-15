@@ -28,7 +28,7 @@ const omp: ProviderRateLimits = {
     { name: 'Usage (OpenAI)', ...window, usedPercent: 25 },
     { name: 'Usage (Anthropic)', ...window, usedPercent: 41 }
   ],
-  updatedAt: Date.now(),
+  updatedAt: 1_700_000_000_000,
   error: null,
   status: 'ok'
 }

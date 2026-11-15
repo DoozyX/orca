@@ -52,7 +52,7 @@ vi.mock('@/hooks/useShortcutLabel', () => ({ useShortcutLabel: () => '' }))
 vi.mock('../../store/workspaces/floating/floating-workspace-unread-selector', () => ({
   selectFloatingWorkspaceHasUnread: () => false
 }))
-vi.mock('./ProviderDetailsMenu', () => ({
+vi.mock('./usage/ProviderDetailsMenu', () => ({
   CLOSE_ALL_CONTEXT_MENUS_EVENT: 'close-menu',
   useStatusBarMenuFocusHandoff: () => ({ reset: () => {} })
 }))
