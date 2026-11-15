@@ -51,6 +51,7 @@ vi.mock('fs/promises', async () => {
 import {
   createGitCallReader,
   createGitCommandMocker,
+  DEFAULT_BRANCH_PROBE_ARGS,
   resetWorktreeGitMocks,
   resetWorktreeRemovalState
 } from './remove-worktree-test-harness'
@@ -146,6 +147,9 @@ it('finishes native Git registration and branch cleanup when checkout stop follo
     if (args.includes('remove')) {
       registered = false
     }
+    if (args.join(' ') === DEFAULT_BRANCH_PROBE_ARGS.join(' ')) {
+      return { stdout: 'refs/heads/main\0\n', stderr: '' }
+    }
     return { stdout: '', stderr: '' }
   })
   try {
@@ -157,7 +161,7 @@ it('finishes native Git registration and branch cleanup when checkout stop follo
     ).resolves.toEqual({})
     expect(existsSync(checkout)).toBe(false)
     expect(registered).toBe(false)
-    expect(getGitCalls()).toContain('git branch -d -- feature')
+    expect(getGitCalls()).toContain('git update-ref -d refs/heads/feature abc')
   } finally {
     physical.mockRestore()
     await rm(directory, { recursive: true, force: true })
