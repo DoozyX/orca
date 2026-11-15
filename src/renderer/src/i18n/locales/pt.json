@@ -8329,7 +8329,7 @@
         "AgentCacheTimerSection": {
           "05de84a104": "1 hora",
           "54395ecd7c": "5 minutos",
-          "8b9e202e0a": "Ajuste isso ao TTL de cache do seu provedor. O padrão é 5 minutos.",
+          "8b9e202e0a": "Ajuste isso ao TTL de cache do seu provedor. O padrão é 1 hora.",
           "487b176240": "Mostra uma contagem regressiva na barra lateral depois que um agente Claude fica inativo.",
           "9c20253679": "Mostra uma contagem regressiva depois que um agente Claude fica inativo.",
           "fe590653c1": "O Claude armazena sua conversa em cache para reduzir custos. Quando inativo por muito tempo, o cache expira e a próxima mensagem reenvia o contexto completo a um custo maior. Isto mostra uma contagem regressiva para você saber quando retomar.",

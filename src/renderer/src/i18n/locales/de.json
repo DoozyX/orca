@@ -8060,7 +8060,7 @@
         "AgentCacheTimerSection": {
           "05de84a104": "1 Stunde",
           "54395ecd7c": "5 Minuten",
-          "8b9e202e0a": "Auf die Cache-TTL des Anbieters abstimmen. Der Standardwert beträgt 5 Minuten.",
+          "8b9e202e0a": "Auf die Cache-TTL des Anbieters abstimmen. Der Standardwert beträgt 1 Stunde.",
           "487b176240": "Eine Restzeitanzeige in der Seitenleiste einblenden, sobald ein Claude-Agent inaktiv wird.",
           "9c20253679": "Eine Restzeitanzeige einblenden, sobald ein Claude-Agent inaktiv wird.",
           "fe590653c1": "Claude speichert die Unterhaltung im Cache, um Kosten zu senken. Bei zu langer Inaktivität läuft der Cache ab, und die nächste Nachricht sendet den gesamten Kontext erneut zu höheren Kosten. Die Restzeitanzeige zeigt, wann die Unterhaltung fortgesetzt werden sollte.",

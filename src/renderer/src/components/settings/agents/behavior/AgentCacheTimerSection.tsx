@@ -88,7 +88,7 @@ export function AgentCacheTimerSection({
             <p className="text-xs text-muted-foreground">
               {t(
                 'auto.components.settings.AgentCacheTimerSection.8b9e202e0a',
-                "Match this to your provider's cache TTL. The default is 5 minutes."
+                "Match this to your provider's cache TTL. The default is 1 hour."
               )}
             </p>
           </div>

@@ -8037,7 +8037,7 @@
         "AgentCacheTimerSection": {
           "05de84a104": "1 saat",
           "54395ecd7c": "5 dakika",
-          "8b9e202e0a": "Bunu sağlayıcınızın önbellek TTL süresiyle eşleştirin. Varsayılan 5 dakikadır.",
+          "8b9e202e0a": "Bunu sağlayıcınızın önbellek TTL süresiyle eşleştirin. Varsayılan 1 saattir.",
           "487b176240": "Bir Claude ajanı boşta kaldıktan sonra kenar çubuğunda geri sayım gösterin.",
           "9c20253679": "Bir Claude ajanı boşta kaldıktan sonra geri sayım gösterin.",
           "fe590653c1": "Claude, maliyetleri azaltmak için konuşmanızı önbelleğe alır. Çok uzun süre boşta kalındığında önbelleğin süresi dolar ve sonraki mesaj tam bağlamı daha yüksek maliyetle yeniden gönderir. Bu, ne zaman devam edeceğinizi bilmeniz için bir geri sayım gösterir.",

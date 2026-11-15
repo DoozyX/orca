@@ -8788,7 +8788,7 @@
         "AgentCacheTimerSection": {
           "05de84a104": "1 hour",
           "54395ecd7c": "5 minutes",
-          "8b9e202e0a": "Match this to your provider's cache TTL. The default is 5 minutes.",
+          "8b9e202e0a": "Match this to your provider's cache TTL. The default is 1 hour.",
           "487b176240": "Show a countdown in the sidebar after a Claude agent becomes idle.",
           "9c20253679": "Show a countdown after a Claude agent becomes idle.",
           "fe590653c1": "Claude caches your conversation to reduce costs. When idle too long the cache expires and the next message resends full context at higher cost. This shows a countdown so you know when to resume.",

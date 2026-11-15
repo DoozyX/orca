@@ -7939,7 +7939,7 @@
         "AgentCacheTimerSection": {
           "05de84a104": "1 heure",
           "54395ecd7c": "5 minutes",
-          "8b9e202e0a": "Alignez cette durée sur le TTL de cache de votre fournisseur. Par défaut : 5 minutes.",
+          "8b9e202e0a": "Alignez cette durée sur le TTL de cache de votre fournisseur. Par défaut : 1 heure.",
           "487b176240": "Afficher un compte à rebours dans la barre latérale quand un agent Claude devient inactif.",
           "9c20253679": "Afficher un compte à rebours quand un agent Claude devient inactif.",
           "fe590653c1": "Claude met votre conversation en cache pour réduire les coûts. Après une trop longue inactivité, le cache expire et le message suivant renvoie tout le contexte, à un coût plus élevé. Ce compte à rebours vous indique quand reprendre.",

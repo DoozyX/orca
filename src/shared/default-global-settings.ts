@@ -206,7 +206,7 @@ export function buildDefaultSettings(args: {
     combinedDiffFileTreeVisibleByDefault: false,
     prBotAuthorOverrides: [],
     promptCacheTimerEnabled: false,
-    promptCacheTtlMs: 300_000,
+    promptCacheTtlMs: 3_600_000,
     codexManagedAccounts: [],
     activeCodexManagedAccountId: null,
     activeCodexManagedAccountIdsByRuntime: { host: null, wsl: {} },

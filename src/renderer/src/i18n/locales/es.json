@@ -7668,7 +7668,7 @@
         "AgentCacheTimerSection": {
           "05de84a104": "1 hora",
           "54395ecd7c": "5 minutos",
-          "8b9e202e0a": "Haz que esto coincida con el TTL de caché de tu proveedor. El valor predeterminado es 5 minutos.",
+          "8b9e202e0a": "Haz que esto coincida con el TTL de caché de tu proveedor. El valor predeterminado es 1 hora.",
           "487b176240": "Muestra una cuenta regresiva en la barra lateral después de que un agente de Claude quede inactivo.",
           "9c20253679": "Muestra una cuenta regresiva después de que un agente de Claude quede inactivo.",
           "fe590653c1": "Claude cachea tu conversación para reducir costos. Si queda inactiva demasiado tiempo, la caché caduca y el siguiente mensaje reenvía todo el contexto con mayor costo. Esto muestra una cuenta regresiva para que sepas cuándo reanudar.",
