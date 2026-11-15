@@ -8,7 +8,8 @@ import { ORCHESTRATION_WORKER_LIST_METHOD } from './worker-list-method'
 import { resolvePinnedFederatedServer } from '../../../../orchestration/legacy-remote-home/pinned-federated-server'
 import {
   archiveSummary,
-  exposeWorkerRetainReceipt
+  exposeWorkerRetainReceipt,
+  ownershipTransferredReceiptFields
 } from './release/worker-terminal-resource-presentation'
 import {
   completeWorkerTerminalRelease,
@@ -84,7 +85,8 @@ export const ORCHESTRATION_WORKER_RELEASE_METHODS = [
           state: 'retained',
           reason: requested.reason,
           processAction: 'none',
-          archive: archiveSummary(resource)
+          archive: archiveSummary(resource),
+          ...ownershipTransferredReceiptFields(requested.reason, resource)
         }
       }
       return completeWorkerTerminalRelease({

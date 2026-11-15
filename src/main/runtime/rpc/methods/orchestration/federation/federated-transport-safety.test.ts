@@ -58,6 +58,44 @@ describe('federated transport safety', () => {
       expect((call as unknown[])[5]).toEqual({ expectedEnvironmentPairingRevision: 73 })
     }
   })
+
+  it('relays the execution host ownership-transfer facts on a retained release', async () => {
+    const db = { updateFederatedDispatchRuntimeEpoch: vi.fn() }
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: release reads only the worker-server call and the db stub.
+    const runtime = {
+      callOrchestrationWorkerServer: vi.fn(async (_selector, method: string) =>
+        method === 'status.get'
+          ? runtimeStatus([ORCHESTRATION_FEDERATION_RELEASE_ARCHIVE_RUNTIME_CAPABILITY])
+          : {
+              dispatchId: 'dispatch-worker',
+              state: 'retained',
+              reason: 'ownership_transferred',
+              processAction: 'none',
+              archive: null,
+              currentOwnerDispatchId: 'dispatch-successor',
+              terminalReleaseState: 'not_requested',
+              recovery: 'Release dispatch-successor.'
+            }
+      ),
+      getOrchestrationDb: () => db
+    } as unknown as OrcaRuntimeService
+
+    await expect(
+      releaseFederatedWorker({
+        runtime,
+        server,
+        federated: federatedDispatch(),
+        dispatchId: 'dispatch-worker',
+        requestId: 'release-request'
+      })
+    ).resolves.toMatchObject({
+      state: 'retained',
+      reason: 'ownership_transferred',
+      currentOwnerDispatchId: 'dispatch-successor',
+      terminalReleaseState: 'not_requested',
+      recovery: 'Release dispatch-successor.'
+    })
+  })
 })
 
 describe('worker-stop of a remote worker already settled at home', () => {

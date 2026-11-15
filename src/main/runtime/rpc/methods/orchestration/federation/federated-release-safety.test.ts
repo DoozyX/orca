@@ -64,7 +64,10 @@ describe('federated worker release ownership', () => {
     await expect(call('orchestration.federationRelease', 'ctx_old')).resolves.toMatchObject({
       state: 'retained',
       reason: 'ownership_transferred',
-      processAction: 'none'
+      processAction: 'none',
+      currentOwnerDispatchId: 'ctx_successor',
+      terminalReleaseState: 'not_requested',
+      recovery: expect.stringContaining('ctx_successor')
     })
     expect(runtime.closeTerminal).not.toHaveBeenCalled()
   })

@@ -12,7 +12,10 @@ import type { WorkerTerminalReleaseRuntime } from '../../../../../orchestration/
 import { describeUnconfirmedAgentStop } from '../../../../../../../shared/terminal/pty/lifecycle/pty-liveness-verdict'
 import { inspectWorkerTerminal } from '../observation/worker-observation'
 import { orchestrationTimestampToMs } from '../output/worker-output'
-import { archiveSummary } from './worker-terminal-resource-presentation'
+import {
+  archiveSummary,
+  type OwnershipTransferredReceiptFields
+} from './worker-terminal-resource-presentation'
 import { classifyWorkerTerminalCloseError } from './worker-release-close-error'
 import { workerTerminalLeaseIsCurrent } from './worker-terminal-release-lease'
 import { resolveStructuredWorkerForDispatch } from '../../structured-workers/orchestration-structured-worker-lifecycle'
@@ -31,7 +34,7 @@ export type WorkerReleaseReceipt = {
   archive: { source: string | null; status: string | null } | null
   recovery?: string
   lastError?: string
-}
+} & OwnershipTransferredReceiptFields
 
 type WorkerTerminalReleaseArgs = {
   runtime: WorkerTerminalReleaseRuntime
@@ -266,7 +269,7 @@ async function completeWorkerTerminalReleaseOnce(
   }
 }
 
-function retainedReason(resource: WorkerTerminalResourceRow): WorkerTerminalRetainedReason {
+export function retainedReason(resource: WorkerTerminalResourceRow): WorkerTerminalRetainedReason {
   if (resource.retained_reason) {
     return resource.retained_reason as WorkerTerminalRetainedReason
   }

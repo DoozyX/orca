@@ -1,7 +1,9 @@
 import type { OrchestrationDb } from '../../../../../orchestration/db/orchestration-db'
 import {
   liveWorkerTerminalAutoReleaseAt,
-  type WorkerTerminalResourceRow
+  type WorkerTerminalReleaseState,
+  type WorkerTerminalResourceRow,
+  type WorkerTerminalRetainedReason
 } from '../../../../../orchestration/terminal-authority/release/worker-terminal-ownership'
 import type { WorkerReleaseReceipt } from './worker-release-completion'
 
@@ -95,5 +97,30 @@ export function exposeWorkerRetainReceipt(
     reason: 'user_requested',
     processAction: 'none',
     archive: archiveSummary(retained.resource)
+  }
+}
+
+export type OwnershipTransferredReceiptFields = {
+  currentOwnerDispatchId?: string
+  terminalReleaseState?: WorkerTerminalReleaseState
+  recovery?: string
+}
+
+// Names the Dispatch that now owns a reused terminal so a coordinator releasing in the wrong order knows what to do.
+export function ownershipTransferredReceiptFields(
+  reason: WorkerTerminalRetainedReason,
+  resource: WorkerTerminalResourceRow | null
+): OwnershipTransferredReceiptFields {
+  if (reason !== 'ownership_transferred' || !resource) {
+    return {}
+  }
+  return {
+    currentOwnerDispatchId: resource.owner_dispatch_id,
+    terminalReleaseState: resource.release_state,
+    ...(resource.release_state === 'released'
+      ? {}
+      : {
+          recovery: `This terminal was reused by Dispatch ${resource.owner_dispatch_id}; release that Dispatch instead: orca orchestration worker-release --dispatch ${resource.owner_dispatch_id}`
+        })
   }
 }

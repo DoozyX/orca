@@ -24,4 +24,35 @@ describe('orchestration worker release', () => {
     await expect(release).resolves.toMatchObject({ state: 'released' })
     expect(h.db.getWorkerTerminalResourceByOwner(dispatchId)?.release_state).toBe('released')
   })
+
+  it('names the current owner when a reused terminal is released through its old Dispatch', async () => {
+    h.setup()
+    const first = await h.startSettledWorker('succeeded')
+    const second = await h.startWorker({ terminal: 'term_reminted' })
+
+    const oldRelease = await h.call('orchestration.workerRelease', { dispatch: first.dispatchId })
+    expect(oldRelease).toMatchObject({
+      state: 'retained',
+      reason: 'ownership_transferred',
+      currentOwnerDispatchId: second.dispatchId,
+      terminalReleaseState: 'not_requested'
+    })
+    expect(oldRelease).toHaveProperty('recovery', expect.stringContaining(second.dispatchId))
+    expect(h.runtime.closeTerminal).not.toHaveBeenCalled()
+
+    h.settle(second.taskId, second.dispatchId, 'succeeded')
+    await h.call('orchestration.workerRelease', { dispatch: second.dispatchId })
+
+    const oldReleaseAfterClose = await h.call('orchestration.workerRelease', {
+      dispatch: first.dispatchId
+    })
+    expect(oldReleaseAfterClose).toMatchObject({
+      state: 'retained',
+      reason: 'ownership_transferred',
+      currentOwnerDispatchId: second.dispatchId,
+      terminalReleaseState: 'released'
+    })
+    expect(oldReleaseAfterClose).not.toHaveProperty('recovery')
+    expect(h.runtime.closeTerminal).toHaveBeenCalledTimes(1)
+  })
 })
