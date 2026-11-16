@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { useTranslate } from '@/i18n/use-translate'
-import type { AntigravityAccountUsage } from '../../../../shared/rate-limit-types'
+import type { AntigravityAccountUsage } from '../../../../shared/agent-usage/rate-limits/rate-limit-types'
 import { AntigravityUsageMenu } from './usage/AntigravityUsageMenu'
 import { ClaudeSwitcherMenu } from './accounts/ClaudeSwitcherMenu'
 import { CodexSwitcherMenu } from './accounts/CodexSwitcherMenu'

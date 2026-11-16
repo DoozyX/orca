@@ -1,4 +1,4 @@
-import type { ProjectGroup } from '../project-group-types'
+import type { ProjectGroup } from '../project/groups/project-group-types'
 import { getProjectGroupExecutionHostId, type ExecutionHostId } from '../execution-host'
 
 /** Union-find over project-group copies; a set never holds two copies from one host. */

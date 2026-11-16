@@ -49,6 +49,7 @@ import {
 import { translate } from '@/i18n/i18n'
 import { useTranslate, type Translate } from '@/i18n/use-translate'
 import { useUiLanguageRevision } from '@/i18n/use-ui-language-revision'
+import { useHasWorktreeCardUnreadRollup } from '@/components/sidebar/workspace-card/surface/worktree-card-title-status'
 
 function formatTimeAgo(ts: number, now: number, t: Translate = translate): string {
   const delta = now - ts
@@ -131,6 +132,7 @@ const DashboardAgentRow = React.memo(function DashboardAgentRow({
   onSendTargetClick
 }: Props) {
   const t = useTranslate()
+  const hasUnreadRollup = useHasWorktreeCardUnreadRollup()
   useUiLanguageRevision()
   const view = useClaudeAgentRowView(agent)
   const highlighted = view ? view.current && view.focused : isFocusedPane
@@ -319,6 +321,7 @@ const DashboardAgentRow = React.memo(function DashboardAgentRow({
                 title={null}
                 progress={presentation.progress}
                 unread={isUnvisited}
+                unreadDisplay={hasUnreadRollup ? 'label' : 'dot'}
               />
             </span>
           </TooltipTrigger>

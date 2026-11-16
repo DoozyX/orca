@@ -6,7 +6,7 @@ import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ProviderAccountsSnapshot } from '@/runtime/provider-accounts/observations/runtime-provider-accounts-client'
 import type { GlobalSettings } from '../../../../shared/global-settings-types'
-import { createEmptyRateLimitState } from '../../../../shared/rate-limit-state-factory'
+import { createEmptyRateLimitState } from '../../../../shared/agent-usage/rate-limits/rate-limit-state-factory'
 
 type Watcher = {
   onSnapshot: (snapshot: ProviderAccountsSnapshot) => void

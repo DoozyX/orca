@@ -9,13 +9,13 @@ import { readCursorAuthSession } from '../providers/cursor/cursor-auth'
 import { fetchZcodeRateLimits } from '../providers/zcode/zcode-usage-fetcher'
 import { fetchAntigravityRateLimits } from '../providers/antigravity/antigravity-usage-fetcher'
 import { antigravityUsageDisabledSnapshot } from '../providers/antigravity/antigravity-usage-snapshot'
-import { ZCODE_PLAN_SITE_BASE_URLS } from '../../../shared/zcode-plan-sites'
+import { ZCODE_PLAN_SITE_BASE_URLS } from '../../../shared/agent-accounts/usage-credentials/zcode-plan-sites'
 import { fetchMiniMaxRateLimits } from '../providers/minimax/minimax-fetcher'
 import { createHash } from 'node:crypto'
 import { fetchOpenCodeGoUsage } from '../providers/opencode-go/opencode-go-usage-source-selection'
 import { RateLimitServiceAntigravityAccounts } from './service-antigravity-accounts'
 import type { FetchAllCyclePrepared } from './service-full-cycle-prepared'
-import type { ProviderRateLimits } from '../../../shared/rate-limit-types'
+import type { ProviderRateLimits } from '../../../shared/agent-usage/rate-limits/rate-limit-types'
 
 export abstract class RateLimitServiceFullCyclePreparation extends RateLimitServiceAntigravityAccounts {
   protected async prepareFetchAllCycle(

@@ -25,13 +25,13 @@ describe('agent status monitored work', () => {
       )
 
     set(work())
-    const first = store.getState().agentStatusByPaneKey[PANE]?.monitoredWork
+    const first = store.getState().agentStatusByPaneKey.get(PANE)?.monitoredWork
     expect(first).toEqual(work())
 
     set(work())
-    expect(store.getState().agentStatusByPaneKey[PANE]?.monitoredWork).toBe(first)
+    expect(store.getState().agentStatusByPaneKey.get(PANE)?.monitoredWork).toBe(first)
 
     set(undefined)
-    expect(store.getState().agentStatusByPaneKey[PANE]?.monitoredWork).toBeUndefined()
+    expect(store.getState().agentStatusByPaneKey.get(PANE)?.monitoredWork).toBeUndefined()
   })
 })

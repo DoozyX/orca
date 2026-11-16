@@ -1,5 +1,5 @@
 import { useAppStore } from '../../store'
-import type { ProviderRateLimits } from '../../../../shared/rate-limit-types'
+import type { ProviderRateLimits } from '../../../../shared/agent-usage/rate-limits/rate-limit-types'
 import { getUsageProviderAccountsSectionId } from './usage/usage-provider-settings-target'
 import { getUsageOwnerHostScope, type RemoteUsageOwner } from './usage/use-owner-usage-rate-limits'
 

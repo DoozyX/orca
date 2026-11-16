@@ -8,7 +8,7 @@ import {
   CLAUDE_INJECTED_CONFIG_DIR_ENV,
   CLAUDE_PROFILE_POINTER_ENV,
   CLAUDE_USER_CONFIG_DIR_ENV
-} from '../../../../shared/claude-profile-routing'
+} from '../../../../shared/agent-accounts/claude/claude-profile-routing'
 import type { ClaudeEnvPatch } from '../../runtime-auth/environment'
 import type { ClaudeRuntimeAuthPreparation } from '../../runtime-auth/runtime-auth-types'
 import { readUserClaudeConfigDirAsSet, type ClaudeProfileDescriptor } from '../claude-profile-paths'

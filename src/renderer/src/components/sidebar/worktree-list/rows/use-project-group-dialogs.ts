@@ -6,8 +6,8 @@ import { confirmUnsavedDiscard } from '@/store/slices/worktrees/teardown/removed
 import { translate } from '@/i18n/i18n'
 import { useProjectGroupSettingsDialog } from './use-project-group-settings-dialog'
 import { selectProjectGroupRemovalTargets } from '@/store/project-groups/project-group-removal-targets'
-import type { ProjectGroup } from '../../../../../../shared/project-group-types'
-import type { Repo } from '../../../../../../shared/repo-types'
+import type { ProjectGroup } from '../../../../../../shared/project/groups/project-group-types'
+import type { Repo } from '../../../../../../shared/repository/repo-types'
 import {
   getRepoExecutionHostId,
   type ExecutionHostId

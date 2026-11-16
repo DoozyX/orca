@@ -1,9 +1,9 @@
 import type {
   ProviderRateLimits,
   RateLimitRuntimeTarget
-} from '../../../../shared/rate-limit-types'
+} from '../../../../shared/agent-usage/rate-limits/rate-limit-types'
 import type { ClaudeAccountAssignmentSource } from '../../../../shared/claude-account-assignment'
-import type { StatusBarUsageMode } from '../../../../shared/status-bar-usage-mode'
+import type { StatusBarUsageMode } from '../../../../shared/status-bar/status-bar-usage-mode'
 import type { Translate } from '@/i18n/use-translate'
 import { usageChipShowsPercentage, type UsageUnitLabelState } from './usage/usage-unit-label'
 

@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { runProcess } from '@orca/process-host'
-import { removeTree } from '../../../../shared/windows-transient-lock-removal'
+import { removeTree } from '../../../../shared/file-write/windows-transient-lock-removal'
 import type * as Runner from '../../command-runner/git-exec-file'
 import { installRealWorkerThreadChildProcesses } from '../../../worker-thread-child-process/worker-thread-child-process-real.test-fixtures'
 

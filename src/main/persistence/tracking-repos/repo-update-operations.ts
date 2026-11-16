@@ -1,10 +1,10 @@
 import type { PersistedState } from '../../../shared/persisted-state-types'
 import type { GlobalSettings } from '../../../shared/global-settings-types'
-import type { Repo } from '../../../shared/repo-types'
+import type { Repo } from '../../../shared/repository/repo-types'
 import { type ExecutionHostId, getRepoExecutionHostId } from '../../../shared/execution-host'
-import type { RepoHostTarget } from '../../../shared/repo-host-identity'
+import type { RepoHostTarget } from '../../../shared/repository/repo-host-identity'
 
-import { isLegacyRepoForExternalWorktreeVisibility } from '../../../shared/external-worktree-visibility'
+import { isLegacyRepoForExternalWorktreeVisibility } from '../../../shared/worktree/visibility/external-worktree-visibility'
 import { normalizeRepoSourceControlAiOverrides } from '../../../shared/source-control/ai/settings/source-control-ai-repo-settings'
 import { normalizeRepoWorkspaceCleanupPolicy } from '../../../shared/workspace-cleanup/workspace-cleanup-policy'
 import { normalizeWorktreeVisibilitySourcePreferences } from '../../../shared/worktree/visibility/visibility-sources'
@@ -15,7 +15,7 @@ import {
   republishClaudeAccountAssignments
 } from '../../claude-accounts/assignment/claude-account-assignment-write'
 import { sanitizeRepoUpdatesForPersistence } from './repo-sanitization'
-import { isFolderRepo } from '../../../shared/repo-kind'
+import { isFolderRepo } from '../../../shared/repository/repo-kind'
 import { findExtraFolderWorkspaceIds } from '../../workspaces/catalog/folder-workspace-meta-presence'
 
 type RepoUpdateState = Pick<PersistedState, 'repos' | 'projectGroups' | 'worktreeMeta'> & {
@@ -134,6 +134,7 @@ export class RepoUpdatePersistenceOperations {
       hiddenAt?: Repo['hiddenAt'] | null
       ghAccount?: GhAccountBinding | null
       claudeAccountId?: string | null
+      browserProfileId?: string | null
     }
   ): Repo | null {
     const repo = findRepoRowForHostScopedWrite(
@@ -216,9 +217,11 @@ export class RepoUpdatePersistenceOperations {
       delete repo.ghAccount
       delete sanitizedUpdates.ghAccount
     }
-    if ('claudeAccountId' in sanitizedUpdates && sanitizedUpdates.claudeAccountId == null) {
-      delete repo.claudeAccountId
-      delete sanitizedUpdates.claudeAccountId
+    for (const key of ['browserProfileId', 'claudeAccountId'] as const) {
+      if (key in sanitizedUpdates && sanitizedUpdates[key] == null) {
+        delete repo[key]
+        delete sanitizedUpdates[key]
+      }
     }
     if ('worktreeBasePath' in sanitizedUpdates && sanitizedUpdates.worktreeBasePath === undefined) {
       delete repo.worktreeBasePath

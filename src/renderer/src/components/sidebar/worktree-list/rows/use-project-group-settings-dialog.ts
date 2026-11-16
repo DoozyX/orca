@@ -8,7 +8,7 @@ import {
   resolveClaudeAccountAssignmentForGroup,
   type ClaudeAccountAssignment
 } from '../../../../../../shared/claude-account-assignment'
-import type { ProjectGroup } from '../../../../../../shared/project-group-types'
+import type { ProjectGroup } from '../../../../../../shared/project/groups/project-group-types'
 import {
   LOCAL_EXECUTION_HOST_ID,
   getProjectGroupExecutionHostId

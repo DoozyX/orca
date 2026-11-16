@@ -4,8 +4,8 @@ import {
   resolveClaudeAccountScopeForWorkspace
 } from './claude-account-assignment'
 import type { FolderWorkspace } from './folder-workspaces/folder-workspace-types'
-import type { ProjectGroup } from './project-group-types'
-import type { Repo } from './repo-types'
+import type { ProjectGroup } from './project/groups/project-group-types'
+import type { Repo } from './repository/repo-types'
 
 function group(overrides: Partial<ProjectGroup> & Pick<ProjectGroup, 'id'>): ProjectGroup {
   return {

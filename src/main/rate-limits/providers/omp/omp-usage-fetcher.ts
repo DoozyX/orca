@@ -7,7 +7,7 @@ import { runProcess } from '@orca/process-host'
 import {
   resolveCliCommand,
   withCliRuntimeOnPath
-} from '../../../../shared/node-cli-command-resolution'
+} from '../../../../shared/shell/command-resolution/node-cli-command-resolution'
 import {
   resolveOmpConfigDirName,
   resolvePiSourceAgentDir

@@ -6,9 +6,9 @@ import {
   hostClaudeAccountIds,
   resolveClaudeAccountScopeForWorkspace
 } from '../../../../shared/claude-account-assignment'
-import type { ClaudeManagedAccount } from '../../../../shared/managed-account-types'
-import type { ProjectGroup } from '../../../../shared/project-group-types'
-import type { Repo } from '../../../../shared/repo-types'
+import type { ClaudeManagedAccount } from '../../../../shared/agent-accounts/managed-account-types'
+import type { ProjectGroup } from '../../../../shared/project/groups/project-group-types'
+import type { Repo } from '../../../../shared/repository/repo-types'
 import { prepareClaudeLaunchAccount } from '../../../claude/structured/launch/claude-launch-account'
 import { claudeAccountScopeReader } from '../../assignment/claude-account-assignment-catalog'
 import {

@@ -26,7 +26,7 @@ import { RemoteServerUpdateStatusSegment } from './updates/RemoteServerUpdateSta
 import { TOGGLE_FLOATING_TERMINAL_EVENT } from '@/components/floating-terminal/workspace/floating-workspace-open-intent'
 import { FloatingTerminalIconContextMenu } from '@/components/floating-terminal/trigger/FloatingTerminalIconContextMenu'
 import { CLOSE_ALL_CONTEXT_MENUS_EVENT } from '@/lib/overlay-interaction/close-all-context-menus'
-import { UsageOverflowChip, getUsageTone } from './usage/StatusBarProviderSegment'
+import { UsageOverflowChip, isUsageUrgent } from './usage/StatusBarProviderSegment'
 import { AccountUsageSegment } from './AccountUsageSegment'
 import { AccountUsageDetailsMenu } from './AccountUsageDetailsMenu'
 import { entryRateLimits, getEntryUsageUnitLabelState } from './account-usage-entry'
@@ -170,7 +170,7 @@ export function StatusBarSurface({
                       <span
                         key={entry.key}
                         data-usage-chip={entry.key}
-                        data-usage-urgent={getUsageTone(entryRateLimits(entry)) === 'urgent'}
+                        data-usage-urgent={isUsageUrgent(entryRateLimits(entry))}
                         data-usage-percentage={usageChipShowsPercentage(
                           entryRateLimits(entry),
                           usageMode,

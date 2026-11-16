@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   createDraftPasteReadyScanner,
   resolvePasteReadySignal
-} from '../../../../shared/draft-paste-ready-scanner'
+} from '../../../../shared/agent-launch/startup/readiness/draft-paste-ready-scanner'
 import type { TuiAgent } from '../../../../shared/agent-launch/catalog/tui-agent'
 import { TUI_AGENT_CONFIG } from '../../../../shared/agent-launch/catalog/tui-agent-config'
 import type { RuntimeTerminalWait } from '../../../../shared/terminal/runtime/runtime-terminal-contracts'

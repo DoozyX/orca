@@ -1,6 +1,6 @@
 import { hostClaudeAccountIds } from '../../../shared/claude-account-assignment'
 import { LOCAL_EXECUTION_HOST_ID, getRepoExecutionHostId } from '../../../shared/execution-host'
-import type { ClaudeManagedAccount } from '../../../shared/managed-account-types'
+import type { ClaudeManagedAccount } from '../../../shared/agent-accounts/managed-account-types'
 import { getClaudeProfileRouter } from '../profiles/routing/claude-profile-installed-router'
 
 export class ClaudeAccountAssignmentRejectedError extends Error {

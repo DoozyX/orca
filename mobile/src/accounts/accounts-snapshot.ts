@@ -107,6 +107,7 @@ const ClaudeAccountSummarySchema = z
   .object({
     id: AccountIdSchema,
     email: z.string().min(1),
+    displayName: z.string().optional(),
     managedAuthRuntime: z.enum(['host', 'wsl']).optional(),
     wslDistro: z.string().nullable().optional(),
     authMethod: z.enum(['subscription-oauth', 'unknown']).optional(),
@@ -122,6 +123,7 @@ const CodexAccountSummarySchema = z
   .object({
     id: AccountIdSchema,
     email: z.string().min(1),
+    displayName: z.string().optional(),
     managedHomeRuntime: z.enum(['host', 'wsl']).optional(),
     wslDistro: z.string().nullable().optional(),
     providerAccountId: z.string().nullable().optional(),

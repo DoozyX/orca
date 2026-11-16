@@ -1,12 +1,12 @@
-import type { ProviderRateLimits } from '../../../../../shared/rate-limit-types'
+import type { ProviderRateLimits } from '../../../../../shared/agent-usage/rate-limits/rate-limit-types'
 import type {
   ClaudeManagedAccount,
   ClaudeManagedAccountSummary,
   CodexManagedAccount,
   CodexManagedAccountSummary
-} from '../../../../../shared/managed-account-types'
+} from '../../../../../shared/agent-accounts/managed-account-types'
 import type { GlobalSettings } from '../../../../../shared/global-settings-types'
-import { hasUsageData } from '../../../../../shared/usage-provider-windows'
+import { hasUsageData } from '../../../../../shared/agent-usage/display/usage-provider-windows'
 
 export type UsageProviderSettings = Pick<
   GlobalSettings,

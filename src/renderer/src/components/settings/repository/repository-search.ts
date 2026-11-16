@@ -1,6 +1,6 @@
-import type { Repo } from '../../../../../shared/repo-types'
+import type { Repo } from '../../../../../shared/repository/repo-types'
 import { getRepositoryPresenceSearchEntries } from './repository-project-presence-search'
-import { isFolderRepo } from '../../../../../shared/repo-kind'
+import { isFolderRepo } from '../../../../../shared/repository/repo-kind'
 import {
   getRepoExecutionHostId,
   LOCAL_EXECUTION_HOST_ID
@@ -18,7 +18,7 @@ import {
 } from './worktrees/repository-git-worktree-search-entries'
 import { getRepositoryFormatterSearchEntry } from './RepositoryFormatterSection'
 import { getRepositoryAgentTrustSearchEntry } from './RepositoryAgentTrustSection'
-import { getRepositoryClaudeAccountSearchEntries } from './RepositoryClaudeAccountSection'
+import { getRepositoryAccountProfileSearchEntries } from './RepositoryAccountProfileSections'
 import { getRepositoryWorkspaceCleanupSearchEntry } from './workspace-cleanup/repository-workspace-cleanup-search'
 
 type RepositoryPaneSearchOptions = {
@@ -208,7 +208,7 @@ function getRepositorySearchParts(
   const { removeProject, sidebarVisibility } = getRepositoryPresenceSearchEntries(repo, t)
   return {
     agentTrust: getRepositoryAgentTrustSearchEntry(),
-    claudeAccount: getRepositoryClaudeAccountSearchEntries(repo, t),
+    accountProfiles: getRepositoryAccountProfileSearchEntries(repo, t),
     jira,
     displayName,
     icon,
@@ -232,7 +232,7 @@ export function getRepositoryPaneSearchEntries(
   const entries = [
     getRepositoryFormatterSearchEntry(t),
     parts.agentTrust,
-    ...parts.claudeAccount,
+    ...parts.accountProfiles,
     parts.jira,
     parts.displayName,
     parts.icon
@@ -272,7 +272,7 @@ export function getRepositoryPaneSearchMetadata(
   const worktrees = isFolderRepo(repo) ? undefined : getRepositoryGitWorktreeSearchMetadata(repo, t)
   const identity = [
     parts.agentTrust,
-    ...parts.claudeAccount,
+    ...parts.accountProfiles,
     parts.jira,
     parts.displayName,
     parts.icon

@@ -10,7 +10,7 @@ import {
   mergeProjectGroupsAcrossHosts,
   resolveMergedProjectGroupId
 } from './cross-host-project-group-merge'
-import type { ProjectGroup } from '../project-group-types'
+import type { ProjectGroup } from '../project/groups/project-group-types'
 
 function group(overrides: Partial<ProjectGroup> & Pick<ProjectGroup, 'id' | 'name'>): ProjectGroup {
   return {

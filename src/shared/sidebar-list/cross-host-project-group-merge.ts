@@ -1,4 +1,4 @@
-import type { ProjectGroup } from '../project-group-types'
+import type { ProjectGroup } from '../project/groups/project-group-types'
 import {
   getProjectGroupExecutionHostId,
   getRepoExecutionHostId,
@@ -6,7 +6,7 @@ import {
   LOCAL_EXECUTION_HOST_ID,
   type ExecutionHostId
 } from '../execution-host'
-import type { Repo } from '../repo-types'
+import type { Repo } from '../repository/repo-types'
 import { foldProjectGroupCopies, getIdsSharedAcrossHosts } from './project-group-copy-folding'
 
 /** One sidebar row's worth of project group: the copy that owns the row plus

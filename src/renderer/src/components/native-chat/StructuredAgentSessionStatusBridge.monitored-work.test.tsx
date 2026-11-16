@@ -13,6 +13,7 @@ import type {
 import type { AgentStatusEntry } from '../../../../shared/agent-status/contracts/agent-status-types'
 import type { AgentChildWorkView } from '../../../../shared/agent-status/child-work/agent-status-child-work-view'
 import type { AppState } from '@/store/types'
+import { acceptedAgentStatuses } from '@/store/slices/agent-status/accepted-agent-statuses'
 import type * as RuntimeRpcClientModule from '@/runtime/rpc/compatibility/runtime-capability-proof'
 
 type MonitoredWorkStore = {
@@ -87,7 +88,7 @@ function summary(overrides: Partial<AgentSessionStatusSummary> = {}): AgentSessi
 }
 
 function statuses(): AgentStatusEntry[] {
-  return Object.values(storeHolder.store?.getState().agentStatusByPaneKey ?? {})
+  return [...(storeHolder.store?.getState().agentStatusByPaneKey.values() ?? [])]
 }
 
 /** The host side of the most recent status subscription. */
@@ -106,7 +107,7 @@ describe('StructuredAgentSessionStatusBridge monitored work', () => {
     mocks.subscribeStatus.mockResolvedValue({ unsubscribe: mocks.unsubscribe })
     mocks.supportsCapability.mockResolvedValue(true)
     storeHolder.store?.setState({
-      agentStatusByPaneKey: {},
+      agentStatusByPaneKey: acceptedAgentStatuses(),
       testRuntimeOwner: null,
       unifiedTabsByWorktree: { 'wt-1': [structuredTab] }
     })

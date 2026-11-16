@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { describe, expect, it } from 'vitest'
-import { createEmptyRateLimitState } from '../../../../shared/rate-limit-state-factory'
-import type { ProviderRateLimits } from '../../../../shared/rate-limit-types'
+import { createEmptyRateLimitState } from '../../../../shared/agent-usage/rate-limits/rate-limit-state-factory'
+import type { ProviderRateLimits } from '../../../../shared/agent-usage/rate-limits/rate-limit-types'
 import type { ProviderAccountsSnapshot } from '@/runtime/provider-accounts/observations/runtime-provider-accounts-client'
 import type { ClaudeAccountAssignment } from '../../../../shared/claude-account-assignment'
 import { buildAccountUsageRoster } from './account-usage-roster'

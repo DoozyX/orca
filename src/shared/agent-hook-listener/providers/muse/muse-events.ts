@@ -13,7 +13,7 @@ import {
 } from '../../../agent-status/lifecycle/agent-lead-status-fold'
 import { createMuseSessionLogState, readMusePendingUserInput } from './muse-session-log'
 import type { HookListenerState } from '../../listener-state'
-import type { MusePaneState } from '../../listener-pane-turn-types'
+import type { MusePaneState } from './muse-pane-state'
 import {
   resolvePrompt,
   resolveToolState,

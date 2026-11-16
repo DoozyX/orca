@@ -3,13 +3,16 @@ import {
   getRepoExecutionHostId,
   type ExecutionHostId
 } from './execution-host'
-import type { ClaudeManagedAccount } from './managed-account-types'
+import type { ClaudeManagedAccount } from './agent-accounts/managed-account-types'
 import type { FolderWorkspace } from './folder-workspaces/folder-workspace-types'
-import type { ProjectGroup } from './project-group-types'
-import type { Repo } from './repo-types'
+import type { ProjectGroup } from './project/groups/project-group-types'
+import type { Repo } from './repository/repo-types'
 import { getExecutionHostIdFromWorktreeHostIdentity } from './worktree/host-qualified-identity'
 import { getRepoIdFromWorktreeId } from './worktree/id'
-import { normalizeWorkspaceSessionKeyToWorkspaceId, parseWorkspaceKey } from './workspace-scope'
+import {
+  normalizeWorkspaceSessionKeyToWorkspaceId,
+  parseWorkspaceKey
+} from './workspace/identity/workspace-scope'
 
 export type ClaudeAccountAssignmentSource =
   | { kind: 'project'; repoId: string; name: string }

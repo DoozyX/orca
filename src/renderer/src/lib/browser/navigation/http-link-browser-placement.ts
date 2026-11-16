@@ -6,7 +6,7 @@ import type { AppState } from '@/store/types'
 import type { CreateBrowserTabOptions } from '@/store/slices/browser/browser-slice-contract'
 import type { Tab, TabGroup } from '../../../../../shared/tab-types'
 import type { OpenWorkspaceBrowserTabRequest } from '../workspace/workspace-browser-tab-open'
-import type { BrowserWorkspace } from '../../../../../shared/browser-workspace-types'
+import type { BrowserWorkspace } from '../../../../../shared/browser/workspaces/browser-workspace-types'
 import type { GlobalSettings } from '../../../../../shared/global-settings-types'
 
 export type HttpLinkBrowserPlacement = { targetGroupId: string }

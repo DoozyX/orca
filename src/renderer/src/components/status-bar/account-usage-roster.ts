@@ -1,5 +1,8 @@
 import type { ProviderAccountsSnapshot } from '@/runtime/provider-accounts/observations/runtime-provider-accounts-client'
-import type { ProviderRateLimits, RateLimitState } from '../../../../shared/rate-limit-types'
+import type {
+  ProviderRateLimits,
+  RateLimitState
+} from '../../../../shared/agent-usage/rate-limits/rate-limit-types'
 import type { ClaudeAccountAssignment } from '../../../../shared/claude-account-assignment'
 import { providerUsageEntry, type AccountUsageEntry } from './account-usage-entry'
 import {

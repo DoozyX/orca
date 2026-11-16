@@ -1,6 +1,6 @@
 import type { ExecutionHostId } from '../execution-host'
-import type { ProjectGroup } from '../project-group-types'
-import type { Repo } from '../repo-types'
+import type { ProjectGroup } from '../project/groups/project-group-types'
+import type { Repo } from '../repository/repo-types'
 import {
   buildMergedProjectGroupIndex,
   getRepoProjectGroupHostId,

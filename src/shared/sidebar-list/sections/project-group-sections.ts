@@ -1,11 +1,11 @@
-import type { OccurrenceSectionPath } from '../../worktree-occurrence-plan'
+import type { OccurrenceSectionPath } from '../lineage/worktree-occurrence-plan'
 import {
   compareFolderWorkspacesForDisplay,
   type RenderableFolderWorkspace
 } from '../folders/folder-workspace-lanes'
-import type { ProjectGroup } from '../../project-group-types'
+import type { ProjectGroup } from '../../project/groups/project-group-types'
 import type { ProjectOrderBy } from '../../ui-chrome-types'
-import { getEffectiveProjectGroupManualRank } from '../../project-groups'
+import { getEffectiveProjectGroupManualRank } from '../../project/groups/project-groups'
 import { getProjectGroupHeaderKey } from './group-keys'
 import { appendOrderedGroups } from './group-sections'
 import { compareCodePoints, compareSidebarText } from '../sorting/text-order'
@@ -15,7 +15,7 @@ import {
   compareRecentRank,
   createRecentRankLookup,
   withRepoSectionDisplayLabels
-} from '../../project-section-order'
+} from './project-section-order'
 import { appendWorktreeRows } from './row-builders'
 import { getFolderLaneSectionKey } from '../folders/folder-workspace-occurrences'
 import {

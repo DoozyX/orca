@@ -1,11 +1,11 @@
 import { Pin } from 'lucide-react'
 import { useTranslate } from '@/i18n/use-translate'
-import { getProviderDisplayName } from '../../../../shared/usage-provider-windows'
+import { getProviderDisplayName } from '../../../../shared/agent-usage/display/usage-provider-windows'
 import type { AccountUsageEntry } from './account-usage-entry'
 import { entryRateLimits } from './account-usage-entry'
 import { ProviderSegment } from './usage/StatusBarProviderSegment'
-import type { UsagePercentageDisplay } from '../../../../shared/usage-percentage-display'
-import type { StatusBarUsageMode } from '../../../../shared/status-bar-usage-mode'
+import type { UsagePercentageDisplay } from '../../../../shared/agent-usage/display/usage-percentage-display'
+import type { StatusBarUsageMode } from '../../../../shared/status-bar/status-bar-usage-mode'
 
 export function AccountUsageSegment({
   entry,

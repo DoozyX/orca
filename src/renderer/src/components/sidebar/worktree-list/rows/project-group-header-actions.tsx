@@ -11,7 +11,7 @@ import {
 import { cn } from '@/lib/class-names'
 import { useTranslate } from '@/i18n/use-translate'
 import { getFolderWorkspacePathStatusDescription } from '@/lib/workspace/paths/folder-workspace-path-status'
-import type { ProjectGroup } from '../../../../../../shared/project-group-types'
+import type { ProjectGroup } from '../../../../../../shared/project/groups/project-group-types'
 import type { FolderWorkspacePathStatus } from '../../../../../../shared/folder-workspaces/folder-workspace-path-status'
 import {
   LOCAL_EXECUTION_HOST_ID,

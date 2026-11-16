@@ -7,7 +7,7 @@ import { join } from 'node:path'
 import {
   CLAUDE_PROFILE_POINTER_ENV,
   CLAUDE_PROFILE_SETUP_FAILED_MESSAGE
-} from '../../../../shared/claude-profile-routing'
+} from '../../../../shared/agent-accounts/claude/claude-profile-routing'
 import {
   assertAssignedClaudeAccountSignedIn,
   claudeProfileMissing
@@ -23,7 +23,7 @@ import {
   type ClaudeRouteSources
 } from './claude-profile-route'
 import type { GlobalSettings } from '../../../../shared/global-settings-types'
-import type { ClaudeManagedAccount } from '../../../../shared/managed-account-types'
+import type { ClaudeManagedAccount } from '../../../../shared/agent-accounts/managed-account-types'
 import {
   describeClaudeProfile,
   type ClaudeProfileDescriptor,

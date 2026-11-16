@@ -1,7 +1,7 @@
 import { useAppStore } from '@/store'
 import { translate } from '@/i18n/i18n'
 import { useTranslate, type Translate } from '@/i18n/use-translate'
-import type { Repo } from '../../../../../shared/repo-types'
+import type { Repo } from '../../../../../shared/repository/repo-types'
 import {
   hostClaudeAccountIds,
   resolveClaudeAccountAssignmentForGroup

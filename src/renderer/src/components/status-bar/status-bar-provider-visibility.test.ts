@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import type {
   ProviderRateLimits,
   ProviderRateLimitStatus
-} from '../../../../shared/rate-limit-types'
-import { createEmptyRateLimitState } from '../../../../shared/rate-limit-state-factory'
+} from '../../../../shared/agent-usage/rate-limits/rate-limit-types'
+import { createEmptyRateLimitState } from '../../../../shared/agent-usage/rate-limits/rate-limit-state-factory'
 import {
   getVisibleUsageProvider,
   hasUsageProviderSettings,

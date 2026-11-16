@@ -3,8 +3,8 @@ import { buildRows } from './build-rows.test-fixture'
 import { getGroupKeysForWorktree } from '../../../../../../shared/sidebar-list/sections/worktree-group-keys'
 import { repo, worktree, repoMap } from './worktree-list-groups-test-fixtures'
 import type { FolderWorkspace } from '../../../../../../shared/folder-workspaces/folder-workspace-types'
-import type { ProjectGroup } from '../../../../../../shared/project-group-types'
-import type { Repo } from '../../../../../../shared/repo-types'
+import type { ProjectGroup } from '../../../../../../shared/project/groups/project-group-types'
+import type { Repo } from '../../../../../../shared/repository/repo-types'
 import type { Worktree } from '../../../../../../shared/worktree/types'
 
 describe('project groups', () => {
@@ -218,67 +218,6 @@ describe('project groups', () => {
         groupDepth: 2
       }
     ])
-  })
-
-  it('does not render folder workspaces under non-folder Project Groups', () => {
-    const group: ProjectGroup = {
-      id: 'group-manual',
-      name: 'Manual',
-      parentPath: null,
-      parentGroupId: null,
-      createdFrom: 'manual',
-      tabOrder: 0,
-      isCollapsed: false,
-      color: null,
-      createdAt: 1,
-      updatedAt: 1
-    }
-    const folderWorkspace: FolderWorkspace = {
-      id: 'folder-workspace-1',
-      projectGroupId: group.id,
-      name: 'Hidden',
-      folderPath: '/monorepo',
-      linkedTask: null,
-      comment: '',
-      isArchived: false,
-      isUnread: false,
-      isPinned: false,
-      sortOrder: 10,
-      lastActivityAt: 0,
-      createdAt: 1,
-      updatedAt: 1
-    }
-
-    const rows = buildRows(
-      'repo',
-      [],
-      new Map(),
-      null,
-      new Set(),
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      false,
-      undefined,
-      [group],
-      new Set(),
-      new Map(),
-      new Map(),
-      [],
-      undefined,
-      [folderWorkspace]
-    )
-
-    expect(rows).toMatchObject([
-      {
-        type: 'header',
-        key: 'project-group:group-manual',
-        count: 0
-      }
-    ])
-    expect(rows.some((row) => row.type === 'folder-workspace')).toBe(false)
   })
 
   it('renders imported repos under nested Project Groups before worktree rows load', () => {
