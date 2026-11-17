@@ -12,7 +12,7 @@ import type { ProjectGroup } from '../../../../../../shared/project/groups/proje
 import {
   LOCAL_EXECUTION_HOST_ID,
   getProjectGroupExecutionHostId
-} from '../../../../../../shared/execution-host'
+} from '../../../../../../shared/execution-host/execution-host'
 
 export type ProjectGroupSettingsTarget = {
   groupId: string

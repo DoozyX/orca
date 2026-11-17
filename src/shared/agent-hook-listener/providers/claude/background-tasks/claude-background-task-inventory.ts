@@ -1,7 +1,7 @@
 import { classifyClaudeBackgroundTaskKind } from './claude-background-task-kind'
 import { isAgentChildWorkKind } from '../../../../agent-status/child-work/agent-status-child-work-liveness'
 import type { AgentMonitoredWorkSnapshot } from '../../../../agent-monitored-work'
-import { runsOrcaOrchestrationWait } from '../../../../orca-cli-invocations'
+import { runsOrcaOrchestrationWait } from '../../../../cli/orca-cli-invocations'
 
 const CLAUDE_TERMINAL_BACKGROUND_TASK_STATUSES = new Set([
   'idle',

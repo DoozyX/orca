@@ -1,7 +1,10 @@
-import type { PersistedState } from '../../../shared/persisted-state-types'
-import type { GlobalSettings } from '../../../shared/global-settings-types'
+import type { PersistedState } from '../../../shared/orca-profiles/persisted-state-types'
+import type { GlobalSettings } from '../../../shared/settings/global-settings-types'
 import type { Repo } from '../../../shared/repository/repo-types'
-import { type ExecutionHostId, getRepoExecutionHostId } from '../../../shared/execution-host'
+import {
+  type ExecutionHostId,
+  getRepoExecutionHostId
+} from '../../../shared/execution-host/execution-host'
 import type { RepoHostTarget } from '../../../shared/repository/repo-host-identity'
 
 import { isLegacyRepoForExternalWorktreeVisibility } from '../../../shared/worktree/visibility/external-worktree-visibility'
@@ -12,7 +15,7 @@ import type { GhAccountBinding } from '../../../shared/github/accounts/account-b
 import { invalidateGhAccountTokenCache } from '../../github/accounts/gh-account-token'
 import {
   assertClaudeAccountAssignable,
-  republishClaudeAccountAssignments
+  republishClaudeAccountAssignmentsForRepoUpdate
 } from '../../claude-accounts/assignment/claude-account-assignment-write'
 import { sanitizeRepoUpdatesForPersistence } from './repo-sanitization'
 import { isFolderRepo } from '../../../shared/repository/repo-kind'
@@ -309,10 +312,7 @@ export class RepoUpdatePersistenceOperations {
     this.bumpLocalWorktreeScanGeneration(repo.id)
     this.syncProjectHostSetupCompatibilityState()
     this.scheduleSave()
-    // A move between groups changes the inherited account as much as an explicit assignment does.
-    if ('claudeAccountId' in updates || 'projectGroupId' in updates) {
-      republishClaudeAccountAssignments()
-    }
+    republishClaudeAccountAssignmentsForRepoUpdate(updates)
     return this.hydrateRepo(repo)
   }
 }

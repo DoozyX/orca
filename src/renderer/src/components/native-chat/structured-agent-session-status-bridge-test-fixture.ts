@@ -1,5 +1,5 @@
 import type { AgentSessionStatusEvent } from '../../../../shared/agent-session/agent-session-wire'
-import type { Tab } from '../../../../shared/tab-types'
+import type { Tab } from '../../../../shared/workspace-layout/tab-groups/tab-types'
 import type { TerminalTab } from '../../../../shared/workspace-layout/terminal-tab-types'
 
 export type SubscribeAgentSessionStatus = (

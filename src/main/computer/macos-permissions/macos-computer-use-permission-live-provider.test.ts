@@ -1,9 +1,6 @@
-import { execFileSync, spawn, spawnSync } from 'node:child_process'
-import { mkdtempSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
-import { mkdtemp, readFile, rm, stat } from 'node:fs/promises'
+import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type * as TimersPromises from 'node:timers/promises'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { readMacOSNativeHelperIdentity } from '../macos-native/macos-native-helper-identity'
 
@@ -11,50 +8,8 @@ const resolveHelperAppPathMock = vi.hoisted(() => vi.fn())
 const resolveHelperExecutablePathMock = vi.hoisted(() => vi.fn())
 const runProcessMock = vi.hoisted(() => vi.fn())
 const callComputerSidecarLiveProviderMock = vi.hoisted(() => vi.fn())
-const permissionStatusDelayMock = vi.hoisted(() =>
-  vi.fn(
-    (milliseconds: number) =>
-      new Promise<void>((resolve) => {
-        setTimeout(resolve, milliseconds)
-      })
-  )
-)
-const permissionStatusTempDir = '/tmp/orca-computer-use-permissions-test'
 
 vi.mock('@orca/process-host', () => ({ runProcess: runProcessMock }))
-
-// The status poll's promise delay must use the fake clock this suite controls.
-vi.mock('node:timers/promises', async (importOriginal) => ({
-  ...(await importOriginal<typeof TimersPromises>()),
-  setTimeout: permissionStatusDelayMock
-}))
-
-vi.mock('child_process', () => ({
-  execFileSync: vi.fn(),
-  spawn: vi.fn(() => {
-    const child = {
-      stdout: { off: vi.fn(), on: vi.fn(), setEncoding: vi.fn() },
-      stderr: { off: vi.fn(), on: vi.fn(), setEncoding: vi.fn() },
-      on: vi.fn((event: string, callback: (status: number) => void) => {
-        if (event === 'close') {
-          queueMicrotask(() => callback(0))
-        }
-        return child
-      }),
-      off: vi.fn(() => child),
-      unref: vi.fn()
-    }
-    return child
-  }),
-  spawnSync: vi.fn()
-}))
-
-vi.mock('fs/promises', () => ({
-  mkdtemp: vi.fn(),
-  readFile: vi.fn(),
-  rm: vi.fn(),
-  stat: vi.fn()
-}))
 
 vi.mock('../sidecar-transport/sidecar-client', () => ({
   callComputerSidecarLiveProvider: callComputerSidecarLiveProviderMock
@@ -69,38 +24,26 @@ describe('getComputerUsePermissionStatus', () => {
   const originalPlatform = process.platform
 
   beforeEach(() => {
-    vi.mocked(spawn).mockClear()
-    vi.mocked(spawnSync).mockClear()
-    vi.mocked(execFileSync).mockReset()
-    vi.mocked(mkdtemp).mockReset()
-    vi.mocked(readFile).mockReset()
-    vi.mocked(rm).mockReset()
-    vi.mocked(stat).mockReset()
     runProcessMock.mockReset()
     callComputerSidecarLiveProviderMock.mockReset()
     callComputerSidecarLiveProviderMock.mockResolvedValue(null)
-    permissionStatusDelayMock.mockClear()
-    runProcessMock.mockResolvedValue({
-      code: 1,
-      signal: null,
-      stdout: '',
-      stderr: '',
-      timedOut: false
-    })
     resolveHelperAppPathMock.mockReset()
     resolveHelperExecutablePathMock.mockReset()
     resolveHelperAppPathMock.mockReturnValue('/Applications/Orca Computer Use.app')
     resolveHelperExecutablePathMock.mockReturnValue(
       '/Applications/Orca Computer Use.app/Contents/MacOS/orca-computer-use-macos'
     )
-    vi.mocked(mkdtemp).mockResolvedValue(permissionStatusTempDir)
-    vi.mocked(stat).mockResolvedValue(statSync(tmpdir()))
-    mockPermissionStatus('{"accessibility":"granted","screenshots":"granted"}')
+    runProcessMock.mockResolvedValue({
+      code: 0,
+      signal: null,
+      stdout: '{"accessibility":"granted","screenshots":"granted"}',
+      stderr: '',
+      timedOut: false
+    })
     setPlatform('darwin')
   })
 
   afterEach(() => {
-    vi.useRealTimers()
     setPlatform(originalPlatform)
   })
 
@@ -128,7 +71,7 @@ describe('getComputerUsePermissionStatus', () => {
 
       expect(status).not.toHaveProperty('liveProvider')
       expect(callComputerSidecarLiveProviderMock).toHaveBeenCalledTimes(1)
-      expect(spawn).toHaveBeenCalledTimes(1)
+      expect(runProcessMock).toHaveBeenCalledTimes(1)
     })
 
     it.each([
@@ -152,7 +95,7 @@ describe('getComputerUsePermissionStatus', () => {
         liveProvider: { executablePath: realpathSync(currentHelper), matchesCurrentHelper }
       })
       expect(callComputerSidecarLiveProviderMock).toHaveBeenCalledTimes(1)
-      expect(spawn).toHaveBeenCalledTimes(1)
+      expect(runProcessMock).toHaveBeenCalledTimes(1)
     })
 
     it('never matches a live provider when no current helper resolves', async () => {
@@ -170,18 +113,6 @@ describe('getComputerUsePermissionStatus', () => {
     })
   })
 })
-
-function mockPermissionStatus(json: string): void {
-  vi.mocked(spawnSync).mockReturnValue({
-    pid: 0,
-    output: [],
-    stdout: '',
-    stderr: '',
-    status: 0,
-    signal: null
-  })
-  vi.mocked(readFile).mockResolvedValue(json)
-}
 
 function setPlatform(platform: NodeJS.Platform): void {
   Object.defineProperty(process, 'platform', { configurable: true, value: platform })

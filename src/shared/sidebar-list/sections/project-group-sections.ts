@@ -4,7 +4,7 @@ import {
   type RenderableFolderWorkspace
 } from '../folders/folder-workspace-lanes'
 import type { ProjectGroup } from '../../project/groups/project-group-types'
-import type { ProjectOrderBy } from '../../ui-chrome-types'
+import type { ProjectOrderBy } from '../../ui-chrome/ui-chrome-types'
 import { getEffectiveProjectGroupManualRank } from '../../project/groups/project-groups'
 import { getProjectGroupHeaderKey } from './group-keys'
 import { appendOrderedGroups } from './group-sections'
@@ -25,9 +25,9 @@ import {
   getRepoProjectGroupHostId,
   type MergedProjectGroup
 } from '../cross-host-project-group-merge'
-import type { ExecutionHostId } from '../../execution-host'
+import type { ExecutionHostId } from '../../execution-host/execution-host'
 import { getFolderWorkspaceProjectGroupHostId } from '../hosts/folder-workspace-host-id'
-import { compareRootProjectEntries } from '../../root-project-order'
+import { compareRootProjectEntries } from './root-project-order'
 
 export function appendProjectGroupSections(
   ctx: SectionAppendContext,

@@ -77,14 +77,13 @@
 4 src/main/claude-accounts/profiles/routing/claude-profile-host-pointer.ts
 1 src/main/claude-accounts/profiles/routing/claude-profile-launch-preparation.ts
 1 src/main/claude-accounts/profiles/routing/claude-profile-router.ts
-14 src/main/claude-accounts/profiles/setup/claude-profile-history.ts
+5 src/main/claude-accounts/profiles/setup/claude-profile-history.ts
 26 src/main/claude-accounts/profiles/setup/claude-profile-prompt-history.ts
 5 src/main/claude-accounts/profiles/setup/claude-profile-provisioning.ts
 1 src/main/claude-accounts/profiles/setup/claude-profile-settings.ts
 1 src/main/claude-accounts/profiles/setup/claude-profile-setup-worker.ts
 1 src/main/claude-accounts/profiles/setup/claude-profile-setup.ts
 12 src/main/claude-accounts/profiles/setup/claude-profile-sharing.ts
-1 src/main/claude-accounts/profiles/wsl/claude-profile-wsl-router.ts
 2 src/main/claude-accounts/runtime-auth/keychain.ts
 1 src/main/claude-accounts/runtime-auth/runtime-paths.ts
 7 src/main/claude-accounts/sign-in/claude-account-folder.ts
@@ -245,8 +244,8 @@
 17 src/main/emulator/serve-sim-runtime-materializer.ts
 12 src/main/external-editors/external-editor-launch.ts
 14 src/main/filesystem/atomic-file-publication.ts
-3 src/main/filesystem/file-content-observation.ts # Existing reads/existence checks relocated from observed callers; no new synchronous I/O.
 9 src/main/filesystem/durable-file-write.ts
+3 src/main/filesystem/file-content-observation.ts # Existing reads/existence checks relocated from observed callers; no new synchronous I/O.
 2 src/main/filesystem/rolling-file-backup.ts
 2 src/main/foreign-sqlite-readers/foreign-sqlite-reader-entry-path.ts
 1 src/main/foreign-sqlite-readers/foreign-sqlite-reader-spawn.ts
@@ -274,7 +273,7 @@
 1 src/main/ipc/command-path/command-path-directory-worker-client.ts
 1 src/main/ipc/command-path/command-path-resolver.ts
 4 src/main/ipc/diagnostics.ts
-2 src/main/ipc/filesystem/access/filesystem-path-containment.ts
+2 src/main/filesystem/local-file-io/filesystem-path-containment.ts
 2 src/main/ipc/filesystem/watcher-process/child-lifecycle/parcel-watcher-canary-directory.ts
 1 src/main/ipc/filesystem/watcher-process/child-lifecycle/parcel-watcher-child-launch.ts
 4 src/main/ipc/filesystem/watcher-process/event-delivery/parcel-watcher-delivery-canary.ts
@@ -284,13 +283,13 @@
 3 src/main/ipc/filesystem/watcher-process/parcel-watcher-entry-path.ts
 1 src/main/ipc/filesystem/watcher-process/root-paths/watcher-event-root-path-rewrite.ts
 1 src/main/ipc/filesystem/watcher-process/supervision/parcel-watcher-supervisor-subscribe.ts
-1 src/main/ipc/floating-workspace-directory.ts
-1 src/main/ipc/macos-keyboard-layout-snapshot.ts
-1 src/main/ipc/notification-authorization-status.ts
-1 src/main/ipc/pty/spawn-pane-env.ts
+1 src/main/ipc/worktrees/floating-workspace-directory.ts
+1 src/main/ipc/keyboard/macos-keyboard-layout-snapshot.ts
+1 src/main/ipc/notifications/notification-authorization-status.ts
+1 src/main/ipc/pty/host-env/spawn-pane-env.ts
 1 src/main/ipc/ssh/ssh-connect-flow.ts
-2 src/main/ipc/worktree-remote.ts
-2 src/main/ipc/wsl-guest-windows-drive-path.ts
+2 src/main/ipc/worktrees/worktree-remote.ts
+2 src/main/wsl/filesystem/wsl-guest-windows-drive-path.ts
 7 src/main/jcode/hook-service.ts
 8 src/main/jira/site-credential-store.ts
 7 src/main/keybindings/keybinding-file-parser.ts
@@ -317,8 +316,8 @@
 4 src/main/muse/hook-service.ts
 2 src/main/native-chat/agent-session-attachments/agent-session-attachment-claims.ts
 8 src/main/native-chat/agent-session-journal/database/journal-domain-database.ts
-3 src/main/native-chat/agent-session-journal/database/journal-legacy-source-receipt.ts
 1 src/main/native-chat/agent-session-journal/database/journal-host-database.ts
+3 src/main/native-chat/agent-session-journal/database/journal-legacy-source-receipt.ts
 1 src/main/native-chat/transcript-discovery/host-readable-transcript-path.ts
 2 src/main/native-chat/transcript-filesystem/process/wsl-transcript-fs-process-spawn.ts
 1 src/main/node-runtime/appimage-bundled-node-runtime.ts
@@ -427,11 +426,11 @@
 8 src/main/pi/managed-extensions/legacy-omp-overlay-migration.ts
 5 src/main/pi/managed-extensions/titlebar-extension-service.ts
 3 src/main/plugins/appearance/plugin-appearance-service.ts
+2 src/main/plugins/development/plugin-dev-watcher.ts
 2 src/main/plugins/installation/plugin-install-staging.ts
 1 src/main/plugins/installation/plugin-install.ts
 1 src/main/plugins/panels/guest-isolation/plugin-frame-guest-sessions.ts
 1 src/main/plugins/panels/plugin-source-transpile-client.ts
-2 src/main/plugins/development/plugin-dev-watcher.ts
 3 src/main/plugins/storage/plugin-secrets-store.ts
 3 src/main/plugins/storage/plugin-storage-store.ts
 1 src/main/plugins/testing/plugin-editor-static-check.ts
@@ -441,6 +440,8 @@
 1 src/main/ports/port-scan-command-client.ts
 1 src/main/ports/port-scan-command-execution.ts
 2 src/main/provider-process/provider-executable-missing.ts
+# One cached startup capability check per state directory, before choosing native versus legacy dispatch.
+3 src/main/provider-process/provider-ownership-journal.ts
 5 src/main/providers/local-pty/local-pty-executable-spawn.ts
 1 src/main/providers/local-pty/local-pty-session-operations.ts
 1 src/main/providers/local-pty/local-pty-shell-ready-wrapper-root.ts
@@ -474,7 +475,7 @@
 8 src/main/runtime/agent-session/ownership/agent-session-claim-identity.ts
 1 src/main/runtime/agent-session/records/agent-session-record-store-slot.ts
 7 src/main/runtime/agent-session/records/agent-session-runtime-end-record.ts
-1 src/main/runtime/agent-session/structured-agent-session-attachment-wiring.ts
+1 src/main/runtime/agent-session/installation/structured-agent-session-attachment-wiring.ts
 1 src/main/runtime/client/navigation/desktop-chat-creation-history.ts
 9 src/main/runtime/host-instance-identity.ts
 4 src/main/runtime/hosts/platform-probe/host-descriptor.ts
@@ -552,6 +553,8 @@
 1 src/main/windows/windows-process-table.ts
 1 src/main/worker-thread-child-process/worker-thread-child-process.ts
 2 src/main/worker-threads/forked-child-entry-path.ts
+# Worker threads only: one append before a rare large post, so it survives the receiver aborting.
+3 src/main/worker-threads/worker-large-send-log.ts
 4 src/main/workspace-hooks/hooks.ts
 10 src/main/workspace-hooks/issue-command-file.ts
 1 src/main/workspaces/catalog/folder-repo-git-conversion.ts

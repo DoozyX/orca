@@ -97,7 +97,10 @@ export function claudeRoutePreparation(
     wslDistro: null,
     wslLinuxConfigDir: null,
     envPatch: claudeRouteLaunchEnv(route, routed?.home ?? null),
-    provenance: routed ? `profile:${routed.accountId}` : 'system'
+    provenance: routed ? `profile:${routed.accountId}` : 'system',
+    ...(routed
+      ? { readingAccount: { accountId: routed.accountId, runtime: 'host', wslDistro: null } }
+      : {})
   }
 }
 

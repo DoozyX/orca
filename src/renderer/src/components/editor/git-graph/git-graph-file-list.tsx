@@ -13,7 +13,7 @@ import type { GitFileStatus } from '../../../../../shared/git/status/git-status-
 import { CommitFileRow } from '@/components/right-sidebar/source-control/sync/git-history-commit-files'
 import { SourceControlBranchTreeDirectoryRow } from '@/components/right-sidebar/source-control/listing/tree-directory-rows'
 import type { SourceControlRowOpenEvent } from '@/components/right-sidebar/source-control/listing/split-open'
-import type { SourceControlViewMode } from '../../../../../shared/ui-chrome-types'
+import type { SourceControlViewMode } from '../../../../../shared/ui-chrome/ui-chrome-types'
 
 export type GitGraphFileListEntry = {
   path: string

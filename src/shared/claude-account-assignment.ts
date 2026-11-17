@@ -2,7 +2,7 @@ import {
   LOCAL_EXECUTION_HOST_ID,
   getRepoExecutionHostId,
   type ExecutionHostId
-} from './execution-host'
+} from './execution-host/execution-host'
 import type { ClaudeManagedAccount } from './agent-accounts/managed-account-types'
 import type { FolderWorkspace } from './folder-workspaces/folder-workspace-types'
 import type { ProjectGroup } from './project/groups/project-group-types'

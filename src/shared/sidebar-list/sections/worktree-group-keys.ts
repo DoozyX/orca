@@ -8,7 +8,10 @@ import {
 } from '../../workspace/status/workspace-statuses'
 import { ALL_GROUP_KEY, getProjectGroupHeaderKey } from './group-keys'
 import { getPRLaneKey } from '../../workspace-view/workspace-pr-groups'
-import { getRepoExecutionHostId, getRepoRoutingConnectionId } from '../../execution-host'
+import {
+  getRepoExecutionHostId,
+  getRepoRoutingConnectionId
+} from '../../execution-host/execution-host'
 import { buildProjectGroupingIndex, getProjectGroupingForRepo } from './project-section-grouping'
 import {
   buildMergedProjectGroupIndex,

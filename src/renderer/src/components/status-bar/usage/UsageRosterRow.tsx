@@ -1,4 +1,5 @@
 import React from 'react'
+import { cn } from '@/lib/class-names'
 import { useIntlLocale, useTranslate, type Translate } from '@/i18n/use-translate'
 import type { ProviderRateLimits } from '../../../../../shared/agent-usage/rate-limits/rate-limit-types'
 import type { UsagePercentageDisplay } from '../../../../../shared/agent-usage/display/usage-percentage-display'
@@ -18,6 +19,7 @@ import {
 import {
   formatLocalizedResetDuration,
   formatResetsInCaption,
+  soonestResetLabel,
   validResetAt
 } from './usage-reset-caption'
 import { formatBareUsagePercentage, formatUsagePercentageLabel } from './usage-percentage-label'
@@ -187,10 +189,14 @@ export function UsageRow({
   selected?: boolean
 }): React.JSX.Element {
   const t = useTranslate()
+  const intlLocale = useIntlLocale()
   const sections = usedSections(p, t)
   const hasUsage = sections.length > 0
   const name = getProviderDisplayName(p.provider)
   const plan = formatPlanLabel(p.planType)
+  // Why: Detailed lists every window below, so a top-right summary would repeat one of them.
+  const showDetails = hasUsage && mode === 'verbose'
+  const soonestReset = showDetails ? soonestResetLabel(sections, now, intlLocale, t) : null
 
   return (
     <div data-usage-mode={mode} className="flex min-w-0 flex-1 flex-col gap-1">
@@ -198,7 +204,13 @@ export function UsageRow({
         <span className="flex size-5 shrink-0 items-center justify-center rounded-md border border-border bg-secondary">
           <ProviderIcon provider={p.provider} />
         </span>
-        <span className="min-w-14 shrink truncate text-[13px] font-medium text-foreground">
+        <span
+          className={cn(
+            'shrink truncate text-[13px] font-medium text-foreground',
+            // Why: a fixed minimum would leave a gap before the reset that follows a short name.
+            showDetails ? 'min-w-0' : 'min-w-14'
+          )}
+        >
           {name}
           {selected ? (
             <span className="ml-1.5 text-xs text-muted-foreground">
@@ -218,6 +230,12 @@ export function UsageRow({
               </span>
             ) : null}
           </>
+        ) : showDetails ? (
+          soonestReset ? (
+            <span data-usage-reset className="shrink-0 text-[11px] text-muted-foreground">
+              {soonestReset}
+            </span>
+          ) : null
         ) : (
           <RowUsageSummary p={p} display={display} now={now} />
         )}
@@ -230,7 +248,7 @@ export function UsageRow({
       {state.detail ? (
         <span className="pl-[30px] text-[11px] text-muted-foreground">{state.detail}</span>
       ) : null}
-      {hasUsage && mode === 'verbose' ? (
+      {showDetails ? (
         <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 pl-[30px]">
           {sections.map((section) => (
             <DetailMetric

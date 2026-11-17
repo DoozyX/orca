@@ -7,7 +7,7 @@ import { GitGraphCheckList } from './git-graph-check-list'
 import { gitGraphOldServerMessage } from './git-graph-ref-messages'
 import { useGitGraphRefOwner, useGitGraphRefSearch, type RefRequests } from './git-graph-ref-source'
 import type { GitHistoryRefs } from '../../../../../shared/git/history/git-history-types'
-import type { ExecutionHostId } from '../../../../../shared/execution-host'
+import type { ExecutionHostId } from '../../../../../shared/execution-host/execution-host'
 
 type GitGraphFilterProps = {
   worktreeId: string

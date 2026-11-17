@@ -22,7 +22,7 @@ import {
   type ClaudeRoute,
   type ClaudeRouteSources
 } from './claude-profile-route'
-import type { GlobalSettings } from '../../../../shared/global-settings-types'
+import type { GlobalSettings } from '../../../../shared/settings/global-settings-types'
 import type { ClaudeManagedAccount } from '../../../../shared/agent-accounts/managed-account-types'
 import {
   describeClaudeProfile,

@@ -9,7 +9,7 @@ import {
 import {
   LOCAL_EXECUTION_HOST_ID,
   getRepoExecutionHostId
-} from '../../../../../shared/execution-host'
+} from '../../../../../shared/execution-host/execution-host'
 import { ClaudeAccountPicker } from '../../claude-account-assignment/ClaudeAccountPicker'
 import { claudeAccountFollowLabel } from '../../claude-account-assignment/claude-account-follow-label'
 import { useClaudeAccountChoices } from '../../claude-account-assignment/use-claude-account-choices'

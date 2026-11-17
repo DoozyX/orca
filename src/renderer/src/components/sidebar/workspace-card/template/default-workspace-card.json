@@ -80,29 +80,25 @@
                   "when": "ws.isSparse",
                   "props": { "hasHoverDetails": "=vars.hoverDetails && !ws.isRenaming" }
                 },
+                { "el": "NotificationsMuted" },
                 {
                   "el": "Row",
-                  "when": "vars.titleIndicators",
-                  "props": {
-                    "push": true,
-                    "keep": true,
-                    "align": "center",
-                    "gap": "sm",
-                    "inset": "end"
-                  },
-                  "children": [{ "el": "Indicators" }]
-                },
-                {
-                  "el": "Row",
-                  "when": "vars.newStyle",
-                  "props": {
-                    "push": true,
-                    "keep": true,
-                    "align": "center",
-                    "gap": "sm",
-                    "inset": "end"
-                  },
-                  "children": [{ "el": "TitleStatus" }]
+                  "when": "vars.titleIndicators || vars.newStyle",
+                  "props": { "push": true, "keep": true, "align": "center", "gap": "md" },
+                  "children": [
+                    {
+                      "el": "Row",
+                      "when": "vars.titleIndicators",
+                      "props": { "keep": true, "align": "center", "gap": "sm", "inset": "end" },
+                      "children": [{ "el": "Indicators" }]
+                    },
+                    {
+                      "el": "Row",
+                      "when": "vars.newStyle",
+                      "props": { "keep": true, "align": "center", "gap": "sm", "inset": "end" },
+                      "children": [{ "el": "TitleStatus" }]
+                    }
+                  ]
                 }
               ]
             },

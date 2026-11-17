@@ -1,6 +1,6 @@
 import type { RuntimeTerminalCreate } from '../../../../shared/terminal/runtime/runtime-terminal-create-contract'
 import { waitForWorkerAgentReadyRebinding } from '../../terminal/wait/worker-agent-readiness-rebind'
-import { describeTerminalWaitBlockedReason } from '../../../../shared/terminal/runtime-policy/terminal-wait-blocked-reason-legacy-alias'
+import { agentStartupBlockedMessage } from '../../terminal/wait/agent-startup-blocked-message'
 import { buildDispatchPreamble } from '../workers/launch/worker-dispatch-preamble'
 import { sendAgentTurn } from '../turn-delivery/send-agent-turn'
 import { createWorkerBriefWriteGuard } from '../../terminal/wait/launched-agent-write-guard'
@@ -212,7 +212,7 @@ export const ORCHESTRATION_FEDERATION_ATTACH_METHODS = [
           }
           throw new Error(
             wait.blockedReason
-              ? `Agent startup blocked: ${describeTerminalWaitBlockedReason(wait.blockedReason)}`
+              ? await agentStartupBlockedMessage(runtime, terminalHandle, wait.blockedReason)
               : `Agent did not become ready (${wait.status}).`
           )
         }

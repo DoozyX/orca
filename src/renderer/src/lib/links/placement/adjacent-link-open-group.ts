@@ -1,4 +1,7 @@
-import type { TabGroup, TabGroupLayoutNode } from '../../../../../shared/tab-types'
+import type {
+  TabGroup,
+  TabGroupLayoutNode
+} from '../../../../../shared/workspace-layout/tab-groups/tab-types'
 
 type LayoutRect = { left: number; top: number; right: number; bottom: number }
 type LayoutLeaf = { groupId: string; rect: LayoutRect; layoutOrder: number }

@@ -9,7 +9,7 @@ import { getSidebarRowRevealAncestorKeys } from './worktree-list/navigation/reve
 import type { ProjectGroup } from '../../../../shared/project/groups/project-group-types'
 import type { Repo } from '../../../../shared/repository/repo-types'
 import type { Worktree } from '../../../../shared/worktree/types'
-import type { ExecutionHostId } from '../../../../shared/execution-host'
+import type { ExecutionHostId } from '../../../../shared/execution-host/execution-host'
 
 const REMOTE_HOST: ExecutionHostId = 'runtime:env-b'
 

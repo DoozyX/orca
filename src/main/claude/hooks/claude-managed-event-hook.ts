@@ -1,7 +1,7 @@
 import { buildManagedCommandHook } from '../../agent-hooks/installation/configuration/hook-config-schema'
 import type { HookCommandConfig } from '../../agent-hooks/installation/configuration/hook-config-schema'
 import { wrapRuntimeHomePosixHookCommand } from '../../agent-hooks/installation/commands/runtime-home-hook-command'
-import { isWslGuestProcess } from '../../ipc/wsl-guest-windows-drive-path'
+import { isWslGuestProcess } from '../../wsl/filesystem/wsl-guest-windows-drive-path'
 import {
   CLAUDE_HOOK_SETTINGS,
   getManagedLifecycleHook,

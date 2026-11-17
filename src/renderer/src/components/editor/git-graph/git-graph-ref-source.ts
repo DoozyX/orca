@@ -10,7 +10,7 @@ import {
 import { loadGitRefGroups, type LoadedGitRefGroups } from './git-ref-group-loader'
 import { groupGitRefs, gitRefGroupKey, isGitRefListTruncated } from './git-ref-groups'
 import type { GitHistoryItemRef } from '../../../../../shared/git/history/git-history-types'
-import type { ExecutionHostId } from '../../../../../shared/execution-host'
+import type { ExecutionHostId } from '../../../../../shared/execution-host/execution-host'
 
 export type RefRequests = { running: boolean; pending?: () => Promise<void> }
 

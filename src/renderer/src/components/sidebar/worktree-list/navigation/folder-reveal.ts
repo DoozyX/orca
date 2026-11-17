@@ -21,7 +21,7 @@ import {
   findProjectGroupByHost,
   getMergedProjectGroupAncestry
 } from '../../../../../../shared/sidebar-list/cross-host-project-group-merge'
-import type { ExecutionHostId } from '../../../../../../shared/execution-host'
+import type { ExecutionHostId } from '../../../../../../shared/execution-host/execution-host'
 import { getFolderWorkspaceLaneKey } from '../../../../../../shared/sidebar-list/folders/folder-workspace-lanes'
 import type { WorktreeGroupBy } from '../../../../../../shared/sidebar-list/row-types'
 import {

@@ -9,7 +9,7 @@ import {
   type MergedProjectGroup,
   type MergedProjectGroupIndex
 } from '../../../../../../shared/sidebar-list/cross-host-project-group-merge'
-import { getRepoExecutionHostId } from '../../../../../../shared/execution-host'
+import { getRepoExecutionHostId } from '../../../../../../shared/execution-host/execution-host'
 import type { ProjectGroupingModel } from '../../../../../../shared/sidebar-list/sections/project-section-grouping'
 
 function getProjectIdFromHeaderRowKey(rowKey: string): string | null {

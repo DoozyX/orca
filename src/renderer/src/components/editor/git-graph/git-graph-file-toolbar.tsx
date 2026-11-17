@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useTranslate } from '@/i18n/use-translate'
-import type { SourceControlViewMode } from '../../../../../shared/ui-chrome-types'
+import type { SourceControlViewMode } from '../../../../../shared/ui-chrome/ui-chrome-types'
 import type { GitGraphFileSort } from './git-graph-file-list'
 
 export function GitGraphFileToolbar({

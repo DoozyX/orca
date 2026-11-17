@@ -1,5 +1,8 @@
 import { hostClaudeAccountIds } from '../../../shared/claude-account-assignment'
-import { LOCAL_EXECUTION_HOST_ID, getRepoExecutionHostId } from '../../../shared/execution-host'
+import {
+  LOCAL_EXECUTION_HOST_ID,
+  getRepoExecutionHostId
+} from '../../../shared/execution-host/execution-host'
 import type { ClaudeManagedAccount } from '../../../shared/agent-accounts/managed-account-types'
 import { getClaudeProfileRouter } from '../profiles/routing/claude-profile-installed-router'
 
@@ -31,4 +34,15 @@ export function assertClaudeAccountAssignable(
 /** Open panes re-read their project's pointer, so an assignment change must republish them. */
 export function republishClaudeAccountAssignments(): void {
   void getClaudeProfileRouter()?.publishScopePointers()
+}
+
+type RepoAssignmentUpdates = { claudeAccountId?: string | null; projectGroupId?: string | null }
+
+/** A move between groups changes the inherited account as much as an explicit assignment does. */
+export function republishClaudeAccountAssignmentsForRepoUpdate(
+  updates: RepoAssignmentUpdates
+): void {
+  if ('claudeAccountId' in updates || 'projectGroupId' in updates) {
+    republishClaudeAccountAssignments()
+  }
 }

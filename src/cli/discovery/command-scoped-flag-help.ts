@@ -1,12 +1,23 @@
-import { COMPUTER_WAIT_DEFAULT_TIMEOUT_MS } from '../../shared/computer-wait-timeout'
+import { COMPUTER_WAIT_DEFAULT_TIMEOUT_MS } from '../../shared/computer/computer-wait-timeout'
 
 // File focus differs from terminal create's shared --focus help.
 const FILE_OPEN_FOCUS_HELP =
   "--focus                Bring the user to the file (switches Orca's window to its worktree)"
 
+const AGENT_ID_FLAG_HELP =
+  "--id <id>              The agent's orca_session_id: ID; also accepted positionally"
+
 const COMMAND_SCOPED_FLAG_HELP: Record<string, Record<string, string>> = {
   'account list': {
     'refresh-usage': '--refresh-usage        Fetch current provider usage before listing accounts'
+  },
+  'agent list': {
+    state: '--state <state>        Only agents in this state: working, blocked, waiting or done'
+  },
+  'agent show': { id: AGENT_ID_FLAG_HELP },
+  'agent read': {
+    id: AGENT_ID_FLAG_HELP,
+    limit: '--limit <n>            Newest entries to return (default 20, at most 100)'
   },
   'extension reload': {
     'extension-id':
