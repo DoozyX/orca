@@ -44,7 +44,8 @@ class RuntimeKeyboardTest(unittest.TestCase):
             stand_in = root / "xdotool"
             stand_in.write_text(
                 f"#!{sys.executable}\nimport os, time\n"
-                f"open({str(child_pid)!r}, 'w').write(str(os.getpid()))\ntime.sleep(60)\n"
+                f"open({str(child_pid) + '.tmp'!r}, 'w').write(str(os.getpid()))\n"
+                f"os.replace({str(child_pid) + '.tmp'!r}, {str(child_pid)!r})\ntime.sleep(60)\n"
             )
             stand_in.chmod(0o700)
             operation = root / "operation.json"
