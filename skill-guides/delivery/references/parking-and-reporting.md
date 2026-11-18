@@ -50,6 +50,19 @@ On residue, hand the list to a cleanup agent as exact targets and check once
 more. What remains stays in place, named in the report as an open item. A parked
 unit's resources are not residue.
 
+After a primary checkout guard stop, only this check and the retrospective (with
+its issue filing) may still be dispatched, and they stay read-only: no editing
+tracked source, switching, resetting or stashing, pushing, merging, deploying, or
+removing a worktree, branch or terminal. They write only under the run's
+`orchestrate/` directory, except that the retrospective agent may run
+`gh issue list`, `gh issue create` and `gh issue comment` against `DoozyX/orca` as
+in "Filing Orca issues". The residue list is not handed to a cleanup agent. The
+primary row stays `residue` for the difference, and the closing report names it
+and the rest of the list as open items; neither agent repairs anything. If no
+read-only agent can be launched, the coordinator writes these notes and does the
+filing itself within the same limits, and labels the independent check
+`unperformed` in the report.
+
 Other runs' worktrees are out of scope unless the user asks; then show the
 candidate list and wait for approval of that exact list.
 
