@@ -90,6 +90,7 @@ export function StatusBarSurface({
     isEmptyUsageState,
     isRefreshing,
     overflowing,
+    ownerUsage,
     petEnabled,
     remoteOwner,
     segmentsIconOnly,
@@ -230,6 +231,7 @@ export function StatusBarSurface({
                       isOwnerNotSetUpPlaceholder(p) ? null : (
                         <AccountUsageDetailsMenu
                           entry={entry}
+                          ownerUsage={ownerUsage}
                           compact={compact}
                           row={rowNode}
                           antigravityAccounts={antigravityAccounts}

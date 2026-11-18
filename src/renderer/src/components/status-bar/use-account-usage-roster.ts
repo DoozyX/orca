@@ -130,6 +130,7 @@ export function useAccountUsageRoster() {
   return {
     accounts,
     ownerKey,
+    ownerUsage: owner,
     rateLimits: owner.rateLimits,
     remoteOwner: owner.remoteOwner,
     refreshUsage,

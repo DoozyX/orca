@@ -12,7 +12,7 @@ import {
   SOURCE_CONTROL_TREE_FILE_PADDING_PX,
   SOURCE_CONTROL_TREE_INDENT_PX
 } from '../listing/row-layout'
-import { FileTypeIcon } from '@/components/FileTypeIcon'
+import { FileTypeIcon } from '@/components/icons/FileTypeIcon'
 import { basename, dirname } from '@/lib/path'
 import { useIntlLocale, useTranslate } from '@/i18n/use-translate'
 import { formatGitHistoryTimestamp } from './git-history-format'

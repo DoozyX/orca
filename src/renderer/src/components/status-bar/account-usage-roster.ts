@@ -13,7 +13,7 @@ import {
   buildCodexStatusSwitchGroups,
   normalizeCodexStatusRuntimeTarget
 } from './accounts/status-bar-codex-accounts'
-import { getCodexAccountDisplayLabel } from '@/lib/provider-accounts/codex-account-display-label'
+import { getCodexAccountDisplayLabel } from '../../../../shared/agent-accounts/codex-account-display-label'
 import { getCodexStatusRuntimeKey } from './accounts/status-bar-runtime-targets'
 
 export function buildAccountUsageRoster(input: {

@@ -10,7 +10,7 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import { Check, ChevronDown, Cloud, Laptop, Tag } from 'lucide-react'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
-import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { cn } from '@/lib/class-names'
 import { useTranslate } from '@/i18n/use-translate'
 import type { GitHistoryItemRef } from '../../../../../shared/git/history/git-history-types'
@@ -254,7 +254,7 @@ export function GitRefTree({
               >
                 {pending ? (
                   <>
-                    <LoadingSpinner className="size-3.5 shrink-0 text-muted-foreground" />
+                    <LoadingSpinner className="size-3.5 shrink-0" />
                     <span className="sr-only">{t('gitGraph.findingCommit', 'Finding commit')}</span>
                   </>
                 ) : (

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useShortcutLabel } from '@/hooks/useShortcutLabel'
+import { useShortcutLabel } from '@/lib/keyboard/useShortcutLabel'
 import { useAppStore } from '../../../store/index'
 import { selectFloatingWorkspaceHasUnread } from '../../../store/workspaces/floating/floating-workspace-unread-selector'
 import type { ProviderRateLimits } from '../../../../../shared/agent-usage/rate-limits/rate-limit-types'
@@ -26,7 +26,7 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
   const t = useTranslate()
   const floatingTerminalShortcut = useShortcutLabel('floatingTerminal.toggle')
   // Why: with a remote account owner the agents run there, so its usage is the one to show.
-  const { rateLimits, remoteOwner, accounts, ownerKey, refreshUsage, refreshPreviews } =
+  const { rateLimits, remoteOwner, accounts, ownerKey, ownerUsage, refreshUsage, refreshPreviews } =
     useAccountUsageRoster()
   const remoteOwned = remoteOwner !== null
   const claudeAssignment = useActiveWorkspaceClaudeAssignment()
@@ -295,6 +295,7 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
     menuOpen,
     menuPoint,
     overflowing,
+    ownerUsage,
     petEnabled,
     recordFeatureInteraction,
     remoteOwner,

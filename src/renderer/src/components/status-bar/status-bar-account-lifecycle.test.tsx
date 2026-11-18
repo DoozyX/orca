@@ -48,7 +48,7 @@ vi.mock('@/runtime/provider-accounts/ownership/use-active-account-owner', () => 
     wslHostDistro: null
   })
 }))
-vi.mock('@/hooks/useShortcutLabel', () => ({ useShortcutLabel: () => '' }))
+vi.mock('@/lib/keyboard/useShortcutLabel', () => ({ useShortcutLabel: () => '' }))
 vi.mock('../../store/workspaces/floating/floating-workspace-unread-selector', () => ({
   selectFloatingWorkspaceHasUnread: () => false
 }))

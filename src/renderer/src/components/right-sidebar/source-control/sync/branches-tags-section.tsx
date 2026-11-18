@@ -4,7 +4,7 @@ import { GIT_GRAPH_REFRESH_EVENT } from '@/lib/source-control/graph/git-graph-re
 import { useTranslate } from '@/i18n/use-translate'
 import { GitRefTree } from '@/components/editor/git-graph/git-ref-tree'
 import { gitGraphOldServerMessage } from '@/components/editor/git-graph/git-graph-ref-messages'
-import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { useGitGraphJumpPending } from '@/components/editor/git-graph/use-git-graph-jump-pending'
 import { revealGitRefInGitGraph } from '@/components/editor/git-graph/git-graph-reveal-ref'
 import {

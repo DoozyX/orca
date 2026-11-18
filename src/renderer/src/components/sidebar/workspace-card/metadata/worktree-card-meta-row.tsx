@@ -1,8 +1,8 @@
 import React from 'react'
 
-import { DetachedHeadBadge } from '@/components/DetachedHeadBadge'
+import { DetachedHeadBadge } from '@/components/source-control/DetachedHeadBadge'
 import CacheTimer from '../activity/CacheTimer'
-import { TruncatedSidebarLabel } from '../../truncated-sidebar-label'
+import { TruncatedSidebarLabel } from '../../../ui/truncated-sidebar-label'
 import {
   WorktreeCardConflictBadge,
   WorktreeCardFolderPath,

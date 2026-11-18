@@ -6,7 +6,9 @@ import type { WorktreeLineage } from '../worktree/lineage-types'
 import type { SidebarLineageParentIdentities } from './lineage/worktree-lineage-projection'
 import type { WorkspaceStatusDefinition, Worktree } from '../worktree/types'
 import type { ExecutionHostId } from '../execution-host/execution-host'
+import type { HiddenProjects } from '../project/catalog/hidden-projects'
 import { ALL_GROUP_KEY, PINNED_GROUP_KEY } from './sections/group-keys'
+import { groupPendingCreationsByRepo } from './pending-creations-by-repo'
 import { appendOrderedGroups, type SectionAppendContext } from './sections/group-sections'
 
 import {
@@ -85,6 +87,8 @@ export type SidebarRowPlanInputs = {
   defaultHostId: ExecutionHostId
   pinnedDisplayPolicy: PinnedWorktreeDisplayPolicy
   filterRepoIds: readonly string[]
+  /** A hidden project's rows reach the plan only under a folder workspace; they never make its section. */
+  hiddenProjects?: HiddenProjects
 }
 
 /** Plans the sidebar's sections once; `render` emits rows for a collapse state. */
@@ -119,18 +123,14 @@ export function planSidebarRows(inputs: SidebarRowPlanInputs) {
   const repoOf = repoOfWorktree ?? ((worktree: Worktree) => repoMap.get(worktree.repoId))
   // Resolve folder membership before groupBy; every mode renders the same set (#15362).
   const renderableFolderWorkspaces = getRenderableFolderWorkspaces(folderWorkspaces, projectGroups)
-  const pendingByRepo = new Map<string, PendingCreationRef[]>()
-  for (const creation of pendingCreations) {
-    const list = pendingByRepo.get(creation.repoId) ?? []
-    list.push(creation)
-    pendingByRepo.set(creation.repoId, list)
-  }
+  const pendingByRepo = groupPendingCreationsByRepo(pendingCreations)
 
   const mergedGroupRows = getMergedProjectGroupRows(projectGroups, defaultHostId)
   // Folder rows are occurrences too, so a folder parent nests its children like any other row.
   const folders = getSidebarFolderOccurrences(
     renderableFolderWorkspaces,
-    mergedGroupRows.rowIdOfFolder
+    mergedGroupRows.rowIdOfFolder,
+    inputs.hiddenProjects
   )
   const lineageChildren = nestLineage
     ? getSidebarLineageChildren(
@@ -143,7 +143,7 @@ export function planSidebarRows(inputs: SidebarRowPlanInputs) {
       )
     : new Map<string, Worktree[]>()
   const occurrencePlan = buildWorktreeOccurrencePlan({
-    rows: [...worktrees, ...folders.rows],
+    rows: folders.withPlacedRows(worktrees, lineageChildren),
     identityOf: getWorktreeHostIdentity,
     childrenByParentIdentity: lineageChildren,
     isPinned: (worktree) => worktree.isPinned === true && !folders.isFolder(worktree),
@@ -157,7 +157,7 @@ export function planSidebarRows(inputs: SidebarRowPlanInputs) {
           ? folders.boundRowsByGroupId(natural, displayRootByIdentity, lineageChildren)
           : null
       // Rows under a folder still count in their own projects; only their display moves.
-      const naturalWorktrees = natural.filter((row) => !folders.isFolder(row))
+      const naturalWorktrees = folders.projectRows(natural, groupBy === 'repo')
       const groups: OrderedGroupEntry[] =
         groupBy === 'none'
           ? [[ALL_GROUP_KEY, { label: '', items: naturalWorktrees, repoIds: new Set() }]]
