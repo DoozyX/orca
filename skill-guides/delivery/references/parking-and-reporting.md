@@ -50,6 +50,15 @@ On residue, hand the list to a cleanup agent as exact targets and check once
 more. What remains stays in place, named in the report as an open item. A parked
 unit's resources are not residue.
 
+After a primary checkout guard stop, only this check and the retrospective (with
+its issue filing) may still be dispatched, and they stay read-only: no editing
+tracked source, switching, resetting or stashing, pushing, merging, deploying, or
+removing a worktree, branch or terminal, and they write only under the run's
+`orchestrate/` directory. The primary row stays `residue` for the difference,
+which the closing report names as an open item; neither agent repairs it. If no
+read-only agent can be launched, the coordinator writes these notes itself and
+labels the independent check `unperformed` in the report.
+
 Other runs' worktrees are out of scope unless the user asks; then show the
 candidate list and wait for approval of that exact list.
 
