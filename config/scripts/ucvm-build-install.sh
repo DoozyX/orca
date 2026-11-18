@@ -25,6 +25,8 @@ BUILD_MEMORY_HIGH=${UCVM_BUILD_MEMORY_HIGH:-4200M}
 BUILD_SWAP_MAX=${UCVM_BUILD_SWAP_MAX:-0}
 # Rolldown threads each hold chunks in memory; fewer threads trade wall time for a lower peak.
 BUILD_THREADS=${UCVM_BUILD_THREADS:-1}
+# RAM plus free swap the build needs before it starts: the measured 3.45 GiB peak plus a margin; check-memory fails (and is retried every tick) below it.
+BUILD_MIN_HEADROOM_MB=${UCVM_BUILD_MIN_HEADROOM_MB:-4500}
 
 STEP=start
 TARGET_SHA=
@@ -224,16 +226,23 @@ run() {
     return 0
   fi
 
-  if [ -f "$STATUS" ] && [ "$(jq -r '.state' "$STATUS")" = failed ] && [ "$(jq -r '.sha' "$STATUS")" = "$want" ] &&
+  if [ -f "$STATUS" ] && [ "$(jq -r '.state' "$STATUS")" = failed ] && [ "$(jq -r '.sha' "$STATUS")" = "$want" ] && [ "$(jq -r '.step' "$STATUS")" != check-memory ] &&
     [ $(($(now) - $(jq -r '.updated' "$STATUS"))) -lt "$RETRY_FAILED_AFTER_SECONDS" ]; then
     note_noop "skipping $want12: it failed at step '$(jq -r '.step' "$STATUS")' less than $((RETRY_FAILED_AFTER_SECONDS / 3600))h ago"
     return 0
   fi
 
   log "building fork main $want12 (installed: $installed)"
-  # Without swap the kernel OOM killer ends the build mid-step with no error in the log (2026-11-12, swap removed by hand).
-  STEP=check-swap
+  # Without headroom the kernel OOM killer ends the build mid-step with no error in the log (2026-11-12 no swap; 2026-11-18 swap 99% full of idle pages).
+  STEP=check-memory
+  local avail_mb swap_free_mb
+  avail_mb=$(awk '/^MemAvailable:/ {print int($2 / 1024)}' /proc/meminfo)
+  swap_free_mb=$(awk '/^SwapFree:/ {print int($2 / 1024)}' /proc/meminfo)
   [ -n "$(swapon --show --noheadings)" ] || { echo "no active swap: the build needs it on this 7 GiB host (restore /swap.img and its fstab line)" >&2; exit 1; }
+  [ $((avail_mb + swap_free_mb)) -ge "$BUILD_MIN_HEADROOM_MB" ] || {
+    echo "only $((avail_mb + swap_free_mb)) MiB of RAM plus free swap (available $avail_mb, swap free $swap_free_mb); the build peaks near 3500 MiB and needs $BUILD_MIN_HEADROOM_MB. Add swap or free memory (top consumers: $(ps -eo rss=,comm= --sort=-rss | head -3 | awk '{printf "%s %dM; ", $2, $1 / 1024}'))" >&2
+    exit 1
+  }
   set_step sync-checkout
   sync_checkout
   if [ "$TARGET_SHA" != "$want" ]; then want=$TARGET_SHA; want12=${want:0:12}; log "fork main moved to $want12"; fi
