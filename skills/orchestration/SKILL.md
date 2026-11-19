@@ -2,19 +2,23 @@
 name: orchestration
 description: >-
   Run work in separate Orca worker agents and get their results back. Use when
-  the user asks for Orca workers or supervision (monitor, task DAGs, ask/reply,
-  decision gates), or the work needs what your own subagents cannot give: a
-  different agent or its own Orca workspace. "Have Codex (or Claude) review
-  this and report back" means an Orca worker of that agent. Also use as a
-  dispatched worker (Task and Dispatch IDs: ask, worker_done). It owns fan-out
-  of Orca workers: "launch several sessions", "launch N sessions", "fan out",
-  "run agents in parallel", "spin up a fleet", "kick off background agents",
-  "check progress without blocking". Otherwise prefer your own subagents. This
-  skill is the coordination runtime; use the `delivery` skill for the
+  the user invokes /orchestration, asks for Orca workers or supervision
+  (monitor, task DAGs, ask/reply, decision gates), or asks to split,
+  parallelize or fan out code changes across agents, worktrees or branches;
+  use Orca workers for those. Also use when the work needs a different agent
+  (such as Codex from Claude) or its own Orca workspace: "Have Codex (or
+  Claude) review this and report back" means an Orca worker of that agent.
+  Also use when you are a dispatched worker (a prompt with Task and Dispatch
+  IDs: ask, worker_done). It owns fan-out of Orca workers: "launch several
+  sessions", "launch N sessions", "fan out", "run agents in parallel", "spin up
+  a fleet", "kick off background agents", "check progress without blocking".
+  Unless the user asks for Orca workers or a named agent, searches, reads and
+  research in your workspace stay with your own subagents, even in parallel.
+  This skill is the coordination runtime; use the `delivery` skill for the
   implement, test, review, PR, green-CI recipe on top of it. Use `orca-cli` to
-  hand work off with nothing expected back ("hand off", "handover", "another
-  worktree"), and for terminal control, shell commands, worktree management,
-  and terminal reads and waits.
+  hand work off with nothing expected back ("hand off", "handover", "give this
+  to another agent", "another worktree"), and for terminal control, shell
+  commands, worktree management, and reading or waiting on terminals.
 ---
 
 # Orca Orchestration

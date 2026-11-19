@@ -28,8 +28,6 @@ describe('a picked session option outranks configured launch arguments', () => {
     expect(plan?.launchCommand).toBe(
       "codex --no-daemon '-c' 'disable_paste_burst=true' '-m' 'gpt-5'"
     )
-    // Without the override the configured flag trailed the picked one and won on argv order.
-    expect(plan?.launchCommand).not.toContain('gpt-5-codex')
   })
 })
 

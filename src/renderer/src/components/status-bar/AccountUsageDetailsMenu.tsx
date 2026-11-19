@@ -6,9 +6,8 @@ import { ClaudeSwitcherMenu } from './accounts/ClaudeSwitcherMenu'
 import { CodexSwitcherMenu } from './accounts/CodexSwitcherMenu'
 import { ProviderDetailsMenu } from './usage/ProviderDetailsMenu'
 import { entryRateLimits, type AccountUsageEntry } from './account-usage-entry'
-import { getUsageOwnerHostScope } from './usage/use-owner-usage-rate-limits'
+import { getAccountOwnerKey } from './accounts/owner-account-rows'
 import type { OwnerUsageRateLimits } from './usage/use-owner-usage-rate-limits'
-import { getProviderAccountsOwnerKey } from '@/runtime/provider-accounts/observations/runtime-provider-accounts-client'
 
 export function AccountUsageDetailsMenu({
   entry,
@@ -31,6 +30,7 @@ export function AccountUsageDetailsMenu({
     return (
       <ClaudeSwitcherMenu
         claude={p}
+        ownerUsage={ownerUsage}
         compact={compact}
         iconOnly={false}
         asSubmenu
@@ -52,7 +52,7 @@ export function AccountUsageDetailsMenu({
   if (entry.selected && p.provider === 'codex') {
     return (
       <CodexSwitcherMenu
-        key={getProviderAccountsOwnerKey(getUsageOwnerHostScope(ownerUsage.remoteOwner))}
+        key={getAccountOwnerKey(ownerUsage.owner)}
         codex={p}
         ownerUsage={ownerUsage}
         compact={compact}

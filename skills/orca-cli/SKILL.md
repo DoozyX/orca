@@ -4,7 +4,8 @@ description: >-
   Operate Orca-managed worktrees, folder contexts, terminals, repos, automations, worktree
   comments, and Orca's embedded browser through the `orca` CLI. Use when the user says
   "$orca-cli", "Orca worktree", "child worktree", "spawn codex/claude in a worktree",
-  "read/wait/send Orca terminal", "handoff" / "handover" / "give this to another agent", or
+  "read/wait/send Orca terminal", "handoff" / "handover" / "give this to another agent",
+  "ask/tell/message another agent" (including an agent on a paired Orca server), or
   "Orca browser". It also owns single-session terminal work: "session", "sub-agent",
   "create a session", "stop a session", "fork a session", "attach to a session",
   "worktree session", and troubleshooting a stuck or misconfigured agent terminal. Also use
