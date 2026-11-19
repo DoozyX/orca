@@ -2,7 +2,7 @@
 
 Load this reference when a task cannot finish, when a done task's resources need
 cleaning up, before the teardown check and retrospective, or when writing the
-closing report.
+overview or the closing report.
 
 ## Parking a task
 
@@ -50,8 +50,9 @@ On residue, hand the list to a cleanup agent as exact targets and check once
 more. What remains stays in place, named in the report as an open item. A parked
 unit's resources are not residue.
 
-After a primary checkout guard stop, only this check and the retrospective (with
-its issue filing) may still be dispatched, and they stay read-only: no editing
+After a primary checkout guard stop, only this check, the retrospective (with
+its issue filing) and the overview stages are still dispatched, in that order,
+and they stay read-only: no editing
 tracked source, switching, resetting or stashing, pushing, merging, deploying, or
 removing a worktree, branch or terminal. They write only under the run's
 `orchestrate/` directory, except that the retrospective agent may run
@@ -125,7 +126,77 @@ Leave out secrets and the target repository's source, private names and URLs.
 The agent reports one `ISSUE: <url> filed|commented` line per entry; a `gh`
 failure stays in the retrospective as `unfiled: <error>`.
 
+## Overview
+
+A run whose input was an approved design or spec document, or whose manifest has
+two or more unit rows, closes with `orchestrate/overview.md`: what was built, for
+a reader who saw none of the run. A verification entrance never gets one. Either
+condition is enough, so a one-step design gets one.
+
+Sections, in this order. Only `## Deploy order` may be left out, and everything
+above `## Per-task evidence` stays within 250 lines; shorten `## How it was done`
+first.
+
+| Section                                                        | Content                                                                                                                                                                                                                                    | Nothing to say                                                                   |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------- |
+| `# <ticket or title> overview`, then `Status on <YYYY-MM-DD>:` | One short paragraph: what is done, what is waiting, and on whom                                                                                                                                                                            | Never empty                                                                      |
+| `## What it does`                                              | The change as a numbered flow in plain language. A component diagram naming the PR on each component when units changed three or more repositories or services; a sequence diagram when the changed components call each other at run time | Never empty                                                                      |
+| `## How it was done`                                           | Design path and revision, dates, a unit-dependency diagram when the run had two or more units, each budget override with its decision id                                                                                                   | Never empty                                                                      |
+| `## Pull requests`                                             | `# \| Repo \| PR → target \| What it does`, and a merge-order diagram when any unit was stacked on another                                                                                                                                 | A unit with no PR puts what landed there (`<merge sha> → <target>`), or `parked` |
+| `## Deploy order`                                              | Numbered list with the config each step needs                                                                                                                                                                                              | Left out when units changed one separately released service, app or package      |
+| `## Still open`                                                | Parked units, blocked items, counts of known and deferred items with their file paths                                                                                                                                                      | `none`                                                                           |
+| `## Actions for you or ops`                                    | Secrets to rotate and other security follow-ups first, then defects found in code the run did not change, then requests to other people                                                                                                    | `none`                                                                           |
+| `## Next steps`                                                | What happens after the run, and exactly what is needed from whom                                                                                                                                                                           | `none`                                                                           |
+| `## Per-task evidence`                                         | One closing-report block per task, as below, under a `###` heading                                                                                                                                                                         | Never empty                                                                      |
+| `## Run figures`                                               | Reviews and fixes per unit, overrides, what was cleaned up and kept, the teardown verdict, the retrospective path, each filed issue's URL                                                                                                  | Never empty                                                                      |
+
+Diagrams are Mermaid fences, and nobody in the run sees them rendered, so they
+keep to syntax that parses:
+
+- Only `flowchart` and `sequenceDiagram`, with at most 15 nodes or 8
+  participants; split a larger one.
+- Node, subgraph and participant ids are letters and digits only.
+- In a flowchart, every node label, edge label and subgraph title is in double
+  quotes: `id["text"]`, `-->|"text"|`, `subgraph id["text"]`. A line break is
+  `<br/>`, never in a subgraph title, where the second line is hidden; no other
+  HTML.
+- In a sequence diagram, participant aliases and message text are plain text
+  with no `;`, `#` or line break.
+- No `style`, `classDef`, `click` or `linkStyle`.
+- One sentence above each diagram says what an arrow means.
+
+Two stages produce it, after the retrospective. Neither reserves or settles a
+ledger row.
+
+1. **Overview.** One agent writes the file from each unit's
+   `<base sha>..<head sha>` diff and its PR, not from the stage reports: a
+   document drafted from run records repeats their mistakes. A unit whose
+   commits cannot be read gets `not verified: commits unreachable` in its
+   `## Pull requests` row and a line under `## Still open`.
+2. **Overview review.** A fresh read-only agent checks every status code, URL
+   shape, name, branch target, order and diagram edge against the same diffs,
+   and every Mermaid block against the rules above. It writes
+   `orchestrate/overview.findings.md`, one line per finding, ending in
+   `VERDICT: accurate` or, with any finding at all, `VERDICT: fix-needed`.
+
+On `fix-needed`, send the findings path to the same writer when it can still be
+continued, otherwise to a fresh Overview dispatch. The writer fixes each finding
+or disputes it with evidence, and marks its line `fixed` or `disputed: <why>`.
+There is no second review; the run closes either way.
+
+**Keeping it current.** A later session that changes a closed run's state (a PR
+merged, a blocker cleared, a next step done) edits in place the `Status on` line
+with the new date, PR state in `## Pull requests`, `## Still open`,
+`## Actions for you or ops` and `## Next steps`; these edits need no review. A
+change to `## What it does`, `## Deploy order` or a diagram is a fresh Overview
+dispatch followed by an Overview review.
+
 ## Closing report
+
+For a run with an overview, the closing report is `overview.md`, and the chat
+message is its status paragraph, its absolute path, the `## Still open` and
+`## Actions for you or ops` items, and each disputed finding with the findings
+path. For every other run it is the chat message itself.
 
 One block per task:
 

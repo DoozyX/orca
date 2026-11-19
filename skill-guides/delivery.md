@@ -29,7 +29,9 @@ ends as exactly one of `pass`, `defect`, `inconclusive`. A task is `done` when i
 latest review is clean, its PR exists or the repository's endgame has landed, and
 its checks are green. A parked task keeps its worktree, branch and findings. The
 run ends with a retrospective and a closing report naming, per task, the outcome,
-the evidence, and any open blocker.
+the evidence, and any open blocker. For a run from a design, or with two or more
+units, the closing report is `orchestrate/overview.md`, which also explains what
+was built.
 
 When a task cannot finish, park it as `needs-attention` and keep everything it
 produced. Force-pushing, resetting or deleting a branch destroys the evidence the
@@ -258,6 +260,6 @@ reference.
 | Writing a stage's spec, or checking a report for its required evidence         | `references/stage-prompts.md`                     |
 | A recorded planning trigger, a plan review, or splitting one large task        | `references/planning-and-splitting.md`            |
 | Verifying a deployed system, or adjudicating contradictory evidence arms       | `references/deployed-verification.md`             |
-| Parking a task, cleanup, the retrospective, filing Orca issues, closing report | `references/parking-and-reporting.md`             |
+| Parking a task, cleanup, the retrospective, the overview, the closing report   | `references/parking-and-reporting.md`             |
 | Dispatching an Orca worker, messaging it, or waiting on it                     | the `orchestration` skill, not this one           |
 | Writing the implementation, the review layers, a diagnosis, a completion claim | the `tdd`, `review`, `debug`, and `verify` skills |

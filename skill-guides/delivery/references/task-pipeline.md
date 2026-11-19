@@ -190,8 +190,8 @@ A HEAD advance with the same branch and status, where
 `git -C <primary> merge-base --is-ancestor <before> <after>` succeeds, is someone
 else's routine commit: note it and continue. For any other difference, stop
 dispatching and tell the user what moved; do not repair it. Closeout is the
-exception (`parking-and-reporting.md`): the fresh read-only teardown check
-and the retrospective (with its issue filing) still run. No implement, fix,
+exception (`parking-and-reporting.md`): the fresh read-only teardown check,
+the retrospective (with its issue filing) and the overview stages still run. No implement, fix,
 review, merge, deploy or cleanup stage starts until the user decides.
 
 ## 5. Green CI
