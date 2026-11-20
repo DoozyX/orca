@@ -1,3 +1,4 @@
+import { paneAgentIdentity } from '../../../agent-hooks/server/pane-agent-identity'
 import { pickParsedAgentStatusPayload } from '../../../../shared/agent-status/contracts/agent-status-payload-pick'
 import type { ParsedAgentStatusPayload } from '../../../../shared/agent-status/contracts/agent-status-types'
 import type { AgentStatusIpcPayload } from '../../../../shared/agent-status/contracts/agent-status-ipc-payload'
@@ -53,8 +54,17 @@ export function collectRuntimeWorktreePtyAgentSources(args: {
     RuntimeWorktreeAgentSource & { payload: ParsedAgentStatusPayload }
   >()
   let chatOrcaSessionId = args.chatOrcaSessionId
-  for (const entry of args.hookSnapshots) {
-    if (entry.restoredUnconfirmed === true || entry.providerSessionOnly === true) {
+  for (const source of args.hookSnapshots) {
+    const identity = source.structuredHost
+      ? null
+      : paneAgentIdentity({ paneKey: source.paneKey, row: source })
+    const entry = source.structuredHost ? source : identity?.status
+    if (
+      !entry ||
+      identity?.ended ||
+      entry.restoredUnconfirmed === true ||
+      source.providerSessionOnly === true
+    ) {
       continue
     }
     const hookPayload = pickParsedAgentStatusPayload(entry)

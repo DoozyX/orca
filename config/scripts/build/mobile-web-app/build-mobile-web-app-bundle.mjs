@@ -26,6 +26,12 @@ import {
 import { MOBILE_WEB_PAGE_ROUTES } from './mobile-web-page-routes.mjs'
 import { reactNativeSvgWebPlugin } from './react-native-svg-web-plugin.mjs'
 import {
+  MOBILE_REACT_PACKAGE,
+  MOBILE_ZOD_PACKAGE,
+  PAGE_ASYNC_STORAGE_MODULE
+} from './mobile-web-app-aliased-packages.mjs'
+import { packageBuildPlugin } from './one-package-build-plugin.mjs'
+import {
   ROUTE_ENTRY_NAMESPACE,
   entryStaticClosure,
   isScriptOutput,
@@ -102,6 +108,11 @@ export const MOBILE_WEB_APP_SHIMS = [
       options.plugins?.some((plugin) => plugin.name === HAIRLINE_PLUGIN_NAME) === true
   },
   {
+    // Point imports that would ship a second build (or an unused part) of a package at what the page already loads.
+    name: 'one-package-build',
+    appliesTo: (options) => options.plugins?.includes(packageBuildPlugin) === true
+  },
+  {
     // esbuild has no require.context, so the route tree is generated and injected.
     name: 'route-manifest',
     appliesTo: (options) =>
@@ -124,19 +135,6 @@ export const MOBILE_WEB_APP_NATIVE_PARITY_STYLE =
   ':where(body){-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}' +
   ':where(input,textarea,[contenteditable]){-webkit-user-select:text;user-select:text;' +
   '-webkit-touch-callout:default}</style>'
-
-const PAGE_ASYNC_STORAGE_MODULE = join(
-  mobileDir,
-  'src',
-  'mobile-web-shell',
-  'bridge',
-  'page-storage',
-  'page-async-storage.ts'
-)
-
-const MOBILE_REACT_PACKAGE = join(mobileDir, 'node_modules', 'react')
-// nodePaths cannot override shared modules’ root Zod resolution. Alias mobile’s package to match tsconfig and salvage/container instances; esbuild picks its ESM module entry.
-const MOBILE_ZOD_PACKAGE = join(mobileDir, 'node_modules', 'zod')
 
 // Set __zod_globalConfig.jitless in banner: module-scope schema construction probes eval before our imports can configure it, generating caught-but-reported CSP violations.
 const ZOD_JITLESS_BANNER =
@@ -324,7 +322,8 @@ export function mobileWebAppBuildOptions(
       ),
       lucideBarrelPlugin,
       reactNativeSvgWebPlugin,
-      hairlineDevicePixelPlugin
+      hairlineDevicePixelPlugin,
+      packageBuildPlugin
     ],
     resolveExtensions: [
       '.web.tsx',

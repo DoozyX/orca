@@ -22,6 +22,7 @@ import {
   type AgentStartupShell
 } from './tui-agent-startup-shell'
 import type { TuiAgent } from '../catalog/tui-agent'
+import { antigravityModelArgs } from './antigravity-model-args'
 
 // Why: Enter on Codex's "Update available" screen picks "Update now", which installs and exits.
 const STARTUP_UPDATE_PROMPT_SUPPRESSION_ARGS: Partial<Record<TuiAgent, readonly string[]>> = {
@@ -184,10 +185,14 @@ export function resolveAgentLaunchCommand(args: {
     args.agent === 'aider'
       ? insertBeforeTerminator(args.agent, initialTokens, suppressionArgs)
       : initialTokens
-  // Restart retains explicit policy and surviving raw pins, while providers restore model seeds.
-  const resumeArgs = render(
-    insertBeforeTerminator(args.agent, keptTokens, resolvedOptions.permissionArgs ?? [])
-  )
+  // Restart retains explicit policy and surviving raw pins. agy --conversation also needs the
+  // launch's --model or custom models fail with "model is empty" (#43154); --effort stays out
+  // because combining it with --model makes agy run a different model (#39556).
+  const resumeOptionArgs =
+    args.agent === 'antigravity'
+      ? [...antigravityModelArgs(resolvedOptions.args), ...(resolvedOptions.permissionArgs ?? [])]
+      : (resolvedOptions.permissionArgs ?? [])
+  const resumeArgs = render(insertBeforeTerminator(args.agent, keptTokens, resumeOptionArgs))
   const protectPane = (value: string): string =>
     args.agent === 'codex' ? withIndependentCodexLaunch(value, args.shell) : value
   return {
@@ -197,7 +202,8 @@ export function resolveAgentLaunchCommand(args: {
       agentCommand: protectPane(withArgs(resumeArgs)),
       ...(keptTokens.length !== rawTokens.length ||
       keptTokens.some((token, index) => token !== rawTokens[index]) ||
-      resolvedOptions.permissionArgs
+      resolvedOptions.permissionArgs ||
+      resumeOptionArgs.length > 0
         ? { agentArgs: resumeArgs }
         : {})
     },

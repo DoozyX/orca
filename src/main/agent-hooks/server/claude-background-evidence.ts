@@ -40,3 +40,9 @@ export function writeClaudeBackgroundEvidence(
     state.claudeMonitoredWorkByPaneKey.delete(paneKey)
   }
 }
+
+export function clearClaudeBackgroundEvidence(state: HookListenerState, paneKey: string): void {
+  state.claudeRunningNonAgentTaskPaneKeys.delete(paneKey)
+  state.claudeActiveSessionCronPaneKeys.delete(paneKey)
+  state.claudeMonitoredWorkByPaneKey.delete(paneKey)
+}
