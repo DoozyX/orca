@@ -28,12 +28,16 @@ pnpm tc
 git checkout -- pnpm-lock.yaml 2>/dev/null || true
 
 (. ~/DoozyX/keys/secrets/credentials.env && security unlock-keychain -p "$CI_KEYCHAIN_PASSWORD" ~/Library/Keychains/doozyx-ci.keychain-db)
-CSC_NAME="Apple Distribution: DoozyX FZ-LLC (N59WC8BU7V)" pnpm build:mac:install
+# Developer ID by SHA-1: the Touch ID provisioning profile only admits this cert, and electron-builder rejects its prefixed name.
+CSC_NAME=7F830E98E705E5294F7C79B135420969609DC73C \
+  ORCA_MAC_PROVISIONING_PROFILE="$HOME/DoozyX/keys/apple/Orca_Fork_Developer_ID.provisionprofile" \
+  pnpm build:mac:install
 
 app=/Applications/Orca.app
 codesign --verify --deep --strict "$app"
 # Not a pipe: grep -q exits early, codesign gets SIGPIPE and pipefail aborts with 141.
 grep -q 'TeamIdentifier=N59WC8BU7V' <<<"$(codesign -dv "$app" 2>&1)"
+grep -q 'N59WC8BU7V.com.stablyai.orca.webauthn' <<<"$(codesign -d --entitlements - "$app" 2>&1)"
 lipo -archs "$app/Contents/MacOS/Orca" | grep -qx arm64
 python3 - "$(git rev-parse HEAD)" <<'PY'
 import json, sys
