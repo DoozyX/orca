@@ -183,10 +183,8 @@ build_inner() {
   local base
   base=$(node -p "require('./package.json').version")
   node config/scripts/native-build/node-addons/ensure-native-runtime.mjs --runtime=electron
-  # electron-builder's beforePack rebuilds the linux-x64 provider exec helper in docker whenever its source fingerprint changed; same docker-group gap as above.
-  sg docker -c "cd '$CHECKOUT' && node config/scripts/native-build/posix/build-provider-exec.mjs --target linux-x64"
-  pnpm exec electron-builder --config config/electron-builder.config.cjs --linux deb --x64 --publish never \
-    -c.extraMetadata.version="${base}-fork.${TARGET_SHA:0:12}"
+  # electron-builder's beforePack builds the provider exec helper and the journal lock in docker; same docker-group gap as above, so the whole packaging runs under sg.
+  sg docker -c "cd '$CHECKOUT' && node config/scripts/native-build/posix/build-provider-exec.mjs --target linux-x64 && pnpm exec electron-builder --config config/electron-builder.config.cjs --linux deb --x64 --publish never -c.extraMetadata.version='${base}-fork.${TARGET_SHA:0:12}'"
   ls -l dist/*.deb
 }
 
