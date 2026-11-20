@@ -3,6 +3,11 @@ const {
 } = require('./scripts/desktop-distribution/macos/mac-signing-identity.cjs')
 const { chmodSync, existsSync, readdirSync, readFileSync, writeFileSync } = require('node:fs')
 const { execFileSync } = require('node:child_process')
+const {
+  MAC_PROVISIONING_PROFILE_ENV,
+  assertMacTouchIdProvisioningProfile,
+  writeMacTouchIdEntitlements
+} = require('./scripts/desktop-distribution/macos/mac-touch-id-webauthn.cjs')
 const { join, resolve } = require('node:path')
 const {
   MACOS_FOLDER_USAGE_DESCRIPTIONS,
@@ -135,6 +140,11 @@ const devChannelRepo = isHourlyChannel
       ? 'orca-adhoc'
       : null
 const appId = 'com.stablyai.orca'
+const macMainAppEntitlements = writeMacTouchIdEntitlements(
+  resolve(__dirname, '../resources/build/entitlements.mac.plist'),
+  resolve(__dirname, '../out/build/entitlements.mac.touch-id.plist'),
+  appId
+)
 const featureWallResources = {
   from: 'resources/onboarding/feature-wall',
   to: 'onboarding/feature-wall'
@@ -467,6 +477,7 @@ module.exports = {
       writeFileSync(join(resourcesDir, 'package-type'), 'AppImage')
     }
     if (context.electronPlatformName === 'darwin') {
+      assertMacTouchIdProvisioningProfile(appId)
       applyMacHelperFolderUsageDescriptions(
         join(context.appOutDir, `${context.packager.appInfo.productFilename}.app`),
         context.packager.appInfo.productFilename
@@ -693,8 +704,9 @@ module.exports = {
     // Kelvin decides. The update-manifest gate reads this from Info.plist.
     minimumSystemVersion: '13.4',
     icon: 'resources/build/icon.icns',
-    entitlements: 'resources/build/entitlements.mac.plist',
+    entitlements: macMainAppEntitlements,
     entitlementsInherit: 'resources/build/entitlements.mac.plist',
+    provisioningProfile: process.env[MAC_PROVISIONING_PROFILE_ENV],
     ...(isMacRelease
       ? { sign: resolve(__dirname, './scripts/desktop-distribution/macos/sign-mac-app.mjs') }
       : {}),

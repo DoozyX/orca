@@ -43,6 +43,9 @@ function initialActivationGate(): ServeDesktopActivationGate | null {
 
 vi.mock('./main-process-state', () => ({ mainProcessState: state }))
 vi.mock('./main-process-ready-foundation', () => ({ initializeReadyFoundation: foundation }))
+vi.mock('../browser/webauthn/browser-touch-id-webauthn', () => ({
+  configureBrowserTouchIdWebAuthn: vi.fn()
+}))
 vi.mock('./main-process-ready-runtime', () => ({ initializeReadyRuntimeServices: runtime }))
 vi.mock('./main-window/main-process-i18n-menu', () => ({ initializeMainProcessI18nAndMenu: i18n }))
 vi.mock('./runtime-startup/main-process-runtime-launch', () => ({

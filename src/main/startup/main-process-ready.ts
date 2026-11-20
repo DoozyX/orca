@@ -4,6 +4,7 @@ import { initializeMainProcessI18nAndMenu } from './main-window/main-process-i18
 import { mainProcessState as state } from './main-process-state'
 import { markHostShuttingDown } from './quit/host-shutdown-state'
 import { initializeReadyFoundation } from './main-process-ready-foundation'
+import { configureBrowserTouchIdWebAuthn } from '../browser/webauthn/browser-touch-id-webauthn'
 import { initializeReadyRuntimeServices } from './main-process-ready-runtime'
 import { releaseDesktopActivationAfter } from './serve-launch/serve-desktop-activation'
 import {
@@ -23,6 +24,7 @@ export async function initializeMainProcessReady(
   }
   try {
     await initializeReadyFoundation()
+    configureBrowserTouchIdWebAuthn()
     await state.wslMoveStartupRewriteReady
     await initializeReadyRuntimeServices()
     // Window creation can proceed while translations and the native menu initialize.
