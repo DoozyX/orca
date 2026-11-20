@@ -2,6 +2,8 @@
 # Builds and installs the fork-main candidate on the M1 without an agent; hold the ssh session open for the whole run (keychain).
 set -euo pipefail
 
+# One brace group: bash parses it whole before the ff-merge below rewrites this file mid-run.
+{
 WT=/Users/skletnikov/DoozyX/tools/orca/.worktrees/orca/m1-daily-upstream-sync
 PNPM12=/Users/skletnikov/Library/pnpm/package-manager-store/v11/links/@/pnpm/12.14.0/fa4b6de714eee5e41198578d37b51a0becbe0643d80916ccfc693ffd9491d0c0/bin
 RUN=$WT/.orca/$(date +%F)-m1-build
@@ -70,3 +72,5 @@ nohup env self_pane="${ORCA_PANE_KEY:-}" bash -c '
 ' >/dev/null 2>&1 &
 disown
 echo "restart waiter started"
+exit
+}
