@@ -69,7 +69,7 @@ describe('RateLimitService omp usage', () => {
     vi.mocked(fetchOmpRateLimits).mockResolvedValueOnce(healthy)
     const service = new RateLimitService()
     await service.refresh()
-    expect(service.getState().omp?.daily?.usedPercent).toBe(6)
+    expect((await service.getState()).omp?.daily?.usedPercent).toBe(6)
 
     vi.mocked(fetchOmpRateLimits).mockResolvedValueOnce({
       ...healthy,
@@ -79,7 +79,7 @@ describe('RateLimitService omp usage', () => {
       error: 'omp usage timed out'
     })
     await service.refresh()
-    expect(service.getState().omp).toMatchObject({
+    expect((await service.getState()).omp).toMatchObject({
       status: 'error',
       error: 'omp usage timed out',
       daily: { usedPercent: 6 }
@@ -100,7 +100,11 @@ describe('RateLimitService omp usage', () => {
       usageMetadata: { source: 'cli', modelIdentity: 'google-antigravity/claude-sonnet-4' }
     })
     await service.refresh()
-    expect(service.getState().omp).toMatchObject({ status: 'error', daily: null, buckets: [] })
+    expect((await service.getState()).omp).toMatchObject({
+      status: 'error',
+      daily: null,
+      buckets: []
+    })
   })
 
   it('clears stale quota when a failed refresh cannot identify the active model', async () => {
@@ -117,6 +121,10 @@ describe('RateLimitService omp usage', () => {
       usageMetadata: { source: 'cli' }
     })
     await service.refresh()
-    expect(service.getState().omp).toMatchObject({ status: 'error', daily: null, buckets: [] })
+    expect((await service.getState()).omp).toMatchObject({
+      status: 'error',
+      daily: null,
+      buckets: []
+    })
   })
 })

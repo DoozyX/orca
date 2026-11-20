@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useSourceControlState } from '../panel/worktree-scope'
+import { useAppStateValueWithHostStatuses } from '@/store/slices/runtime-status/views/use-runtime-status-view'
 import {
   gitGraphScope,
   gitGraphSupport,
@@ -11,9 +12,9 @@ export function useGitGraphSupport(worktreeId: string): boolean | null {
   const owner = useSourceControlState((state) =>
     JSON.stringify([worktreeId, gitGraphScope(worktreeId, state)?.route])
   )
-  const status = useSourceControlState((state) => {
+  const status = useAppStateValueWithHostStatuses((state, statuses) => {
     const environmentId = gitGraphScope(worktreeId, state)?.route.runtimeEnvironmentId
-    return environmentId ? state.runtimeStatusByEnvironmentId.get(environmentId) : undefined
+    return environmentId ? statuses.get(environmentId) : undefined
   })
   const [probe, setProbe] = useState<{ owner: string; support: boolean | null }>()
   useEffect(() => {

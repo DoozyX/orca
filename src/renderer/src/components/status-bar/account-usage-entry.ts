@@ -3,9 +3,6 @@ import type {
   RateLimitRuntimeTarget
 } from '../../../../shared/agent-usage/rate-limits/rate-limit-types'
 import type { ClaudeAccountAssignmentSource } from '../../../../shared/claude-account-assignment'
-import type { StatusBarUsageMode } from '../../../../shared/status-bar/status-bar-usage-mode'
-import type { Translate } from '@/i18n/use-translate'
-import { usageChipShowsPercentage, type UsageUnitLabelState } from './usage/usage-unit-label'
 
 export type AccountUsageEntry = {
   key: string
@@ -47,20 +44,4 @@ export function entryRateLimits(entry: AccountUsageEntry): ProviderRateLimits {
       status: entry.isFetching ? 'fetching' : 'unavailable'
     }
   )
-}
-
-/** The unit label's state over account chips, whose collapse keys are entry keys, not providers. */
-export function getEntryUsageUnitLabelState(
-  entries: readonly AccountUsageEntry[],
-  collapsedKeys: readonly string[],
-  mode: StatusBarUsageMode,
-  t?: Translate
-): UsageUnitLabelState {
-  const withPercentage = entries.filter((entry) =>
-    usageChipShowsPercentage(entryRateLimits(entry), mode, t)
-  )
-  if (withPercentage.length === 0) {
-    return 'absent'
-  }
-  return withPercentage.every((entry) => collapsedKeys.includes(entry.key)) ? 'collapsed' : 'shown'
 }

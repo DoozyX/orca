@@ -12,14 +12,12 @@ import type { OwnerUsageRateLimits } from './usage/use-owner-usage-rate-limits'
 export function AccountUsageDetailsMenu({
   entry,
   ownerUsage,
-  compact,
   row,
   antigravityAccounts,
   onManageAntigravityAccounts
 }: {
   entry: AccountUsageEntry
   ownerUsage: OwnerUsageRateLimits
-  compact: boolean
   row: ReactNode
   antigravityAccounts: readonly AntigravityAccountUsage[]
   onManageAntigravityAccounts: () => void
@@ -27,23 +25,13 @@ export function AccountUsageDetailsMenu({
   const t = useTranslate()
   const p = entryRateLimits(entry)
   if (entry.selected && p.provider === 'claude') {
-    return (
-      <ClaudeSwitcherMenu
-        claude={p}
-        ownerUsage={ownerUsage}
-        compact={compact}
-        iconOnly={false}
-        asSubmenu
-        triggerContent={row}
-      />
-    )
+    return <ClaudeSwitcherMenu claude={p} ownerUsage={ownerUsage} asSubmenu triggerContent={row} />
   }
   if (entry.selected && p.provider === 'antigravity') {
     return (
       <AntigravityUsageMenu
         antigravity={p}
         accounts={antigravityAccounts}
-        compact={compact}
         triggerContent={row}
         onManageAccounts={onManageAntigravityAccounts}
       />
@@ -55,8 +43,6 @@ export function AccountUsageDetailsMenu({
         key={getAccountOwnerKey(ownerUsage.owner)}
         codex={p}
         ownerUsage={ownerUsage}
-        compact={compact}
-        iconOnly={false}
         asSubmenu
         triggerContent={row}
       />
@@ -65,8 +51,6 @@ export function AccountUsageDetailsMenu({
   return (
     <ProviderDetailsMenu
       provider={p}
-      compact={compact}
-      iconOnly={false}
       asSubmenu
       triggerContent={row}
       ariaLabel={t('auto.components.status.bar.UsageRosterPanel.openDetails', 'Open usage details')}

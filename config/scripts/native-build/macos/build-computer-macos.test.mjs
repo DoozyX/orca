@@ -1,6 +1,7 @@
 import {
   chmodSync,
   copyFileSync,
+  cpSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -33,9 +34,15 @@ describe.skipIf(process.platform !== 'darwin')('computer helper compiler output'
       mkdirSync(bin)
       mkdirSync(join(root, 'resources', 'build'), { recursive: true })
       writeFileSync(join(root, 'resources', 'build', 'icon.icns'), 'icon')
-      for (const file of ['build-computer-macos.mjs', 'mac-helper-build-targets.mjs']) {
-        copyFileSync(new URL(file, import.meta.url), join(scripts, file))
-      }
+      mkdirSync(join(root, 'native', 'computer-use-macos'), { recursive: true })
+      copyFileSync(
+        new URL('../../../../native/computer-use-macos/Package.swift', import.meta.url),
+        join(root, 'native', 'computer-use-macos', 'Package.swift')
+      )
+      // Why: the helper script imports the shared posix build constants and their transitive modules.
+      cpSync(new URL('..', import.meta.url), join(configScripts, 'native-build'), {
+        recursive: true
+      })
       copyFileSync(
         new URL('../../build-and-install-mac.mjs', import.meta.url),
         join(configScripts, 'build-and-install-mac.mjs')

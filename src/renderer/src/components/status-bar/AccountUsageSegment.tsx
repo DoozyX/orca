@@ -3,7 +3,7 @@ import { useTranslate } from '@/i18n/use-translate'
 import { getProviderDisplayName } from '../../../../shared/agent-usage/display/usage-provider-windows'
 import type { AccountUsageEntry } from './account-usage-entry'
 import { entryRateLimits } from './account-usage-entry'
-import { ProviderSegment } from './usage/StatusBarProviderSegment'
+import { ClippedRowProviderSegment, ProviderSegment } from './usage/StatusBarProviderSegment'
 import type { UsagePercentageDisplay } from '../../../../shared/agent-usage/display/usage-percentage-display'
 import type { StatusBarUsageMode } from '../../../../shared/status-bar/status-bar-usage-mode'
 
@@ -11,12 +11,15 @@ export function AccountUsageSegment({
   entry,
   compact,
   display,
-  mode
+  mode,
+  measuring = false
 }: {
   entry: AccountUsageEntry
   compact: boolean
   display: UsagePercentageDisplay
   mode: StatusBarUsageMode
+  /** Hidden measuring copy: its countdown must not tick. */
+  measuring?: boolean
 }): React.JSX.Element {
   const t = useTranslate()
   const p = entryRateLimits(entry)
@@ -47,7 +50,17 @@ export function AccountUsageSegment({
     >
       {assignedBy ? <Pin className="size-3 text-muted-foreground" aria-hidden /> : null}
       {entry.label ? <span className="max-w-32 truncate text-xs">{entry.label}</span> : null}
-      <ProviderSegment p={p} compact={compact} display={display} mode={mode} />
+      {measuring ? (
+        <ProviderSegment
+          p={p}
+          compact={compact}
+          display={display}
+          mode={mode}
+          countdownActive={false}
+        />
+      ) : (
+        <ClippedRowProviderSegment p={p} compact={compact} display={display} mode={mode} />
+      )}
     </span>
   )
 }

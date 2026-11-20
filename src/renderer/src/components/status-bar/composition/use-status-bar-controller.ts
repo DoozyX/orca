@@ -14,7 +14,6 @@ import {
 import { usageRowSignInOpensSettings } from '../usage/usage-provider-settings-target'
 import { useStatusBarMenuFocusHandoff } from '../usage/ProviderDetailsMenu'
 import { CLOSE_ALL_CONTEXT_MENUS_EVENT } from '@/lib/overlay-interaction/close-all-context-menus'
-import { useStatusBarDensity } from './status-bar-density'
 import { useUsageSettingsNavigation } from '../use-usage-settings-navigation'
 import { useAccountUsageRoster } from '../use-account-usage-roster'
 import { buildAccountUsageRoster } from '../account-usage-roster'
@@ -61,15 +60,6 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [menuPoint, setMenuPoint] = useState({ x: 0, y: 0 })
-  const {
-    density: { compact, usageTightestOnly, segmentsIconOnly, collapseUsage },
-    overflowing,
-    collapsedUsageProviders,
-    barRef,
-    usageRef,
-    segmentsRef
-  } = useStatusBarDensity()
-
   useEffect(() => {
     mountedRef.current = true
     return () => {
@@ -250,7 +240,7 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
     showMuse ? visibleMuse : null
   ]
     .filter((p): p is ProviderRateLimits => p !== null)
-    // Why: the bar collapses chips from the end, so placeholders give way first.
+    // Why: the usage row clips from the end, so placeholders give way first.
     .sort((a, b) => Number(isOwnerNotSetUpPlaceholder(a)) - Number(isOwnerNotSetUpPlaceholder(b)))
 
   const usageEntries = buildAccountUsageRoster({
@@ -276,11 +266,7 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
     antigravityAccounts: rateLimits.antigravityAccounts,
     anyFetching: anyFetching || usageEntries.some((entry) => entry.isFetching),
     anyVisible,
-    barRef,
     canSignInFromUsageRow,
-    collapseUsage,
-    collapsedUsageProviders,
-    compact,
     detectedAgentIds,
     floatingTerminalActionLabel,
     floatingTerminalShortcut,
@@ -294,14 +280,11 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
     isRefreshing,
     menuOpen,
     menuPoint,
-    overflowing,
     ownerUsage,
     petEnabled,
     recordFeatureInteraction,
     remoteOwner,
     rosterProviders,
-    segmentsIconOnly,
-    segmentsRef,
     setMenuOpen,
     setMenuPoint,
     setStatusBarUsageMode,
@@ -318,9 +301,7 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
     usageEntries,
     usageMenuFocusHandoff,
     usageMenuOpen,
-    usagePercentageDisplay,
-    usageRef,
-    usageTightestOnly
+    usagePercentageDisplay
   }
 }
 
