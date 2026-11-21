@@ -36,6 +36,7 @@ import {
   resumeInterruptedWorktreeRemovals,
   retryFailedWorktreeRemoval,
   startBackgroundWorktreeRemoval,
+  markerIdentity as readCheckoutMarkerIdentity,
   waitForPendingWorktreeRemoval
 } from '../../../workspaces/removal/worktree-background-removal'
 import { withUnregisteredRemovalCheckouts } from '../../../workspaces/removal/worktree-removal-listing'
@@ -178,6 +179,7 @@ async function finishAtStartup(purged: string[], pushTarget?: GitPushTarget): Pr
     worktreePath,
     branch: 'feature',
     head: (await git(['rev-parse', 'feature'])).trim(),
+    gitdir: await readCheckoutMarkerIdentity(worktreePath),
     deleteBranch: true,
     force: true,
     requestedAt: 1
@@ -206,6 +208,7 @@ async function failInSession(): Promise<unknown> {
       repoId: repo.id,
       repoPath,
       worktree: { path: worktreePath, branch: 'refs/heads/feature', head },
+      gitdir: await readCheckoutMarkerIdentity(worktreePath),
       deleteBranch: true,
       force: true
     },
