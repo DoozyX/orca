@@ -12,15 +12,11 @@ import {
   continueMainAgentStatus,
   mainAgentTurnInterrupted
 } from '../../../../agent-status/lifecycle/agent-lead-status-fold'
-import type { ClaudeMonitoredWorkObservation } from '../background-tasks/claude-background-task-inventory'
 import type { ClaudeSubagentRoster } from './claude-subagent-roster'
 import type { AgentHookEventPayload } from '../../../listener-event'
 import type { HookListenerState } from '../../../listener-state'
 import type { ClaudeLeadTurnState } from '../../../main-agent-turn-state'
-import {
-  replaceClaudeMonitoredCrons,
-  replaceClaudeMonitoredTasks
-} from '../../claude-monitored-work'
+import { replaceClaudeMonitoredCrons } from '../../claude-monitored-work'
 import { readString } from '../../../tool-input-preview'
 import { CLAUDE_NEW_SESSION_START_SOURCES } from './claude-session-start-sources'
 import { resolveClaudePaneStatus } from './claude-pane-hold-evidence'
@@ -117,19 +113,6 @@ export function updateClaudeRunningNonAgentTask(
   }
 }
 
-/** A present `background_tasks` inventory sets both the running-shell flag and the listed shells. */
-export function recordClaudeBackgroundTasks(
-  state: HookListenerState,
-  paneKey: string,
-  tasks: {
-    hasRunningNonAgentTask: boolean
-    monitoredWork: readonly ClaudeMonitoredWorkObservation[]
-  }
-): void {
-  updateClaudeRunningNonAgentTask(state, paneKey, tasks.hasRunningNonAgentTask)
-  replaceClaudeMonitoredTasks(state, paneKey, tasks.monitoredWork)
-}
-
 export function readClaudeLeadModel(hookPayload: Record<string, unknown>): string | undefined {
   return normalizeOptionalField(hookPayload.model, AGENT_MODEL_MAX_LENGTH)
 }
@@ -142,12 +125,16 @@ export function setClaudeMainAgentTurnState(
   now = Date.now()
 ): ClaudeLeadTurnState {
   const previous = state.claudeLeadStateByPaneKey.get(paneKey)
-  const { state: nextState, outcome, stateStartedAt, model, ...rest } = next
+  const { state: nextState, outcome, failure, stateStartedAt, model, ...rest } = next
   // Lead events that omit the model keep the last reported one.
   const retainedModel = model || previous?.model
   const record: ClaudeLeadTurnState = {
     ...rest,
-    ...continueMainAgentStatus(previous, { state: nextState, outcome, stateStartedAt }, now),
+    ...continueMainAgentStatus(
+      previous,
+      { state: nextState, outcome, failure, stateStartedAt },
+      now
+    ),
     ...(retainedModel ? { model: retainedModel } : {})
   }
   state.claudeLeadStateByPaneKey.set(paneKey, record)
@@ -165,6 +152,9 @@ export function claudeMainAgentStatusForPayload(
   return {
     state: own.state,
     ...(own.state === 'done' && own.outcome ? { outcome: own.outcome } : {}),
+    ...(own.state === 'done' && own.outcome === 'failure' && own.failure
+      ? { failure: own.failure }
+      : {}),
     stateStartedAt: own.stateStartedAt
   }
 }
@@ -243,6 +233,7 @@ export function seedClaudeLeadTurnFromPersistedStatus(
     setClaudeMainAgentTurnState(state, paneKey, {
       state: 'done',
       ...(mainAgent.outcome ? { outcome: mainAgent.outcome } : {}),
+      ...(mainAgent.failure ? { failure: mainAgent.failure } : {}),
       stateStartedAt: mainAgent.stateStartedAt,
       ...(status.payload.turnCompletedAt !== undefined
         ? { turnCompletedAt: status.payload.turnCompletedAt }

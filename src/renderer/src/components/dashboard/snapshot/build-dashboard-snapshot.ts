@@ -22,6 +22,7 @@ import {
 } from './dashboard-snapshot-workspaces'
 import { boundedLabel } from './dashboard-card-labels'
 import { buildDashboardSnapshotCard } from './dashboard-snapshot-card'
+import { dashboardCardsKeepPositions, replaceDashboardCards } from './dashboard-card-changes'
 import { buildDashboardSnapshotFilterOptions } from './dashboard-snapshot-filter-options'
 import { groupSubagentsByParentPaneKey } from './dashboard-subagent-cards'
 import { isDerivedChildRow } from '../rows/derived-child-row'
@@ -102,10 +103,10 @@ export function buildDashboardSnapshot(
       dirtyWorktrees!.add(worktreeId)
     }
   }
-  const cards: DashboardCard[] = []
+  let cards: DashboardCard[] = []
   const workspaces: DashboardWorkspace[] | undefined =
     options.includeCardDetails === false ? undefined : []
-  const repoIconsByRepoId: Record<string, RepoIcon | null> = {}
+  let repoIconsByRepoId: Record<string, RepoIcon | null> = {}
   const includeCardDetails = options.includeCardDetails !== false
   const showIdle = state.settings?.experimentalAgentDashboardShowIdle === true
   const activeWorktrees =
@@ -113,6 +114,10 @@ export function buildDashboardSnapshot(
       ? reuse.activeWorktrees
       : collectActiveDashboardWorkspaces(state, includeCardDetails)
   const nextWorkspaces = new Map<ActiveDashboardWorkspace, DashboardWorkspaceBuild>()
+  const rebuildWorkspaces =
+    dirtyWorktrees && reuse
+      ? Array.from(dirtyWorktrees).flatMap((id) => reuse.workspacesById.get(id) ?? [])
+      : activeWorktrees
   const filterOptions =
     dirtyWorktrees && reuse
       ? reuse.filterOptions
@@ -120,24 +125,11 @@ export function buildDashboardSnapshot(
         ? undefined
         : buildDashboardSnapshotFilterOptions(state, activeWorktrees)
 
-  for (const workspace of activeWorktrees) {
+  for (const workspace of rebuildWorkspaces) {
     const { repo, worktree } = workspace
     const worktreeId = worktree.id
-    const parentWorktreeId = worktree.parentWorktreeId
     const previous = dirtyWorktrees ? reuse?.workspaces.get(workspace) : undefined
-    if (previous && !dirtyWorktrees!.has(worktreeId)) {
-      cards.push(...previous.cards)
-      if (workspaces && previous.workspace && workspaces.length < DASHBOARD_MAX_MAP_WORKSPACES) {
-        workspaces.push(previous.workspace)
-      }
-      if (previous.cards.length) {
-        repoIconsByRepoId[workspace.projectId] = workspace.repoIcon
-      }
-      nextWorkspaces.set(workspace, previous)
-      continue
-    }
     const firstCard = cards.length
-    const firstWorkspace = workspaces?.length ?? 0
     const nextRows: DashboardWorkspaceBuild['rows'] = new Map()
     const terminalLayoutsByTabId = selectTerminalLayoutsForWorktree(state, worktreeId)
     const paneTitlesByTabId = selectRuntimePaneTitlesForWorktree(state, worktreeId)
@@ -151,7 +143,7 @@ export function buildDashboardSnapshot(
       : includeCardDetails
         ? resolveDashboardCardContext(state, repo, worktree, t)
         : undefined
-    if (workspaces && workspaces.length < DASHBOARD_MAX_MAP_WORKSPACES) {
+    if (!previous && workspaces && workspaces.length < DASHBOARD_MAX_MAP_WORKSPACES) {
       const hostMetadata = dashboardCardMapWorkspaceMetadata(
         workspace,
         null,
@@ -163,7 +155,7 @@ export function buildDashboardSnapshot(
         worktreeId,
         repoName: boundedLabel(workspace.projectName),
         worktreeName: boundedLabel(worktree.displayName),
-        ...(parentWorktreeId ? { parentWorktreeId } : {}),
+        ...(worktree.parentWorktreeId ? { parentWorktreeId: worktree.parentWorktreeId } : {}),
         ...hostMetadata,
         workspaceStatusId: context?.workspaceStatus.id,
         workspaceStatusLabel: context?.workspaceStatus.label,
@@ -214,10 +206,10 @@ export function buildDashboardSnapshot(
       nextRows.set(row.paneKey, { row, status, activationStatus, card })
     }
     nextWorkspaces.set(workspace, {
+      start: previous?.start ?? firstCard,
       cards: cards.slice(firstCard),
       rows: nextRows,
-      context,
-      workspace: workspaces && workspaces.length > firstWorkspace ? workspaces.at(-1) : undefined
+      context
     })
   }
   if (reuse) {
@@ -250,9 +242,6 @@ export function buildDashboardSnapshot(
     }
     for (const [workspace, built] of nextWorkspaces) {
       const worktreeId = workspace.worktree.id
-      if (dirtyWorktrees && !dirtyWorktrees.has(worktreeId)) {
-        continue
-      }
       for (const [key, row] of built.rows) {
         for (const source of row.row.activationPaneKey ? [key, row.row.activationPaneKey] : [key]) {
           const owners = reuse.owners.get(source) ?? new Set<string>()
@@ -264,17 +253,56 @@ export function buildDashboardSnapshot(
     reuse.inputs = inputs
     reuse.projection = projection
     reuse.cursor = projection.changeCursor()
-    reuse.workspaces = nextWorkspaces
+    if (dirtyWorktrees && reuse.snapshot) {
+      const replacements = new Map<number, DashboardCard>()
+      let stablePositions = true
+      for (const [workspace, next] of nextWorkspaces) {
+        const prior = reuse.workspaces.get(workspace)!
+        if (!dashboardCardsKeepPositions(prior.cards, next.cards)) {
+          stablePositions = false
+        } else {
+          next.cards.forEach((card, index) => {
+            if (card !== prior.cards[index]) {
+              replacements.set(next.start + index, card)
+            }
+          })
+        }
+        reuse.workspaces.set(workspace, next)
+      }
+      if (stablePositions) {
+        cards = replaceDashboardCards(reuse.snapshot.cards, replacements)
+        repoIconsByRepoId = reuse.snapshot.repoIconsByRepoId ?? {}
+      } else {
+        cards = []
+        repoIconsByRepoId = {}
+        for (const workspace of activeWorktrees) {
+          const built = reuse.workspaces.get(workspace)!
+          built.start = cards.length
+          cards.push(...built.cards)
+          if (built.cards.length) {
+            repoIconsByRepoId[workspace.projectId] = workspace.repoIcon
+          }
+        }
+      }
+    } else {
+      reuse.workspaces = nextWorkspaces
+    }
     reuse.activeWorktrees = activeWorktrees
     reuse.filterOptions = filterOptions
   }
 
-  return {
+  const snapshot: DashboardSnapshot = {
     generatedAt: now,
     cards,
-    ...(workspaces ? { workspaces } : {}),
+    ...(workspaces
+      ? { workspaces: (dirtyWorktrees ? reuse?.snapshot?.workspaces : undefined) ?? workspaces }
+      : {}),
     showIdle,
     filterOptions,
     repoIconsByRepoId
   }
+  if (reuse) {
+    reuse.snapshot = snapshot
+  }
+  return snapshot
 }

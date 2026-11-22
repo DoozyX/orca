@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react'
-import { ChevronDown, ChevronUp, ExternalLink, KeyRound, RefreshCw } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ExternalLink, KeyRound, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import CommentMarkdown from '@/components/comment-markdown/CommentMarkdown'
@@ -8,6 +8,8 @@ import { hasVisibleOverlay } from '@/lib/overlay-interaction/visible-overlay'
 import { useIntlLocale, useTranslate } from '@/i18n/use-translate'
 import type { Automation } from '../../../../../shared/automations/automation-definition'
 import type { AutomationRun } from '../../../../../shared/automations/history/automation-run'
+import { automationRunEventSourceKey } from '../../../../../shared/automations/automation-run-row-words'
+import { sayAutomationRun } from '../../native-chat/automation-run/automation-run-wording'
 import { getAgentLabel } from '../authoring/automation-draft-model'
 import { getAutomationRunContent } from './automation-run-content'
 import { automationRunErrorText } from './automation-run-error-copy'
@@ -187,7 +189,9 @@ export function AutomationRunDetailsPage({
       value:
         run.trigger === 'manual'
           ? t('auto.components.automations.runIdentity.triggerManual', 'Run now')
-          : t('auto.components.automations.runIdentity.triggerScheduled', 'Scheduled')
+          : run.trigger === 'event'
+            ? sayAutomationRun(t)(automationRunEventSourceKey(run))
+            : t('auto.components.automations.runIdentity.triggerScheduled', 'Scheduled')
     }
   ]
   const stepLabel = {
@@ -205,9 +209,10 @@ export function AutomationRunDetailsPage({
             </AutomationsPageTitle>
             <AutomationRunStatusLabel status={run.status} pill />
             <span className="flex-1" />
-            {(['newer', 'older'] as const).map((step) => {
+            {/* Why: left reads as back in time, so Older sits left and Newer right. */}
+            {(['older', 'newer'] as const).map((step) => {
               const target = step === 'newer' ? newer : older
-              const Icon = step === 'newer' ? ChevronUp : ChevronDown
+              const Icon = step === 'newer' ? ChevronRight : ChevronLeft
               return (
                 <Tooltip key={step}>
                   <TooltipTrigger asChild>
