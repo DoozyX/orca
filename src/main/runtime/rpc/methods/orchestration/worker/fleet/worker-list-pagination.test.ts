@@ -212,6 +212,68 @@ describe('orchestration worker-list pagination', () => {
     expect(seen).toEqual(['dispatch-z', 'dispatch-a'])
   })
 
+  it('lists a worker as holding no terminal once a later Dispatch took the terminal over', async () => {
+    db = new OrchestrationDb(':memory:')
+    const runtime = new OrcaRuntimeService()
+    runtime.setOrchestrationDb(db)
+    const run = db.createRun({
+      objective: 'Reused terminal',
+      coordinatorHandle: 'term-coordinator',
+      coordinatorPaneKey: 'tab-coordinator:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+    })
+    const start = (ownership: 'created' | 'external'): string => {
+      const started = db!.createStartingWorkerDispatch({
+        creator: { kind: 'system' },
+        maxDepth: Number.MAX_SAFE_INTEGER,
+        taskSpec: `reuse ${ownership}`,
+        taskRunId: run.id,
+        startOptions: {}
+      })
+      db!.prepareStartingWorkerAuthority({
+        dispatchId: started.dispatch.id,
+        handle: 'term-reused',
+        paneKey: 'tab-worker:11111111-1111-4111-8111-111111111111',
+        processIncarnation: 'pty-worker:inc-worker',
+        hostScope: null,
+        worktreeId: 'repo::worker',
+        setupState: 'not_applicable',
+        effects: [],
+        terminalOwnership: ownership
+      })
+      db!.markWorkerDispatchReady(started.dispatch.id)
+      return started.dispatch.id
+    }
+    const first = start('created')
+    db.settleWorkerReport({
+      taskId: db.getDispatchContextById(first)!.task_id,
+      dispatchId: first,
+      outcome: 'failed',
+      result: '{}'
+    })
+    const second = start('external')
+
+    const page = await callWorkerList(runtime, { run: run.id })
+
+    expect(page.workers).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          dispatchId: first,
+          agentTerminalHandle: null,
+          terminalState: null
+        }),
+        expect.objectContaining({
+          dispatchId: second,
+          agentTerminalHandle: 'term-reused',
+          terminalState: 'active'
+        })
+      ])
+    )
+    expect(page.counts).toEqual({ active: 1 })
+    expect(
+      (await callWorkerList(runtime, { run: run.id, terminalState: 'retained' })).workers
+    ).toEqual([])
+  })
+
   describe('a legacy cursor anchored outside the requested Run', () => {
     function twoRuns(): { runA: string; runB: string } {
       db = new OrchestrationDb(':memory:')
