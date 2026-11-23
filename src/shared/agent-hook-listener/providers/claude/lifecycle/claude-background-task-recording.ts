@@ -9,9 +9,10 @@ export function recordClaudeBackgroundTasks(
   paneKey: string,
   tasks: {
     hasRunningNonAgentTask: boolean
+    runningNonAgentTaskCommands: readonly string[]
     monitoredWork: readonly ClaudeMonitoredWorkObservation[]
   }
 ): void {
-  updateClaudeRunningNonAgentTask(state, paneKey, tasks.hasRunningNonAgentTask)
+  updateClaudeRunningNonAgentTask(state, paneKey, tasks)
   replaceClaudeMonitoredTasks(state, paneKey, tasks.monitoredWork)
 }

@@ -53,9 +53,14 @@ export function useAccountUsageRoster() {
     settings?.activeCodexManagedAccountIdsByRuntime
   )
   // Why: accounts follow the focused workspace's owner, the same host the usage meters read.
-  const { target: ownerAccountTarget } = useActiveAccountOwner(LOCAL_TARGET)
-  const environmentId = runtimeTargetEnvironmentId(ownerAccountTarget)
-  const ownerKey = environmentId ? `environment:${environmentId}` : 'local'
+  // Null while the visible host is unreachable: no roster rather than this computer's accounts.
+  const accountOwner = useActiveAccountOwner(LOCAL_TARGET)
+  const environmentId = accountOwner ? runtimeTargetEnvironmentId(accountOwner.target) : null
+  const ownerKey = !accountOwner
+    ? 'unavailable'
+    : environmentId
+      ? `environment:${environmentId}`
+      : 'local'
   const ownerTarget = useMemo(
     () => runtimeTargetForOwnerEnvironment(environmentId),
     [environmentId]
@@ -69,7 +74,7 @@ export function useAccountUsageRoster() {
   const showCodex = visible && items.includes('codex')
 
   useEffect(() => {
-    if (!visible || (!environmentId && !showClaude && !showCodex)) {
+    if (!accountOwner || !visible || (!environmentId && !showClaude && !showCodex)) {
       return
     }
     let closed = false
@@ -97,17 +102,28 @@ export function useAccountUsageRoster() {
       closed = true
       watcher.close()
     }
-  }, [ownerTarget, ownerKey, visible, environmentId, claudeKey, codexKey, showClaude, showCodex])
+  }, [
+    accountOwner,
+    ownerTarget,
+    ownerKey,
+    visible,
+    environmentId,
+    claudeKey,
+    codexKey,
+    showClaude,
+    showCodex
+  ])
 
+  const hasAccountOwner = accountOwner !== null
   const refreshPreviews = useCallback(async () => {
-    if (environmentId) {
+    if (!hasAccountOwner || environmentId) {
       return
     }
     await Promise.all([
       showClaude ? fetchClaude() : undefined,
       showCodex ? fetchCodex() : undefined
     ])
-  }, [environmentId, fetchClaude, fetchCodex, showClaude, showCodex])
+  }, [hasAccountOwner, environmentId, fetchClaude, fetchCodex, showClaude, showCodex])
 
   useEffect(() => {
     void refreshPreviews()
@@ -122,11 +138,14 @@ export function useAccountUsageRoster() {
     await Promise.all([refreshLocal(), refreshPreviews()])
   }, [refreshRemote, refreshLocal, refreshPreviews])
 
-  const accounts: ProviderAccountsSnapshot = {
-    ...snapshot,
-    claude: resolveClaudeStatusAccountState(settings, snapshot.claude, environmentId),
-    codex: resolveCodexStatusAccountState(settings, snapshot.codex, environmentId)
-  }
+  // The resolvers' local branch reads this computer's settings, which never belong to an unreachable host.
+  const accounts: ProviderAccountsSnapshot = hasAccountOwner
+    ? {
+        ...snapshot,
+        claude: resolveClaudeStatusAccountState(settings, snapshot.claude, environmentId),
+        codex: resolveCodexStatusAccountState(settings, snapshot.codex, environmentId)
+      }
+    : EMPTY_ACCOUNTS
   return {
     accounts,
     ownerKey,

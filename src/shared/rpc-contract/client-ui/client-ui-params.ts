@@ -10,8 +10,6 @@ import {
   STATIC_RIGHT_SIDEBAR_TABS,
   type StaticRightSidebarTab
 } from '../../ui-chrome/ui-chrome-types'
-import { isFeatureInteractionId } from '../../feature-education/interactions/feature-interactions'
-import type { FeatureInteractionId } from '../../feature-education/interactions/feature-interaction-catalog'
 import {
   ACTIVITY_GROUP_BY_VALUES,
   THREAD_READ_FILTER_VALUES
@@ -22,6 +20,7 @@ import { ClientUiWorkspaceFilterFields } from './client-ui-workspace-filter-fiel
 import { TaskResumeState } from './task-resume-state-params'
 import { WorkspaceCleanup } from '../workspace-cleanup/workspace-cleanup-ui-params'
 import { omitUndefinedValues, tolerateUnknownValues } from './ui-update-value-tolerance-params'
+import { FeatureInteractions } from './feature-interaction-params'
 
 export const NullableString = z.string().nullable()
 
@@ -80,31 +79,6 @@ export const WorkspaceStatusDefinition = z.object({
   icon: z.string().optional()
 })
 
-export const FeatureInteractionRecord = z
-  .object({
-    firstInteractedAt: z.number().finite().nonnegative(),
-    interactionCount: z.number().int().positive().optional()
-  })
-  .strict()
-
-export const FeatureInteractions = z
-  .record(z.string(), FeatureInteractionRecord)
-  .superRefine((value, ctx) => {
-    for (const id of Object.keys(value)) {
-      if (!isFeatureInteractionId(id)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: `Unknown feature interaction id: ${id}`,
-          path: [id]
-        })
-      }
-    }
-  })
-
-export const FeatureInteractionIdParam = z.custom<FeatureInteractionId>(isFeatureInteractionId, {
-  message: 'Unknown feature interaction id'
-})
-
 export const TopLevelViewSchema = z
   .enum([
     'terminal',
@@ -134,6 +108,9 @@ export const UiUpdateFields = z
     rightSidebarExplorerView: z.enum(['files', 'search']).optional(),
     rightSidebarWidth: z.number().finite().optional(),
     activityBarPosition: z.enum(['top', 'side']).optional(),
+    activityBarOrder: z.array(z.string()).optional(),
+    activityBarBotOrder: z.array(z.string()).optional(),
+    activityBarHidden: z.array(z.string()).optional(),
     markdownTocPanelWidth: z.number().finite().optional(),
     combinedDiffFileTreeWidth: z.number().finite().optional(),
     groupBy: z.enum(['none', 'workspace-status', 'repo', 'pr-status']).optional(),

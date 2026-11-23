@@ -40,7 +40,7 @@ function setMonitoredWork(
 }
 
 /** Replace the shell half from a present `background_tasks` inventory, the same evidence that
- *  drives `claudeRunningNonAgentTaskPaneKeys`. */
+ *  drives `claudeRunningNonAgentTasksByPaneKey`. */
 export function replaceClaudeMonitoredTasks(
   state: HookListenerState,
   paneKey: string,

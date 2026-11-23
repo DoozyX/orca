@@ -53,6 +53,7 @@ vi.mock('./composition/use-status-bar-controller', () => ({
     usageRef: () => {},
     segmentsRef: () => {},
     rosterProviders: [limits(8)],
+    remoteOwner: null,
     usageEntries: ['personal@example.test', 'work@example.test'].map((label, index) => ({
       key: `local:claude:${index}`,
       provider: 'claude',

@@ -13,16 +13,15 @@ import type { PersistedUIState } from '../../../../../shared/orca-profiles/persi
 import { isWorkspaceHostScope } from '../../../../../shared/orcad-migration/orcad-migration-client-state-value-validation'
 import { defineMethod, type RpcContext } from '../../core'
 import { keepSessionPicksOnBot } from '../../../../bots/bot-session-option-picks'
+import { withoutSendCheckedEffortPicks } from '../../../../native-chat/agent-session-wire/options/send-checked-effort-picks'
 import { isHostOwnPhone } from '../../callers/host-own-phone'
 import {
   NativeChatSessionOptionsMutation,
   PRBotAuthorOverrideUpdate,
   SettingsUpdate
 } from '../../../../../shared/rpc-contract/client-ui/client-settings-params'
-import {
-  FeatureInteractionIdParam,
-  UiUpdate
-} from '../../../../../shared/rpc-contract/client-ui/client-ui-params'
+import { UiUpdate } from '../../../../../shared/rpc-contract/client-ui/client-ui-params'
+import { FeatureInteractionIdParam } from '../../../../../shared/rpc-contract/client-ui/feature-interaction-params'
 // Keep schema/PersistedUIState parity assertions in the typecheck graph so drift fails before reaching paired clients.
 
 import { TerminalQuickCommandsUpdate } from '../../../../../shared/rpc-contract/terminal/terminal-quick-command-params'
@@ -149,8 +148,12 @@ export const CLIENT_UI_METHODS = [
     permission: 'settings-write',
     params: NativeChatSessionOptionsMutation,
     handler: async (params, { runtime }) => {
-      if (!(await keepSessionPicksOnBot(runtime.bots, params))) {
-        runtime.updateClientNativeChatSessionOptions(params)
+      const mutation = withoutSendCheckedEffortPicks(params)
+      if (mutation.type === 'apply-picks' && mutation.picks.length === 0) {
+        return { ok: true as const }
+      }
+      if (!(await keepSessionPicksOnBot(runtime.bots, mutation))) {
+        runtime.updateClientNativeChatSessionOptions(mutation)
       }
       return { ok: true as const }
     }

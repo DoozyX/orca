@@ -18,7 +18,8 @@ import {
   normalizeOptionalField,
   normalizeOptionalMultilineField,
   normalizePromptField,
-  normalizeTurnCompletedAtField
+  normalizeTurnCompletedAtField,
+  normalizeBackgroundCommandsField
 } from './agent-status-field-normalization'
 import { assertJsonTextStructureWithinLimits } from '../../json-stream/json-text-structure-limit'
 import {
@@ -181,6 +182,8 @@ export type AgentStatusPayload = {
   subagents?: AgentSubagentSnapshot[]
   /** See AgentStatusEntry. */
   monitoredWork?: AgentMonitoredWorkSnapshot[]
+  /** While the lead's turn is over and only its background shells keep the row `working`: what they run. */
+  backgroundCommands?: string[]
   /** The main agent's own state and last-turn verdict. See AgentMainAgentStatus. Producers publish it
    *  beside the combined `state`; a reader that predates it keeps reading `state`. */
   mainAgent?: AgentMainAgentStatus
@@ -313,6 +316,7 @@ function normalizeAgentStatusObject(parsed: unknown): ParsedAgentStatusPayload |
     turnCompletedAt: normalizeTurnCompletedAtField(obj.turnCompletedAt, state),
     subagents: normalizeAgentSubagentsField(obj.subagents),
     monitoredWork: normalizeMonitoredWorkField(obj.monitoredWork),
+    backgroundCommands: normalizeBackgroundCommandsField(obj.backgroundCommands, state),
     mainAgent: normalizeMainAgentStatusField(obj.mainAgent),
     ...(obj.agentType === 'claude' &&
     state !== 'done' &&

@@ -105,11 +105,6 @@ export async function callComputerSidecarLiveProvider() {
   return peek ? parseLiveHelperIdentity(await peek) : null
 }
 
-export function resetComputerSidecarForTest(): void {
-  sidecar?.shutdown()
-  sidecar = null
-}
-
 function getComputerSidecar(): ComputerSidecarProcess {
   if (!sidecar) {
     sidecar = new ComputerSidecarProcess(getForkedChildEntryPath(COMPUTER_SIDECAR_ENTRY_FILENAME))

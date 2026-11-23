@@ -115,6 +115,7 @@ export function StatusBarUsageArea({
                   data-usage-trigger=""
                   className="inline-flex items-center gap-3 rounded px-1 py-0.5 hover:bg-accent/70"
                   aria-label={t('auto.components.status.bar.UsageRosterPanel.title', 'Usage')}
+                  title={remoteOwner?.label}
                 >
                   {showUnitLabel ? <UsageUnitLabel display={usagePercentageDisplay} /> : null}
                   {shownEntries.map((entry) => (
@@ -148,6 +149,8 @@ export function StatusBarUsageArea({
                 onCloseAutoFocus={usageMenuFocusHandoff.onCloseAutoFocus}
               >
                 <UsageRosterPanel
+                  actionsAvailable={remoteOwner === null || remoteOwner.environmentId !== null}
+                  unavailableReason={remoteOwner?.unavailableReason}
                   entries={usageEntries}
                   display={usagePercentageDisplay}
                   statusBarUsageMode={statusBarUsageMode}

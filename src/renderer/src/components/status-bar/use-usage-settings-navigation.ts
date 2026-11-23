@@ -9,23 +9,23 @@ export function useUsageSettingsNavigation(
 ) {
   const openSettingsTarget = useAppStore((s) => s.openSettingsTarget)
   const openSettingsPage = useAppStore((s) => s.openSettingsPage)
-  // Why: the shown accounts are the owning host's; without a scope Settings opens on the default host.
   const hostScope = getUsageOwnerHostScope(remoteOwner)
 
-  const handleManageAccounts = (): void => {
-    closeUsageMenu()
-    openSettingsTarget({ pane: 'accounts', repoId: null, hostScope })
-    openSettingsPage()
-  }
   const handleUsageDetails = (): void => {
+    if (!hostScope) {
+      return
+    }
     closeUsageMenu()
-    openSettingsTarget({ pane: 'stats', repoId: null })
+    openSettingsTarget({ pane: 'stats', repoId: null, hostScope })
     openSettingsPage()
   }
-  const handleOpenProviderAccounts = (provider: ProviderRateLimits['provider']): void => {
-    const sectionId = getUsageProviderAccountsSectionId(provider)
+  const handleOpenProviderAccounts = (provider: ProviderRateLimits['provider'] | null): void => {
+    if (!hostScope) {
+      return
+    }
+    const sectionId = provider ? getUsageProviderAccountsSectionId(provider) : null
     // Why: a placeholder for a CLI-owned provider still leads to the host's accounts.
-    if (!sectionId && !remoteOwner) {
+    if (provider && !sectionId && !remoteOwner) {
       return
     }
     closeUsageMenu()
@@ -37,5 +37,6 @@ export function useUsageSettingsNavigation(
     })
     openSettingsPage()
   }
-  return { handleManageAccounts, handleUsageDetails, handleOpenProviderAccounts }
+  const handleManageAccounts = (): void => handleOpenProviderAccounts(null)
+  return { hostScope, handleManageAccounts, handleUsageDetails, handleOpenProviderAccounts }
 }

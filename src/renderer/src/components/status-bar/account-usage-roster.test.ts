@@ -93,10 +93,12 @@ describe('account usage roster', () => {
     ])
     expect(claude[0]?.limits?.session?.usedPercent).toBe(58)
   })
-  it('distinguishes Claude accounts that share an email', () => {
+  it('distinguishes Claude accounts that share an email across organizations', () => {
     const input = fixture()
     for (const account of input.accounts.claude.accounts) {
       account.email = 'same@example.test'
+      account.organizationUuid = `org-${account.id}`
+      account.organizationName = `Org ${account.id}`
     }
     const entries = buildAccountUsageRoster(input).filter((entry) => entry.provider === 'claude')
     expect(new Set(entries.map((entry) => entry.label)).size).toBe(2)

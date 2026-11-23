@@ -4,7 +4,6 @@ import { join } from 'node:path'
 
 // Tests bind Unix sockets below the temp root; on macOS (104-byte sun_path) some fail about four chars
 // past its 50-char default root, so a run root never grows past that and macOS's default falls back to /tmp.
-// macOS's /tmp is a symlink, and a child's cwd reports its target, so the fallback is that target.
 const MAX_POSIX_ROOT_LENGTH = 50
 const RUN_DIRECTORY = /^ov([0-9a-z]+)$/
 // Only directories carrying it are ours to sweep; a bare `ov…` name could belong to anyone.
@@ -44,9 +43,18 @@ export function sweepStaleRunDirectories(base, { ownPid = process.pid, alive = i
   }
 }
 
+// macOS /tmp is a symlink to /private/tmp; a root that is not its own real path breaks tests that resolve paths.
+function shortPosixRoot() {
+  try {
+    return realpathSync('/tmp')
+  } catch {
+    return '/tmp'
+  }
+}
+
 export function resolveRunTempBase(base, name, platform = process.platform) {
   return platform !== 'win32' && join(base, name).length > MAX_POSIX_ROOT_LENGTH
-    ? realpathSync('/tmp')
+    ? shortPosixRoot()
     : base
 }
 

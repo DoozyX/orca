@@ -36,7 +36,7 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
   const statusBarUsageMode = normalizeStatusBarUsageMode(useAppStore((s) => s.statusBarUsageMode))
   const setStatusBarUsageMode = useAppStore((s) => s.setStatusBarUsageMode)
   const [usageMenuOpen, setUsageMenuOpen] = useState(false)
-  const { handleManageAccounts, handleUsageDetails, handleOpenProviderAccounts } =
+  const { hostScope, handleManageAccounts, handleUsageDetails, handleOpenProviderAccounts } =
     useUsageSettingsNavigation(remoteOwner, () => setUsageMenuOpen(false))
   const usageMenuFocusHandoff = useStatusBarMenuFocusHandoff()
   const statusBarVisible = useAppStore((s) => s.statusBarVisible)
@@ -80,7 +80,7 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
 
   const refreshDetectedAgents = useAppStore((s) => s.refreshDetectedAgents)
   const handleRefresh = useCallback(async () => {
-    if (isRefreshing) {
+    if (isRefreshing || (remoteOwner !== null && remoteOwner.environmentId === null)) {
       return
     }
     setIsRefreshing(true)
@@ -95,7 +95,7 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
         setIsRefreshing(false)
       }
     }
-  }, [isRefreshing, refreshUsage, refreshDetectedAgents])
+  }, [isRefreshing, remoteOwner, refreshUsage, refreshDetectedAgents])
 
   if (!statusBarVisible) {
     return null
@@ -252,7 +252,7 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
   })
 
   const canSignInFromUsageRow = (provider: ProviderRateLimits['provider']): boolean =>
-    usageRowSignInOpensSettings(provider, settings)
+    hostScope !== null && usageRowSignInOpensSettings(provider, settings)
   const handleUsageMenuOpenChange = (nextOpen: boolean): void => {
     if (nextOpen) {
       usageMenuFocusHandoff.reset()

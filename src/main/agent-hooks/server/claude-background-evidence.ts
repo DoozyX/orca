@@ -2,7 +2,7 @@ import type { HookListenerState } from '../../../shared/agent-hook-listener/list
 import type { ClaudeMonitoredWork } from '../../../shared/agent-hook-listener/providers/claude-monitored-work'
 
 export type ClaudeBackgroundEvidence = {
-  hasRunningTask: boolean
+  runningTasks: readonly string[] | undefined
   hasActiveCron: boolean
   monitoredWork: ClaudeMonitoredWork | undefined
 }
@@ -12,7 +12,7 @@ export function readClaudeBackgroundEvidence(
   paneKey: string
 ): ClaudeBackgroundEvidence {
   return {
-    hasRunningTask: state.claudeRunningNonAgentTaskPaneKeys.has(paneKey),
+    runningTasks: state.claudeRunningNonAgentTasksByPaneKey.get(paneKey),
     hasActiveCron: state.claudeActiveSessionCronPaneKeys.has(paneKey),
     monitoredWork: state.claudeMonitoredWorkByPaneKey.get(paneKey)
   }
@@ -23,11 +23,11 @@ export function writeClaudeBackgroundEvidence(
   paneKey: string,
   evidence: ClaudeBackgroundEvidence
 ): void {
-  const { hasRunningTask, hasActiveCron, monitoredWork } = evidence
-  if (hasRunningTask) {
-    state.claudeRunningNonAgentTaskPaneKeys.add(paneKey)
+  const { runningTasks, hasActiveCron, monitoredWork } = evidence
+  if (runningTasks) {
+    state.claudeRunningNonAgentTasksByPaneKey.set(paneKey, runningTasks)
   } else {
-    state.claudeRunningNonAgentTaskPaneKeys.delete(paneKey)
+    state.claudeRunningNonAgentTasksByPaneKey.delete(paneKey)
   }
   if (hasActiveCron) {
     state.claudeActiveSessionCronPaneKeys.add(paneKey)
@@ -42,7 +42,7 @@ export function writeClaudeBackgroundEvidence(
 }
 
 export function clearClaudeBackgroundEvidence(state: HookListenerState, paneKey: string): void {
-  state.claudeRunningNonAgentTaskPaneKeys.delete(paneKey)
+  state.claudeRunningNonAgentTasksByPaneKey.delete(paneKey)
   state.claudeActiveSessionCronPaneKeys.delete(paneKey)
   state.claudeMonitoredWorkByPaneKey.delete(paneKey)
 }

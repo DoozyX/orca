@@ -6,7 +6,6 @@ import { ClaudeSwitcherMenu } from './accounts/ClaudeSwitcherMenu'
 import { CodexSwitcherMenu } from './accounts/CodexSwitcherMenu'
 import { ProviderDetailsMenu } from './usage/ProviderDetailsMenu'
 import { entryRateLimits, type AccountUsageEntry } from './account-usage-entry'
-import { getAccountOwnerKey } from './accounts/owner-account-rows'
 import type { OwnerUsageRateLimits } from './usage/use-owner-usage-rate-limits'
 
 export function AccountUsageDetailsMenu({
@@ -38,15 +37,7 @@ export function AccountUsageDetailsMenu({
     )
   }
   if (entry.selected && p.provider === 'codex') {
-    return (
-      <CodexSwitcherMenu
-        key={getAccountOwnerKey(ownerUsage.owner)}
-        codex={p}
-        ownerUsage={ownerUsage}
-        asSubmenu
-        triggerContent={row}
-      />
-    )
+    return <CodexSwitcherMenu codex={p} ownerUsage={ownerUsage} asSubmenu triggerContent={row} />
   }
   return (
     <ProviderDetailsMenu
