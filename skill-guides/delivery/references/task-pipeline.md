@@ -82,6 +82,12 @@ stacked unit):
 ORCA worktree create --name <task-slug> --parent-worktree active --base-branch <base> --json
 ```
 
+A remote-tracking base such as `origin/<base>` can make Orca fast-forward the
+primary checkout's local `<base>` (receipt field `localBaseRefRefresh`). When
+the primary must stay untouched, pass the exact fetched base sha instead; see
+the `orca-cli` guide. A primary HEAD advance from this refresh is a forward
+move that the primary checkout guard below already accepts.
+
 Record its path, branch, head and base sha in the unit row before the
 implementer starts. Then launch the implementer with the saved spec. The spec
 states the binding rules itself; a path in it is for checking a detail.
