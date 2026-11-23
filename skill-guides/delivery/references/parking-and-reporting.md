@@ -23,9 +23,9 @@ closed worker reopens it, so closing loses nothing.
 Cleanup is a dispatched stage. Give the cleanup agent the exact list of
 worktrees and branches from the manifest's unit rows, minus every parked unit.
 It checks ancestry against the ref the work landed on (the remote-tracking ref
-after a fetch, not the primary checkout's local branch, which the run never
-moved) and removes one candidate at a time, because worktrees and branches share
-repository-wide Git metadata.
+after a fetch, not the primary checkout's local branch, which the run's own
+steps never move; Orca's refresh setting may) and removes one candidate at a
+time, because worktrees and branches share repository-wide Git metadata.
 
 Before a worktree is removed, copy the artifacts a reported result cites (test
 bundles, captures, provenance) to `orchestrate/evidence/<unit>/` and record
