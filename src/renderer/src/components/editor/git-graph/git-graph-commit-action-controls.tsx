@@ -1,5 +1,5 @@
 import { Input } from '@/components/ui/input'
-import { useId } from 'react'
+import { useId, type ReactNode } from 'react'
 import { isBranchNameValid } from '../../../../../shared/git/branch-switch-target'
 import { useStore } from 'zustand'
 import { Button } from '@/components/ui/button'
@@ -19,8 +19,10 @@ type Props = {
   controller: GitGraphCommitActionsController
   support: ReturnType<typeof useGitCommitActionsSupport>
   menu?: boolean
+  /** Rendered first in the button row, e.g. Open diff, which needs no commit-action support. */
+  leading?: ReactNode
 }
-export function GitGraphCommitActionControls({ item, controller, support, menu }: Props) {
+export function GitGraphCommitActionControls({ item, controller, support, menu, leading }: Props) {
   const t = useTranslate()
   const running = useStore(controller.view, (state) => state.running)
   const merge = item.parentIds.length > 1
@@ -31,6 +33,7 @@ export function GitGraphCommitActionControls({ item, controller, support, menu }
   return (
     <>
       <div className={menu ? undefined : 'flex flex-wrap gap-1'}>
+        {menu ? null : leading}
         {(['checkout', 'create-branch', 'cherry-pick', 'revert'] as const).map(
           (action: GitGraphCommitAction) => {
             const disabled =

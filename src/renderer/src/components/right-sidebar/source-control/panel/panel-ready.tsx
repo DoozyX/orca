@@ -4,10 +4,15 @@ import { SourceControlHeaderToolbar } from './header-toolbar'
 import { SourceControlNotesShelf } from '../notes/notes-shelf'
 import { SourceControlPanelContent } from './panel-content'
 import { SourceControlPanelDialogs } from './panel-dialogs'
+import { SourceControlChangeScopeBar } from './change-scope-bar'
+import { GitGraphOpenButton, useGitGraphSupport } from '../sync/git-graph-open-button'
+import { BranchesTagsSection } from '../sync/branches-tags-section'
+import { useSourceControlScope } from './worktree-scope'
+import { openGitGraph } from '@/lib/source-control/graph/git-graph-tab'
 import type { SourceControlPanelReadyProps } from './panel-props'
 
 export function SourceControlPanelReady(props: SourceControlPanelReadyProps) {
-  const { model, worktreePath } = props
+  const { activeWorktree, currentWorktreeId, model, worktreePath } = props
   const {
     activeGroupId,
     activeWorktreeId,
@@ -16,6 +21,7 @@ export function SourceControlPanelReady(props: SourceControlPanelReadyProps) {
     bulkStagePaths,
     bulkUnstagePaths,
     clearSelection,
+    collapsedSections,
     compareBaseRef,
     deleteDiffComment,
     diffCommentCount,
@@ -40,7 +46,9 @@ export function SourceControlPanelReady(props: SourceControlPanelReadyProps) {
     manualReviewUrl,
     openHostedReviewInChecks,
     prGenerating,
+    isGitHistoryVisible,
     refreshBranchCompare,
+    resolveSplitTargetGroupId,
     selectedKeys,
     setBaseRefDialogOpen,
     setDiffCommentsExpanded,
@@ -52,8 +60,13 @@ export function SourceControlPanelReady(props: SourceControlPanelReadyProps) {
     settings,
     sourceControlViewMode,
     suppressedGitHubPRState,
+    toggleSection,
     visibleCreatePrHeaderAction
   } = model
+  // One probe per panel: the header Graph button and the scope menu's Graph item share it.
+  const graphSupport = useGitGraphSupport(currentWorktreeId, isGitHistoryVisible)
+  // Folder sections sit in cards, so the dock matches the card instead of the sidebar.
+  const dockBackground = useSourceControlScope() ? 'bg-card/95' : 'bg-sidebar/95'
 
   return (
     <>
@@ -99,7 +112,41 @@ export function SourceControlPanelReady(props: SourceControlPanelReadyProps) {
           compareBaseRef={compareBaseRef}
           headDisplay={gitIdentityDisplay}
           manualReviewUrl={manualReviewUrl}
+          rebase={
+            model.baseRebaseState.kind === 'none'
+              ? null
+              : {
+                  state: model.baseRebaseState,
+                  isRebasing:
+                    model.isRemoteOperationActive && model.inFlightRemoteOpKind === 'rebase',
+                  isAbortingRebase: model.isAbortingOperation,
+                  isContinuingRebase: model.isContinuingRebase,
+                  isRetryingRebaseInspect: model.isRetryingRebaseInspect,
+                  hasGitOwner: !!model.activeRepoTarget,
+                  onRebase: () => model.handleActionInvoke('rebase_base'),
+                  onAbortRebase: () => void model.handleAbortRebase(),
+                  onContinueRebase: () => void model.handleContinueRebase(),
+                  onRetryRebaseInspect: model.handleRetryRebaseInspect
+                }
+          }
+          graphControl={
+            isGitHistoryVisible ? (
+              <GitGraphOpenButton
+                worktreeId={currentWorktreeId}
+                support={graphSupport}
+                onOpen={(event) => {
+                  void openGitGraph(currentWorktreeId, {
+                    resolveTargetGroupId: () => resolveSplitTargetGroupId(event)
+                  })
+                }}
+              />
+            ) : null
+          }
         />
+
+        {isGitHistoryVisible ? (
+          <SourceControlChangeScopeBar {...props} graphSupported={graphSupport.support === true} />
+        ) : null}
 
         {activeWorktreeId && worktreePath && diffCommentCount > 0 && (
           <SourceControlNotesShelf
@@ -123,6 +170,19 @@ export function SourceControlPanelReady(props: SourceControlPanelReadyProps) {
           style={{ paddingBottom: selectedKeys.size > 0 ? 50 : undefined }}
         >
           <SourceControlPanelContent {...props} />
+          {isGitHistoryVisible && graphSupport.support === true ? (
+            // Dock refs as reference context while the rest of the pane scrolls.
+            <div
+              className={`sticky bottom-0 z-10 mt-auto shrink-0 border-t border-border ${dockBackground} backdrop-blur-sm`}
+            >
+              <BranchesTagsSection
+                worktreeId={currentWorktreeId}
+                currentRefId={activeWorktree.branch}
+                collapsed={collapsedSections.has('refs')}
+                onToggle={() => toggleSection('refs')}
+              />
+            </div>
+          ) : null}
         </div>
 
         {selectedKeys.size > 0 && (

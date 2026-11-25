@@ -16,12 +16,10 @@ import { WorkerTerminalReleaseSingleFlight } from '../../rpc/methods/orchestrati
 import { yieldAutoReleaseToWorkingAgent } from '../terminal-authority/release/worker-terminal-auto-release-working-yield'
 import {
   archiveSummary,
-  ownershipTransferredReceiptFields
+  ownershipTransferredReceiptFields,
+  retainedReason
 } from '../../rpc/methods/orchestration/worker/release/worker-terminal-resource-presentation'
-import {
-  retainedReason,
-  type WorkerReleaseReceipt
-} from '../../rpc/methods/orchestration/worker/release/worker-release-completion'
+import type { WorkerReleaseReceipt } from '../../rpc/methods/orchestration/worker/release/worker-release-completion'
 import { releaseUnknownRecovery } from '../../rpc/methods/orchestration/worker/release/worker-release-unknown-recovery'
 import { orchestrationTimestampToMs } from '../../rpc/methods/orchestration/worker/output/worker-output'
 import {

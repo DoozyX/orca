@@ -140,7 +140,6 @@ export function GitGraphDetails({
       )}
       <GitHistoryCommitFiles
         state={files}
-        onOpenAll={() => void actions.openHistoryCommitDiff(item)}
         renderEntries={(entries) => (
           <GitGraphFileList
             entries={entries}

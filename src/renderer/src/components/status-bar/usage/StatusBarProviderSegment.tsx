@@ -158,8 +158,6 @@ function getProviderLetter(provider: ProviderRateLimits['provider']): string {
   switch (provider) {
     case 'claude':
       return 'C'
-    case 'gemini':
-      return 'G'
     case 'opencode-go':
       return 'O'
     case 'kimi':

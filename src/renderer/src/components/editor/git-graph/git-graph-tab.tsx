@@ -31,9 +31,11 @@ import { GitGraphRefs, useGitGraphWorkspaces } from './git-graph-ref-menu'
 import { GitGraphWipDetails } from './git-graph-wip-details'
 import { GitGraphWipRow } from './git-graph-wip-row'
 import { openGitGraphWipEntry } from './open-git-graph-wip-entry'
+import { GitGraphOpenDiffButton } from './git-graph-open-diff-button'
 import { useGitGraphRows } from './use-git-graph-rows'
 import { cn } from '@/lib/class-names'
 import { GIT_GRAPH_REFRESH_EVENT } from '@/lib/source-control/graph/git-graph-refresh-event'
+import { useAppStore } from '@/store'
 import { useIntlLocale, useTranslate } from '@/i18n/use-translate'
 
 const sameGroup = () => undefined
@@ -118,12 +120,21 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
     controller.fileSort = sort
     setFileSort(sort)
   }
+  // Switching to another tab unmounts this view; only closing Git Graph cancels a pending Open diff.
+  const isGraphOpen = useCallback(
+    () =>
+      useAppStore
+        .getState()
+        .openFiles.some((file) => file.worktreeId === worktreeId && file.mode === 'git-graph'),
+    [worktreeId]
+  )
   const actions = useGitHistoryCommitActions({
     activeWorktreeId: worktreeId,
     worktreePath: scope?.worktree.path ?? null,
     activeRepoTarget: scope?.target ?? null,
     ownerConnectionId: scope?.connectionId,
-    resolveSplitTargetGroupId: sameGroup
+    resolveSplitTargetGroupId: sameGroup,
+    isSurfaceOpen: isGraphOpen
   })
   return (
     <div className="flex h-full min-h-0 flex-col bg-background text-foreground">
@@ -372,6 +383,11 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
                     item={selected}
                     controller={controller.actions}
                     support={commitActionSupport}
+                    leading={
+                      <GitGraphOpenDiffButton
+                        onOpen={() => void actions.openHistoryCommitDiff(selected)}
+                      />
+                    }
                   />
                 }
                 actions={actions}

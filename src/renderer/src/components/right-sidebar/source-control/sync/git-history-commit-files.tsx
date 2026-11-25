@@ -1,6 +1,5 @@
 import { createElement } from 'react'
 import type React from 'react'
-import { ArrowUpRight } from 'lucide-react'
 import { STATUS_COLORS } from '../../../../lib/source-control/paths/git-path-decoration'
 import { STATUS_LABELS } from '../../../../../../shared/git/status/git-status-labels'
 import {
@@ -14,8 +13,7 @@ import {
 } from '../listing/row-layout'
 import { FileTypeIcon } from '@/components/icons/FileTypeIcon'
 import { basename, dirname } from '@/lib/path'
-import { useIntlLocale, useTranslate } from '@/i18n/use-translate'
-import { formatGitHistoryTimestamp } from './git-history-format'
+import { useTranslate } from '@/i18n/use-translate'
 import type { GitBranchChangeEntry } from '../../../../../../shared/git/diff/git-diff-compare-types'
 import type { GitFileStatus } from '../../../../../../shared/git/status/git-status-types'
 
@@ -90,23 +88,13 @@ export function CommitFileRow<
   )
 }
 
-// A custom renderer owns opening files, so the default row handler is only for the default rows.
-type CommitFilesRendering =
-  | {
-      onOpenFile: (entry: GitBranchChangeEntry, event: SourceControlRowOpenEvent) => void
-      renderEntries?: undefined
-    }
-  | { renderEntries: (entries: GitBranchChangeEntry[]) => React.ReactNode; onOpenFile?: undefined }
-
 function CommitFilesBody({
   state,
-  onOpenFile,
-  onOpenAll,
   renderEntries
 }: {
   state: GitHistoryCommitFilesState
-  onOpenAll?: () => void
-} & CommitFilesRendering): React.JSX.Element {
+  renderEntries: (entries: GitBranchChangeEntry[]) => React.ReactNode
+}): React.JSX.Element {
   const t = useTranslate()
   if (state.status === 'loading') {
     return <div className="h-6" />
@@ -131,57 +119,19 @@ function CommitFilesBody({
     )
   }
 
-  return (
-    <>
-      {renderEntries
-        ? renderEntries(state.entries)
-        : state.entries.map((entry) => (
-            <CommitFileRow key={entry.path} entry={entry} onOpen={onOpenFile} />
-          ))}
-      {onOpenAll && (
-        <button
-          type="button"
-          className="flex w-full items-center gap-1 py-1 pl-9 pr-3 text-left text-[11px] text-muted-foreground transition-colors hover:bg-accent/40 hover:text-foreground"
-          onClick={onOpenAll}
-        >
-          <ArrowUpRight className="size-3 shrink-0" />
-          <span>
-            {t(
-              'auto.components.right.sidebar.GitHistoryCommitFiles.c3d4e5f6a7',
-              'Open all changes'
-            )}
-          </span>
-        </button>
-      )}
-    </>
-  )
+  return <>{renderEntries(state.entries)}</>
 }
 
 export function GitHistoryCommitFiles({
   state,
-  author,
-  timestamp,
-  onOpenFile,
-  onOpenAll,
   renderEntries
 }: {
   state: GitHistoryCommitFilesState
-  author?: string
-  timestamp?: number
-  onOpenAll?: () => void
-} & CommitFilesRendering): React.JSX.Element {
-  const intlLocale = useIntlLocale()
-  const meta = [author, formatGitHistoryTimestamp(timestamp, intlLocale)]
-    .filter(Boolean)
-    .join(' · ')
+  renderEntries: (entries: GitBranchChangeEntry[]) => React.ReactNode
+}): React.JSX.Element {
   return (
     <div className="border-l border-border/60 bg-muted/20">
-      {meta && <div className="py-1 pl-9 pr-3 text-[11px] text-muted-foreground">{meta}</div>}
-      <CommitFilesBody
-        state={state}
-        onOpenAll={onOpenAll}
-        {...(renderEntries ? { renderEntries } : { onOpenFile })}
-      />
+      <CommitFilesBody state={state} renderEntries={renderEntries} />
     </div>
   )
 }

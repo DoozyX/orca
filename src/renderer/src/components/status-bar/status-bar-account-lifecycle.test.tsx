@@ -259,8 +259,8 @@ describe('status bar account ownership', () => {
     expect(container.textContent).toContain('"usedPercent":59')
   })
   it('keeps remote provider usage when Claude and Codex are hidden', async () => {
-    app.settings = { ...settings, activeRuntimeEnvironmentId: 'gemini-owner' }
-    app.statusBarItems = ['gemini']
+    app.settings = { ...settings, activeRuntimeEnvironmentId: 'kimi-owner' }
+    app.statusBarItems = ['kimi']
     container = document.createElement('div')
     root = createRoot(container)
     await act(async () => {
@@ -269,12 +269,12 @@ describe('status bar account ownership', () => {
     const snapshot = remoteSnapshot('unused')
     const usage = snapshot.rateLimits?.claude
     snapshot.rateLimits = createEmptyRateLimitState({
-      gemini: usage ? { ...usage, provider: 'gemini' } : null
+      kimi: usage ? { ...usage, provider: 'kimi' } : null
     })
     await act(async () => {
-      emit('gemini-owner', snapshot)
+      emit('kimi-owner', snapshot)
     })
-    expect(container.textContent).toContain('"provider":"gemini"')
+    expect(container.textContent).toContain('"provider":"kimi"')
     expect(container.textContent).toContain('"usedPercent":42')
     app.statusBarItems = ['claude', 'codex']
   })

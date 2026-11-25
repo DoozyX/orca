@@ -103,7 +103,6 @@ export type ProviderRateLimits = {
   provider:
     | 'claude'
     | 'codex'
-    | 'gemini'
     | 'opencode-go'
     | 'kimi'
     | 'minimax'
@@ -125,7 +124,7 @@ export type ProviderRateLimits = {
   monthly?: RateLimitWindow | null
   /** Overage / pay-as-you-go balance the plan spends into once its windows cap. */
   extraUsage?: ExtraUsageBalance | null
-  /** Named per-model buckets (Gemini models, Cursor plan pools). */
+  /** Named per-model buckets (Antigravity models, Cursor plan pools). */
   buckets?: RateLimitBucket[]
   /** Available earned Codex rate-limit reset credits, if reported. */
   rateLimitResetCredits?: {
@@ -201,7 +200,6 @@ export type CursorAccountStatus = {
 export type RateLimitState = {
   claude: ProviderRateLimits | null
   codex: ProviderRateLimits | null
-  gemini: ProviderRateLimits | null
   opencodeGo: ProviderRateLimits | null
   kimi: ProviderRateLimits | null
   antigravity: ProviderRateLimits | null

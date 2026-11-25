@@ -18,7 +18,7 @@ function provider(
   overrides: Partial<ProviderRateLimits> = {}
 ): ProviderRateLimits {
   return {
-    provider: 'gemini',
+    provider: 'kimi',
     session: null,
     weekly: null,
     updatedAt: 0,
@@ -76,7 +76,6 @@ function usageSettings(overrides: Partial<UsageProviderSettings> = {}): UsagePro
     codexManagedAccounts: [],
     claudeManagedAccounts: [],
     opencodeSessionCookie: '',
-    geminiCliOAuthEnabled: false,
     antigravityUsageConfigured: false,
     minimaxCookieConfigured: false,
     minimaxApiKeyConfigured: false,
@@ -134,11 +133,10 @@ describe('hasUsageProviderSettings', () => {
   })
 
   it('treats explicit non-managed provider settings as configured usage providers', () => {
-    expect(hasUsageProviderSettings(usageSettings({ geminiCliOAuthEnabled: true }))).toBe(true)
     expect(
       hasUsageProviderSettings(usageSettings({ opencodeSessionCookie: ' session=abc ' }))
     ).toBe(true)
-    // Antigravity’s checked item and PATH detection prove setup without Gemini OAuth.
+    // Antigravity’s checked item and PATH detection prove setup.
     expect(hasUsageProviderSettings(usageSettings({ antigravityUsageConfigured: true }))).toBe(true)
     // Only main can report OpenCode keys held in environment or CLI storage.
     expect(hasUsageProviderSettings(usageSettings({ opencodeGoApiKeyConfigured: true }))).toBe(true)
@@ -191,13 +189,6 @@ describe('hasUsageProviderSettingsForProvider', () => {
         usageSettings({ antigravityUsageConfigured: true })
       )
     ).toBe(true)
-    // Antigravity reads agy usage independently of Gemini OAuth.
-    expect(
-      hasUsageProviderSettingsForProvider(
-        'antigravity',
-        usageSettings({ geminiCliOAuthEnabled: true })
-      )
-    ).toBe(false)
     expect(hasUsageProviderSettingsForProvider('antigravity', usageSettings())).toBe(false)
     expect(hasUsageProviderSettingsForProvider('antigravity', null)).toBe(false)
   })
@@ -295,7 +286,6 @@ describe('getVisibleUsageProvider', () => {
   it('hides providers with no live data or durable configuration', () => {
     expect(getVisibleUsageProvider('codex', null, usageSettings())).toBe(null)
     expect(getVisibleUsageProvider('grok', undefined, usageSettings())).toBe(null)
-    expect(getVisibleUsageProvider('gemini', provider('fetching'), usageSettings())).toBe(null)
   })
 
   it('creates a pending snapshot when an older main process omits a configured provider', () => {
@@ -426,7 +416,6 @@ describe('isUsageEmptyState', () => {
         {
           claude: provider('unavailable', { provider: 'claude' }),
           codex: provider('unavailable', { provider: 'codex' }),
-          gemini: provider('unavailable'),
           opencodeGo: provider('unavailable', { provider: 'opencode-go' }),
           kimi: provider('unavailable', { provider: 'kimi' }),
           antigravity: undefined,
@@ -445,7 +434,6 @@ describe('isUsageEmptyState', () => {
         {
           claude: provider('fetching', { provider: 'claude' }),
           codex: provider('fetching', { provider: 'codex' }),
-          gemini: provider('unavailable'),
           opencodeGo: provider('unavailable', { provider: 'opencode-go' }),
           kimi: provider('unavailable', { provider: 'kimi' }),
           antigravity: provider('unavailable', { provider: 'antigravity' }),
@@ -465,7 +453,6 @@ describe('isUsageEmptyState', () => {
         {
           claude: provider('unavailable', { provider: 'claude' }),
           codex: provider('unavailable', { provider: 'codex' }),
-          gemini: provider('unavailable'),
           opencodeGo: provider('unavailable', { provider: 'opencode-go' }),
           kimi: provider('unavailable', { provider: 'kimi' }),
           antigravity: provider('unavailable', { provider: 'antigravity' }),
@@ -498,7 +485,6 @@ describe('isUsageEmptyState', () => {
     const settledProviders = {
       claude: provider('unavailable', { provider: 'claude' }),
       codex: provider('unavailable', { provider: 'codex' }),
-      gemini: provider('unavailable'),
       opencodeGo: provider('unavailable', { provider: 'opencode-go' }),
       kimi: provider('unavailable', { provider: 'kimi' }),
       antigravity: null,
@@ -518,7 +504,6 @@ describe('isUsageEmptyState', () => {
         {
           claude: provider('unavailable', { provider: 'claude' }),
           codex: provider('unavailable', { provider: 'codex' }),
-          gemini: provider('unavailable'),
           opencodeGo: provider('unavailable', { provider: 'opencode-go' }),
           kimi: provider('unavailable', { provider: 'kimi' }),
           antigravity: null,
@@ -538,7 +523,6 @@ describe('isUsageEmptyState', () => {
         {
           claude: provider('unavailable', { provider: 'claude' }),
           codex: provider('unavailable', { provider: 'codex' }),
-          gemini: provider('unavailable'),
           opencodeGo: provider('unavailable', { provider: 'opencode-go' }),
           kimi: provider('unavailable', { provider: 'kimi' }),
           antigravity: null,
