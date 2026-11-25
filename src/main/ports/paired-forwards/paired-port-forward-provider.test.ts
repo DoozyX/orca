@@ -128,13 +128,20 @@ describe('PairedPortForwardProvider', () => {
         .flat()
         .find((address) => address && address.family === 'IPv4' && !address.internal)
       if (external) {
-        await expect(
-          new Promise((resolve, reject) => {
-            const socket = connect({ host: external.address, port: forward.entry.localPort })
-            socket.once('connect', () => resolve('connected'))
-            socket.once('error', reject)
+        // A stealth-mode firewall (macOS) drops the SYN instead of refusing it; either way nothing answers.
+        const outcome = await new Promise<string>((resolve) => {
+          const socket = connect({ host: external.address, port: forward.entry.localPort })
+          socket.setTimeout(2000, () => {
+            socket.destroy()
+            resolve('no-answer')
           })
-        ).rejects.toMatchObject({ code: 'ECONNREFUSED' })
+          socket.once('connect', () => {
+            socket.destroy()
+            resolve('connected')
+          })
+          socket.once('error', (error: NodeJS.ErrnoException) => resolve(String(error.code)))
+        })
+        expect(['ECONNREFUSED', 'no-answer']).toContain(outcome)
       }
     } finally {
       await forward.close()
