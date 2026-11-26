@@ -44,13 +44,16 @@ function buildInventoryScope(params: WorkerTerminalInventoryParams): {
   return { where, values }
 }
 
-/** With no terminal of its own left, a Dispatch handed it on when a later resource names it a former owner, or (legacy rows) its follow-up runs in its exact process. */
-export const WORKER_TERMINAL_HANDED_ON_SQL = `r.id IS NULL AND (
-  ${formerlyOwnedResourceIdSql('d.id')} IS NOT NULL
-  OR EXISTS (
-    SELECT 1 FROM dispatch_contexts f
-     WHERE f.follow_up_of_dispatch_id = d.id
-       AND f.process_incarnation = d.process_incarnation AND f.host_scope IS d.host_scope))`
+/** With no terminal of its own left, the Dispatch that took it on: its same-process follow-up, else the holder of the row it formerly owned. */
+export const WORKER_TERMINAL_HANDED_ON_TO_SQL = `(CASE WHEN r.id IS NULL THEN COALESCE(
+  (SELECT f.id FROM dispatch_contexts f
+    WHERE f.follow_up_of_dispatch_id = d.id
+      AND f.process_incarnation = d.process_incarnation AND f.host_scope IS d.host_scope),
+  (SELECT h.owner_dispatch_id FROM worker_terminal_resources h
+    WHERE h.id = ${formerlyOwnedResourceIdSql('d.id')})) END)`
+
+/** Handed on when a later resource names it a former owner (every row has a holder), or (legacy rows) a follow-up runs in its exact process. */
+export const WORKER_TERMINAL_HANDED_ON_SQL = `${WORKER_TERMINAL_HANDED_ON_TO_SQL} IS NOT NULL`
 
 /** Derive all filtering/counting through the single state machine; newest-first order supports paging. */
 export function scanWorkerTerminalStates(

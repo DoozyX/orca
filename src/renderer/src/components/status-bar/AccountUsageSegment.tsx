@@ -12,12 +12,17 @@ export function AccountUsageSegment({
   compact,
   display,
   mode,
+  barMode,
+  hostLabel,
   measuring = false
 }: {
   entry: AccountUsageEntry
   compact: boolean
   display: UsagePercentageDisplay
   mode: StatusBarUsageMode
+  /** The user's bar setting, which may differ from a tightest-fit `mode`. */
+  barMode: StatusBarUsageMode
+  hostLabel?: string
   /** Hidden measuring copy: its countdown must not tick. */
   measuring?: boolean
 }): React.JSX.Element {
@@ -56,10 +61,19 @@ export function AccountUsageSegment({
           compact={compact}
           display={display}
           mode={mode}
+          barMode={barMode}
           countdownActive={false}
+          measuring
         />
       ) : (
-        <ClippedRowProviderSegment p={p} compact={compact} display={display} mode={mode} />
+        <ClippedRowProviderSegment
+          p={p}
+          compact={compact}
+          display={display}
+          mode={mode}
+          barMode={barMode}
+          hostLabel={hostLabel}
+        />
       )}
     </span>
   )

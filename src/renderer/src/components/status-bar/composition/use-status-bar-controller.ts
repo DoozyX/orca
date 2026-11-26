@@ -19,6 +19,7 @@ import { useAccountUsageRoster } from '../use-account-usage-roster'
 import { buildAccountUsageRoster } from '../account-usage-roster'
 import { useActiveWorkspaceClaudeAssignment } from '../../claude-account-assignment/use-active-workspace-claude-assignment'
 import { isOwnerNotSetUpPlaceholder } from '../usage/owner-usage-rate-limits'
+import { getUsageOwnerHostScope } from '../usage/use-owner-usage-rate-limits'
 import { useTranslate } from '@/i18n/use-translate'
 
 export function useStatusBarController(floatingTerminalOpen: boolean) {
@@ -80,7 +81,7 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
 
   const refreshDetectedAgents = useAppStore((s) => s.refreshDetectedAgents)
   const handleRefresh = useCallback(async () => {
-    if (isRefreshing || (remoteOwner !== null && remoteOwner.environmentId === null)) {
+    if (isRefreshing || getUsageOwnerHostScope(remoteOwner) === null) {
       return
     }
     setIsRefreshing(true)

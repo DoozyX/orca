@@ -40,7 +40,7 @@ type UsageProviderKey = {
 }[keyof RateLimitState]
 
 // Why a Record: a new provider is a compile error here, not a silent leak of local numbers.
-const USAGE_PROVIDER_IDS: Record<UsageProviderKey, ProviderRateLimits['provider']> = {
+export const USAGE_PROVIDER_IDS: Record<UsageProviderKey, ProviderRateLimits['provider']> = {
   claude: 'claude',
   codex: 'codex',
   opencodeGo: 'opencode-go',
@@ -56,7 +56,7 @@ const USAGE_PROVIDER_IDS: Record<UsageProviderKey, ProviderRateLimits['provider'
 // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the keys of a Record<UsageProviderKey, …>.
 const USAGE_PROVIDER_KEYS = Object.keys(USAGE_PROVIDER_IDS) as UsageProviderKey[]
 
-function mapProviders(
+export function mapProviders(
   build: (key: UsageProviderKey) => ProviderRateLimits | null
 ): Pick<RateLimitState, UsageProviderKey> {
   // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: one entry per UsageProviderKey.
@@ -66,7 +66,7 @@ function mapProviders(
   >
 }
 
-function describeUnverifiableOwner(
+export function describeUnverifiableOwner(
   ownerLabel: string,
   reason: OwnerUsageFailureReason,
   t: Translate = translate
@@ -199,7 +199,7 @@ function describePlaceholder(
     : null
 }
 
-function ownerPlaceholderSnapshot(
+export function ownerPlaceholderSnapshot(
   id: ProviderRateLimits['provider'],
   error: string,
   usageMetadata: UsageRateLimitMetadata

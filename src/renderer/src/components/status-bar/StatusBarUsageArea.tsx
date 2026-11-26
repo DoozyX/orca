@@ -15,7 +15,8 @@ import { StatusBarUsageChangeNotices } from './usage/StatusBarUsageChangeNotices
 import { AccountUsageSegment } from './AccountUsageSegment'
 import { AccountUsageDetailsMenu } from './AccountUsageDetailsMenu'
 import { entryRateLimits } from './account-usage-entry'
-import { UsageOverflowChip, isUsageUrgent } from './usage/StatusBarProviderSegment'
+import { isUsageUrgent } from './usage/StatusBarProviderSegment'
+import { UsageOverflowChip } from './usage/usage-overflow-chip'
 import {
   USAGE_ROW_LEVELS,
   chooseUsageRowLayout,
@@ -85,6 +86,8 @@ export function StatusBarUsageArea({
   const showUnitLabel = shownEntries.some((entry) =>
     usageChipShowsPercentage(entryRateLimits(entry), usageMode, t)
   )
+  // Why the setting, not usageMode: the measured gap and label must not depend on the layout choice.
+  const compactBar = statusBarUsageMode === 'compact'
 
   // Why: usage gives way first, but keeps enough width to stay clickable; its popover holds
   // every provider. Its form is chosen from widths measured off-layout (see useUsageRowWidths).
@@ -113,11 +116,16 @@ export function StatusBarUsageArea({
                 <button
                   type="button"
                   data-usage-trigger=""
-                  className="inline-flex items-center gap-3 rounded px-1 py-0.5 hover:bg-accent/70"
+                  className={cn(
+                    'inline-flex items-center rounded px-1 py-0.5 hover:bg-accent/70',
+                    compactBar ? 'gap-3.5' : 'gap-3'
+                  )}
                   aria-label={t('auto.components.status.bar.UsageRosterPanel.title', 'Usage')}
                   title={remoteOwner?.label}
                 >
-                  {showUnitLabel ? <UsageUnitLabel display={usagePercentageDisplay} /> : null}
+                  {showUnitLabel ? (
+                    <UsageUnitLabel display={usagePercentageDisplay} compact={compactBar} />
+                  ) : null}
                   {shownEntries.map((entry) => (
                     <AccountUsageSegment
                       key={entry.key}
@@ -125,6 +133,8 @@ export function StatusBarUsageArea({
                       compact={usageCompact}
                       display={usagePercentageDisplay}
                       mode={usageMode}
+                      barMode={statusBarUsageMode}
+                      hostLabel={remoteOwner?.label}
                     />
                   ))}
                   {hiddenEntries.length > 0 ? (
@@ -132,6 +142,7 @@ export function StatusBarUsageArea({
                       hidden={hiddenEntries.map(entryRateLimits)}
                       providerCount={usageEntries.length}
                       display={usagePercentageDisplay}
+                      hostLabel={remoteOwner?.label}
                     />
                   ) : null}
                 </button>
@@ -149,8 +160,12 @@ export function StatusBarUsageArea({
                 onCloseAutoFocus={usageMenuFocusHandoff.onCloseAutoFocus}
               >
                 <UsageRosterPanel
-                  actionsAvailable={remoteOwner === null || remoteOwner.environmentId !== null}
-                  unavailableReason={remoteOwner?.unavailableReason}
+                  // Why: a WSL distro's accounts are managed on this device, so its rows stay actionable.
+                  actionsAvailable={
+                    remoteOwner === null ||
+                    remoteOwner.environmentId !== null ||
+                    remoteOwner.wslDistro !== undefined
+                  }
                   entries={usageEntries}
                   display={usagePercentageDisplay}
                   statusBarUsageMode={statusBarUsageMode}
@@ -214,7 +229,7 @@ export function StatusBarUsageArea({
           className="pointer-events-none invisible absolute left-0 top-0 flex w-max items-center"
         >
           <span data-measure-unit="" className="inline-flex">
-            <UsageUnitLabel display={usagePercentageDisplay} />
+            <UsageUnitLabel display={usagePercentageDisplay} compact={compactBar} />
           </span>
           {usageEntries.flatMap((entry) =>
             USAGE_ROW_LEVELS.map((level, index) => (
@@ -229,6 +244,7 @@ export function StatusBarUsageArea({
                   compact={level.compact}
                   display={usagePercentageDisplay}
                   mode={levelMode(index)}
+                  barMode={statusBarUsageMode}
                   measuring
                 />
               </span>

@@ -1,5 +1,4 @@
 import type { RuntimeTerminalCreate } from '../../../../shared/terminal/runtime/runtime-terminal-create-contract'
-import { waitForWorkerAgentReadyRebinding } from '../../terminal/wait/worker-agent-readiness-rebind'
 import { agentStartupBlockedMessage } from '../../terminal/wait/agent-startup-blocked-message'
 import { buildDispatchPreamble } from '../workers/launch/worker-dispatch-preamble'
 import { sendAgentTurn } from '../turn-delivery/send-agent-turn'
@@ -18,7 +17,7 @@ import {
   monitorFederatedSetup,
   persistFederatedReadinessStage,
   persistFederatedSetupSpawnFailure,
-  persistFederatedSetupWaitOutcome
+  waitForFederatedAgentReady
 } from './federation-setup'
 import { FederationAttachStartParams } from '../../../../shared/rpc-contract/orchestration/orchestration-federation-start-params'
 import { failFederatedAttachmentWithReceipt } from './federation-start-receipt'
@@ -32,6 +31,7 @@ import { assertWorkerStartTaskSpecWithinPromptBudget } from '../../rpc/methods/o
 import { prepareFederatedAttachmentAuthority } from './federation-attachment-authority'
 import { resolveRpcWorkspaceCreatorProvenance } from '../../rpc/callers/workspace-creator-context'
 import { claimTerminalForRemoteAttach } from '../db/worker-dispatch/worker-terminal-claim'
+import { refuseUninstalledWorkerAgent } from '../../rpc/methods/orchestration/worker/start/launch/worker-agent-host-preflight'
 
 export const ORCHESTRATION_FEDERATION_ATTACH_METHODS = [
   defineOrchestrationMethod({
@@ -83,6 +83,15 @@ export const ORCHESTRATION_FEDERATION_ATTACH_METHODS = [
           })
         )
       }
+      // The same installed-agent check as every start, before anything is created here.
+      await refuseUninstalledWorkerAgent(runtime, {
+        agent,
+        terminal: params.terminal,
+        repoSelector: createsWorktree
+          ? params.repo
+          : (await runtime.showManagedTerminalWorkspace(params.worktree).catch(() => undefined))
+              ?.repoId
+      })
 
       const db = runtime.getOrchestrationDb()
       // Synchronous through the insert, so a racing start on the same terminal is refused before any wait.
@@ -202,19 +211,12 @@ export const ORCHESTRATION_FEDERATION_ATTACH_METHODS = [
         persistFederatedReadinessStage(setupStage)
         failedStage = 'agent_readiness'
         const readinessDeadline = Date.now() + readinessTimeoutMs
-        // A graph reload can remint the pane's handle during the wait; follow the same process (#29).
-        const ready = await waitForWorkerAgentReadyRebinding(runtime, terminalHandle, {
-          agent,
+        const wait = await waitForFederatedAgentReady(runtime, setupStage, agent, {
           reusesTerminal: Boolean(params.terminal),
           creation: terminalCreation,
-          timeoutMs: readinessTimeoutMs,
-          paneKey: runtime.getTerminalPaneKey(terminalHandle),
-          processIncarnation: runtime.getTerminalProcessIncarnation(terminalHandle)
+          timeoutMs: readinessTimeoutMs
         })
-        const { wait } = ready
-        terminalHandle = ready.handle
-        setupStage.terminalHandle = ready.handle
-        persistFederatedSetupWaitOutcome({ ...setupStage, wait })
+        terminalHandle = setupStage.terminalHandle
         if (!wait.satisfied) {
           if (setup.state === 'failed') {
             failedStage = 'setup_wait'
@@ -261,7 +263,7 @@ export const ORCHESTRATION_FEDERATION_ATTACH_METHODS = [
               // Enforce the execution host's nesting cap using its own setting.
               canDispatchSubWorkers: (params.depth ?? 1) < runtime.getNestedWorkerMaxDepth(),
               subWorkersInOwnRun: true,
-              cliCommand: runtime.getTerminalOrchestrationCliCommand(terminalHandle)
+              ...runtime.getTerminalOrchestrationCliTarget(terminalHandle)
             })
           }
         }).finally(() => briefGuard?.dispose())

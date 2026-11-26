@@ -43,6 +43,8 @@ describe('Codex pane ownership', () => {
       '--profile',
       'work',
       ...(host.platform === 'win32' ? [] : ['-c', 'disable_paste_burst=true']),
+      '-c',
+      'check_for_update_on_startup=false',
       'resume',
       'saved-session'
     ])
@@ -58,7 +60,7 @@ describe('Codex pane ownership', () => {
       platform: 'linux'
     })
     expect(plan?.launchCommand).toBe(
-      "codex --no-daemon --profile work '-c' 'disable_paste_burst=true' 'resume' 'saved-session'"
+      "codex --no-daemon --profile work '-c' 'disable_paste_burst=true' '-c' 'check_for_update_on_startup=false' 'resume' 'saved-session'"
     )
   })
 })

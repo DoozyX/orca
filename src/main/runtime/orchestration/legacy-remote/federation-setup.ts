@@ -5,6 +5,9 @@ import {
   type WorkerSetupReceipt
 } from '../../rpc/methods/orchestration/worker/start/placement/worker-placement-topology'
 import { isFederationResidualEffect, type FederationEffect } from './federation-effects'
+import { waitForWorkerAgentReadyRebinding } from '../../terminal/wait/worker-agent-readiness-rebind'
+import type { TuiAgent } from '../../../../shared/agent-launch/catalog/tui-agent'
+import type { RuntimeTerminalWait } from '../../../../shared/terminal/runtime/runtime-terminal-contracts'
 
 type FederationSetupStageArgs = {
   db: OrchestrationDb
@@ -46,6 +49,28 @@ export function persistFederatedSetupWaitOutcome(
   if (args.setup.startupPolicy === 'wait-for-setup') {
     recordStage(args, args.setup.state === 'failed' ? 'setup_failed' : 'setup_settled')
   }
+}
+
+/** The agent-readiness wait and its outcome; a graph reload can remint the pane's handle during it, so the stage follows the same process (#29). */
+export async function waitForFederatedAgentReady(
+  runtime: OrcaRuntimeService,
+  stage: FederationSetupStageArgs,
+  agent: TuiAgent | undefined,
+  args: Omit<
+    Parameters<typeof waitForWorkerAgentReadyRebinding>[2],
+    'agent' | 'paneKey' | 'processIncarnation'
+  >
+): Promise<RuntimeTerminalWait> {
+  const handle = stage.terminalHandle
+  const ready = await waitForWorkerAgentReadyRebinding(runtime, handle, {
+    ...args,
+    agent,
+    paneKey: runtime.getTerminalPaneKey(handle),
+    processIncarnation: runtime.getTerminalProcessIncarnation(handle)
+  })
+  stage.terminalHandle = ready.handle
+  persistFederatedSetupWaitOutcome({ ...stage, wait: ready.wait })
+  return ready.wait
 }
 
 export function monitorFederatedSetup(
