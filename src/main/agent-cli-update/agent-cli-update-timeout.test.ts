@@ -76,7 +76,7 @@ async function runFakeUpdater(body: string) {
       seconds += 1
       expect(settled).toBe(true)
     },
-    { timeout: 25_000, interval: 5 }
+    { timeout: 25_000, interval: 20 }
   )
   const [updater, child] = readFileSync(join(dir, 'pids'), 'utf8').trim().split(' ').map(Number)
   return { result: await run, seconds, updater, child }
