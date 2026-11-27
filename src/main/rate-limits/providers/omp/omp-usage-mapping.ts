@@ -1,19 +1,24 @@
 import { z } from 'zod'
+import { lazyZodSchema } from '../../../../shared/schema/lazy-zod-schema'
 import type {
   ProviderRateLimits,
   RateLimitWindow
 } from '../../../../shared/agent-usage/rate-limits/rate-limit-types'
 
-const limitSchema = z.object({
-  id: z.string(),
-  label: z.string(),
-  status: z.string(),
-  window: z.object({ durationMs: z.number().positive(), resetsAt: z.number().nullable() }),
-  amount: z.object({ usedFraction: z.number().finite().min(0).max(1) })
-})
-const usageSchema = z.object({
-  reports: z.array(z.object({ provider: z.string(), limits: z.array(limitSchema) }))
-})
+const limitSchema = lazyZodSchema(() =>
+  z.object({
+    id: z.string(),
+    label: z.string(),
+    status: z.string(),
+    window: z.object({ durationMs: z.number().positive(), resetsAt: z.number().nullable() }),
+    amount: z.object({ usedFraction: z.number().finite().min(0).max(1) })
+  })
+)
+const usageSchema = lazyZodSchema(() =>
+  z.object({
+    reports: z.array(z.object({ provider: z.string(), limits: z.array(limitSchema) }))
+  })
+)
 
 export type OmpRateLimits = ProviderRateLimits & { daily: RateLimitWindow | null }
 

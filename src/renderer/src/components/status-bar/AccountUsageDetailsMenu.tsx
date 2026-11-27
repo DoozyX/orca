@@ -1,7 +1,5 @@
 import type { ReactNode } from 'react'
 import { useTranslate } from '@/i18n/use-translate'
-import type { AntigravityAccountUsage } from '../../../../shared/agent-usage/rate-limits/rate-limit-types'
-import { AntigravityUsageMenu } from './usage/AntigravityUsageMenu'
 import { ClaudeSwitcherMenu } from './accounts/ClaudeSwitcherMenu'
 import { CodexSwitcherMenu } from './accounts/CodexSwitcherMenu'
 import { ProviderDetailsMenu } from './usage/ProviderDetailsMenu'
@@ -11,30 +9,16 @@ import type { OwnerUsageRateLimits } from './usage/use-owner-usage-rate-limits'
 export function AccountUsageDetailsMenu({
   entry,
   ownerUsage,
-  row,
-  antigravityAccounts,
-  onManageAntigravityAccounts
+  row
 }: {
   entry: AccountUsageEntry
   ownerUsage: OwnerUsageRateLimits
   row: ReactNode
-  antigravityAccounts: readonly AntigravityAccountUsage[]
-  onManageAntigravityAccounts: () => void
 }): React.JSX.Element {
   const t = useTranslate()
   const p = entryRateLimits(entry)
   if (entry.selected && p.provider === 'claude') {
     return <ClaudeSwitcherMenu claude={p} ownerUsage={ownerUsage} asSubmenu triggerContent={row} />
-  }
-  if (entry.selected && p.provider === 'antigravity') {
-    return (
-      <AntigravityUsageMenu
-        antigravity={p}
-        accounts={antigravityAccounts}
-        triggerContent={row}
-        onManageAccounts={onManageAntigravityAccounts}
-      />
-    )
   }
   if (entry.selected && p.provider === 'codex') {
     return <CodexSwitcherMenu codex={p} ownerUsage={ownerUsage} asSubmenu triggerContent={row} />

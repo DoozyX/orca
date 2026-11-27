@@ -83,7 +83,7 @@ async function renderGraphWithRail(refs: typeof railRefs) {
   await act(async () =>
     root.render(
       <TooltipProvider>
-        <GitGraphTab worktreeId={workspaceId} />
+        <GitGraphTab worktreeId={workspaceId} tabId="git-graph-test-tab" />
       </TooltipProvider>
     )
   )
@@ -251,7 +251,7 @@ it('lists a remote the capped remotes page does not reach by probing remote name
   await act(async () =>
     root.render(
       <TooltipProvider>
-        <GitGraphTab worktreeId={workspaceId} />
+        <GitGraphTab worktreeId={workspaceId} tabId="git-graph-test-tab" />
       </TooltipProvider>
     )
   )
@@ -277,7 +277,7 @@ it('refuses to hide from All while a group is capped and leaves the filter untou
   await act(async () =>
     root.render(
       <TooltipProvider>
-        <GitGraphTab worktreeId={workspaceId} />
+        <GitGraphTab worktreeId={workspaceId} tabId="git-graph-test-tab" />
       </TooltipProvider>
     )
   )

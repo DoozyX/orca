@@ -1,17 +1,19 @@
 import * as z from 'zod'
+import { lazyZodSchema } from '../../schema/lazy-zod-schema'
 import { isFeatureInteractionId } from '../../feature-education/interactions/feature-interactions'
 import type { FeatureInteractionId } from '../../feature-education/interactions/feature-interaction-catalog'
 
-export const FeatureInteractionRecord = z
-  .object({
-    firstInteractedAt: z.number().finite().nonnegative(),
-    interactionCount: z.number().int().positive().optional()
-  })
-  .strict()
+export const FeatureInteractionRecord = lazyZodSchema(() =>
+  z
+    .object({
+      firstInteractedAt: z.number().finite().nonnegative(),
+      interactionCount: z.number().int().positive().optional()
+    })
+    .strict()
+)
 
-export const FeatureInteractions = z
-  .record(z.string(), FeatureInteractionRecord)
-  .superRefine((value, ctx) => {
+export const FeatureInteractions = lazyZodSchema(() =>
+  z.record(z.string(), FeatureInteractionRecord).superRefine((value, ctx) => {
     for (const id of Object.keys(value)) {
       if (!isFeatureInteractionId(id)) {
         ctx.addIssue({
@@ -22,7 +24,10 @@ export const FeatureInteractions = z
       }
     }
   })
+)
 
-export const FeatureInteractionIdParam = z.custom<FeatureInteractionId>(isFeatureInteractionId, {
-  message: 'Unknown feature interaction id'
-})
+export const FeatureInteractionIdParam = lazyZodSchema(() =>
+  z.custom<FeatureInteractionId>(isFeatureInteractionId, {
+    message: 'Unknown feature interaction id'
+  })
+)

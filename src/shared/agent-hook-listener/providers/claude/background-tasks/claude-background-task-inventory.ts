@@ -36,6 +36,20 @@ export type ClaudeBackgroundAgentTask = {
   teammate: boolean
 }
 
+// Claude keeps its artifact live-updates and presence sockets open all session and leaves them out of its own in-flight work, but hook rows drop the ambient flag.
+const CLAUDE_AMBIENT_ARTIFACT_MONITOR_PREFIXES = [
+  'live updates for artifact ',
+  'presence on artifact '
+]
+
+function isClaudeAmbientArtifactMonitor(taskType: string, description: unknown): boolean {
+  return (
+    taskType === 'monitor' &&
+    typeof description === 'string' &&
+    CLAUDE_AMBIENT_ARTIFACT_MONITOR_PREFIXES.some((prefix) => description.startsWith(prefix))
+  )
+}
+
 /** A live non-agent entry as the inventory reports it; the listener dates it. */
 export type ClaudeMonitoredWorkObservation = Omit<AgentMonitoredWorkSnapshot, 'firstObservedAt'>
 
@@ -110,6 +124,9 @@ export function readClaudeBackgroundAgentTasks(hookPayload: Record<string, unkno
     if (taskType.length === 0) {
       truncated = true
       hasRunningNonAgentTask ||= !isTerminal
+    }
+    if (isClaudeAmbientArtifactMonitor(taskType, obj.description)) {
+      continue
     }
     const isAgentTask = taskType.length > 0 && isAgentChildWorkKind(kind)
     // Why: future non-agent types and nonterminal labels must fail active; only typed agent rows or explicit terminal states can safely retire work.

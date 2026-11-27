@@ -91,7 +91,7 @@ const renderTab = () =>
   act(async () =>
     root.render(
       <TooltipProvider>
-        <GitGraphTab worktreeId={workspaceId} />
+        <GitGraphTab worktreeId={workspaceId} tabId="git-graph-test-tab" />
       </TooltipProvider>
     )
   )

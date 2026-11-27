@@ -135,6 +135,8 @@ export async function openGitGraph(
     afterOpen?: (scope: NonNullable<ReturnType<typeof gitGraphScope>>) => Promise<void>
     // Lazy so a split is created only when a new tab actually opens.
     resolveTargetGroupId?: () => string | undefined
+    /** The workspace showing the tab, e.g. a folder workspace whose repo card owns this worktree. */
+    placementWorkspaceId?: string
   }
 ): Promise<void> {
   const supported = await probeGitGraphSupport(worktreeId)
@@ -151,8 +153,23 @@ export async function openGitGraph(
   )
   const id = existing?.entityId ?? `${worktreeId}::git-graph`
   const label = translate('gitGraph.title', 'Git Graph')
+  const placementWorkspaceId = options?.placementWorkspaceId ?? worktreeId
   if (state.openFiles.some((file) => file.id === id)) {
-    openWorkspaceEditorItem(state, id, worktreeId, label, 'git-graph')
+    const placementHasTab =
+      state.unifiedTabsByWorktree?.[placementWorkspaceId]?.some(
+        (tab) => tab.contentType === 'git-graph' && tab.entityId === id
+      ) ?? false
+    const targetGroupId = placementHasTab ? undefined : options?.resolveTargetGroupId?.()
+    // Why: the resolver may create the split group, so read state after it runs.
+    openWorkspaceEditorItem(
+      useAppStore.getState(),
+      id,
+      placementWorkspaceId,
+      label,
+      'git-graph',
+      undefined,
+      targetGroupId
+    )
   } else {
     state.openFile(
       {
@@ -167,7 +184,12 @@ export async function openGitGraph(
         },
         mode: 'git-graph'
       },
-      { reopenId: id, preview: false, targetGroupId: options?.resolveTargetGroupId?.() }
+      {
+        reopenId: id,
+        preview: false,
+        targetGroupId: options?.resolveTargetGroupId?.(),
+        placementWorkspaceId
+      }
     )
   }
   await options?.afterOpen?.(scope)

@@ -23,7 +23,6 @@ export type FetchAllCyclePrepared = {
   miniMaxGeneration: number
   zcodeConfigChanged: boolean
   zcodeGeneration: number
-  antigravityGeneration: number
   claudeFetchGated: boolean
   results: [
     PromiseSettledResult<ProviderRateLimits>,
@@ -36,5 +35,4 @@ export type FetchAllCyclePrepared = {
   cursorResultPromise: Promise<SettledProviderResult>
   ompResultPromise: Promise<SettledProviderResult>
   zcodeResultPromise: Promise<SettledProviderResult>
-  antigravityResultPromise: Promise<SettledProviderResult>
 }

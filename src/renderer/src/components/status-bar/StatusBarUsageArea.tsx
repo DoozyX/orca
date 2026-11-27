@@ -39,7 +39,6 @@ export function StatusBarUsageArea({
   const t = useTranslate()
   const [usageAreaRef, usageWidths] = useUsageRowWidths()
   const {
-    antigravityAccounts,
     anyFetching,
     anyVisible,
     canSignInFromUsageRow,
@@ -184,10 +183,6 @@ export function StatusBarUsageArea({
                         entry={entry}
                         ownerUsage={ownerUsage}
                         row={rowNode}
-                        antigravityAccounts={antigravityAccounts}
-                        onManageAntigravityAccounts={() =>
-                          handleOpenProviderAccounts('antigravity')
-                        }
                       />
                     )
                   }

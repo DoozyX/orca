@@ -76,7 +76,6 @@ function usageSettings(overrides: Partial<UsageProviderSettings> = {}): UsagePro
     codexManagedAccounts: [],
     claudeManagedAccounts: [],
     opencodeSessionCookie: '',
-    antigravityUsageConfigured: false,
     minimaxCookieConfigured: false,
     minimaxApiKeyConfigured: false,
     opencodeGoApiKeyConfigured: false,
@@ -136,8 +135,6 @@ describe('hasUsageProviderSettings', () => {
     expect(
       hasUsageProviderSettings(usageSettings({ opencodeSessionCookie: ' session=abc ' }))
     ).toBe(true)
-    // Antigravity’s checked item and PATH detection prove setup.
-    expect(hasUsageProviderSettings(usageSettings({ antigravityUsageConfigured: true }))).toBe(true)
     // Only main can report OpenCode keys held in environment or CLI storage.
     expect(hasUsageProviderSettings(usageSettings({ opencodeGoApiKeyConfigured: true }))).toBe(true)
     expect(
@@ -180,17 +177,6 @@ describe('hasUsageProviderSettingsForProvider', () => {
     expect(hasUsageProviderSettingsForProvider('claude', usageSettings())).toBe(false)
     expect(hasUsageProviderSettingsForProvider('kimi', usageSettings())).toBe(false)
     expect(hasUsageProviderSettingsForProvider('grok', usageSettings())).toBe(false)
-  })
-
-  it('treats the checked Antigravity item as the durable Antigravity signal', () => {
-    expect(
-      hasUsageProviderSettingsForProvider(
-        'antigravity',
-        usageSettings({ antigravityUsageConfigured: true })
-      )
-    ).toBe(true)
-    expect(hasUsageProviderSettingsForProvider('antigravity', usageSettings())).toBe(false)
-    expect(hasUsageProviderSettingsForProvider('antigravity', null)).toBe(false)
   })
 
   it('treats minimaxCookieConfigured as the durable signal for MiniMax', () => {
@@ -346,32 +332,6 @@ describe('getVisibleUsageProvider', () => {
       )
     ).toBe(null)
   })
-
-  it('keeps Antigravity visible from the checked item alone while the snapshot is pending', () => {
-    const visible = getVisibleUsageProvider(
-      'antigravity',
-      null,
-      usageSettings({ antigravityUsageConfigured: true })
-    )
-    expect(visible).toMatchObject({
-      provider: 'antigravity',
-      status: 'fetching',
-      session: null,
-      weekly: null
-    })
-  })
-
-  it('hides Antigravity when its status item is unchecked', () => {
-    // An unavailable Antigravity snapshot cannot replace the checked-item setup signal.
-    expect(getVisibleUsageProvider('antigravity', null, usageSettings())).toBe(null)
-    expect(
-      getVisibleUsageProvider(
-        'antigravity',
-        provider('unavailable', { provider: 'antigravity' }),
-        usageSettings()
-      )
-    ).toBe(null)
-  })
 })
 
 describe('isUsageEmptyState', () => {
@@ -418,7 +378,6 @@ describe('isUsageEmptyState', () => {
           codex: provider('unavailable', { provider: 'codex' }),
           opencodeGo: provider('unavailable', { provider: 'opencode-go' }),
           kimi: provider('unavailable', { provider: 'kimi' }),
-          antigravity: undefined,
           minimax: undefined,
           grok: undefined,
           cursor: undefined
@@ -436,7 +395,6 @@ describe('isUsageEmptyState', () => {
           codex: provider('fetching', { provider: 'codex' }),
           opencodeGo: provider('unavailable', { provider: 'opencode-go' }),
           kimi: provider('unavailable', { provider: 'kimi' }),
-          antigravity: provider('unavailable', { provider: 'antigravity' }),
           minimax: provider('unavailable', { provider: 'minimax' }),
           grok: provider('unavailable', { provider: 'grok' }),
           cursor: provider('unavailable', { provider: 'cursor' }),
@@ -455,7 +413,6 @@ describe('isUsageEmptyState', () => {
           codex: provider('unavailable', { provider: 'codex' }),
           opencodeGo: provider('unavailable', { provider: 'opencode-go' }),
           kimi: provider('unavailable', { provider: 'kimi' }),
-          antigravity: provider('unavailable', { provider: 'antigravity' }),
           minimax: provider('unavailable', { provider: 'minimax' }),
           grok: provider('unavailable', { provider: 'grok' }),
           cursor: provider('unavailable', { provider: 'cursor' }),
@@ -487,7 +444,6 @@ describe('isUsageEmptyState', () => {
       codex: provider('unavailable', { provider: 'codex' }),
       opencodeGo: provider('unavailable', { provider: 'opencode-go' }),
       kimi: provider('unavailable', { provider: 'kimi' }),
-      antigravity: null,
       minimax: provider('unavailable', { provider: 'minimax' }),
       grok: provider('unavailable', { provider: 'grok' }),
       cursor: provider('unavailable', { provider: 'cursor' }),
@@ -496,43 +452,5 @@ describe('isUsageEmptyState', () => {
     expect(isUsageEmptyState(settledProviders, usageSettings())).toBe(true)
     expect(isUsageEmptyState({ ...settledProviders, zcode: undefined }, usageSettings())).toBe(true)
     expect(isUsageEmptyState({ ...settledProviders, zcode: null }, usageSettings())).toBe(false)
-  })
-
-  it('does not show the setup CTA while checked Antigravity usage is awaiting a snapshot', () => {
-    expect(
-      isUsageEmptyState(
-        {
-          claude: provider('unavailable', { provider: 'claude' }),
-          codex: provider('unavailable', { provider: 'codex' }),
-          opencodeGo: provider('unavailable', { provider: 'opencode-go' }),
-          kimi: provider('unavailable', { provider: 'kimi' }),
-          antigravity: null,
-          grok: provider('unavailable', { provider: 'grok' }),
-          minimax: provider('unavailable', { provider: 'minimax' }),
-          cursor: provider('unavailable', { provider: 'cursor' }),
-          zcode: provider('unavailable', { provider: 'zcode' })
-        },
-        usageSettings({ antigravityUsageConfigured: true })
-      )
-    ).toBe(false)
-  })
-
-  it('still shows the setup CTA when no agent is detected, even with the Antigravity item checked', () => {
-    expect(
-      isUsageEmptyState(
-        {
-          claude: provider('unavailable', { provider: 'claude' }),
-          codex: provider('unavailable', { provider: 'codex' }),
-          opencodeGo: provider('unavailable', { provider: 'opencode-go' }),
-          kimi: provider('unavailable', { provider: 'kimi' }),
-          antigravity: null,
-          grok: provider('unavailable', { provider: 'grok' }),
-          minimax: provider('unavailable', { provider: 'minimax' }),
-          cursor: provider('unavailable', { provider: 'cursor' }),
-          zcode: provider('unavailable', { provider: 'zcode' })
-        },
-        usageSettings()
-      )
-    ).toBe(true)
   })
 })

@@ -1,11 +1,10 @@
-import { useEffect, useState } from 'react'
 import { openGitGraph } from '@/lib/source-control/graph/git-graph-tab'
-import { GIT_GRAPH_REFRESH_EVENT } from '@/lib/source-control/graph/git-graph-refresh-event'
 import { useTranslate } from '@/i18n/use-translate'
 import { GitRefTree } from '@/components/editor/git-graph/git-ref-tree'
 import { gitGraphOldServerMessage } from '@/components/editor/git-graph/git-graph-ref-messages'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { useGitGraphJumpPending } from '@/components/editor/git-graph/use-git-graph-jump-pending'
+import { useGitGraphRefsEpoch } from '@/components/editor/git-graph/use-git-graph-refs-epoch'
 import { revealGitRefInGitGraph } from '@/components/editor/git-graph/git-graph-reveal-ref'
 import {
   useGitGraphRefOwner,
@@ -13,6 +12,7 @@ import {
 } from '@/components/editor/git-graph/git-graph-ref-source'
 import type { GitHistoryItemRef } from '../../../../../../shared/git/history/git-history-types'
 import { DockSectionToggle } from './dock-section-toggle'
+import { useSourceControlScope } from '../panel/worktree-scope'
 
 export function BranchesTagsSection({
   worktreeId,
@@ -28,17 +28,10 @@ export function BranchesTagsSection({
   const t = useTranslate()
   const { owner, requests } = useGitGraphRefOwner(worktreeId)
   // Each expand and each Git Graph refresh refetches, so failed groups retry and moved tips update.
-  const [reloadKey, setReloadKey] = useState(0)
+  const [reloadKey, bumpReloadKey] = useGitGraphRefsEpoch(worktreeId)
   const { pendingRefId, runJump } = useGitGraphJumpPending()
-  useEffect(() => {
-    const onRefresh = (event: Event) => {
-      if (event instanceof CustomEvent && event.detail === worktreeId) {
-        setReloadKey((key) => key + 1)
-      }
-    }
-    window.addEventListener(GIT_GRAPH_REFRESH_EVENT, onRefresh)
-    return () => window.removeEventListener(GIT_GRAPH_REFRESH_EVENT, onRefresh)
-  }, [worktreeId])
+  // A folder card's Graph opens in the folder workspace that shows the card.
+  const placementWorkspaceId = useSourceControlScope()?.placementWorkspaceId
   const { capable, refs, cappedKeys, allRefs, anyGroupCapped, error, setQuery } =
     useGitRefTreeSource({
       worktreeId,
@@ -52,7 +45,8 @@ export function BranchesTagsSection({
       openGitGraph(worktreeId, {
         afterOpen: async (scope) => {
           await revealGitRefInGitGraph(worktreeId, scope, ref)
-        }
+        },
+        placementWorkspaceId
       })
     )
   return (
@@ -63,7 +57,7 @@ export function BranchesTagsSection({
           collapsed={collapsed}
           onToggle={() => {
             if (collapsed) {
-              setReloadKey((key) => key + 1)
+              bumpReloadKey()
             }
             onToggle()
           }}

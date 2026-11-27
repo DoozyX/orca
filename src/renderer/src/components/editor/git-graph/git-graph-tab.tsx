@@ -4,7 +4,7 @@ import {
   GitGraphCommitConfirmStrip,
   useGitGraphCommitActionSupport
 } from './git-graph-commit-action-controls'
-import { useCallback, useEffect, useLayoutEffect, useState } from 'react'
+import { useCallback, useLayoutEffect, useState } from 'react'
 import { useSidebarResize } from '@/hooks/useSidebarResize'
 import { PanelLeft, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -34,8 +34,9 @@ import { openGitGraphWipEntry } from './open-git-graph-wip-entry'
 import { GitGraphOpenDiffButton } from './git-graph-open-diff-button'
 import { useGitGraphRows } from './use-git-graph-rows'
 import { cn } from '@/lib/class-names'
-import { GIT_GRAPH_REFRESH_EVENT } from '@/lib/source-control/graph/git-graph-refresh-event'
+import { useGitGraphRefsEpoch } from './use-git-graph-refs-epoch'
 import { useAppStore } from '@/store'
+import { editorTabWorkspace } from '@/store/slices/editor/tabs/workspace-editor-files'
 import { useIntlLocale, useTranslate } from '@/i18n/use-translate'
 
 const sameGroup = () => undefined
@@ -45,8 +46,12 @@ const ROW_CLASS =
 const { rowHeight: ROW_HEIGHT, laneWidth: LANE_WIDTH } = GIT_HISTORY_GRAPH_METRICS.avatar
 const FIXED_COLUMNS_WIDTH = 160 + 200 + 120 + 100 + 72 + 24
 
-export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
+export function GitGraphTab({ worktreeId, tabId }: { worktreeId: string; tabId: string }) {
   const t = useTranslate()
+  // A folder workspace can show a child worktree's graph; its diffs belong next to it.
+  const placementWorkspaceId = useAppStore((state) =>
+    editorTabWorkspace(state.unifiedTabsByWorktree, tabId)
+  )
   const intlLocale = useIntlLocale()
   const history = useGitGraphHistory(worktreeId)
   const { result, scope, selectedId, revealId, controller, loading, filter, changeFilter } = history
@@ -63,16 +68,7 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
   } = useGitGraphRows(scope, result, filter, LANE_WIDTH, selectedId, revealId)
   const [railOpen, setRailOpen] = useState(true)
   const [fileSort, setFileSort] = useState(controller.fileSort)
-  const [refsEpoch, setRefsEpoch] = useState(0)
-  useEffect(() => {
-    const onRefresh = (event: Event) => {
-      if (event instanceof CustomEvent && event.detail === worktreeId) {
-        setRefsEpoch((epoch) => epoch + 1)
-      }
-    }
-    window.addEventListener(GIT_GRAPH_REFRESH_EVENT, onRefresh)
-    return () => window.removeEventListener(GIT_GRAPH_REFRESH_EVENT, onRefresh)
-  }, [worktreeId])
+  const [refsEpoch, bumpRefsEpoch] = useGitGraphRefsEpoch(worktreeId)
   const [graphWidth, setGraphWidth] = useState(controller.graphWidth)
   const [draftGraphWidth, setDraftGraphWidth] = useState(graphWidth)
   const commitGraphWidth = useCallback(
@@ -134,7 +130,8 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
     activeRepoTarget: scope?.target ?? null,
     ownerConnectionId: scope?.connectionId,
     resolveSplitTargetGroupId: sameGroup,
-    isSurfaceOpen: isGraphOpen
+    isSurfaceOpen: isGraphOpen,
+    placementWorkspaceId
   })
   return (
     <div className="flex h-full min-h-0 flex-col bg-background text-foreground">
@@ -171,7 +168,7 @@ export function GitGraphTab({ worktreeId }: { worktreeId: string }) {
               size="icon-sm"
               aria-label={t('gitGraph.refresh', 'Refresh commits')}
               onClick={() => {
-                setRefsEpoch((epoch) => epoch + 1)
+                bumpRefsEpoch()
                 refreshWip()
                 void history.refresh()
               }}

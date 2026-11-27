@@ -3,6 +3,7 @@ import { homedir } from 'node:os'
 import { resolve } from 'node:path'
 import { parse } from 'yaml'
 import { z } from 'zod'
+import { lazyZodSchema } from '../../../../shared/schema/lazy-zod-schema'
 import { runProcess } from '@orca/process-host'
 import {
   resolveCliCommand,
@@ -15,7 +16,9 @@ import {
 import { resolveOmpAgentDir } from '../../../ai-vault/scanners/omp/omp-session-root'
 import { mapOmpUsage, type OmpRateLimits } from './omp-usage-mapping'
 
-const configSchema = z.object({ modelRoles: z.object({ default: z.string().min(1) }) })
+const configSchema = lazyZodSchema(() =>
+  z.object({ modelRoles: z.object({ default: z.string().min(1) }) })
+)
 const USAGE_TIMEOUT_MS = 12_000
 
 function failure(
