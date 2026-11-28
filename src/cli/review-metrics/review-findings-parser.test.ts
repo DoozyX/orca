@@ -139,12 +139,32 @@ describe('parseFindingsFile', () => {
     [
       'prior ID range',
       'Prior: R1.1-R1.11 - held - x',
-      'Prior line has ID "R1.1-R1.11"; expected one R<r>.<n> per line (ranges such as R1.1-R1.11 are not allowed)'
+      'Prior line has ID "R1.1-R1.11"; expected one R<r>.<n> followed by " - "; ranges such as R1.1-R1.11 and lists are not allowed'
     ],
     [
       'prior ID list',
       'Prior: R1.1, R1.2 - fixed - x',
-      'Prior line has ID "R1.1, R1.2"; expected one R<r>.<n> per line (ranges such as R1.1-R1.11 are not allowed)'
+      'Prior line has ID "R1.1, R1.2"; expected one R<r>.<n> followed by " - "; ranges such as R1.1-R1.11 and lists are not allowed'
+    ],
+    [
+      'prior ID with a trailing period',
+      'Prior: R1.1. - fixed - x',
+      'Prior line has ID "R1.1."; expected one R<r>.<n> followed by " - "'
+    ],
+    [
+      'severity and bucket pairs taken from later fields',
+      'R1.1. a.ts:1 - minor - x - major - [patch] - t - y',
+      'finding line has bucket "x"; expected [patch|nit|decision-needed|defer]'
+    ],
+    [
+      'location containing a separator',
+      'R1.1. a.ts:1 - b.ts:2 - major - [patch] - t - x',
+      'finding line has severity "b.ts:2"; expected critical|major|minor'
+    ],
+    [
+      'em-dash separators after an ID without a period',
+      'R1.1 a.ts:1 \u2014 major \u2014 [patch] \u2014 [Edge] \u2014 x',
+      `finding line has ID "R1.1"${ID_RULE}`
     ],
     [
       'prior without a ruling',

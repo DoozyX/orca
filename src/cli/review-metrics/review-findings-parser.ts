@@ -23,7 +23,7 @@ export type ParsedFindingsFile = {
 
 const ANCHOR = '## Merged findings'
 const FINDING_LINE =
-  /^(R[0-9I]+\.\d+)\. .+? - (critical|major|minor) - \[(patch|nit|decision-needed|defer)\] - (.*?) - .*$/
+  /^(R[0-9I]+\.\d+)\. (?:(?! - ).)+? - (critical|major|minor) - \[(patch|nit|decision-needed|defer)\] - (.*?) - .*$/
 const PRIOR_LINE =
   /^Prior: (R[0-9I]+\.\d+) - (fixed|open|disputed-upheld|disputed-withdrawn)(?: - .*)?$/
 const VERDICT_LINE =
@@ -45,7 +45,7 @@ const PRIOR_LIKE = /^prior(?:\s*(?::|[-–—(])|\s+R[0-9I]+\.)/i
 function findingError(line: string): string {
   const [idToken] = line.split(' ')
   if (!FINDING_ID_PREFIX.test(line)) {
-    if (/^R(?:\d+|[A-Z])?\./.test(line) && line.split(' - ').length < 3) {
+    if (/^R(?:\d+|[A-Z])?\./.test(line) && line.split(/ [-\u2013\u2014] /).length < 3) {
       return 'line starts like a finding ID but is not a finding; put explanations in a "Checked:" line'
     }
     return `finding line has ID "${idToken}"; expected "R<r>.<n>." with <r> 1-3 or I, then a space`
@@ -67,7 +67,10 @@ function priorError(line: string): string {
   }
   const fields = rest.split(' - ')
   if (!PRIOR_ID_PREFIX.test(rest)) {
-    return `Prior line has ID "${fields[0]}"; expected one R<r>.<n> per line (ranges such as R1.1-R1.11 are not allowed)`
+    const rangeNote = /[-,]/.test(fields[0])
+      ? '; ranges such as R1.1-R1.11 and lists are not allowed'
+      : ''
+    return `Prior line has ID "${fields[0]}"; expected one R<r>.<n> followed by " - "${rangeNote}`
   }
   if (fields.length < 2) {
     return 'Prior line needs " - " (hyphen) between ID, ruling and reason'
