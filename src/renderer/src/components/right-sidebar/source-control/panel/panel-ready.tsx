@@ -16,11 +16,11 @@ import {
   type SourceControlPanelActions
 } from './header-overflow-menu'
 import { useSourceControlScope } from './worktree-scope'
+import { SourceControlOperationRow } from './panel-operation-row'
 
 export function SourceControlPanelReady(props: SourceControlPanelReadyProps) {
   const { activeWorktree, currentWorktreeId, model, worktreePath } = props
   const {
-    activeGroupId,
     activeWorktreeId,
     branchLineTotal,
     branchSummary,
@@ -108,16 +108,6 @@ export function SourceControlPanelReady(props: SourceControlPanelReadyProps) {
       {...props}
       graphSupported={graphSupport.support === true}
       filter={embedded ? null : filter}
-      graphControl={
-        embedded ? null : (
-          <GitGraphOpenButton
-            worktreeId={currentWorktreeId}
-            support={graphSupport}
-            onOpen={openGraph}
-            iconOnly
-          />
-        )
-      }
       overflowMenu={
         embedded ? null : (
           <SourceControlHeaderOverflowMenu panelActions={panelActions} triggerClassName="size-5" />
@@ -160,19 +150,10 @@ export function SourceControlPanelReady(props: SourceControlPanelReadyProps) {
           branchLineTotal={branchLineTotal}
           compareBaseRef={compareBaseRef}
           headDisplay={gitIdentityDisplay}
-          rebase={
-            model.baseRebaseState.kind === 'none'
-              ? null
-              : {
-                  state: model.baseRebaseState,
-                  isAbortingRebase: model.isAbortingOperation,
-                  isContinuingRebase: model.isContinuingRebase,
-                  isRetryingRebaseInspect: model.isRetryingRebaseInspect,
-                  hasGitOwner: !!model.activeRepoTarget,
-                  onAbortRebase: () => void model.handleAbortRebase(),
-                  onContinueRebase: () => void model.handleContinueRebase(),
-                  onRetryRebaseInspect: model.handleRetryRebaseInspect
-                }
+          operationRow={
+            model.conflictOperation === 'unknown' ? null : (
+              <SourceControlOperationRow model={model} worktreeId={currentWorktreeId} />
+            )
           }
           graphControl={
             isGitHistoryVisible ? (
@@ -189,7 +170,6 @@ export function SourceControlPanelReady(props: SourceControlPanelReadyProps) {
         {activeWorktreeId && worktreePath && diffCommentCount > 0 && (
           <SourceControlNotesShelf
             activeWorktreeId={activeWorktreeId}
-            activeGroupId={activeGroupId}
             diffCommentsForActive={diffCommentsForActive}
             diffCommentCount={diffCommentCount}
             diffCommentsExpanded={diffCommentsExpanded}

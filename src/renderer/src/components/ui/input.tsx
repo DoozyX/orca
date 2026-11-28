@@ -30,7 +30,7 @@ const inputVariants = cva('', {
     density: {
       default: '',
       // pl/pr, not px: a later sheet re-emits px-2, which would beat the leading icon's pl-8.
-      compact: 'h-7 border-border bg-input/50 pr-2 pl-2 text-xs shadow-none md:text-xs'
+      compact: 'h-7 border-border pr-2 pl-2 text-xs shadow-none md:text-xs'
     },
     /** Room for an absolutely positioned icon at the start, such as a search glass. */
     inset: {
@@ -41,10 +41,26 @@ const inputVariants = cva('', {
     // Reserves room for an icon button absolutely positioned inside the field's right edge.
     adornment: {
       none: '',
-      trailing: 'pr-8'
+      trailing: 'pr-8',
+      warningAndClear: 'pr-20',
+      shortcut: 'pr-16 group-focus-within/rail-search:pr-8 @max-[40rem]/rail-page:pr-8',
+      shortcutAndClear: 'pr-16 @max-[40rem]/rail-page:pr-8'
+    },
+    focusFeedback: {
+      default: '',
+      border: 'focus-visible:border-ring/70 focus-visible:ring-0',
+      quiet: 'focus-visible:border-border focus-visible:ring-0'
     }
   },
-  defaultVariants: { variant: 'default', density: 'default', inset: 'default', adornment: 'none' }
+  compoundVariants: [{ density: 'compact', surface: 'default', className: 'bg-input/50' }],
+  defaultVariants: {
+    variant: 'default',
+    surface: 'default',
+    density: 'default',
+    inset: 'default',
+    adornment: 'none',
+    focusFeedback: 'default'
+  }
 })
 
 /**
@@ -59,7 +75,18 @@ const Input = React.forwardRef<
     >
 >(
   (
-    { className, type, size = 'default', variant, surface, density, inset, adornment, ...props },
+    {
+      className,
+      type,
+      size = 'default',
+      variant,
+      surface,
+      density,
+      inset,
+      adornment,
+      focusFeedback,
+      ...props
+    },
     ref
   ) => {
     return (
@@ -76,7 +103,14 @@ const Input = React.forwardRef<
           // Why the attribute selector, not a conditional class: it outranks any unmodified base
           // utility on specificity, so adding one later cannot silently unstyle this density.
           'data-[size=sm]:h-8 data-[size=sm]:text-xs',
-          inputVariants({ variant, surface, density, inset, adornment }),
+          inputVariants({
+            variant,
+            surface: surface ?? undefined,
+            density,
+            inset,
+            adornment,
+            focusFeedback
+          }),
           className
         )}
         {...props}

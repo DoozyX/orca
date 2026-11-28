@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useId } from 'react'
 import { RefreshCw } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
@@ -17,6 +17,7 @@ import { AccountUsageDetailsMenu } from './AccountUsageDetailsMenu'
 import { entryRateLimits } from './account-usage-entry'
 import { isUsageUrgent } from './usage/StatusBarProviderSegment'
 import { UsageOverflowChip } from './usage/usage-overflow-chip'
+import { getUsageErrorAlertLabel } from './usage/UsageErrorAlert'
 import {
   USAGE_ROW_LEVELS,
   chooseUsageRowLayout,
@@ -85,6 +86,12 @@ export function StatusBarUsageArea({
   const showUnitLabel = shownEntries.some((entry) =>
     usageChipShowsPercentage(entryRateLimits(entry), usageMode, t)
   )
+  // Why: chips show errors as bare alerts, so the menu button carries their messages for keyboard users.
+  const alertDescriptionId = useId()
+  const alertDescription = usageEntries
+    .map((entry) => getUsageErrorAlertLabel(entryRateLimits(entry), t))
+    .filter(Boolean)
+    .join('. ')
   // Why the setting, not usageMode: the measured gap and label must not depend on the layout choice.
   const compactBar = statusBarUsageMode === 'compact'
 
@@ -120,8 +127,14 @@ export function StatusBarUsageArea({
                     compactBar ? 'gap-3.5' : 'gap-3'
                   )}
                   aria-label={t('auto.components.status.bar.UsageRosterPanel.title', 'Usage')}
+                  aria-describedby={alertDescription ? alertDescriptionId : undefined}
                   title={remoteOwner?.label}
                 >
+                  {alertDescription ? (
+                    <span id={alertDescriptionId} className="sr-only">
+                      {alertDescription}
+                    </span>
+                  ) : null}
                   {showUnitLabel ? (
                     <UsageUnitLabel display={usagePercentageDisplay} compact={compactBar} />
                   ) : null}

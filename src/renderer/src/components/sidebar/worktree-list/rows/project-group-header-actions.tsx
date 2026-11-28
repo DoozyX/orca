@@ -1,28 +1,20 @@
-import React from 'react'
-import { Ellipsis, Plus, RefreshCw } from 'lucide-react'
+import React, { useState } from 'react'
+import { Ellipsis, Plus } from 'lucide-react'
+import { lazyWithRetry } from '@/app-shell/startup/lazy-with-retry'
+import { useLatchedOpen } from '@/app-shell/root-surfaces/use-latched-open'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger
-} from '@/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/class-names'
 import { useTranslate } from '@/i18n/use-translate'
 import { getFolderWorkspacePathStatusDescription } from '@/lib/workspace/paths/folder-workspace-path-status'
 import type { ProjectGroup } from '../../../../../../shared/project/groups/project-group-types'
 import type { FolderWorkspacePathStatus } from '../../../../../../shared/folder-workspaces/folder-workspace-path-status'
-import {
-  LOCAL_EXECUTION_HOST_ID,
-  type ExecutionHostId
-} from '../../../../../../shared/execution-host/execution-host'
-import { getFolderProjectGroupRefreshHandler } from './project-group-folder-refresh'
+import type { ExecutionHostId } from '../../../../../../shared/execution-host/execution-host'
 import { REPO_HEADER_ACTION_BUTTON_CLASS } from './repo-header-action-button-class'
 import {
   handleRepoHeaderActionPointerDown,
-  stopRepoHeaderKeyboardToggle,
-  stopRepoHeaderMenuEvent
+  stopRepoHeaderKeyboardToggle
 } from './header-event-guards'
 
 export type ProjectGroupHeaderRowHandlers = {
@@ -30,6 +22,14 @@ export type ProjectGroupHeaderRowHandlers = {
   onDeleteProjectGroup: (groupId: string, groupName: string, hostId?: ExecutionHostId) => void
   onOpenProjectGroupSettings: (groupId: string, hostId?: ExecutionHostId) => void
 }
+
+const LazyProjectGroupHeaderMenuContent = lazyWithRetry(
+  () =>
+    import('./ProjectGroupHeaderMenuContent').then((module) => ({
+      default: module.ProjectGroupHeaderMenuContent
+    })),
+  { reloadKey: 'project-group-header-menu-content' }
+)
 
 export function ProjectGroupHeaderMenu({
   groupId,
@@ -52,9 +52,10 @@ export function ProjectGroupHeaderMenu({
   onOpenSettings: (groupId: string, hostId?: ExecutionHostId) => void
 }): React.JSX.Element {
   const t = useTranslate()
-  const onRefresh = getFolderProjectGroupRefreshHandler(projectGroup, onRefreshProjectGroup)
+  const [open, setOpen] = useState(false)
+  const hasOpened = useLatchedOpen(open)
   return (
-    <DropdownMenu modal={false}>
+    <DropdownMenu modal={false} open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
         <Button
           type="button"
@@ -74,40 +75,20 @@ export function ProjectGroupHeaderMenu({
           <Ellipsis className="size-3.5" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent
-        align="end"
-        side="bottom"
-        sideOffset={6}
-        // Why: Radix portals keep React bubbling through the project header; block menu events from arming row drag/collapse.
-        onPointerDown={stopRepoHeaderMenuEvent}
-        onMouseDown={stopRepoHeaderMenuEvent}
-        onPointerUp={stopRepoHeaderMenuEvent}
-        onMouseUp={stopRepoHeaderMenuEvent}
-        onClick={stopRepoHeaderMenuEvent}
-        onKeyDown={stopRepoHeaderMenuEvent}
-      >
-        {onRefresh ? (
-          <DropdownMenuItem onSelect={onRefresh}>
-            <RefreshCw className="size-3.5" />
-            {t('auto.components.sidebar.WorktreeList.refreshProjectGroup', 'Refresh projects')}
-          </DropdownMenuItem>
-        ) : null}
-        <DropdownMenuItem onSelect={() => onRename(groupId, label, hostId)}>
-          {t('auto.components.sidebar.WorktreeList.4d7b73658c', 'Rename group')}
-        </DropdownMenuItem>
-        {/* Group settings hold only the Claude account, which exists on this computer. */}
-        {hostId === LOCAL_EXECUTION_HOST_ID ? (
-          <DropdownMenuItem
-            data-project-group-menu-item="settings"
-            onSelect={() => onOpenSettings(groupId, hostId)}
-          >
-            {t('auto.components.sidebar.WorktreeList.projectGroupSettings', 'Group settings…')}
-          </DropdownMenuItem>
-        ) : null}
-        <DropdownMenuItem variant="destructive" onSelect={() => onDelete(groupId, label, hostId)}>
-          {t('auto.components.sidebar.WorktreeList.902115cdbe', 'Delete group')}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
+      {hasOpened ? (
+        <React.Suspense fallback={null}>
+          <LazyProjectGroupHeaderMenuContent
+            groupId={groupId}
+            hostId={hostId}
+            label={label}
+            projectGroup={projectGroup}
+            onRefreshProjectGroup={onRefreshProjectGroup}
+            onRename={onRename}
+            onDelete={onDelete}
+            onOpenSettings={onOpenSettings}
+          />
+        </React.Suspense>
+      ) : null}
     </DropdownMenu>
   )
 }
