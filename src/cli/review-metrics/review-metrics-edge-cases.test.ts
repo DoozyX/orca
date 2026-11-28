@@ -127,7 +127,7 @@ describe('review-metrics edge cases', () => {
       'orchestrate/u/review-1.findings.md'
     )
     expect(parsed.errors).toEqual([
-      'orchestrate/u/review-1.findings.md: unparseable line "RX.1. a.ts:2 - major - [patch] - logic - invalid ID"'
+      'orchestrate/u/review-1.findings.md: finding line has ID "RX.1."; expected "R<r>.<n>." with <r> 1-3 or I, then a space: "RX.1. a.ts:2 - major - [patch] - logic - invalid ID"'
     ])
   })
 
