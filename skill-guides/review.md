@@ -169,11 +169,13 @@ heading in the review output.
 One line per finding, up to two indented continuation lines:
 
 ```text
-R<r>.<n>. <file>:<line> - <critical|major|minor> - [<patch|nit|decision-needed|defer>] - <tags> - <observation and concrete fix>
+R<r>.<n>. <location> - <critical|major|minor> - [<patch|nit|decision-needed|defer>] - <tags> - <observation and concrete fix>
    class: <bug class, ≤6 words> | sweep: `<search command>` -> <k> sites
    evidence: <quoted code + one-line trace>  |  cmd=`<command>` exit=<n> <deciding line>
 ```
 
+- Location: `<file>:<line>`, `<file>:<start>-<end>`, or a bare `<file>`; join
+  several with `, ` or `+`.
 - IDs: `<r>` is the review number from the budget row (`1`–`3`, or `I` for an
   integration review); a standalone review outside delivery uses `1`; `<n>`
   counts from 1. An open or upheld prior finding is re-listed under its
@@ -189,6 +191,8 @@ R<r>.<n>. <file>:<line> - <critical|major|minor> - [<patch|nit|decision-needed|d
   `R<r>.<n>` ID, never a `Prior:` line of an invented ID.
 - Rounds ≥2, after the merged list, one line per earlier ID:
   `Prior: R<r>.<n> - fixed|open|disputed-upheld|disputed-withdrawn - <one-line reason; evidence for a ruling>`.
+  Exactly one ID and one of those four rulings per line (no ranges or lists);
+  a coordinator-deferred item is `open`.
 
 Then two or three lines starting with `Checked:` naming what was actually
 verified: which layers ran, what the suite did if it ran, and what was skipped and

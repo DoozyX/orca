@@ -23,11 +23,16 @@ export type ParsedFindingsFile = {
 
 const ANCHOR = '## Merged findings'
 const FINDING_LINE =
-  /^(R[0-9I]+\.\d+)\. .+?:\d+ - (critical|major|minor) - \[(patch|nit|decision-needed|defer)\] - (.*?) - .*$/
+  /^(R[0-9I]+\.\d+)\. .+? - (critical|major|minor) - \[(patch|nit|decision-needed|defer)\] - (.*?) - .*$/
 const PRIOR_LINE =
   /^Prior: (R[0-9I]+\.\d+) - (fixed|open|disputed-upheld|disputed-withdrawn)(?: - .*)?$/
 const VERDICT_LINE =
   /^VERDICT: (?:clean|fix-needed patch=(\d+) decision-needed=(\d+) nit=(\d+) defer=(\d+))$/
+const FINDING_ID_PREFIX = /^R[0-9I]+\.\d+\. /
+const PRIOR_ID_PREFIX = /^R[0-9I]+\.\d+(?: |$)/
+const PRIOR_RULINGS = ['fixed', 'open', 'disputed-upheld', 'disputed-withdrawn']
+const SEVERITIES = ['critical', 'major', 'minor']
+const BUCKET_TAG = /^\[(?:patch|nit|decision-needed|defer)\]$/
 const FULL_SUITE_CHECK = /^Checked: tests full\b(.*)$/
 // Why: a line opening like a finding head (list marker, numbered item or ID token, then a bracketed bucket, or `<file>:<line> - <severity> - `) must parse or fail loudly; quoting lines stay ignorable.
 const FINDING_LIKE = [
@@ -36,6 +41,39 @@ const FINDING_LIKE = [
   /^[^:]*:\d+ - (?:critical|major|minor) - /i
 ]
 const PRIOR_LIKE = /^prior(?:\s*(?::|[-–—(])|\s+R[0-9I]+\.)/i
+
+function findingError(line: string): string {
+  const [idToken] = line.split(' ')
+  if (!FINDING_ID_PREFIX.test(line)) {
+    if (/^R(?:\d+|[A-Z])?\./.test(line) && line.split(' - ').length < 3) {
+      return 'line starts like a finding ID but is not a finding; put explanations in a "Checked:" line'
+    }
+    return `finding line has ID "${idToken}"; expected "R<r>.<n>." with <r> 1-3 or I, then a space`
+  }
+  const fields = line.slice(line.indexOf(' ') + 1).split(' - ')
+  if (fields.length > 1 && !SEVERITIES.includes(fields[1])) {
+    return `finding line has severity "${fields[1]}"; expected critical|major|minor`
+  }
+  if (fields.length > 2 && !BUCKET_TAG.test(fields[2])) {
+    return `finding line has bucket "${fields[2]}"; expected [patch|nit|decision-needed|defer]`
+  }
+  return 'finding line needs " - " (hyphen) between location, severity, [bucket], tags and text'
+}
+
+function priorError(line: string): string {
+  const rest = line.startsWith('Prior: ') ? line.slice('Prior: '.length) : null
+  if (rest === null) {
+    return 'malformed Prior line; expected "Prior: R<r>.<n> - fixed|open|disputed-upheld|disputed-withdrawn - <reason>"'
+  }
+  const fields = rest.split(' - ')
+  if (!PRIOR_ID_PREFIX.test(rest)) {
+    return `Prior line has ID "${fields[0]}"; expected one R<r>.<n> per line (ranges such as R1.1-R1.11 are not allowed)`
+  }
+  if (fields.length < 2) {
+    return 'Prior line needs " - " (hyphen) between ID, ruling and reason'
+  }
+  return `Prior line has ruling "${fields[1]}"; expected ${PRIOR_RULINGS.join('|')} (a coordinator-deferred item is open)`
+}
 
 function severityOf(value: string): FindingSeverity {
   switch (value) {
@@ -90,11 +128,19 @@ export function parseFindingsFile(text: string, path: string): ParsedFindingsFil
     return result
   }
   let latest: ParsedFinding | null = null
+  let malformedVerdict = false
   for (const raw of lines.slice(anchor + 1)) {
     const line = raw.trim()
     const verdict = VERDICT_LINE.exec(line)
     if (verdict) {
       result.verdict = verdictOf(verdict)
+      continue
+    }
+    if (line.startsWith('VERDICT:')) {
+      malformedVerdict = true
+      result.errors.push(
+        `${path}: malformed VERDICT line "${line}"; expected "VERDICT: clean" or "VERDICT: fix-needed patch=<n> decision-needed=<n> nit=<n> defer=<n>"`
+      )
       continue
     }
     const suite = FULL_SUITE_CHECK.exec(line)
@@ -112,7 +158,7 @@ export function parseFindingsFile(text: string, path: string): ParsedFindingsFil
       if (match) {
         result.priors.push({ id: match[1], ruling: match[2] })
       } else {
-        result.errors.push(`${path}: unparseable line "${line}"`)
+        result.errors.push(`${path}: ${priorError(line)}: "${line}"`)
       }
     } else if (FINDING_LIKE.some((pattern) => pattern.test(line))) {
       const match = FINDING_LINE.exec(line)
@@ -126,11 +172,11 @@ export function parseFindingsFile(text: string, path: string): ParsedFindingsFil
         }
         result.findings.push(latest)
       } else {
-        result.errors.push(`${path}: unparseable line "${line}"`)
+        result.errors.push(`${path}: ${findingError(line)}: "${line}"`)
       }
     }
   }
-  if (result.verdict === null) {
+  if (result.verdict === null && !malformedVerdict) {
     result.errors.push(`${path}: missing VERDICT line`)
   }
   return result

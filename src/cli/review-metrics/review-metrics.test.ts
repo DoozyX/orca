@@ -116,8 +116,8 @@ describe('review-metrics', () => {
       findings(['R1.1. broken line', 'Prior: R1.1 - nonsense'])
     )
     expect(readRunMetrics(root).parseErrors).toEqual([
-      'orchestrate/solo/review-1.findings.md: unparseable line "R1.1. broken line"',
-      'orchestrate/solo/review-1.findings.md: unparseable line "Prior: R1.1 - nonsense"',
+      'orchestrate/solo/review-1.findings.md: finding line needs " - " (hyphen) between location, severity, [bucket], tags and text: "R1.1. broken line"',
+      'orchestrate/solo/review-1.findings.md: Prior line has ruling "nonsense"; expected fixed|open|disputed-upheld|disputed-withdrawn (a coordinator-deferred item is open): "Prior: R1.1 - nonsense"',
       'orchestrate/solo/review-1.findings.md: missing VERDICT line',
       'orchestrate/retrospective.md: missing'
     ])
